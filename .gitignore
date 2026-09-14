@@ -1,0 +1,55 @@
+# ==========================================
+# XC_OmniBox - Git 忽略规则规范
+# 保护仓库轻量整洁，杜绝上传庞大依赖与临时隐私文件
+# ==========================================
+
+# 1. 前端 Node.js & Next.js 依赖与产物 (绝不能传)
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+out/
+build/
+dist/
+.npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# 2. 后端 Python 虚拟环境与缓存 (绝不能传)
+venv/
+**/venv/
+.venv/
+**/.venv/
+env/
+**/env/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+**/.pytest_cache/
+
+# 3. 临时处理文件与测试输出 (保护隐私与磁盘)
+backend/temp/
+**/backend/temp/
+backend/tests/output/
+**/tests/output/
+*.log
+
+# 4. 环境变量与机密配置
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 5. 编辑器与操作系统杂项
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
