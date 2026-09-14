@@ -1,15 +1,17 @@
 @echo off
 chcp 65001 >nul
-title OmniToolbox Frontend Service
+title XC_OmniBox Frontend Service
+
+set "CURRENT_DIR=%~dp0"
+cd /d "%CURRENT_DIR%frontend"
 
 echo =======================================================
-echo    💻 正在启动 全能多功能工具箱 Next.js 前端服务...
+echo    💻 正在启动 XC_OmniBox Next.js 前端服务...
+echo    📂 目录: %CD%
 echo =======================================================
-
-cd /d "%~dp0frontend"
 
 if not exist "node_modules" (
-    echo [提示] 首次运行，正在自动安装前端依赖 (npm install)...
+    echo [提示] 正在自动安装前端依赖 (npm install)...
     call npm install
 )
 

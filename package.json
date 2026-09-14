@@ -1,0 +1,12 @@
+{
+  "name": "xc-omnibox-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix frontend run start",
+    "frontend": "cd frontend && npm run dev",
+    "backend": "run_backend.bat"
+  }
+}
