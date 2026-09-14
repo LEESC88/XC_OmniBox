@@ -1,28 +1,23 @@
 @echo off
+setlocal
 chcp 65001 >nul
-title XC_OmniBox All-in-One Launcher
+title XC_OmniBox Launcher
 
-set "ROOT_PATH=%~dp0"
+set "PROJECT_DIR=%~dp0"
 
 echo =======================================================
-echo    🌟 XC_OmniBox 全能工具箱 一键启动器
+echo    Starting XC_OmniBox Services (Backend and Frontend)
 echo =======================================================
-echo.
 
-echo [1/2] 正在启动 Python 后端服务 (端口 8000)...
-start "XC_OmniBox Backend" /d "%ROOT_PATH%" cmd /c "run_backend.bat"
+echo [1/2] Launching Backend service on port 8000...
+start "XC_OmniBox_Backend" cmd /k "cd /d ""%PROJECT_DIR%"" && run_backend.bat"
 
 timeout /t 2 >nul
 
-echo [2/2] 正在启动 Next.js 前端服务 (端口 3000)...
-start "XC_OmniBox Frontend" /d "%ROOT_PATH%" cmd /c "run_frontend.bat"
-
-echo.
-echo =======================================================
-echo  >>> 正在打开浏览器访问前端操作界面...
-echo  >>> 前端主页: http://localhost:3000
-echo  >>> 后端文档: http://127.0.0.1:8000/docs
-echo =======================================================
+echo [2/2] Launching Frontend service on port 3000...
+start "XC_OmniBox_Frontend" cmd /k "cd /d ""%PROJECT_DIR%"" && run_frontend.bat"
 
 timeout /t 3 >nul
+
+echo Opening browser at http://localhost:3000 ...
 start http://localhost:3000
