@@ -16,11 +16,13 @@ import {
   Server,
   Image as ImageIcon,
   Music,
+  Wrench,
 } from "lucide-react";
 import Dropzone from "@/components/Dropzone";
 import InPlacePdfEditor from "@/components/InPlacePdfEditor";
 import ImageToolbox from "@/components/ImageToolbox";
 import AudioToolbox from "@/components/AudioToolbox";
+import DailyToolbox from "@/components/DailyToolbox";
 import {
   checkHealth,
   convertPdfToWord,
@@ -44,7 +46,7 @@ type TabType =
   | "pdf-protect";
 
 export default function Home() {
-  const [activeModule, setActiveModule] = useState<"document" | "image" | "audio">("document");
+  const [activeModule, setActiveModule] = useState<"document" | "image" | "audio" | "utilities">("document");
   const [activeTab, setActiveTab] = useState<TabType>("pdf-edit");
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
@@ -228,12 +230,12 @@ export default function Home() {
         </div>
       </header>
 
-      {/* 顶级模块切换：文档工具箱 vs 图片工具箱 vs 音频工具箱 */}
+      {/* 顶级模块切换：文档工具箱 vs 图片工具箱 vs 音频工具箱 vs 实用生活工具 */}
       <div className="w-full flex items-center justify-center mb-8">
-        <div className="inline-flex p-1.5 bg-slate-100 dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-inner">
+        <div className="inline-flex p-1.5 bg-slate-100 dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-inner flex-wrap justify-center gap-1">
           <button
             onClick={() => setActiveModule("document")}
-            className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
               activeModule === "document"
                 ? "bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-md shadow-slate-200/50"
                 : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
@@ -244,7 +246,7 @@ export default function Home() {
           </button>
           <button
             onClick={() => setActiveModule("image")}
-            className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
               activeModule === "image"
                 ? "bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-md shadow-slate-200/50"
                 : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
@@ -255,7 +257,7 @@ export default function Home() {
           </button>
           <button
             onClick={() => setActiveModule("audio")}
-            className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
               activeModule === "audio"
                 ? "bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-md shadow-slate-200/50"
                 : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
@@ -263,6 +265,17 @@ export default function Home() {
           >
             <Music className="w-4 h-4" />
             <span>🎵 音频工具箱</span>
+          </button>
+          <button
+            onClick={() => setActiveModule("utilities")}
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              activeModule === "utilities"
+                ? "bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-md shadow-slate-200/50"
+                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
+            }`}
+          >
+            <Wrench className="w-4 h-4" />
+            <span>🛠️ 实用生活工具</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-white font-mono font-normal">
               NEW
             </span>
@@ -274,6 +287,8 @@ export default function Home() {
         <ImageToolbox />
       ) : activeModule === "audio" ? (
         <AudioToolbox />
+      ) : activeModule === "utilities" ? (
+        <DailyToolbox />
       ) : (
         <>
           {/* 功能选项卡 Tab (新增 PDF 在线编辑并置首) */}
