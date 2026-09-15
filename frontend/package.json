@@ -8,6 +8,7 @@
     "start": "next start -p 3000"
   },
   "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
     "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",
     "heic2any": "^0.0.4",
