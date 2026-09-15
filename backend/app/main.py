@@ -7,11 +7,12 @@ from app.core.exceptions import ToolboxException
 from app.api.v1.health import router as health_router
 from app.api.v1.document import router as document_router
 from app.api.v1.pdf_ops import router as pdf_ops_router
+from app.api.v1.editor import router as editor_router
 
 app = FastAPI(
-    title="全能多功能工具箱 API (OmniToolbox Backend)",
-    description="支持高质量 Word/PDF 互转 (300+ DPI 保真)、PDF 页面管理、水印加密与多媒体处理服务",
-    version="1.0.0",
+    title="XC_OmniBox 后端核心 API",
+    description="支持高质量 Word/PDF 互转 (300+ DPI 保真)、PDF 在线所见即所得编辑、PDF 页面管理与水印安全服务",
+    version="1.1.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -37,6 +38,8 @@ async def toolbox_exception_handler(request: Request, exc: ToolboxException):
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(document_router, prefix="/api/v1")
 app.include_router(pdf_ops_router, prefix="/api/v1")
+app.include_router(editor_router, prefix="/api/v1")
+
 
 @app.get("/", tags=["Root"])
 def root():

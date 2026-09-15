@@ -191,8 +191,10 @@ npm run dev
 | 2026-09-14 | **v0.2.0 (策略调整)** | 策略与架构升级 | 1. **深度借鉴 GitHub 开源顶级项目**：吸收 Stirling-PDF（无状态 REST 管道架构）、pdf2docx（基于 PyMuPDF + python-docx 的逆向排版与表格还原算法）、Gotenberg/LibreOffice（300+ DPI 无损高清 PDF 导出参数）、IT-Tools（极简工具箱分类与纯前端小工具集合）。<br>2. **开发流程确立**：**后端优先**。先完成 Python FastAPI 后端全部转换接口与测试，通过 FastAPI 自动生成的交互式 Swagger 文档进行上传与效果验收，确认功能稳定后再搭建 Next.js 前端进行联调，最后再进行 UI 美化。 |
 | 2026-09-14 | **v0.3.0 (后端落地)** | 核心后端实施完成 | 1. **免权限轻量部署 Python 3.11**：通过官方 uv 工具在本地快速配置 CPython 3.11.16 与独立虚拟环境 `backend/venv`。<br>2. **落地核心转换引擎**：<br> - `PdfToWordService` (基于 pdf2docx，逆向还原段落、表格与内嵌高清图片)<br> - `WordToPdfService` (自适应检测 MS Word COM / LibreOffice 300+ DPI 打印级无损导出)<br> - `PdfService` (PDF 合并、拆分/提取、矢量任意角度倾斜水印、密码权限加密与解密)<br>3. **落地 RESTful API 与自动化生命周期**：封装 `/api/v1/document/*` 与 `/api/v1/pdf/*` 接口，结合 BackgroundTasks 实现临时文件无痕清理保护隐私。<br>4. **验证通过与服务启动**：全套单元测试与端到端 API 测试 100% 通过（耗时仅 0.03s~0.33s）；后端服务已在 `http://127.0.0.1:8000` 启动，Swagger UI 可直接在 `http://127.0.0.1:8000/docs` 体验测试。 |
 | 2026-09-14 | **v0.4.0 (前端落地)** | 极简可视化操作界面 | 1. 采用 Next.js 14 (App Router) + Tailwind CSS + Lucide 图标搭建极简操作台。<br>2. 顶栏实时健康探针监控（直观显示 Python 后端与 Word 引擎在线状态）。<br>3. 实现分类 Tab（PDF转Word、Word转高清PDF、PDF合并拆分、文字水印与加密保护）。<br>4. 通用拖拽上传（Dropzone）与一键直观下载，免去手动调用 API 文档的繁琐。 |
+| 2026-09-15 | **v0.5.0 (PDF Edit)** | PDF 在线直接编辑 (Word级) | 1. **全链路研发**：用户上传 PDF $\rightarrow$ 后端 `pdf2docx` + `mammoth` 逆向解析为精美结构化 HTML5 富文本。<br>2. **Office 仿真实时工作台**：前端打造 A4 纸张拟真视图，配备加粗/倾斜/颜色/标题/对齐/列表等全套 Word 级工具栏，可直接在网页里随意打字修改。<br>3. **双向一键无损导出**：修改后支持一键导出 300+ DPI 打印级超清 PDF（依托 Windows Word COM 原装打印引擎），并支持一键导出标准可编辑 Word (.docx)。 |
 
 *(后续任何技术修改、功能增减、需求调整均在此表格及对应章节做追踪记录)*
+
 
 
 

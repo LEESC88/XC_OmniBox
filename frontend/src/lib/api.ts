@@ -146,6 +146,55 @@ export async function protectPdf(file: File, password: string): Promise<{ blob: 
   return { blob, filename: `protected_${file.name}` };
 }
 
+export async function parsePdfForEditor(file: File): Promise<{ success: boolean; html: string; title: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_BASE}/editor/parse-pdf`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "解析失败" }));
+    throw new Error(err.detail || err.error || "解析 PDF 富文本失败");
+  }
+
+  return res.json();
+}
+
+export async function exportEditorPdf(html: string, filename: string = "edited_document"): Promise<{ blob: Blob; filename: string }> {
+  const res = await fetch(`${API_BASE}/editor/export-pdf`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ html, filename }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "导出 PDF 失败" }));
+    throw new Error(err.detail || err.error || "导出 PDF 失败");
+  }
+
+  const blob = await res.blob();
+  return { blob, filename: `${filename.replace(/\.[^/.]+$/, "")}.pdf` };
+}
+
+export async function exportEditorDocx(html: string, filename: string = "edited_document"): Promise<{ blob: Blob; filename: string }> {
+  const res = await fetch(`${API_BASE}/editor/export-docx`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ html, filename }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "导出 Word 失败" }));
+    throw new Error(err.detail || err.error || "导出 Word 失败");
+  }
+
+  const blob = await res.blob();
+  return { blob, filename: `${filename.replace(/\.[^/.]+$/, "")}.docx` };
+}
+
 export function downloadBlob(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -157,3 +206,4 @@ export function downloadBlob(blob: Blob, filename: string) {
   window.URL.revokeObjectURL(url);
   document.body.removeChild(a);
 }
+
