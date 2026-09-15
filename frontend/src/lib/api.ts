@@ -175,6 +175,9 @@ export async function renderPdfPages(file: File): Promise<{
   });
 
   if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error("后端服务未找到对应接口 (404)，请确认后端已正确启动");
+    }
     const err = await res.json().catch(() => ({ detail: "渲染失败" }));
     throw new Error(err.detail || err.error || "原版 PDF 页面渲染解析失败");
   }
@@ -196,6 +199,9 @@ export async function applyPdfModifications(
   });
 
   if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error("后端服务未找到对应接口 (404)，请确认后端已正确启动");
+    }
     const err = await res.json().catch(() => ({ detail: "保存修改失败" }));
     throw new Error(err.detail || err.error || "保存修改后的 PDF 失败");
   }
