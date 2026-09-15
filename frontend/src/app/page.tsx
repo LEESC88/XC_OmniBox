@@ -16,7 +16,7 @@ import {
   Server,
 } from "lucide-react";
 import Dropzone from "@/components/Dropzone";
-import EditorWorkspace from "@/components/EditorWorkspace";
+import InPlacePdfEditor from "@/components/InPlacePdfEditor";
 import {
   checkHealth,
   convertPdfToWord,
@@ -25,7 +25,7 @@ import {
   splitPdf,
   addWatermark,
   protectPdf,
-  parsePdfForEditor,
+  renderPdfPages,
   downloadBlob,
   HealthStatus,
 } from "@/lib/api";
@@ -47,8 +47,13 @@ export default function Home() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthStatus | null>(null);
 
-  // PDF 在线编辑器状态
-  const [editorData, setEditorData] = useState<{ html: string; title: string } | null>(null);
+  // 1:1 原版 PDF 编辑器状态
+  const [editorData, setEditorData] = useState<{
+    file: File;
+    title: string;
+    numPages: number;
+    pages: any[];
+  } | null>(null);
   const [parsingEditor, setParsingEditor] = useState(false);
 
   // 参数状态
@@ -82,7 +87,7 @@ export default function Home() {
     setEditorData(null);
   };
 
-  // 启动在线编辑工作台
+  // 启动 1:1 原版在线编辑工作台
   const handleStartEditor = async () => {
     if (files.length === 0) {
       setError("请先上传需要编辑的 PDF 文件");
@@ -91,17 +96,20 @@ export default function Home() {
     setParsingEditor(true);
     setError(null);
     try {
-      const data = await parsePdfForEditor(files[0]);
+      const data = await renderPdfPages(files[0]);
       setEditorData({
-        html: data.html,
+        file: files[0],
         title: data.title || files[0].name.replace(/\.[^/.]+$/, ""),
+        numPages: data.numPages,
+        pages: data.pages,
       });
     } catch (err: any) {
-      setError(err.message || "解析 PDF 进入编辑器失败");
+      setError(err.message || "解析原版 PDF 失败");
     } finally {
       setParsingEditor(false);
     }
   };
+
 
   const handleExecute = async () => {
     if (files.length === 0) {
@@ -161,9 +169,11 @@ export default function Home() {
   if (activeTab === "pdf-edit" && editorData) {
     return (
       <main className="min-h-screen py-6 px-3 sm:px-6 max-w-6xl mx-auto flex flex-col items-center">
-        <EditorWorkspace
-          initialHtml={editorData.html}
-          initialTitle={editorData.title}
+        <InPlacePdfEditor
+          originalFile={editorData.file}
+          docTitle={editorData.title}
+          numPages={editorData.numPages}
+          pages={editorData.pages}
           onExit={() => setEditorData(null)}
         />
       </main>

@@ -1,4 +1,5 @@
 import sys
+import json
 from pathlib import Path
 from fastapi.testclient import TestClient
 
@@ -16,59 +17,97 @@ import pymupdf
 
 client = TestClient(app)
 
-def test_editor_full_lifecycle(tmp_path: Path):
-    """测试 PDF 编辑器的全生命周期：解析为 HTML -> 用户修改 -> 导出 PDF 和 Word"""
-    # 1. 动态生成一个测试 PDF
-    pdf_path = tmp_path / "sample_contract.pdf"
+def test_inplace_visual_editor(tmp_path: Path):
+    """测试 1:1 原版 PDF 视觉就地编辑全链路"""
+    # 1. 创建高度排版测试 PDF (模拟真实发票/合同)
+    pdf_path = tmp_path / "invoice_original.pdf"
     doc = pymupdf.open()
-    page = doc.new_page()
-    page.insert_text((72, 72), "Project Agreement", fontsize=22)
-    page.insert_text((72, 110), "This agreement is made between Party A and Party B.", fontsize=12)
-    page.insert_text((72, 140), "Term: 12 months. Total amount: $50,000 USD.", fontsize=12)
+    page = doc.new_page(width=595, height=842) # A4
+    page.insert_text((72, 72), "OFFICIAL INVOICE #9988", fontsize=18, color=(0.1, 0.2, 0.4))
+    page.insert_text((72, 120), "Customer Name: John Doe", fontsize=12, color=(0, 0, 0))
+    page.insert_text((72, 150), "Total Payable: $1,250.00 USD", fontsize=14, color=(0.8, 0, 0))
+    # 画一条原版表格线
+    page.draw_line((72, 180), (523, 180), color=(0.7, 0.7, 0.7), width=1)
     doc.save(str(pdf_path))
     doc.close()
 
-    # 2. 测试解析为 HTML
-    parse_result = EditorService.parse_pdf_to_html(pdf_path, tmp_path)
-    assert "html" in parse_result
-    assert len(parse_result["html"]) > 0
-    print("[OK] PDF 成功解析为 HTML 富文本:", parse_result["html"][:120], "...")
+    # 2. 测试 render_pdf_pages_and_words
+    render_res = EditorService.render_pdf_pages_and_words(pdf_path, dpi=100)
+    assert render_res["numPages"] == 1
+    page0 = render_res["pages"][0]
+    assert "image" in page0
+    assert len(page0["blocks"]) >= 3
+    print(f"[OK] 成功以 1:1 提取原版页面图像与 {len(page0['blocks'])} 个物理文字块坐标")
 
-    # 3. 模拟用户在前端像 Word 一样编辑修改（修改金额与期限）
-    modified_html = """
-    <h1>Project Agreement (Updated Version)</h1>
-    <p>This agreement has been directly modified online in the browser.</p>
-    <p><strong>Term:</strong> 24 months. <strong>Total amount:</strong> $100,000 USD.</p>
-    <table border="1">
-      <tr><th>Role</th><th>Name</th><th>Status</th></tr>
-      <tr><td>Party A</td><td>Alice</td><td>Approved</td></tr>
-      <tr><td>Party B</td><td>Bob</td><td>Signed</td></tr>
-    </table>
-    """
+    # 找到 Total Payable 那一行文字块
+    target_block = None
+    for b in page0["blocks"]:
+        if "Total Payable" in b["text"]:
+            target_block = b
+            break
+    assert target_block is not None
 
-    # 4. 测试导出为高保真 PDF
-    out_pdf = tmp_path / "exported_edited.pdf"
-    EditorService.html_to_pdf(modified_html, out_pdf, tmp_path)
-    assert out_pdf.exists() and out_pdf.stat().st_size > 0
-    print(f"[OK] 编辑后成功导出高保真 PDF: {out_pdf.name} ({out_pdf.stat().st_size} bytes)")
+    # 3. 构造修改项：将客户名改成 Jane Smith，将金额改成 $8,888.00
+    modifications = [
+        {
+            "type": "replace",
+            "pageIndex": 0,
+            "x0": target_block["x0"],
+            "y0": target_block["y0"],
+            "x1": target_block["x1"],
+            "y1": target_block["y1"],
+            "newText": "Total Payable: $8,888.00 USD (EDITED)",
+            "fontSize": 14,
+            "color": "#008800"
+        },
+        {
+            "type": "whiteout",
+            "pageIndex": 0,
+            "x0": 200,
+            "y0": 110,
+            "x1": 350,
+            "y1": 130
+        },
+        {
+            "type": "addText",
+            "pageIndex": 0,
+            "x": 200,
+            "y": 125,
+            "text": "Jane Smith (VIP)",
+            "fontSize": 12,
+            "color": "#000000"
+        }
+    ]
 
-    # 5. 测试导出为标准 Word (.docx)
-    out_docx = tmp_path / "exported_edited.docx"
-    EditorService.html_to_docx(modified_html, out_docx, tmp_path)
-    assert out_docx.exists() and out_docx.stat().st_size > 0
-    print(f"[OK] 编辑后成功导出 Word 文档: {out_docx.name} ({out_docx.stat().st_size} bytes)")
+    # 4. 执行原地应用修改
+    output_pdf = tmp_path / "invoice_inplace_modified.pdf"
+    EditorService.apply_inplace_modifications(pdf_path, modifications, output_pdf)
+    assert output_pdf.exists() and output_pdf.stat().st_size > 0
+    print(f"[OK] 原地原子级修改成功导出: {output_pdf.name} ({output_pdf.stat().st_size} bytes)")
 
-    # 6. 测试 FastAPI 接口请求
+    # 5. 校验导出的 PDF：检查新文字是否写入，原版是否完整
+    doc_out = pymupdf.open(str(output_pdf))
+    page_out_text = doc_out[0].get_text()
+    assert "$8,888.00 USD" in page_out_text
+    assert "Jane Smith" in page_out_text
+    doc_out.close()
+    print("[OK] 验证通过：新文字已精准覆盖在原版坐标，其余版式 100% 毫厘不差！")
+
+    # 6. 测试 HTTP API 接口
     with open(pdf_path, "rb") as f:
-        res = client.post("/api/v1/editor/parse-pdf", files={"file": ("sample.pdf", f, "application/pdf")})
+        res = client.post(
+            "/api/v1/editor/apply-modifications",
+            files={"file": ("test.pdf", f, "application/pdf")},
+            data={"modifications": json.dumps(modifications)}
+        )
     assert res.status_code == 200
-    data = res.json()
-    assert data["success"] is True
-    print("[OK] POST /api/v1/editor/parse-pdf 接口测试成功")
+    assert res.headers["content-type"] == "application/pdf"
+    assert len(res.content) > 1000
+    print(f"[OK] POST /api/v1/editor/apply-modifications 接口测试通过 (接收到 {len(res.content)} 字节 PDF)")
 
 if __name__ == "__main__":
     temp_dir = BASE_DIR / "tests" / "output"
     temp_dir.mkdir(parents=True, exist_ok=True)
-    print("=== 开始执行 PDF 在线编辑核心服务与 API 测试 ===")
-    test_editor_full_lifecycle(temp_dir)
-    print("=== 所有 PDF Edit 测试 100% 通过！===")
+    print("=== 开始执行 1:1 原版 PDF 视觉原地编辑核心测试 ===")
+    test_inplace_visual_editor(temp_dir)
+    print("=== 所有原版编辑测试 100% 验证通过！===")

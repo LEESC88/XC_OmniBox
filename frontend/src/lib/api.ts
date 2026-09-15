@@ -146,54 +146,65 @@ export async function protectPdf(file: File, password: string): Promise<{ blob: 
   return { blob, filename: `protected_${file.name}` };
 }
 
-export async function parsePdfForEditor(file: File): Promise<{ success: boolean; html: string; title: string }> {
+export async function renderPdfPages(file: File): Promise<{
+  success: boolean;
+  title: string;
+  numPages: number;
+  pages: Array<{
+    pageIndex: number;
+    width: number;
+    height: number;
+    image: string;
+    blocks: Array<{
+      id: string;
+      x0: number;
+      y0: number;
+      x1: number;
+      y1: number;
+      text: string;
+      fontSize: number;
+    }>;
+  }>;
+}> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch(`${API_BASE}/editor/parse-pdf`, {
+  const res = await fetch(`${API_BASE}/editor/render-pages`, {
     method: "POST",
     body: formData,
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "解析失败" }));
-    throw new Error(err.detail || err.error || "解析 PDF 富文本失败");
+    const err = await res.json().catch(() => ({ detail: "渲染失败" }));
+    throw new Error(err.detail || err.error || "原版 PDF 页面渲染解析失败");
   }
 
   return res.json();
 }
 
-export async function exportEditorPdf(html: string, filename: string = "edited_document"): Promise<{ blob: Blob; filename: string }> {
-  const res = await fetch(`${API_BASE}/editor/export-pdf`, {
+export async function applyPdfModifications(
+  file: File,
+  modifications: any[]
+): Promise<{ blob: Blob; filename: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("modifications", JSON.stringify(modifications));
+
+  const res = await fetch(`${API_BASE}/editor/apply-modifications`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ html, filename }),
+    body: formData,
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "导出 PDF 失败" }));
-    throw new Error(err.detail || err.error || "导出 PDF 失败");
+    const err = await res.json().catch(() => ({ detail: "保存修改失败" }));
+    throw new Error(err.detail || err.error || "保存修改后的 PDF 失败");
   }
 
   const blob = await res.blob();
-  return { blob, filename: `${filename.replace(/\.[^/.]+$/, "")}.pdf` };
+  const filename = `${file.name.replace(/\.[^/.]+$/, "")}_edited.pdf`;
+  return { blob, filename };
 }
 
-export async function exportEditorDocx(html: string, filename: string = "edited_document"): Promise<{ blob: Blob; filename: string }> {
-  const res = await fetch(`${API_BASE}/editor/export-docx`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ html, filename }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "导出 Word 失败" }));
-    throw new Error(err.detail || err.error || "导出 Word 失败");
-  }
-
-  const blob = await res.blob();
-  return { blob, filename: `${filename.replace(/\.[^/.]+$/, "")}.docx` };
-}
 
 export function downloadBlob(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);
