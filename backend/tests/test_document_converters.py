@@ -55,6 +55,12 @@ def create_sample_docx(target_path: Path):
     doc.save(str(target_path))
     print(f"[OK] 成功生成测试 Word 文档: {target_path}")
 
+import pytest
+
+@pytest.fixture
+def output_dir(tmp_path: Path) -> Path:
+    return tmp_path
+
 def test_pdf_operations(output_dir: Path):
     """测试 PDF 页面操作：水印、合并、加密与解密"""
     import fitz

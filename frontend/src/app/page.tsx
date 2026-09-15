@@ -14,9 +14,11 @@ import {
   AlertCircle,
   Sparkles,
   Server,
+  Image as ImageIcon,
 } from "lucide-react";
 import Dropzone from "@/components/Dropzone";
 import InPlacePdfEditor from "@/components/InPlacePdfEditor";
+import ImageToolbox from "@/components/ImageToolbox";
 import {
   checkHealth,
   convertPdfToWord,
@@ -40,6 +42,7 @@ type TabType =
   | "pdf-protect";
 
 export default function Home() {
+  const [activeModule, setActiveModule] = useState<"document" | "image">("document");
   const [activeTab, setActiveTab] = useState<TabType>("pdf-edit");
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
@@ -223,8 +226,43 @@ export default function Home() {
         </div>
       </header>
 
-      {/* 功能选项卡 Tab (新增 PDF 在线编辑并置首) */}
-      <div className="w-full grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 mb-6">
+      {/* 顶级模块切换：文档工具箱 vs 图片工具箱 */}
+      <div className="w-full flex items-center justify-center mb-8">
+        <div className="inline-flex p-1.5 bg-slate-100 dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-inner">
+          <button
+            onClick={() => setActiveModule("document")}
+            className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              activeModule === "document"
+                ? "bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-md shadow-slate-200/50"
+                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>📄 文档工具箱 (Document Suite)</span>
+          </button>
+          <button
+            onClick={() => setActiveModule("image")}
+            className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              activeModule === "image"
+                ? "bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-md shadow-slate-200/50"
+                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
+            }`}
+          >
+            <ImageIcon className="w-4 h-4" />
+            <span>🖼️ 图片工具箱 (Image Suite)</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-white font-mono font-normal">
+              NEW
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {activeModule === "image" ? (
+        <ImageToolbox />
+      ) : (
+        <>
+          {/* 功能选项卡 Tab (新增 PDF 在线编辑并置首) */}
+          <div className="w-full grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 mb-6">
         <button
           onClick={() => handleTabChange("pdf-edit")}
           className={`flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-medium transition-all ${
@@ -505,6 +543,8 @@ export default function Home() {
           </button>
         )}
       </div>
+        </>
+      )}
 
       {/* 底部隐私与技术说明 */}
       <footer className="mt-8 text-center text-xs text-slate-400 space-y-1">
