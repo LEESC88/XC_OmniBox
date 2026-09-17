@@ -64,10 +64,10 @@ export default function Dropzone({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={() => inputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-200 ${
+          className={`group relative border-2 border-dashed rounded-2xl p-6 sm:p-10 text-center cursor-pointer transition-all duration-300 select-none ${
             isDragOver
-              ? "border-blue-500 bg-blue-50/60 scale-[0.99]"
-              : "border-slate-300 hover:border-blue-400 hover:bg-slate-50/60 bg-white"
+              ? "border-palm-500 bg-palm-50/60 dark:bg-palm-950/30 scale-[0.99] shadow-coconut-md ring-4 ring-palm-400/15"
+              : "border-coconut-300/90 dark:border-coconut-800/80 hover:border-coconut-500 dark:hover:border-toast-500/60 bg-coconut-50/40 dark:bg-darkbg-card/70 hover:bg-coconut-100/40 dark:hover:bg-darkbg-elevated shadow-coconut-sm"
           }`}
         >
           <input
@@ -78,42 +78,51 @@ export default function Dropzone({
             onChange={handleFileInput}
             className="hidden"
           />
-          <div className="flex flex-col items-center justify-center space-y-3">
-            <div className="p-4 bg-blue-50 text-blue-600 rounded-full shadow-inner">
+          <div className="flex flex-col items-center justify-center space-y-3.5">
+            <div className={`p-4 rounded-2xl transition-all duration-300 shadow-sm ${
+              isDragOver
+                ? "bg-palm-500 text-white scale-110"
+                : "bg-coconut-100 dark:bg-coconut-900/80 text-coconut-700 dark:text-toast-400 group-hover:scale-105 group-hover:bg-coconut-200 dark:group-hover:bg-coconut-800"
+            }`}>
               <UploadCloud className="w-8 h-8" />
             </div>
             <div>
-              <p className="text-base font-medium text-slate-800">{title}</p>
-              <p className="text-xs text-slate-400 mt-1">{hint}</p>
+              <p className="text-sm sm:text-base font-semibold text-coconut-900 dark:text-coconut-100 tracking-tight">
+                {title}
+              </p>
+              <p className="text-xs text-coconut-600/80 dark:text-coconut-400 mt-1">
+                {hint}
+              </p>
             </div>
           </div>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <div className="bg-white/90 dark:bg-darkbg-card border border-coconut-200/90 dark:border-darkbg-border rounded-2xl p-4 sm:p-5 shadow-coconut-sm backdrop-blur-sm">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <span className="text-xs font-bold uppercase tracking-wider text-coconut-700 dark:text-coconut-300 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-palm-500"></span>
               已选文件 ({selectedFiles.length})
             </span>
             <button
               onClick={onClear}
-              className="text-xs text-rose-500 hover:text-rose-600 flex items-center gap-1 font-medium"
+              className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 flex items-center gap-1 font-medium px-2 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
             >
               <X className="w-3.5 h-3.5" /> 重新选择
             </button>
           </div>
-          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
             {selectedFiles.map((file, idx) => (
               <div
                 key={idx}
-                className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg text-sm border border-slate-100"
+                className="flex items-center justify-between p-2.5 sm:p-3 bg-coconut-50/70 dark:bg-darkbg-elevated/80 rounded-xl text-sm border border-coconut-200/60 dark:border-darkbg-border transition-all hover:border-coconut-300 dark:hover:border-coconut-700"
               >
                 <div className="flex items-center gap-2.5 truncate">
-                  <FileIcon className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                  <span className="truncate font-medium text-slate-700 text-xs">
+                  <FileIcon className="w-4 h-4 text-coconut-600 dark:text-toast-400 flex-shrink-0" />
+                  <span className="truncate font-medium text-coconut-900 dark:text-coconut-100 text-xs">
                     {file.name}
                   </span>
                 </div>
-                <span className="text-xs text-slate-400 font-mono flex-shrink-0 ml-2">
+                <span className="text-xs text-coconut-500 dark:text-coconut-400 font-mono flex-shrink-0 ml-2">
                   {formatSize(file.size)}
                 </span>
               </div>

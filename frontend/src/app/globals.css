@@ -3,18 +3,82 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 15, 23, 42;
-  --background-start-rgb: 248, 250, 252;
-  --background-end-rgb: 241, 245, 249;
+  --color-canvas: #FAF7F2;
+  --color-card: #FFFFFF;
+  --color-border: #EFE6DC;
+  --color-text-main: #2B1D14;
+  --color-text-muted: #786557;
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
-  min-height: 100vh;
+.dark {
+  --color-canvas: #130F0C;
+  --color-card: #1D1713;
+  --color-border: #382D24;
+  --color-text-main: #FAF4EE;
+  --color-text-muted: #B8A79B;
 }
+
+/* 页面主体与平滑色彩过渡 */
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-text-main);
+  min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* 浅色模式背景：温润椰乳伴随微弱晨曦暖光 */
+body:not(.dark) {
+  background-image: 
+    radial-gradient(at 10% 10%, rgba(243, 235, 225, 0.7) 0px, transparent 40%),
+    radial-gradient(at 90% 80%, rgba(230, 215, 195, 0.45) 0px, transparent 45%),
+    radial-gradient(at 50% 100%, rgba(224, 242, 231, 0.35) 0px, transparent 40%);
+  background-attachment: fixed;
+}
+
+/* 深色模式背景：深焙椰壳夜幕微光 */
+.dark body {
+  background-image: 
+    radial-gradient(at 10% 10%, rgba(212, 163, 115, 0.05) 0px, transparent 40%),
+    radial-gradient(at 90% 80%, rgba(66, 43, 25, 0.3) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* 自定义椰香温润滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D4BEA3;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #B99B7D;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #422B19;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #5C3E26;
+}
+
+/* 隐藏滚动条但保留滑动功能 (针对手机端 Tab 横向平滑手势) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

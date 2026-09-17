@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Image as ImageIcon,
   Apple,
@@ -55,13 +55,33 @@ const PRESETS = [
   { name: "1080P 高清壁纸", width: 1920, height: 1080, desc: "16:9 全高清显示" },
 ];
 
-export default function ImageToolbox() {
-  const [activeTab, setActiveTab] = useState<ImageToolTab>("compress");
+export interface ImageToolboxProps {
+  currentTab?: ImageToolTab;
+  onTabChange?: (tab: ImageToolTab) => void;
+}
+
+export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxProps = {}) {
+  const [activeTab, setActiveTab] = useState<ImageToolTab>(currentTab || "compress");
   const [files, setFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progressText, setProgressText] = useState("");
   const [results, setResults] = useState<ProcessedResult[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (currentTab && currentTab !== activeTab) {
+      setActiveTab(currentTab);
+      setResults([]);
+      setError(null);
+    }
+  }, [currentTab]);
+
+  const handleTabSelect = (tab: ImageToolTab) => {
+    setActiveTab(tab);
+    setResults([]);
+    setError(null);
+    onTabChange?.(tab);
+  };
 
   // --- HEIC 转换参数 ---
   const [heicTargetFormat, setHeicTargetFormat] = useState<"image/jpeg" | "image/png">("image/jpeg");
@@ -274,8 +294,8 @@ export default function ImageToolbox() {
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in">
-      {/* 6 大子功能 Tab 切换条 */}
-      <div className="flex items-center space-x-2 overflow-x-auto pb-2 border-b border-zinc-200 dark:border-zinc-800 scrollbar-none">
+      {/* 6 大子功能 Tab 切换条 (横向平滑手势滑动) */}
+      <div className="w-full flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 border-b border-coconut-200/80 dark:border-darkbg-border snap-x snap-mandatory touch-pan-x">
         {[
           { id: "compress", label: "智能图片压缩", icon: Zap, badge: "TinyPNG级" },
           { id: "heic", label: "苹果 HEIC 秒转", icon: Apple, badge: "iPhone原图" },
@@ -289,15 +309,11 @@ export default function ImageToolbox() {
           return (
             <button
               key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id as ImageToolTab);
-                setResults([]);
-                setError(null);
-              }}
-              className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all whitespace-nowrap flex-shrink-0 ${
+              onClick={() => handleTabSelect(tab.id as ImageToolTab)}
+              className={`flex items-center space-x-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap flex-shrink-0 snap-start active:scale-95 ${
                 isActive
-                  ? "bg-blue-600 text-white shadow-sm shadow-blue-500/25"
-                  : "bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800"
+                  ? "bg-coconut-800 text-coconut-50 dark:bg-toast-500 dark:text-darkbg-canvas shadow-coconut-sm scale-[1.02]"
+                  : "bg-white/80 dark:bg-darkbg-card text-coconut-700 dark:text-coconut-300 border border-coconut-200/80 dark:border-darkbg-border hover:bg-coconut-100/60 dark:hover:bg-darkbg-elevated"
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -305,8 +321,8 @@ export default function ImageToolbox() {
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
                   isActive
-                    ? "bg-blue-500/50 text-white"
-                    : "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"
+                    ? "bg-coconut-700/80 text-coconut-100 dark:bg-darkbg-canvas/30 dark:text-darkbg-canvas"
+                    : "bg-coconut-200/80 dark:bg-darkbg-elevated text-coconut-700 dark:text-coconut-400"
                 }`}
               >
                 {tab.badge}
@@ -317,10 +333,10 @@ export default function ImageToolbox() {
       </div>
 
       {/* 参数控制面板 (根据 activeTab 变化) */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-2xl p-5 shadow-sm space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800/60">
-          <div className="flex items-center space-x-2 text-zinc-800 dark:text-zinc-200 font-medium text-sm">
-            <Sliders className="w-4 h-4 text-blue-500" />
+      <div className="bg-white/95 dark:bg-darkbg-card border border-coconut-200/90 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-4 backdrop-blur-md">
+        <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
+          <div className="flex items-center space-x-2 text-coconut-900 dark:text-coconut-100 font-bold text-sm">
+            <Sliders className="w-4 h-4 text-toast-500" />
             <span>
               {activeTab === "compress" && "压缩选项设置 (智能重采样 & 体积优化)"}
               {activeTab === "heic" && "苹果 HEIC/HEIF 转换目标格式"}
@@ -340,8 +356,8 @@ export default function ImageToolbox() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-1">
             <div className="space-y-2">
               <div className="flex justify-between text-xs">
-                <span className="text-zinc-600 dark:text-zinc-400 font-medium">压缩质量</span>
-                <span className="text-blue-600 dark:text-blue-400 font-bold">{Math.round(compressQuality * 100)}%</span>
+                <span className="text-coconut-700 dark:text-coconut-300 font-medium">压缩质量</span>
+                <span className="text-coconut-800 dark:text-toast-400 font-bold">{Math.round(compressQuality * 100)}%</span>
               </div>
               <input
                 type="range"
@@ -350,39 +366,39 @@ export default function ImageToolbox() {
                 step="0.05"
                 value={compressQuality}
                 onChange={(e) => setCompressQuality(parseFloat(e.target.value))}
-                className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                className="w-full h-2 bg-coconut-200 dark:bg-coconut-900 rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-toast-500"
               />
-              <p className="text-[11px] text-zinc-400">推荐 70%~85%，肉眼几乎无失真，体积降低 60%~80%</p>
+              <p className="text-[11px] text-coconut-500 dark:text-coconut-400">推荐 70%~85%，肉眼几乎无失真，体积降低 60%~80%</p>
             </div>
 
             <div className="space-y-2">
-              <span className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">最大分辨率限制</span>
+              <span className="text-xs text-coconut-700 dark:text-coconut-300 font-medium">最大分辨率限制</span>
               <select
                 value={compressMaxResolution}
                 onChange={(e) => setCompressMaxResolution(parseInt(e.target.value))}
-                className="w-full px-3 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full px-3 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-coconut-100 focus:outline-none focus:border-coconut-600 dark:focus:border-toast-500"
               >
                 <option value={4096}>保持原图大尺寸 (最大 4096px)</option>
                 <option value={2560}>2K 常见大图 (最大 2560px)</option>
                 <option value={1920}>1080P 高清 (最大 1920px)</option>
                 <option value={1280}>网页极速加载 (最大 1280px)</option>
               </select>
-              <p className="text-[11px] text-zinc-400">超过此分辨率将自动等比例重采样</p>
+              <p className="text-[11px] text-coconut-500 dark:text-coconut-400">超过此分辨率将自动等比例重采样</p>
             </div>
 
             <div className="space-y-2">
-              <span className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">目标体积上限</span>
+              <span className="text-xs text-coconut-700 dark:text-coconut-300 font-medium">目标体积上限</span>
               <select
                 value={compressTargetSizeMB}
                 onChange={(e) => setCompressTargetSizeMB(parseFloat(e.target.value))}
-                className="w-full px-3 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full px-3 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-coconut-100 focus:outline-none focus:border-coconut-600 dark:focus:border-toast-500"
               >
                 <option value={0.5}>极度精简 (≤ 500 KB)</option>
                 <option value={1}>日常分享 (≤ 1 MB)</option>
                 <option value={2}>标准高清 (≤ 2 MB)</option>
                 <option value={5}>大图印刷 (≤ 5 MB)</option>
               </select>
-              <p className="text-[11px] text-zinc-400">优先兼顾文件大小上限约束</p>
+              <p className="text-[11px] text-coconut-500 dark:text-coconut-400">优先兼顾文件大小上限约束</p>
             </div>
           </div>
         )}
@@ -391,7 +407,7 @@ export default function ImageToolbox() {
         {activeTab === "heic" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
             <div className="space-y-2">
-              <span className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">转换目标格式</span>
+              <span className="text-xs text-coconut-700 dark:text-coconut-300 font-medium">转换目标格式</span>
               <div className="flex space-x-3">
                 {[
                   { value: "image/jpeg", label: "JPG / JPEG", desc: "兼容性最高，文件较小" },
@@ -399,10 +415,10 @@ export default function ImageToolbox() {
                 ].map((opt) => (
                   <label
                     key={opt.value}
-                    className={`flex-1 flex flex-col p-3 rounded-xl border cursor-pointer transition-all ${
+                    className={`flex-1 flex flex-col p-3.5 rounded-2xl border cursor-pointer transition-all ${
                       heicTargetFormat === opt.value
-                        ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300"
-                        : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
+                        ? "border-coconut-700 dark:border-toast-500 bg-coconut-100/60 dark:bg-darkbg-elevated text-coconut-900 dark:text-toast-300 shadow-coconut-sm"
+                        : "border-coconut-200 dark:border-darkbg-border hover:border-coconut-300 dark:hover:border-coconut-700"
                     }`}
                   >
                     <div className="flex items-center space-x-2">
@@ -411,11 +427,11 @@ export default function ImageToolbox() {
                         name="heicFormat"
                         checked={heicTargetFormat === opt.value}
                         onChange={() => setHeicTargetFormat(opt.value as any)}
-                        className="text-blue-600"
+                        className="accent-coconut-700 dark:accent-toast-500"
                       />
                       <span className="font-semibold text-sm">{opt.label}</span>
                     </div>
-                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">{opt.desc}</span>
+                    <span className="text-[11px] text-coconut-600 dark:text-coconut-400 mt-1">{opt.desc}</span>
                   </label>
                 ))}
               </div>
@@ -423,8 +439,8 @@ export default function ImageToolbox() {
 
             <div className="space-y-2">
               <div className="flex justify-between text-xs">
-                <span className="text-zinc-600 dark:text-zinc-400 font-medium">输出画质清晰度</span>
-                <span className="text-blue-600 dark:text-blue-400 font-bold">{Math.round(heicQuality * 100)}%</span>
+                <span className="text-coconut-700 dark:text-coconut-300 font-medium">输出画质清晰度</span>
+                <span className="text-coconut-800 dark:text-toast-400 font-bold">{Math.round(heicQuality * 100)}%</span>
               </div>
               <input
                 type="range"
@@ -433,9 +449,9 @@ export default function ImageToolbox() {
                 step="0.05"
                 value={heicQuality}
                 onChange={(e) => setHeicQuality(parseFloat(e.target.value))}
-                className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                className="w-full h-2 bg-coconut-200 dark:bg-coconut-900 rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-toast-500"
               />
-              <p className="text-[11px] text-zinc-400">苹果 iPhone 实拍 HEIC 照片直接在本地解压渲染，秒级转码</p>
+              <p className="text-[11px] text-coconut-500 dark:text-coconut-400">苹果 iPhone 实拍 HEIC 照片直接在本地解压渲染，秒级转码</p>
             </div>
           </div>
         )}
@@ -444,23 +460,23 @@ export default function ImageToolbox() {
         {activeTab === "convert" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-1">
             <div className="space-y-2">
-              <span className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">目标输出格式</span>
+              <span className="text-xs text-coconut-700 dark:text-coconut-300 font-medium">目标输出格式</span>
               <div className="grid grid-cols-3 gap-2">
                 {(["webp", "png", "jpg", "ico", "bmp"] as const).map((fmt) => (
                   <button
                     key={fmt}
                     onClick={() => setConvertTarget(fmt)}
-                    className={`py-2 px-3 rounded-lg text-xs font-semibold uppercase transition-all ${
+                    className={`py-2 px-3 rounded-xl text-xs font-bold uppercase transition-all ${
                       convertTarget === fmt
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                        ? "bg-coconut-800 text-coconut-50 dark:bg-toast-500 dark:text-darkbg-canvas shadow-sm"
+                        : "bg-coconut-100/70 dark:bg-darkbg-elevated text-coconut-700 dark:text-coconut-300 hover:bg-coconut-200/70 dark:hover:bg-coconut-800/40"
                     }`}
                   >
                     {fmt}
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-zinc-400">
+              <p className="text-[11px] text-coconut-500 dark:text-coconut-400">
                 {convertTarget === "ico" && "自动生成 Windows 软件/网站 favicon 标准 ICO 图标"}
                 {convertTarget === "webp" && "下一代高压缩率网络图片格式，体积仅为 JPG 的一半"}
                 {convertTarget === "png" && "无损高保真透明图"}
@@ -470,8 +486,8 @@ export default function ImageToolbox() {
 
             <div className="space-y-2">
               <div className="flex justify-between text-xs">
-                <span className="text-zinc-600 dark:text-zinc-400 font-medium">输出画质</span>
-                <span className="text-blue-600 dark:text-blue-400 font-bold">{Math.round(convertQuality * 100)}%</span>
+                <span className="text-coconut-700 dark:text-coconut-300 font-medium">输出画质</span>
+                <span className="text-coconut-800 dark:text-toast-400 font-bold">{Math.round(convertQuality * 100)}%</span>
               </div>
               <input
                 type="range"
@@ -480,9 +496,9 @@ export default function ImageToolbox() {
                 step="0.05"
                 value={convertQuality}
                 onChange={(e) => setConvertQuality(parseFloat(e.target.value))}
-                className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                className="w-full h-2 bg-coconut-200 dark:bg-coconut-900 rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-toast-500"
               />
-              <p className="text-[11px] text-zinc-400">对 WebP / JPG 格式生效</p>
+              <p className="text-[11px] text-coconut-500 dark:text-coconut-400">对 WebP / JPG 格式生效</p>
             </div>
 
             <div className="space-y-2">
@@ -532,8 +548,8 @@ export default function ImageToolbox() {
                     onClick={() => setResizePercent(p)}
                     className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                       resizePercent === p
-                        ? "bg-blue-600 text-white"
-                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                        ? "bg-coconut-800 text-coconut-50 dark:bg-toast-500 dark:text-darkbg-canvas shadow-sm"
+                        : "bg-coconut-100/70 dark:bg-darkbg-elevated text-coconut-700 dark:text-coconut-300 hover:bg-coconut-200/60 dark:hover:bg-coconut-800/40"
                     }`}
                   >
                     {p}% 比例
@@ -548,17 +564,17 @@ export default function ImageToolbox() {
                   <button
                     key={pst.name}
                     onClick={() => setSelectedPreset(pst)}
-                    className={`text-left p-2.5 rounded-xl border transition-all ${
+                    className={`text-left p-3 rounded-2xl border transition-all ${
                       selectedPreset.name === pst.name
-                        ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300"
-                        : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
+                        ? "border-coconut-700 dark:border-toast-500 bg-coconut-100/60 dark:bg-darkbg-elevated text-coconut-900 dark:text-toast-300 shadow-coconut-sm"
+                        : "border-coconut-200 dark:border-darkbg-border hover:border-coconut-300 dark:hover:border-coconut-700"
                     }`}
                   >
-                    <div className="font-semibold text-xs">{pst.name}</div>
-                    <div className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    <div className="font-bold text-xs">{pst.name}</div>
+                    <div className="text-[11px] font-mono text-coconut-600 dark:text-coconut-400 mt-0.5">
                       {pst.width} × {pst.height} px
                     </div>
-                    <div className="text-[10px] text-zinc-400 mt-1">{pst.desc}</div>
+                    <div className="text-[10px] text-coconut-500 dark:text-coconut-400 mt-1">{pst.desc}</div>
                   </button>
                 ))}
               </div>
@@ -567,33 +583,33 @@ export default function ImageToolbox() {
             {resizeMode === "custom" && (
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs text-zinc-500">宽:</span>
+                  <span className="text-xs text-coconut-600 dark:text-coconut-400">宽:</span>
                   <input
                     type="number"
                     placeholder="例如 800"
                     value={customWidth}
                     onChange={(e) => setCustomWidth(e.target.value ? parseInt(e.target.value) : "")}
-                    className="w-28 px-2.5 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg"
+                    className="w-28 px-2.5 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-coconut-100"
                   />
-                  <span className="text-xs text-zinc-400">px</span>
+                  <span className="text-xs text-coconut-400">px</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs text-zinc-500">高:</span>
+                  <span className="text-xs text-coconut-600 dark:text-coconut-400">高:</span>
                   <input
                     type="number"
                     placeholder="例如 600"
                     value={customHeight}
                     onChange={(e) => setCustomHeight(e.target.value ? parseInt(e.target.value) : "")}
-                    className="w-28 px-2.5 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg"
+                    className="w-28 px-2.5 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-coconut-100"
                   />
-                  <span className="text-xs text-zinc-400">px</span>
+                  <span className="text-xs text-coconut-400">px</span>
                 </div>
-                <label className="flex items-center space-x-2 text-xs text-zinc-600 dark:text-zinc-400 cursor-pointer">
+                <label className="flex items-center space-x-2 text-xs text-coconut-700 dark:text-coconut-300 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={lockAspect}
                     onChange={(e) => setLockAspect(e.target.checked)}
-                    className="rounded text-blue-600"
+                    className="rounded accent-coconut-700 dark:accent-toast-500"
                   />
                   <span>锁定等比例缩放 (防止变形)</span>
                 </label>
@@ -604,12 +620,12 @@ export default function ImageToolbox() {
 
         {/* 5. EXIF 隐私抹除面板 */}
         {activeTab === "exif" && (
-          <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/60 rounded-xl space-y-2 text-xs">
-            <div className="font-semibold text-emerald-800 dark:text-emerald-300 flex items-center space-x-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <div className="p-4 sm:p-5 bg-palm-50/60 dark:bg-palm-950/20 border border-palm-200/60 dark:border-palm-900/60 rounded-2xl space-y-2 text-xs">
+            <div className="font-bold text-palm-800 dark:text-palm-300 flex items-center space-x-2">
+              <ShieldCheck className="w-4 h-4 text-palm-600 dark:text-palm-400" />
               <span>100% 抹除隐私定位与拍摄硬件特征</span>
             </div>
-            <p className="text-emerald-700 dark:text-emerald-400/90 leading-relaxed">
+            <p className="text-palm-700 dark:text-palm-300/90 leading-relaxed">
               手机（尤其是 iPhone、华为、小米等）与数码单反所拍的照片，内部包含敏感的 <strong>EXIF 交换元数据</strong>，
               包括<strong>拍摄经纬度 GPS 坐标（能精确到具体单元楼门牌）</strong>、拍摄详细时间、手机具体型号、镜头光圈快门等。
               本工具通过纯前端 Canvas 像素流重构技术，在<strong>不降低清晰度</strong>的前提下完全剥离任何非像素元数据，让您在社交网络放心发布原图！
@@ -623,20 +639,20 @@ export default function ImageToolbox() {
             <div className="flex space-x-3">
               <button
                 onClick={() => setWatermarkType("text")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                   watermarkType === "text"
-                    ? "bg-blue-600 text-white"
-                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+                    ? "bg-coconut-800 text-coconut-50 dark:bg-toast-500 dark:text-darkbg-canvas shadow-sm"
+                    : "bg-coconut-100/70 dark:bg-darkbg-elevated text-coconut-700 dark:text-coconut-300"
                 }`}
               >
                 文字水印
               </button>
               <button
                 onClick={() => setWatermarkType("logo")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                   watermarkType === "logo"
-                    ? "bg-blue-600 text-white"
-                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+                    ? "bg-coconut-800 text-coconut-50 dark:bg-toast-500 dark:text-darkbg-canvas shadow-sm"
+                    : "bg-coconut-100/70 dark:bg-darkbg-elevated text-coconut-700 dark:text-coconut-300"
                 }`}
               >
                 Logo 图片水印
@@ -678,15 +694,15 @@ export default function ImageToolbox() {
                     step="0.05"
                     value={watermarkOpacity}
                     onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
-                    className="w-full accent-blue-600"
+                    className="w-full accent-coconut-700 dark:accent-toast-500"
                   />
                 </div>
                 <div className="space-y-1">
-                  <span className="text-xs text-zinc-500">水印布局</span>
+                  <span className="text-xs text-coconut-600 dark:text-coconut-400">水印布局</span>
                   <select
                     value={watermarkPos}
                     onChange={(e) => setWatermarkPos(e.target.value as any)}
-                    className="w-full px-2.5 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg"
+                    className="w-full px-2.5 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-coconut-100"
                   >
                     <option value="tile">全图平铺防盗 (推荐)</option>
                     <option value="bottom-right">右下角</option>
@@ -711,16 +727,16 @@ export default function ImageToolbox() {
                 />
                 <button
                   onClick={() => logoInputRef.current?.click()}
-                  className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200"
+                  className="px-3.5 py-2 bg-coconut-100/80 dark:bg-darkbg-elevated border border-coconut-300 dark:border-darkbg-border rounded-xl text-xs font-semibold text-coconut-800 dark:text-coconut-200 hover:bg-coconut-200/80"
                 >
                   {watermarkLogoFile ? `已选 Logo: ${watermarkLogoFile.name}` : "选择透明 PNG Logo"}
                 </button>
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs text-zinc-500">位置:</span>
+                  <span className="text-xs text-coconut-600 dark:text-coconut-400">位置:</span>
                   <select
                     value={watermarkPos}
                     onChange={(e) => setWatermarkPos(e.target.value as any)}
-                    className="px-2.5 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg"
+                    className="px-2.5 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-coconut-100"
                   >
                     <option value="bottom-right">右下角</option>
                     <option value="bottom-left">左下角</option>
@@ -729,7 +745,7 @@ export default function ImageToolbox() {
                   </select>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs text-zinc-500">透明度:</span>
+                  <span className="text-xs text-coconut-600 dark:text-coconut-400">透明度:</span>
                   <input
                     type="range"
                     min="0.1"
@@ -737,9 +753,9 @@ export default function ImageToolbox() {
                     step="0.05"
                     value={watermarkOpacity}
                     onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
-                    className="w-24 accent-blue-600"
+                    className="w-24 accent-coconut-700 dark:accent-toast-500"
                   />
-                  <span className="text-xs font-mono">{Math.round(watermarkOpacity * 100)}%</span>
+                  <span className="text-xs font-mono text-coconut-700 dark:text-coconut-300">{Math.round(watermarkOpacity * 100)}%</span>
                 </div>
               </div>
             )}
@@ -752,7 +768,7 @@ export default function ImageToolbox() {
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className="group relative border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-blue-500 dark:hover:border-blue-400 bg-zinc-50/50 dark:bg-zinc-900/40 hover:bg-blue-50/20 dark:hover:bg-blue-950/10 rounded-2xl p-8 text-center cursor-pointer transition-all duration-200"
+        className="group relative border-2 border-dashed border-coconut-300 dark:border-coconut-800/80 hover:border-coconut-500 dark:hover:border-toast-500 bg-coconut-50/40 dark:bg-darkbg-card/70 hover:bg-coconut-100/40 dark:hover:bg-darkbg-elevated rounded-3xl p-6 sm:p-10 text-center cursor-pointer transition-all duration-300 shadow-coconut-sm select-none"
       >
         <input
           ref={fileInputRef}
@@ -762,15 +778,15 @@ export default function ImageToolbox() {
           onChange={handleFileChange}
           className="hidden"
         />
-        <div className="flex flex-col items-center space-y-3">
-          <div className="w-14 h-14 rounded-2xl bg-blue-100/80 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform shadow-inner">
+        <div className="flex flex-col items-center space-y-3.5">
+          <div className="w-14 h-14 rounded-2xl bg-coconut-100 dark:bg-coconut-900/80 text-coconut-700 dark:text-toast-400 flex items-center justify-center group-hover:scale-105 transition-transform shadow-inner">
             <UploadCloud className="w-7 h-7" />
           </div>
           <div>
-            <p className="text-base font-semibold text-zinc-800 dark:text-zinc-200">
+            <p className="text-base font-bold text-coconut-900 dark:text-coconut-100 tracking-tight">
               点击选择或拖拽图片到此处（支持多图批量处理）
             </p>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
+            <p className="text-xs text-coconut-600/80 dark:text-coconut-400 mt-1">
               {activeTab === "heic"
                 ? "支持苹果 iPhone / iPad 原图实拍格式: .HEIC, .HEIF"
                 : "支持主流图片格式: JPG, PNG, WebP, AVIF, BMP, SVG, HEIC 等"}
@@ -781,17 +797,17 @@ export default function ImageToolbox() {
 
       {/* 待处理文件预览列表 */}
       {files.length > 0 && (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="bg-white/95 dark:bg-darkbg-card border border-coconut-200/90 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-4 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <FileImage className="w-4 h-4 text-blue-500" />
-              <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200">
+              <FileImage className="w-4 h-4 text-toast-500" />
+              <span className="font-bold text-sm text-coconut-900 dark:text-coconut-100">
                 已选图片 ({files.length} 张 · 总大小 {formatBytes(files.reduce((acc, f) => acc + f.size, 0))})
               </span>
             </div>
             <button
               onClick={clearAllFiles}
-              className="text-xs text-red-500 hover:text-red-600 flex items-center space-x-1"
+              className="text-xs text-rose-500 hover:text-rose-600 flex items-center space-x-1 font-medium px-2.5 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>清空全部</span>
@@ -802,18 +818,18 @@ export default function ImageToolbox() {
             {files.map((file, idx) => (
               <div
                 key={`${file.name}_${idx}`}
-                className="group relative bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/60 rounded-xl p-2.5 flex flex-col justify-between"
+                className="group relative bg-coconut-50/70 dark:bg-darkbg-elevated/70 border border-coconut-200/70 dark:border-darkbg-border rounded-2xl p-3 flex flex-col justify-between"
               >
-                <div className="truncate text-xs font-medium text-zinc-700 dark:text-zinc-300" title={file.name}>
+                <div className="truncate text-xs font-semibold text-coconut-900 dark:text-coconut-100" title={file.name}>
                   {file.name}
                 </div>
-                <div className="text-[10px] text-zinc-400 mt-1">{formatBytes(file.size)}</div>
+                <div className="text-[10px] text-coconut-500 dark:text-coconut-400 font-mono mt-1">{formatBytes(file.size)}</div>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     removeFile(idx);
                   }}
-                  className="absolute top-1 right-1 p-1 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-1.5 right-1.5 p-1 rounded-full bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>
@@ -823,11 +839,11 @@ export default function ImageToolbox() {
 
           {/* 执行按钮 */}
           <div className="pt-2 flex items-center justify-between">
-            <div className="text-xs text-zinc-400">{progressText}</div>
+            <div className="text-xs text-coconut-600 dark:text-coconut-400">{progressText}</div>
             <button
               onClick={handleExecuteBatch}
               disabled={isProcessing}
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold flex items-center space-x-2 transition-all shadow-md shadow-blue-500/20"
+              className="px-6 py-3 bg-gradient-to-r from-coconut-700 via-coconut-800 to-coconut-900 hover:from-coconut-800 hover:to-coconut-950 text-coconut-50 dark:from-toast-500 dark:to-toast-600 dark:text-darkbg-canvas disabled:opacity-50 rounded-2xl text-sm font-bold flex items-center space-x-2 transition-all shadow-coconut-md active:scale-95"
             >
               {isProcessing ? (
                 <>
@@ -836,7 +852,7 @@ export default function ImageToolbox() {
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4" />
+                  <Sparkles className="w-4 h-4 text-toast-300" />
                   <span>开始批量处理 ({files.length} 张)</span>
                 </>
               )}
@@ -847,25 +863,25 @@ export default function ImageToolbox() {
 
       {/* 报错提醒 */}
       {error && (
-        <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 flex items-center space-x-3 text-red-600 dark:text-red-400 text-sm animate-shake">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="p-4 rounded-2xl bg-rose-50/90 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-center space-x-3 text-rose-700 dark:text-rose-300 text-sm shadow-sm">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-500" />
           <span>{error}</span>
         </div>
       )}
 
       {/* 处理完成结果展示与一键打包下载 */}
       {results.length > 0 && (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
+        <div className="bg-white/95 dark:bg-darkbg-card border border-coconut-200/90 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-4 backdrop-blur-md">
+          <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
             <div className="flex items-center space-x-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-              <span className="font-semibold text-base text-zinc-800 dark:text-zinc-200">
-                处理完成！共生成 {results.length} 张高质量图片
+              <CheckCircle2 className="w-5 h-5 text-palm-500" />
+              <span className="font-bold text-sm text-coconut-900 dark:text-coconut-100">
+                处理已完成 ({results.length} 个文件)
               </span>
             </div>
             <button
               onClick={handleDownloadAllZip}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-sm shadow-emerald-500/25"
+              className="px-4 py-2 bg-palm-600 hover:bg-palm-700 text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 shadow-sm transition-all active:scale-95"
             >
               <Archive className="w-4 h-4" />
               <span>一键打包下载全部 (ZIP)</span>
@@ -880,42 +896,42 @@ export default function ImageToolbox() {
               return (
                 <div
                   key={res.id}
-                  className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/60 rounded-xl p-3 flex items-center space-x-4"
+                  className="bg-coconut-50/60 dark:bg-darkbg-elevated/70 border border-coconut-200/70 dark:border-darkbg-border rounded-2xl p-3.5 flex items-center space-x-4 shadow-sm"
                 >
                   {res.previewUrl ? (
                     <img
                       src={res.previewUrl}
                       alt={res.newFilename}
-                      className="w-16 h-16 object-cover rounded-lg border border-zinc-200 dark:border-zinc-700 flex-shrink-0 bg-zinc-200 dark:bg-zinc-800"
+                      className="w-16 h-16 object-cover rounded-xl border border-coconut-200 dark:border-darkbg-border flex-shrink-0 bg-coconut-100 dark:bg-coconut-900"
                     />
                   ) : (
-                    <div className="w-16 h-16 rounded-lg bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0 text-zinc-400">
+                    <div className="w-16 h-16 rounded-xl bg-coconut-100 dark:bg-coconut-900 flex items-center justify-center flex-shrink-0 text-coconut-400">
                       <ImageIcon className="w-6 h-6" />
                     </div>
                   )}
 
                   <div className="flex-1 min-w-0 space-y-1">
-                    <div className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate" title={res.newFilename}>
+                    <div className="text-xs font-bold text-coconut-900 dark:text-coconut-100 truncate" title={res.newFilename}>
                       {res.newFilename}
                     </div>
 
-                    <div className="flex items-center space-x-2 text-[11px] text-zinc-500 dark:text-zinc-400 font-mono">
+                    <div className="flex items-center space-x-2 text-[11px] text-coconut-600 dark:text-coconut-400 font-mono">
                       <span>{formatBytes(res.originalSize)}</span>
-                      <ArrowRight className="w-3 h-3 text-zinc-400" />
-                      <span className="font-bold text-zinc-700 dark:text-zinc-300">{formatBytes(res.newSize)}</span>
+                      <ArrowRight className="w-3 h-3 text-coconut-400" />
+                      <span className="font-bold text-coconut-800 dark:text-coconut-200">{formatBytes(res.newSize)}</span>
                       {activeTab === "compress" && isSmaller && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 font-semibold">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-palm-100 dark:bg-palm-950/80 text-palm-700 dark:text-palm-300 font-bold">
                           {diffPercent}%
                         </span>
                       )}
                     </div>
 
-                    {res.extraInfo && <div className="text-[10px] text-blue-500 font-medium">{res.extraInfo}</div>}
+                    {res.extraInfo && <div className="text-[10px] text-palm-600 dark:text-palm-400 font-medium">{res.extraInfo}</div>}
                   </div>
 
                   <button
                     onClick={() => downloadBlob(res.blob, res.newFilename)}
-                    className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white transition-all flex-shrink-0"
+                    className="p-2 rounded-xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-toast-400 hover:bg-coconut-800 hover:text-coconut-50 dark:hover:bg-toast-500 dark:hover:text-darkbg-canvas transition-all flex-shrink-0 active:scale-95"
                     title="下载单张"
                   >
                     <Download className="w-4 h-4" />
