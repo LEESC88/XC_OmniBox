@@ -47,9 +47,14 @@ type DevSubTab = "json" | "base64" | "hash" | "timestamp";
 export interface DailyToolboxProps {
   currentTab?: ToolTab;
   onTabChange?: (tab: ToolTab) => void;
+  initialPhotoFile?: File | null;
 }
 
-export default function DailyToolbox({ currentTab, onTabChange }: DailyToolboxProps = {}) {
+export default function DailyToolbox({
+  currentTab,
+  onTabChange,
+  initialPhotoFile,
+}: DailyToolboxProps = {}) {
   const [activeTab, setActiveTab] = useState<ToolTab>(currentTab || "idphoto");
   const [copied, setCopied] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -61,6 +66,13 @@ export default function DailyToolbox({ currentTab, onTabChange }: DailyToolboxPr
       setError(null);
     }
   }, [currentTab]);
+
+  useEffect(() => {
+    if (initialPhotoFile) {
+      setActiveTab("idphoto");
+      handlePhotoUpload(initialPhotoFile);
+    }
+  }, [initialPhotoFile]);
 
   const handleTabSelect = (tab: ToolTab) => {
     setActiveTab(tab);

@@ -46,6 +46,7 @@ import InPlacePdfEditor from "@/components/InPlacePdfEditor";
 import ImageToolbox from "@/components/ImageToolbox";
 import AudioToolbox from "@/components/AudioToolbox";
 import DailyToolbox from "@/components/DailyToolbox";
+import AiToolbox, { AiTabType } from "@/components/AiToolbox";
 import {
   checkHealth,
   convertPdfToWord,
@@ -71,10 +72,11 @@ type DocTabType =
 type ImageTabType = "compress" | "heic" | "convert" | "resize" | "exif" | "watermark";
 type AudioTabType = "trim" | "convert" | "merge" | "extract" | "volume";
 type DailyTabType = "idphoto" | "qrcode" | "diff" | "dev";
+type ModuleType = "document" | "image" | "audio" | "utilities" | "ai";
 
 interface ToolItem {
   id: string;
-  module: "document" | "image" | "audio" | "utilities";
+  module: ModuleType;
   name: string;
   desc: string;
   badge?: string;
@@ -82,7 +84,17 @@ interface ToolItem {
   keywords: string[];
 }
 
-const TOOLS_REGISTRY: { category: string; module: "document" | "image" | "audio" | "utilities"; icon: any; tools: ToolItem[] }[] = [
+const TOOLS_REGISTRY: { category: string; module: ModuleType; icon: any; tools: ToolItem[] }[] = [
+  {
+    category: "AI 智能工坊 (纯离线免费)",
+    module: "ai",
+    icon: Sparkles,
+    tools: [
+      { id: "ai-bg-remove", module: "ai", name: "AI 发丝级智能抠图", desc: "本地神经网络逐像素分离主体与复杂背景，支持一键证件照换底排版", badge: "100%本地", icon: Sparkles, keywords: ["抠图", "去除背景", "透明底", "人像", "发丝", "ai"] },
+      { id: "ai-ocr", module: "ai", name: "AI 离线 OCR 文字提取", desc: "高精提取中英文、书籍、发票及表格字形，支持一键复制与 TXT 导出", badge: "多语言", icon: FileText, keywords: ["ocr", "文字提取", "识别", "扫描", "文字识别", "离线", "ai"] },
+      { id: "ai-upscale", module: "ai", name: "AI 模糊图片高清修复", desc: "2x / 4x 超分辨率重建与边缘去雾锐化，让低清模糊图焕发新生", badge: "2x/4x", icon: Maximize2, keywords: ["超清", "修复", "高清", "放大", "清晰度", "降噪", "ai"] },
+    ],
+  },
   {
     category: "文档处理与 PDF",
     module: "document",
@@ -136,11 +148,13 @@ const TOOLS_REGISTRY: { category: string; module: "document" | "image" | "audio"
 ];
 
 export default function Home() {
-  const [activeModule, setActiveModule] = useState<"document" | "image" | "audio" | "utilities">("document");
+  const [activeModule, setActiveModule] = useState<ModuleType>("document");
   const [activeDocTab, setActiveDocTab] = useState<DocTabType>("pdf-edit");
   const [activeImageTab, setActiveImageTab] = useState<ImageTabType>("compress");
   const [activeAudioTab, setActiveAudioTab] = useState<AudioTabType>("trim");
   const [activeDailyTab, setActiveDailyTab] = useState<DailyTabType>("idphoto");
+  const [activeAiTab, setActiveAiTab] = useState<AiTabType>("ai-bg-remove");
+  const [incomingIdPhotoFile, setIncomingIdPhotoFile] = useState<File | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -225,6 +239,8 @@ export default function Home() {
       setActiveAudioTab(item.id as AudioTabType);
     } else if (item.module === "utilities") {
       setActiveDailyTab(item.id as DailyTabType);
+    } else if (item.module === "ai") {
+      setActiveAiTab(item.id as AiTabType);
     }
     setSearchQuery("");
     setMobileMenuOpen(false);
@@ -340,7 +356,9 @@ export default function Home() {
       ? allTools.find((t) => t.id === activeImageTab)
       : activeModule === "audio"
       ? allTools.find((t) => t.id === activeAudioTab)
-      : allTools.find((t) => t.id === activeDailyTab);
+      : activeModule === "utilities"
+      ? allTools.find((t) => t.id === activeDailyTab)
+      : allTools.find((t) => t.id === activeAiTab);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-coconut-50/70 dark:bg-darkbg-canvas text-coconut-900 dark:text-darkbg-text antialiased">
@@ -498,7 +516,8 @@ export default function Home() {
                         ((t.module === "document" && activeDocTab === t.id) ||
                           (t.module === "image" && activeImageTab === t.id) ||
                           (t.module === "audio" && activeAudioTab === t.id) ||
-                          (t.module === "utilities" && activeDailyTab === t.id));
+                          (t.module === "utilities" && activeDailyTab === t.id) ||
+                          (t.module === "ai" && activeAiTab === t.id));
 
                       return (
                         <button
@@ -612,6 +631,7 @@ export default function Home() {
                 { id: "image", label: "图片", icon: ImageIcon },
                 { id: "audio", label: "音频", icon: Music },
                 { id: "utilities", label: "日常", icon: Wrench },
+                { id: "ai", label: "AI工坊", icon: Sparkles },
               ].map((m) => {
                 const Icon = m.icon;
                 const isCur = activeModule === m.id;
@@ -677,7 +697,21 @@ export default function Home() {
           ) : activeModule === "audio" ? (
             <AudioToolbox currentTab={activeAudioTab} onTabChange={setActiveAudioTab} />
           ) : activeModule === "utilities" ? (
-            <DailyToolbox currentTab={activeDailyTab} onTabChange={setActiveDailyTab} />
+            <DailyToolbox
+              currentTab={activeDailyTab}
+              onTabChange={setActiveDailyTab}
+              initialPhotoFile={incomingIdPhotoFile}
+            />
+          ) : activeModule === "ai" ? (
+            <AiToolbox
+              currentTab={activeAiTab}
+              onTabChange={setActiveAiTab}
+              onNavigateToIdPhoto={(photoFile) => {
+                setIncomingIdPhotoFile(photoFile);
+                setActiveModule("utilities");
+                setActiveDailyTab("idphoto");
+              }}
+            />
           ) : (
             /* ===================== 文档处理与 PDF 工作台 ===================== */
             <div className="space-y-6">
