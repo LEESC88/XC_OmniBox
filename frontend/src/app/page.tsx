@@ -360,8 +360,7 @@ export default function Home() {
         size: resultBlob.size,
       });
 
-      downloadBlob(resultBlob, resultFilename);
-      setSuccessMsg(`处理完成！已为你自动触发下载: ${resultFilename}`);
+      setSuccessMsg(`处理完成！已生成 ${resultFilename}，请点击下方按钮下载保存`);
     } catch (err: any) {
       setError(err.message || "处理过程出现异常");
     } finally {
@@ -1034,7 +1033,7 @@ export default function Home() {
                             </div>
                           </div>
                           <span className="hidden sm:inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold bg-palm-200/80 dark:bg-palm-900/80 text-palm-800 dark:text-palm-200 flex-shrink-0">
-                            已自动触发下载
+                            就绪 · 点击下载
                           </span>
                         </div>
 
@@ -1044,7 +1043,7 @@ export default function Home() {
                             className="flex-1 py-3 px-4 rounded-xl btn-3d-palm text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"
                           >
                             <Download className="w-4 h-4" />
-                            <span>再次下载此文件</span>
+                            <span>立即下载该文件</span>
                           </button>
 
                           <button
@@ -1159,7 +1158,7 @@ export default function Home() {
                           </div>
                         </div>
                         <span className="hidden sm:inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold bg-palm-200/80 dark:bg-palm-900/80 text-palm-800 dark:text-palm-200 flex-shrink-0">
-                          已自动触发下载
+                          就绪 · 点击下载
                         </span>
                       </div>
 
@@ -1169,7 +1168,7 @@ export default function Home() {
                           className="flex-1 py-3 px-4 rounded-xl btn-3d-palm text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"
                         >
                           <Download className="w-4 h-4" />
-                          <span>再次下载此文件</span>
+                          <span>立即下载该文件</span>
                         </button>
 
                         <button
