@@ -40,13 +40,18 @@ import {
   PanelLeftClose,
   PanelLeft,
   Sliders,
+  Download,
+  RotateCcw,
+  FileCheck,
 } from "lucide-react";
+import CoconutLogo from "@/components/CoconutLogo";
 import Dropzone from "@/components/Dropzone";
 import InPlacePdfEditor from "@/components/InPlacePdfEditor";
 import ImageToolbox from "@/components/ImageToolbox";
 import AudioToolbox from "@/components/AudioToolbox";
 import DailyToolbox from "@/components/DailyToolbox";
 import AiToolbox, { AiTabType } from "@/components/AiToolbox";
+import { formatBytes } from "@/lib/imageProcessor";
 import {
   checkHealth,
   convertPdfToWord,
@@ -166,6 +171,11 @@ export default function Home() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [isDark, setIsDark] = useState<boolean>(false);
+  const [executionResult, setExecutionResult] = useState<{
+    blob: Blob;
+    filename: string;
+    size: number;
+  } | null>(null);
 
   // 初始化深色模式状态并同步 DOM
   useEffect(() => {
@@ -223,6 +233,7 @@ export default function Home() {
     setError(null);
     setSuccessMsg(null);
     setEditorData(null);
+    setExecutionResult(null);
   };
 
   const handleSelectTool = (item: ToolItem) => {
@@ -233,6 +244,7 @@ export default function Home() {
       setError(null);
       setSuccessMsg(null);
       setEditorData(null);
+      setExecutionResult(null);
     } else if (item.module === "image") {
       setActiveImageTab(item.id as ImageTabType);
     } else if (item.module === "audio") {
@@ -269,6 +281,25 @@ export default function Home() {
     }
   };
 
+  const getActionBtnText = () => {
+    switch (activeDocTab) {
+      case "pdf-to-word":
+        return "开始逆向转换为 Word (.docx)";
+      case "word-to-pdf":
+        return "开始转换为高保真超清 PDF";
+      case "pdf-merge":
+        return `开始合并选中的 ${files.length} 个 PDF 文件`;
+      case "pdf-split":
+        return "开始提取并拆分 PDF";
+      case "pdf-watermark":
+        return "开始添加文字水印并导出";
+      case "pdf-protect":
+        return "开始加密并导出受保护 PDF";
+      default:
+        return "开始执行转换任务";
+    }
+  };
+
   const handleExecute = async () => {
     if (files.length === 0) {
       setError("请先上传需要处理的文件");
@@ -278,44 +309,59 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setSuccessMsg(null);
+    setExecutionResult(null);
 
     try {
+      let resultBlob: Blob;
+      let resultFilename: string;
+
       if (activeDocTab === "pdf-to-word") {
-        const { blob, filename } = await convertPdfToWord(files[0], startPage);
-        downloadBlob(blob, filename);
-        setSuccessMsg(`转换成功！已为你自动下载: ${filename}`);
+        const res = await convertPdfToWord(files[0], startPage);
+        resultBlob = res.blob;
+        resultFilename = res.filename;
       } else if (activeDocTab === "word-to-pdf") {
-        const { blob, filename } = await convertWordToPdf(files[0]);
-        downloadBlob(blob, filename);
-        setSuccessMsg(`转换成功！已高保真渲染并下载: ${filename}`);
+        const res = await convertWordToPdf(files[0]);
+        resultBlob = res.blob;
+        resultFilename = res.filename;
       } else if (activeDocTab === "pdf-merge") {
         if (files.length < 2) {
           throw new Error("合并至少需要选择 2 个 PDF 文件");
         }
-        const { blob, filename } = await mergePdfs(files);
-        downloadBlob(blob, filename);
-        setSuccessMsg(`合并成功！已下载: ${filename}`);
+        const res = await mergePdfs(files);
+        resultBlob = res.blob;
+        resultFilename = res.filename;
       } else if (activeDocTab === "pdf-split") {
-        const { blob, filename } = await splitPdf(files[0], pageRanges || undefined);
-        downloadBlob(blob, filename);
-        setSuccessMsg(`提取/拆分成功！已下载: ${filename}`);
+        const res = await splitPdf(files[0], pageRanges || undefined);
+        resultBlob = res.blob;
+        resultFilename = res.filename;
       } else if (activeDocTab === "pdf-watermark") {
-        const { blob, filename } = await addWatermark(
+        const res = await addWatermark(
           files[0],
           watermarkText,
           watermarkOpacity,
           watermarkAngle
         );
-        downloadBlob(blob, filename);
-        setSuccessMsg(`水印添加成功！已下载: ${filename}`);
+        resultBlob = res.blob;
+        resultFilename = res.filename;
       } else if (activeDocTab === "pdf-protect") {
         if (!protectPassword) {
           throw new Error("请输入要设置的密码");
         }
-        const { blob, filename } = await protectPdf(files[0], protectPassword);
-        downloadBlob(blob, filename);
-        setSuccessMsg(`密码保护设置成功！已下载: ${filename}`);
+        const res = await protectPdf(files[0], protectPassword);
+        resultBlob = res.blob;
+        resultFilename = res.filename;
+      } else {
+        throw new Error("未知的处理任务类型");
       }
+
+      setExecutionResult({
+        blob: resultBlob,
+        filename: resultFilename,
+        size: resultBlob.size,
+      });
+
+      downloadBlob(resultBlob, resultFilename);
+      setSuccessMsg(`处理完成！已为你自动触发下载: ${resultFilename}`);
     } catch (err: any) {
       setError(err.message || "处理过程出现异常");
     } finally {
@@ -371,53 +417,67 @@ export default function Home() {
       )}
 
       {/* ===================== 左侧 PRO 侧边栏 ===================== */}
+      {/* ===================== 左侧 PRO 侧边栏 ===================== */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 flex flex-col bg-white/90 dark:bg-darkbg-card/95 border-r border-coconut-200/80 dark:border-darkbg-border backdrop-blur-xl transition-all duration-300 ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 flex flex-col bg-white/95 dark:bg-darkbg-card/95 border-r border-coconut-200/80 dark:border-darkbg-border backdrop-blur-xl transition-all duration-300 ${
           mobileMenuOpen ? "translate-x-0 w-80 max-w-[85vw]" : "-translate-x-full lg:translate-x-0"
         } ${sidebarCollapsed ? "lg:w-20" : "lg:w-72"}`}
       >
         {/* 顶部品牌 */}
-        <div className="p-4 border-b border-coconut-100 dark:border-darkbg-border flex items-center justify-between">
-          <div className="flex items-center gap-2.5 truncate">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-coconut-800 to-coconut-950 dark:from-coconut-200 dark:to-coconut-100 text-toast-300 dark:text-coconut-900 flex items-center justify-center shadow-coconut-sm flex-shrink-0">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            {!sidebarCollapsed && (
-              <div className="truncate">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-base tracking-tight text-coconut-950 dark:text-white">
-                    XC OmniBox
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-palm-100 text-palm-800 dark:bg-palm-950/80 dark:text-palm-300 font-mono font-semibold">
-                    Studio
-                  </span>
+        <div className={`border-b border-coconut-100 dark:border-darkbg-border flex items-center transition-all ${
+          sidebarCollapsed ? "p-3 justify-center" : "p-4 justify-between"
+        }`}>
+          {sidebarCollapsed ? (
+            /* 折叠态：居中单个椰子 Logo 按钮，点击直接切换展开侧边栏，杜绝重叠 */
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              className="p-1.5 rounded-2xl hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-transform active:scale-95 group relative flex items-center justify-center"
+              title="点击展开侧边栏"
+            >
+              <CoconutLogo size={36} />
+              <span className="sr-only">展开侧边栏</span>
+            </button>
+          ) : (
+            /* 展开态：左侧椰子 Logo + 品牌名，右侧折叠按钮 */
+            <>
+              <div className="flex items-center gap-2.5 truncate">
+                <CoconutLogo size={36} />
+                <div className="truncate">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-extrabold text-base tracking-tight text-coconut-950 dark:text-white">
+                      XC OmniBox
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white font-mono font-bold shadow-xs">
+                      Studio
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-coconut-500 dark:text-darkbg-muted truncate">
+                    全能本地离线多媒体工作台
+                  </p>
                 </div>
-                <p className="text-[11px] text-coconut-500 dark:text-darkbg-muted truncate">
-                  全能本地离线多媒体工作台
-                </p>
               </div>
-            )}
-          </div>
 
-          {/* 桌面端折叠按钮 / 移动端关闭按钮 */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="hidden lg:flex p-1.5 rounded-xl text-coconut-500 hover:text-coconut-800 dark:text-darkbg-muted dark:hover:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-colors"
-              title={sidebarCollapsed ? "展开侧边栏" : "折叠侧边栏"}
-            >
-              {sidebarCollapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-            </button>
-            <button
-              onClick={() => setMobileMenuOpen(false)}
-              className="lg:hidden p-1.5 rounded-xl text-coconut-500 hover:text-coconut-800 dark:text-darkbg-muted hover:bg-coconut-100 dark:hover:bg-darkbg-elevated"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+              {/* 桌面端折叠按钮 / 移动端关闭按钮 */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setSidebarCollapsed(true)}
+                  className="hidden lg:flex p-1.5 rounded-xl text-coconut-500 hover:text-coconut-800 dark:text-darkbg-muted dark:hover:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-colors"
+                  title="收起侧边栏"
+                >
+                  <PanelLeftClose className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="lg:hidden p-1.5 rounded-xl text-coconut-500 hover:text-coconut-800 dark:text-darkbg-muted hover:bg-coconut-100 dark:hover:bg-darkbg-elevated"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* 快速搜索框 */}
+        {/* 快速搜索框 (仅在展开态显示) */}
         {!sidebarCollapsed && (
           <div className="p-3 border-b border-coconut-100 dark:border-darkbg-border">
             <div className="relative flex items-center">
@@ -426,8 +486,8 @@ export default function Home() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="搜索 22 项工具 (如压缩、转Word)..."
-                className="w-full pl-9 pr-8 py-2 text-xs bg-coconut-50/80 dark:bg-darkbg-subtle border border-coconut-200/80 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text placeholder-coconut-400 dark:placeholder-darkbg-muted focus:outline-none focus:ring-2 focus:ring-palm-500/20 focus:border-palm-500 transition-all"
+                placeholder="搜索 22 项工具 (如抠图、压缩、转Word)..."
+                className="w-full pl-9 pr-8 py-2 text-xs bg-coconut-50/80 dark:bg-darkbg-subtle border border-coconut-200/80 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text placeholder-coconut-400 dark:placeholder-darkbg-muted focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
               />
               {searchQuery && (
                 <button
@@ -441,9 +501,10 @@ export default function Home() {
           </div>
         )}
 
-        {/* 导航工具树 / 搜索结果 */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-4 no-scrollbar">
+        {/* 导航工具树：折叠态仅展示 5 个核心分类大图标，展开态为手风琴仅展开当前分类 */}
+        <div className="flex-1 overflow-y-auto p-2 space-y-3 no-scrollbar">
           {searchQuery.trim() ? (
+            /* 搜索模式：直接匹配搜索结果 */
             <div className="space-y-1">
               <div className="text-[11px] font-semibold text-coconut-400 dark:text-darkbg-muted px-2 py-1">
                 搜索结果 ({filteredTools.length})
@@ -460,23 +521,26 @@ export default function Home() {
                     ((t.module === "document" && activeDocTab === t.id) ||
                       (t.module === "image" && activeImageTab === t.id) ||
                       (t.module === "audio" && activeAudioTab === t.id) ||
-                      (t.module === "utilities" && activeDailyTab === t.id));
+                      (t.module === "utilities" && activeDailyTab === t.id) ||
+                      (t.module === "ai" && activeAiTab === t.id));
                   return (
                     <button
                       key={t.id}
                       onClick={() => handleSelectTool(t)}
-                      className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs transition-all active:scale-[0.98] ${
+                      className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left text-xs transition-all active:scale-[0.98] ${
                         isCur
-                          ? "bg-coconut-800 text-coconut-50 dark:bg-coconut-200 dark:text-coconut-950 font-semibold shadow-coconut-sm"
-                          : "text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/80 dark:hover:bg-darkbg-elevated"
+                          ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white font-bold shadow-3d-sunset"
+                          : "text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/80 dark:hover:bg-darkbg-elevated hover:dark:text-darkbg-text"
                       }`}
                     >
                       <div className="flex items-center gap-2.5 truncate">
-                        <Icon className="w-4 h-4 flex-shrink-0" />
+                        <Icon className={`w-4 h-4 flex-shrink-0 ${isCur ? "text-amber-100" : ""}`} />
                         <span className="truncate">{t.name}</span>
                       </div>
                       {t.badge && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-coconut-200/60 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted font-mono">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${
+                          isCur ? "bg-white/20 text-white" : "bg-coconut-200/60 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted"
+                        }`}>
                           {t.badge}
                         </span>
                       )}
@@ -485,72 +549,124 @@ export default function Home() {
                 })
               )}
             </div>
+          ) : sidebarCollapsed ? (
+            /* ================= 折叠模式 (w-20)：仅显示 5 个分类大图标，告别 22 个小图标长串 ================= */
+            <div className="py-2 flex flex-col items-center space-y-3">
+              {TOOLS_REGISTRY.map((group) => {
+                const GroupIcon = group.icon;
+                const isGroupActive = activeModule === group.module;
+                const shortLabel =
+                  group.module === "ai"
+                    ? "AI"
+                    : group.module === "document"
+                    ? "文档"
+                    : group.module === "image"
+                    ? "图片"
+                    : group.module === "audio"
+                    ? "音频"
+                    : "日常";
+
+                return (
+                  <button
+                    key={group.module}
+                    onClick={() => setActiveModule(group.module)}
+                    title={`${group.category} (共 ${group.tools.length} 项工具)`}
+                    className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center transition-all relative group active:scale-95 ${
+                      isGroupActive
+                        ? "bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 text-white shadow-3d-sunset scale-105"
+                        : "text-coconut-600 dark:text-darkbg-muted hover:bg-coconut-100/80 dark:hover:bg-darkbg-elevated hover:text-coconut-950 dark:hover:text-darkbg-text"
+                    }`}
+                  >
+                    <GroupIcon className="w-5 h-5" />
+                    <span className="text-[9px] font-bold mt-0.5 tracking-tight">
+                      {shortLabel}
+                    </span>
+                    {isGroupActive && (
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white dark:ring-darkbg-card animate-pulse" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           ) : (
+            /* ================= 展开模式 (w-72)：手风琴分类导航，只有点击选中的分类才展开列出全部工具 ================= */
             TOOLS_REGISTRY.map((group) => {
               const GroupIcon = group.icon;
               const isGroupActive = activeModule === group.module;
               return (
                 <div key={group.category} className="space-y-1">
-                  {!sidebarCollapsed && (
-                    <div
-                      onClick={() => setActiveModule(group.module)}
-                      className={`flex items-center justify-between px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider cursor-pointer select-none rounded-lg transition-colors ${
+                  {/* 分类标题卡片：点击激活该模块并展开其全部工具 */}
+                  <button
+                    onClick={() => setActiveModule(group.module)}
+                    className={`w-full flex items-center justify-between p-2.5 rounded-2xl text-xs font-bold transition-all select-none active:scale-[0.99] ${
+                      isGroupActive
+                        ? "bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-rose-500/10 text-orange-950 dark:text-orange-200 border border-orange-300/60 dark:border-orange-500/30 shadow-xs"
+                        : "text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated hover:text-coconut-900 dark:hover:text-darkbg-text"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <div className={`p-1.5 rounded-xl flex-shrink-0 ${
                         isGroupActive
-                          ? "text-coconut-900 dark:text-darkbg-text"
-                          : "text-coconut-500 dark:text-darkbg-muted hover:text-coconut-800"
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <GroupIcon className="w-3.5 h-3.5" />
-                        <span>{group.category}</span>
+                          ? "bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-xs"
+                          : "bg-coconut-200/60 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted"
+                      }`}>
+                        <GroupIcon className="w-4 h-4" />
                       </div>
-                      <span className="text-[10px] opacity-70 font-mono">({group.tools.length})</span>
+                      <span className="tracking-tight truncate">{group.category}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-coconut-200/50 dark:bg-darkbg-subtle font-mono text-coconut-600 dark:text-darkbg-muted">
+                        {group.tools.length}
+                      </span>
+                      <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                        isGroupActive ? "rotate-90 text-orange-500 font-bold" : "text-coconut-400 opacity-60"
+                      }`} />
+                    </div>
+                  </button>
+
+                  {/* 仅当前选中的分类才展开其具体工具列表 */}
+                  {isGroupActive && (
+                    <div className="pl-3 pr-1 py-1 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200 border-l-2 border-orange-500/40 ml-3.5">
+                      {group.tools.map((t) => {
+                        const Icon = t.icon;
+                        const isCur =
+                          activeModule === t.module &&
+                          ((t.module === "document" && activeDocTab === t.id) ||
+                            (t.module === "image" && activeImageTab === t.id) ||
+                            (t.module === "audio" && activeAudioTab === t.id) ||
+                            (t.module === "utilities" && activeDailyTab === t.id) ||
+                            (t.module === "ai" && activeAiTab === t.id));
+
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => handleSelectTool(t)}
+                            className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs transition-all active:scale-[0.98] ${
+                              isCur
+                                ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white font-bold shadow-3d-sunset scale-[1.02]"
+                                : "text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated hover:text-coconut-900 dark:hover:text-darkbg-text"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${isCur ? "text-amber-100" : "text-coconut-500 dark:text-darkbg-muted"}`} />
+                              <span className="truncate">{t.name}</span>
+                            </div>
+                            {t.badge && (
+                              <span
+                                className={`text-[9px] px-1.5 py-0.5 rounded-full font-mono font-medium transition-colors ${
+                                  isCur
+                                    ? "bg-white/25 text-white"
+                                    : "bg-coconut-200/60 dark:bg-darkbg-subtle text-coconut-600 dark:text-darkbg-muted"
+                                }`}
+                              >
+                                {t.badge}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
-
-                  <div className="space-y-0.5">
-                    {group.tools.map((t) => {
-                      const Icon = t.icon;
-                      const isCur =
-                        activeModule === t.module &&
-                        ((t.module === "document" && activeDocTab === t.id) ||
-                          (t.module === "image" && activeImageTab === t.id) ||
-                          (t.module === "audio" && activeAudioTab === t.id) ||
-                          (t.module === "utilities" && activeDailyTab === t.id) ||
-                          (t.module === "ai" && activeAiTab === t.id));
-
-                      return (
-                        <button
-                          key={t.id}
-                          onClick={() => handleSelectTool(t)}
-                          title={sidebarCollapsed ? t.name : undefined}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs transition-all active:scale-[0.98] ${
-                            sidebarCollapsed ? "justify-center" : ""
-                          } ${
-                            isCur
-                              ? "bg-gradient-to-r from-coconut-800 to-coconut-950 dark:from-coconut-200 dark:to-white text-coconut-50 dark:text-coconut-950 font-semibold shadow-coconut-sm"
-                              : "text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated hover:text-coconut-900 dark:hover:text-darkbg-text"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 truncate">
-                            <Icon className={`w-4 h-4 flex-shrink-0 ${isCur ? "text-palm-300 dark:text-palm-700" : "text-coconut-500 dark:text-darkbg-muted"}`} />
-                            {!sidebarCollapsed && <span className="truncate">{t.name}</span>}
-                          </div>
-                          {!sidebarCollapsed && t.badge && (
-                            <span
-                              className={`text-[9px] px-1.5 py-0.5 rounded-full font-mono transition-colors ${
-                                isCur
-                                  ? "bg-coconut-700/60 dark:bg-coconut-300 text-coconut-100 dark:text-coconut-900"
-                                  : "bg-coconut-200/60 dark:bg-darkbg-subtle text-coconut-600 dark:text-darkbg-muted"
-                              }`}
-                            >
-                              {t.badge}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
               );
             })
@@ -639,9 +755,9 @@ export default function Home() {
                   <button
                     key={m.id}
                     onClick={() => setActiveModule(m.id as any)}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
                       isCur
-                        ? "bg-coconut-800 text-coconut-50 dark:bg-coconut-200 dark:text-coconut-950 shadow-coconut-sm"
+                        ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white shadow-3d-sunset"
                         : "text-coconut-600 dark:text-darkbg-muted hover:text-coconut-900 dark:hover:text-darkbg-text"
                     }`}
                   >
@@ -747,10 +863,10 @@ export default function Home() {
                   <button
                     onClick={handleStartEditor}
                     disabled={parsingEditor || files.length === 0}
-                    className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-coconut-sm active:scale-95 ${
+                    className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
                       parsingEditor || files.length === 0
                         ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
-                        : "bg-gradient-to-r from-coconut-800 to-coconut-950 dark:from-coconut-200 dark:to-white text-coconut-50 dark:text-coconut-950 shadow-coconut-md"
+                        : "btn-3d-sunset text-white"
                     }`}
                   >
                     {parsingEditor ? (
@@ -760,7 +876,7 @@ export default function Home() {
                       </>
                     ) : (
                       <>
-                        <Edit3 className="w-4 h-4 text-palm-300 dark:text-palm-700" />
+                        <Edit3 className="w-4 h-4 text-amber-100" />
                         <span>进入在线 Word 级编辑工作台</span>
                       </>
                     )}
@@ -822,8 +938,8 @@ export default function Home() {
                                 onClick={() => setWatermarkAngle(ang.val)}
                                 className={`py-2 px-2.5 rounded-xl text-xs font-medium border transition-all active:scale-95 ${
                                   watermarkAngle === ang.val
-                                    ? "bg-coconut-800 text-coconut-50 dark:bg-coconut-200 dark:text-coconut-950 font-semibold border-transparent shadow-coconut-sm"
-                                    : "border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/60"
+                                    ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 font-bold border-transparent shadow-coconut-sm"
+                                    : "border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/60 dark:hover:bg-darkbg-elevated dark:hover:text-darkbg-text"
                                 }`}
                               >
                                 {ang.label}
@@ -901,24 +1017,73 @@ export default function Home() {
                       </div>
                     )}
 
-                    <button
-                      onClick={handleExecute}
-                      disabled={loading || files.length === 0}
-                      className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-coconut-sm active:scale-95 ${
-                        loading || files.length === 0
-                          ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
-                          : "bg-gradient-to-r from-coconut-800 to-coconut-950 dark:from-coconut-200 dark:to-white text-coconut-50 dark:text-coconut-950 shadow-coconut-md"
-                      }`}
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>正在处理中，请稍候...</span>
-                        </>
-                      ) : (
-                        <span>立即执行并自动下载</span>
-                      )}
-                    </button>
+                    {executionResult ? (
+                      <div className="p-5 bg-palm-50/80 dark:bg-palm-950/40 border border-palm-300 dark:border-palm-800/80 rounded-2xl space-y-4 shadow-sm animate-fade-in">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 truncate">
+                            <div className="w-10 h-10 rounded-xl bg-palm-500/20 text-palm-700 dark:text-palm-300 flex items-center justify-center flex-shrink-0">
+                              <FileCheck className="w-5 h-5 text-palm-600 dark:text-palm-400" />
+                            </div>
+                            <div className="truncate">
+                              <h4 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text truncate">
+                                {executionResult.filename}
+                              </h4>
+                              <p className="text-xs text-palm-700 dark:text-palm-400 font-mono">
+                                {formatBytes(executionResult.size)} · 生成成功
+                              </p>
+                            </div>
+                          </div>
+                          <span className="hidden sm:inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold bg-palm-200/80 dark:bg-palm-900/80 text-palm-800 dark:text-palm-200 flex-shrink-0">
+                            已自动触发下载
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3 pt-1">
+                          <button
+                            onClick={() => downloadBlob(executionResult.blob, executionResult.filename)}
+                            className="flex-1 py-3 px-4 rounded-xl btn-3d-palm text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"
+                          >
+                            <Download className="w-4 h-4" />
+                            <span>再次下载此文件</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setFiles([]);
+                              setExecutionResult(null);
+                              setSuccessMsg(null);
+                              setError(null);
+                            }}
+                            className="py-3 px-4 rounded-xl border border-coconut-300 dark:border-darkbg-border bg-white dark:bg-darkbg-subtle hover:bg-coconut-100/70 dark:hover:bg-darkbg-card text-coconut-800 dark:text-darkbg-text font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>处理新文件</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleExecute}
+                        disabled={loading || files.length === 0}
+                        className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                          loading || files.length === 0
+                            ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
+                            : "btn-3d-sunset text-white"
+                        }`}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>正在处理中，请稍候...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="w-4 h-4 text-amber-200" />
+                            <span>{getActionBtnText()}</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -977,24 +1142,73 @@ export default function Home() {
                     </div>
                   )}
 
-                  <button
-                    onClick={handleExecute}
-                    disabled={loading || files.length === 0}
-                    className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-coconut-sm active:scale-95 ${
-                      loading || files.length === 0
-                        ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
-                        : "bg-gradient-to-r from-coconut-800 to-coconut-950 dark:from-coconut-200 dark:to-white text-coconut-50 dark:text-coconut-950 shadow-coconut-md"
-                    }`}
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>正在处理中，请稍候...</span>
-                      </>
-                    ) : (
-                      <span>立即执行并自动下载</span>
-                    )}
-                  </button>
+                  {executionResult ? (
+                    <div className="p-5 bg-palm-50/80 dark:bg-palm-950/40 border border-palm-300 dark:border-palm-800/80 rounded-2xl space-y-4 shadow-sm animate-fade-in">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 truncate">
+                          <div className="w-10 h-10 rounded-xl bg-palm-500/20 text-palm-700 dark:text-palm-300 flex items-center justify-center flex-shrink-0">
+                            <FileCheck className="w-5 h-5 text-palm-600 dark:text-palm-400" />
+                          </div>
+                          <div className="truncate">
+                            <h4 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text truncate">
+                              {executionResult.filename}
+                            </h4>
+                            <p className="text-xs text-palm-700 dark:text-palm-400 font-mono">
+                              {formatBytes(executionResult.size)} · 生成成功
+                            </p>
+                          </div>
+                        </div>
+                        <span className="hidden sm:inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold bg-palm-200/80 dark:bg-palm-900/80 text-palm-800 dark:text-palm-200 flex-shrink-0">
+                          已自动触发下载
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3 pt-1">
+                        <button
+                          onClick={() => downloadBlob(executionResult.blob, executionResult.filename)}
+                          className="flex-1 py-3 px-4 rounded-xl btn-3d-palm text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>再次下载此文件</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setFiles([]);
+                            setExecutionResult(null);
+                            setSuccessMsg(null);
+                            setError(null);
+                          }}
+                          className="py-3 px-4 rounded-xl border border-coconut-300 dark:border-darkbg-border bg-white dark:bg-darkbg-subtle hover:bg-coconut-100/70 dark:hover:bg-darkbg-card text-coconut-800 dark:text-darkbg-text font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>处理新文件</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleExecute}
+                      disabled={loading || files.length === 0}
+                      className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                        loading || files.length === 0
+                          ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
+                          : "btn-3d-sunset text-white"
+                      }`}
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>正在处理中，请稍候...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4 text-amber-200" />
+                          <span>{getActionBtnText()}</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               )}
             </div>

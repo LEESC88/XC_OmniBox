@@ -5,17 +5,17 @@
 :root {
   --color-canvas: #FAF7F2;
   --color-card: #FFFFFF;
-  --color-border: #EFE6DC;
-  --color-text-main: #2B1D14;
-  --color-text-muted: #786557;
+  --color-border: #E8DFD5;
+  --color-text-main: #1F1610;
+  --color-text-muted: #5C4B3E;
 }
 
 .dark {
-  --color-canvas: #130F0C;
-  --color-card: #1D1713;
-  --color-border: #382D24;
-  --color-text-main: #FAF4EE;
-  --color-text-muted: #B8A79B;
+  --color-canvas: #0C0A09;
+  --color-card: #181512;
+  --color-border: #383027;
+  --color-text-main: #FCFBFA;
+  --color-text-muted: #B5ACA1;
 }
 
 /* 页面主体与平滑色彩过渡 */
@@ -27,21 +27,109 @@ body {
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-/* 浅色模式背景：温润椰乳伴随微弱晨曦暖光 */
+/* 浅色模式背景：温润椰乳伴随热带落日金橘微光 */
 body:not(.dark) {
   background-image: 
-    radial-gradient(at 10% 10%, rgba(243, 235, 225, 0.7) 0px, transparent 40%),
-    radial-gradient(at 90% 80%, rgba(230, 215, 195, 0.45) 0px, transparent 45%),
-    radial-gradient(at 50% 100%, rgba(224, 242, 231, 0.35) 0px, transparent 40%);
+    radial-gradient(at 10% 10%, rgba(251, 146, 60, 0.08) 0px, transparent 40%),
+    radial-gradient(at 90% 15%, rgba(244, 63, 94, 0.07) 0px, transparent 45%),
+    radial-gradient(at 50% 90%, rgba(245, 158, 11, 0.09) 0px, transparent 45%),
+    radial-gradient(at 90% 80%, rgba(230, 215, 195, 0.35) 0px, transparent 45%);
   background-attachment: fixed;
 }
 
-/* 深色模式背景：深焙椰壳夜幕微光 */
+/* 深色模式背景：纯净黑曜石基底，伴随温暖柔和的落日金橘与珊瑚红环境微晕 (告别死黑死白) */
 .dark body {
   background-image: 
-    radial-gradient(at 10% 10%, rgba(212, 163, 115, 0.05) 0px, transparent 40%),
-    radial-gradient(at 90% 80%, rgba(66, 43, 25, 0.3) 0px, transparent 50%);
+    radial-gradient(at 90% 5%, rgba(249, 115, 22, 0.07) 0px, transparent 45%),
+    radial-gradient(at 10% 20%, rgba(244, 63, 94, 0.05) 0px, transparent 50%),
+    radial-gradient(at 50% 95%, rgba(245, 158, 11, 0.06) 0px, transparent 45%);
   background-attachment: fixed;
+}
+
+/* 3D 触感立体落日按钮 (红黄橘渐变 + 物理厚度下沿 + 按压位移) */
+.btn-3d-sunset {
+  background: linear-gradient(135deg, #F59E0B 0%, #EA580C 50%, #E11D48 100%);
+  color: #FFFFFF;
+  font-weight: 700;
+  box-shadow: 0 4px 0 #9F1239, 0 8px 20px -2px rgba(234, 88, 12, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-3d-sunset:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #9F1239, 0 12px 24px -2px rgba(234, 88, 12, 0.55);
+  filter: brightness(1.05);
+}
+
+.btn-3d-sunset:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #9F1239, 0 3px 8px rgba(234, 88, 12, 0.35);
+}
+
+.btn-3d-sunset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  filter: grayscale(0.4);
+}
+
+/* 3D 触感次级微立体按钮 */
+.btn-3d-secondary {
+  box-shadow: 0 3px 0 #D4BEA3, 0 4px 12px -2px rgba(66, 43, 25, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.6);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark .btn-3d-secondary {
+  box-shadow: 0 3px 0 #2A241E, 0 4px 12px -2px rgba(0, 0, 0, 0.35);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-3d-secondary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #D4BEA3, 0 8px 16px -2px rgba(66, 43, 25, 0.12);
+}
+
+.dark .btn-3d-secondary:hover:not(:disabled) {
+  box-shadow: 0 4px 0 #2A241E, 0 8px 16px -2px rgba(0, 0, 0, 0.45);
+}
+
+.btn-3d-secondary:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #D4BEA3;
+}
+
+.dark .btn-3d-secondary:active:not(:disabled) {
+  box-shadow: 0 1px 0 #2A241E;
+}
+
+/* 红黄橘跑马灯动态条纹进度条 */
+.progress-sunset-striped {
+  background-image: 
+    linear-gradient(45deg, 
+      rgba(255, 255, 255, 0.25) 25%, 
+      transparent 25%, 
+      transparent 50%, 
+      rgba(255, 255, 255, 0.25) 50%, 
+      rgba(255, 255, 255, 0.25) 75%, 
+      transparent 75%, 
+      transparent
+    ),
+    linear-gradient(90deg, #F59E0B 0%, #EA580C 50%, #E11D48 100%);
+  background-size: 28px 28px, 100% 100%;
+  animation: moveStripes 0.8s linear infinite;
+}
+
+@keyframes moveStripes {
+  0% {
+    background-position: 0 0, 0 0;
+  }
+  100% {
+    background-position: 28px 0, 0 0;
+  }
 }
 
 /* 自定义椰香温润滚动条 */
@@ -66,11 +154,11 @@ body:not(.dark) {
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: #422B19;
+  background: #383027;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #5C3E26;
+  background: #483E33;
 }
 
 /* 隐藏滚动条但保留滑动功能 (针对手机端 Tab 横向平滑手势) */

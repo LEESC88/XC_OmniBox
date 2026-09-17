@@ -247,17 +247,17 @@ export default function DailyToolbox({
               onClick={() => handleTabSelect(tab.id as ToolTab)}
               className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl font-medium text-xs sm:text-sm transition-all whitespace-nowrap flex-shrink-0 snap-start active:scale-95 ${
                 isActive
-                  ? "bg-gradient-to-r from-coconut-800 to-coconut-900 dark:from-coconut-100 dark:to-white text-coconut-50 dark:text-coconut-950 shadow-coconut-sm font-semibold"
-                  : "bg-coconut-100/70 dark:bg-darkbg-card text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-200/60 dark:hover:bg-darkbg-elevated border border-coconut-200/50 dark:border-darkbg-border"
+                  ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white font-bold shadow-coconut-sm scale-[1.02]"
+                  : "bg-white/80 dark:bg-darkbg-card text-coconut-700 dark:text-darkbg-muted border border-coconut-200/80 dark:border-darkbg-border hover:bg-coconut-100/60 dark:hover:bg-darkbg-elevated hover:dark:text-darkbg-text"
               }`}
             >
-              <Icon className={`w-4 h-4 ${isActive ? "text-palm-300 dark:text-palm-600" : "text-coconut-500 dark:text-darkbg-muted"}`} />
+              <Icon className={`w-4 h-4 ${isActive ? "text-amber-100" : "text-coconut-500 dark:text-darkbg-muted"}`} />
               <span>{tab.label}</span>
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono transition-colors ${
                   isActive
-                    ? "bg-coconut-700/60 dark:bg-coconut-200 text-coconut-100 dark:text-coconut-900"
-                    : "bg-coconut-200/60 dark:bg-darkbg-elevated text-coconut-600 dark:text-darkbg-muted"
+                    ? "bg-white/25 text-white"
+                    : "bg-coconut-200/60 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-muted"
                 }`}
               >
                 {tab.badge}
@@ -362,7 +362,7 @@ export default function DailyToolbox({
                           onClick={() => setSelectedSpec(sp)}
                           className={`flex-1 py-2 px-3 rounded-2xl border text-xs font-medium transition-all ${
                             selectedSpec.name === sp.name
-                              ? "border-coconut-800 bg-coconut-800 dark:bg-coconut-200 text-coconut-50 dark:text-coconut-950 shadow-coconut-sm font-semibold"
+                              ? "border-coconut-800 bg-coconut-800 dark:bg-white text-coconut-50 dark:text-zinc-950 shadow-coconut-sm font-semibold"
                               : "border-coconut-200/80 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/50 dark:hover:bg-darkbg-elevated"
                           }`}
                         >
@@ -376,85 +376,101 @@ export default function DailyToolbox({
                   </div>
 
                   {/* 3. 容差与边缘羽化微调 */}
-                  <div className="p-3.5 bg-coconut-100/40 dark:bg-darkbg-subtle/50 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border space-y-3 text-xs">
-                    <div className="flex justify-between items-center text-coconut-700 dark:text-darkbg-muted">
-                      <span>抠图颜色容差 (消除杂色背景)</span>
+                  <div className="p-3.5 bg-coconut-100/40 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border space-y-3 text-xs">
+                    <div className="flex justify-between items-center text-coconut-800 dark:text-darkbg-text font-semibold">
+                      <span>抠图容差阈值 (Tolerance)</span>
                       <span className="font-mono text-palm-700 dark:text-palm-400 font-bold">{tolerance}</span>
                     </div>
                     <input
                       type="range"
                       min="10"
-                      max="60"
+                      max="80"
                       value={tolerance}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        setTolerance(val);
-                        if (photoFile) processPhotoBg(photoFile, selectedBg, val, feather);
-                      }}
-                      className="w-full accent-palm-600"
+                      onChange={(e) => setTolerance(Number(e.target.value))}
+                      className="w-full h-1.5 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-palm-600 dark:accent-palm-400"
                     />
 
-                    <div className="flex justify-between items-center text-coconut-700 dark:text-darkbg-muted pt-1">
-                      <span>边缘平滑羽化 (防止生硬锯齿)</span>
-                      <span className="font-mono text-palm-700 dark:text-palm-400 font-bold">{feather}</span>
+                    <div className="flex justify-between items-center text-coconut-800 dark:text-darkbg-text font-semibold pt-1">
+                      <span>边缘羽化模糊度 (Feather)</span>
+                      <span className="font-mono text-palm-700 dark:text-palm-400 font-bold">{feather} px</span>
                     </div>
                     <input
                       type="range"
-                      min="5"
-                      max="30"
+                      min="0"
+                      max="10"
                       value={feather}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        setFeather(val);
-                        if (photoFile) processPhotoBg(photoFile, selectedBg, tolerance, val);
-                      }}
-                      className="w-full accent-palm-600"
+                      onChange={(e) => setFeather(Number(e.target.value))}
+                      className="w-full h-1.5 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-palm-600 dark:accent-palm-400"
                     />
                   </div>
-                </div>
 
-                {/* 右侧实时对比预览 */}
-                <div className="md:col-span-5 flex flex-col items-center space-y-4">
-                  <div className="text-xs font-semibold text-coconut-600 dark:text-darkbg-muted">实时换底预览</div>
-                  <div
-                    className="relative w-48 h-64 rounded-2xl overflow-hidden shadow-coconut-md border-2 border-coconut-200 dark:border-darkbg-border flex items-center justify-center"
-                    style={{ backgroundColor: selectedBg }}
+                  {/* 4. 立即重新处理按钮 */}
+                  <button
+                    onClick={() => {
+                      if (photoFile) processPhotoBg(photoFile, selectedBg, tolerance, feather);
+                    }}
+                    disabled={isProcessing}
+                    className="w-full py-3 btn-3d-sunset text-white rounded-2xl text-xs font-semibold flex items-center justify-center space-x-1.5"
                   >
                     {isProcessing ? (
-                      <div className="flex flex-col items-center space-y-2 text-coconut-500 text-xs">
-                        <Loader2 className="w-6 h-6 animate-spin text-palm-600 dark:text-palm-400" />
-                        <span>正在平滑换底...</span>
-                      </div>
-                    ) : processedPhotoUrl ? (
-                      <img src={processedPhotoUrl} alt="换底效果" className="w-full h-full object-cover" />
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>正在处理换底...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        <span>应用参数重新生成</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* 右侧渲染与预览区 */}
+                <div className="md:col-span-5 space-y-4">
+                  <div className="p-4 bg-coconut-100/30 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border flex flex-col items-center justify-center min-h-[300px]">
+                    {processedPhotoBlob ? (
+                      <img
+                        src={URL.createObjectURL(processedPhotoBlob)}
+                        alt="证件照效果"
+                        className="max-h-64 object-contain rounded-xl shadow-md border border-coconut-200 dark:border-darkbg-border"
+                      />
+                    ) : photoPreview ? (
+                      <img
+                        src={photoPreview}
+                        alt="原图预览"
+                        className="max-h-64 object-contain rounded-xl shadow-md opacity-70"
+                      />
                     ) : null}
                   </div>
 
-                  <div className="w-full space-y-2">
-                    <button
-                      onClick={() => {
-                        if (processedPhotoBlob) {
-                          downloadBlob(processedPhotoBlob, `id_photo_${selectedSpec.name}_clean.jpg`);
-                        }
-                      }}
-                      className="w-full py-2.5 bg-coconut-800 hover:bg-coconut-900 dark:bg-coconut-100 dark:hover:bg-white text-coconut-50 dark:text-coconut-900 rounded-2xl text-xs font-semibold flex items-center justify-center space-x-1.5 shadow-coconut-sm active:scale-95 transition-all"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>下载单张高清证件照</span>
-                    </button>
+                  {processedPhotoBlob && (
+                    <div className="w-full space-y-2">
+                      <button
+                        onClick={() => {
+                          if (processedPhotoBlob) {
+                            downloadBlob(processedPhotoBlob, `id_photo_${selectedSpec.name}_clean.jpg`);
+                          }
+                        }}
+                        className="w-full py-2.5 btn-3d-sunset text-white rounded-2xl text-xs font-bold flex items-center justify-center space-x-1.5"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>下载单张高清证件照</span>
+                      </button>
 
-                    <button
-                      onClick={handleDownloadSheet}
-                      disabled={isProcessing}
-                      className="w-full py-2.5 bg-gradient-to-r from-palm-600 to-palm-700 hover:from-palm-700 hover:to-palm-800 text-white rounded-2xl text-xs font-semibold flex items-center justify-center space-x-1.5 shadow-coconut-sm shadow-palm-600/20 active:scale-95 transition-all"
-                    >
-                      <Printer className="w-3.5 h-3.5" />
-                      <span>🖨️ 生成 6寸相纸排版大图 (带裁切虚线)</span>
-                    </button>
-                    <p className="text-[10px] text-coconut-500 dark:text-darkbg-muted text-center leading-relaxed">
-                      💡 生成的标准 6 寸相纸 (1200x1800 px) 可直接发给冲印店打印（通常仅需 0.3 元），沿虚线裁切即得整版证件照！
-                    </p>
-                  </div>
+                      <button
+                        onClick={handleDownloadSheet}
+                        disabled={isProcessing}
+                        className="w-full py-2.5 btn-3d-secondary rounded-2xl text-xs font-semibold flex items-center justify-center space-x-1.5"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>🖨️ 生成 6寸相纸排版大图 (带裁切虚线)</span>
+                      </button>
+                      <p className="text-[10px] text-coconut-600 dark:text-darkbg-muted text-center leading-relaxed">
+                        💡 生成的标准 6 寸相纸 (1200x1800 px) 可直接发给冲印店打印（通常仅需 0.3 元），沿虚线裁切即得整版证件照！
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -592,7 +608,7 @@ export default function DailyToolbox({
                         downloadBlob(qrResultBlob, `qrcode_${Date.now()}.png`);
                       }
                     }}
-                    className="flex-1 py-2.5 bg-gradient-to-r from-coconut-800 to-coconut-900 dark:from-coconut-200 dark:to-coconut-100 text-coconut-50 dark:text-coconut-950 hover:opacity-95 rounded-2xl text-xs font-semibold flex items-center justify-center space-x-1.5 shadow-coconut-sm active:scale-95 transition-all"
+                    className="flex-1 py-2.5 btn-3d-sunset text-white rounded-2xl text-xs font-bold flex items-center justify-center space-x-1.5"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>下载高清 PNG</span>
@@ -617,8 +633,8 @@ export default function DailyToolbox({
                     onClick={() => setDiffMode(m)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all active:scale-95 ${
                       diffMode === m
-                        ? "bg-coconut-800 text-coconut-50 dark:bg-coconut-200 dark:text-coconut-950 shadow-coconut-sm font-semibold"
-                        : "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-200/60"
+                        ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 shadow-coconut-sm font-bold"
+                        : "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-200/60 dark:hover:text-darkbg-text"
                     }`}
                   >
                     {m === "lines" ? "按行对比 (推荐)" : "按词精细对比"}
@@ -713,8 +729,8 @@ export default function DailyToolbox({
                   onClick={() => setDevTab(sub.id as DevSubTab)}
                   className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all snap-start active:scale-95 whitespace-nowrap ${
                     isCur
-                      ? "bg-coconut-800 text-coconut-50 dark:bg-coconut-200 dark:text-coconut-950 shadow-coconut-sm"
-                      : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-200/60 dark:hover:bg-darkbg-elevated border border-coconut-200/40 dark:border-darkbg-border"
+                      ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 shadow-coconut-sm font-bold"
+                      : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-200/60 dark:hover:bg-darkbg-elevated hover:dark:text-darkbg-text border border-coconut-200/40 dark:border-darkbg-border"
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -817,7 +833,7 @@ export default function DailyToolbox({
                           setError("无效的 Base64 字符串");
                         }
                       }}
-                      className="px-2.5 py-1 bg-coconut-800 hover:bg-coconut-900 text-coconut-50 rounded-lg text-[11px] font-medium active:scale-95 transition-all"
+                      className="px-2.5 py-1 bg-coconut-800 hover:bg-coconut-900 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 text-coconut-50 rounded-lg text-[11px] font-semibold active:scale-95 transition-all"
                     >
                       ← 解码为明文
                     </button>
@@ -826,7 +842,7 @@ export default function DailyToolbox({
                     rows={8}
                     value={b64Result}
                     onChange={(e) => setB64Result(e.target.value)}
-                    className="w-full p-3 text-xs bg-darkbg-canvas text-coconut-200 border border-darkbg-border rounded-2xl font-mono focus:outline-none focus:ring-2 focus:ring-palm-500/20"
+                    className="w-full p-3 text-xs bg-darkbg-canvas text-coconut-800 dark:text-darkbg-text border border-darkbg-border rounded-2xl font-mono focus:outline-none focus:ring-2 focus:ring-palm-500/20"
                   />
                 </div>
               </div>

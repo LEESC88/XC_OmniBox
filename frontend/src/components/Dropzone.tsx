@@ -67,7 +67,7 @@ export default function Dropzone({
           className={`group relative border-2 border-dashed rounded-2xl p-6 sm:p-10 text-center cursor-pointer transition-all duration-300 select-none ${
             isDragOver
               ? "border-palm-500 bg-palm-50/60 dark:bg-palm-950/30 scale-[0.99] shadow-coconut-md ring-4 ring-palm-400/15"
-              : "border-coconut-300/90 dark:border-coconut-800/80 hover:border-coconut-500 dark:hover:border-toast-500/60 bg-coconut-50/40 dark:bg-darkbg-card/70 hover:bg-coconut-100/40 dark:hover:bg-darkbg-elevated shadow-coconut-sm"
+              : "border-coconut-300 dark:border-darkbg-border hover:border-coconut-500 dark:hover:border-palm-500 bg-coconut-50/40 dark:bg-darkbg-card hover:bg-coconut-100/40 dark:hover:bg-darkbg-elevated shadow-coconut-sm"
           }`}
         >
           <input
@@ -82,15 +82,15 @@ export default function Dropzone({
             <div className={`p-4 rounded-2xl transition-all duration-300 shadow-sm ${
               isDragOver
                 ? "bg-palm-500 text-white scale-110"
-                : "bg-coconut-100 dark:bg-coconut-900/80 text-coconut-700 dark:text-toast-400 group-hover:scale-105 group-hover:bg-coconut-200 dark:group-hover:bg-coconut-800"
+                : "bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-toast-400 group-hover:scale-105 group-hover:bg-coconut-200 dark:group-hover:bg-darkbg-hover"
             }`}>
               <UploadCloud className="w-8 h-8" />
             </div>
             <div>
-              <p className="text-sm sm:text-base font-semibold text-coconut-900 dark:text-coconut-100 tracking-tight">
+              <p className="text-sm sm:text-base font-semibold text-coconut-900 dark:text-darkbg-text tracking-tight">
                 {title}
               </p>
-              <p className="text-xs text-coconut-600/80 dark:text-coconut-400 mt-1">
+              <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
                 {hint}
               </p>
             </div>
@@ -99,7 +99,7 @@ export default function Dropzone({
       ) : (
         <div className="bg-white/90 dark:bg-darkbg-card border border-coconut-200/90 dark:border-darkbg-border rounded-2xl p-4 sm:p-5 shadow-coconut-sm backdrop-blur-sm">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-coconut-700 dark:text-coconut-300 flex items-center gap-1.5">
+            <span className="text-xs font-bold uppercase tracking-wider text-coconut-700 dark:text-darkbg-muted flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-palm-500"></span>
               已选文件 ({selectedFiles.length})
             </span>
@@ -114,15 +114,15 @@ export default function Dropzone({
             {selectedFiles.map((file, idx) => (
               <div
                 key={idx}
-                className="flex items-center justify-between p-2.5 sm:p-3 bg-coconut-50/70 dark:bg-darkbg-elevated/80 rounded-xl text-sm border border-coconut-200/60 dark:border-darkbg-border transition-all hover:border-coconut-300 dark:hover:border-coconut-700"
+                className="flex items-center justify-between p-2.5 sm:p-3 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-xl text-sm border border-coconut-200/60 dark:border-darkbg-border transition-all hover:border-coconut-300 dark:hover:border-darkbg-borderLight"
               >
                 <div className="flex items-center gap-2.5 truncate">
                   <FileIcon className="w-4 h-4 text-coconut-600 dark:text-toast-400 flex-shrink-0" />
-                  <span className="truncate font-medium text-coconut-900 dark:text-coconut-100 text-xs">
+                  <span className="truncate font-medium text-coconut-900 dark:text-darkbg-text text-xs">
                     {file.name}
                   </span>
                 </div>
-                <span className="text-xs text-coconut-500 dark:text-coconut-400 font-mono flex-shrink-0 ml-2">
+                <span className="text-xs text-coconut-600 dark:text-darkbg-muted font-mono flex-shrink-0 ml-2">
                   {formatSize(file.size)}
                 </span>
               </div>

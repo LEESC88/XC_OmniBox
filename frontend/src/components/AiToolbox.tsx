@@ -332,16 +332,16 @@ export default function AiToolbox({
               onClick={() => handleTabChange(tab.id)}
               className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all active:scale-95 ${
                 isActive
-                  ? "bg-coconut-900 text-coconut-50 dark:bg-coconut-100 dark:text-coconut-950 shadow-coconut-sm"
-                  : "bg-white/60 dark:bg-darkbg-card/70 text-coconut-700 dark:text-darkbg-muted border border-coconut-200/60 dark:border-darkbg-border hover:bg-coconut-100/50"
+                  ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white shadow-3d-sunset font-bold scale-[1.02]"
+                  : "bg-white/70 dark:bg-darkbg-card/70 text-coconut-700 dark:text-darkbg-muted border border-coconut-200/60 dark:border-darkbg-border hover:bg-coconut-100/50 dark:hover:text-darkbg-text"
               }`}
             >
-              <Icon className={`w-4 h-4 ${isActive ? "text-palm-300 dark:text-palm-700" : "text-coconut-500"}`} />
+              <Icon className={`w-4 h-4 ${isActive ? "text-amber-100" : "text-coconut-500 dark:text-darkbg-muted"}`} />
               <span>{tab.label}</span>
               <span
                 className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-medium ${
                   isActive
-                    ? "bg-palm-500/20 text-palm-300 dark:text-palm-800"
+                    ? "bg-white/25 text-white"
                     : "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-600 dark:text-darkbg-muted"
                 }`}
               >
@@ -361,10 +361,10 @@ export default function AiToolbox({
           <div className="lg:col-span-4 bg-white/80 dark:bg-darkbg-card/90 border border-coconut-200/70 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-5 backdrop-blur-md">
             <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
               <div className="flex items-center gap-2 text-xs font-bold text-coconut-900 dark:text-darkbg-text">
-                <Sliders className="w-4 h-4 text-palm-600 dark:text-palm-400" />
+                <Sliders className="w-4 h-4 text-orange-500" />
                 <span>抠图引擎与配置</span>
               </div>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-palm-100 dark:bg-palm-950 text-palm-700 dark:text-palm-300 font-mono font-medium">
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/80 text-orange-700 dark:text-orange-300 font-mono font-medium">
                 100% 浏览器本地
               </span>
             </div>
@@ -380,12 +380,12 @@ export default function AiToolbox({
                   onClick={() => setBgEngine("ai")}
                   className={`p-3 rounded-2xl border text-left transition-all ${
                     bgEngine === "ai"
-                      ? "border-palm-500 bg-palm-50/50 dark:bg-palm-950/30 text-coconut-900 dark:text-darkbg-text shadow-sm"
+                      ? "border-orange-500 bg-orange-50/60 dark:bg-orange-950/30 text-coconut-900 dark:text-darkbg-text shadow-sm"
                       : "border-coconut-200 dark:border-darkbg-border text-coconut-600 dark:text-darkbg-muted hover:bg-coconut-50 dark:hover:bg-darkbg-subtle"
                   }`}
                 >
                   <div className="flex items-center gap-1.5 text-xs font-bold mb-1">
-                    <Sparkles className="w-3.5 h-3.5 text-palm-600" />
+                    <Sparkles className="w-3.5 h-3.5 text-orange-500" />
                     <span>AI 深度神经网络</span>
                   </div>
                   <p className="text-[11px] text-coconut-500 dark:text-darkbg-muted leading-tight">
@@ -398,12 +398,12 @@ export default function AiToolbox({
                   onClick={() => setBgEngine("chroma")}
                   className={`p-3 rounded-2xl border text-left transition-all ${
                     bgEngine === "chroma"
-                      ? "border-palm-500 bg-palm-50/50 dark:bg-palm-950/30 text-coconut-900 dark:text-darkbg-text shadow-sm"
+                      ? "border-orange-500 bg-orange-50/60 dark:bg-orange-950/30 text-coconut-900 dark:text-darkbg-text shadow-sm"
                       : "border-coconut-200 dark:border-darkbg-border text-coconut-600 dark:text-darkbg-muted hover:bg-coconut-50 dark:hover:bg-darkbg-subtle"
                   }`}
                 >
                   <div className="flex items-center gap-1.5 text-xs font-bold mb-1">
-                    <Zap className="w-3.5 h-3.5 text-toast-500" />
+                    <Zap className="w-3.5 h-3.5 text-amber-500" />
                     <span>极速色度算法</span>
                   </div>
                   <p className="text-[11px] text-coconut-500 dark:text-darkbg-muted leading-tight">
@@ -426,7 +426,7 @@ export default function AiToolbox({
                     onClick={() => handleChangeBgColor(preset.value)}
                     className={`flex items-center gap-2 p-2 rounded-xl border text-xs font-medium transition-all ${
                       selectedBgColor === preset.value
-                        ? "border-palm-600 bg-palm-50 dark:bg-palm-950/40 text-palm-800 dark:text-palm-300 font-bold"
+                        ? "border-orange-500 bg-orange-50 dark:bg-orange-950/40 text-orange-800 dark:text-orange-300 font-bold shadow-xs"
                         : "border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-50"
                     }`}
                   >
@@ -450,7 +450,7 @@ export default function AiToolbox({
             {/* 证件照联动快捷入口 */}
             <div className="p-3.5 bg-coconut-100/70 dark:bg-darkbg-subtle/80 border border-coconut-200 dark:border-darkbg-border rounded-2xl space-y-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-coconut-900 dark:text-darkbg-text">
-                <FileCheck className="w-3.5 h-3.5 text-palm-600" />
+                <FileCheck className="w-3.5 h-3.5 text-orange-500" />
                 <span>无缝联动 6 寸证件照排版</span>
               </div>
               <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted leading-relaxed">
@@ -462,11 +462,7 @@ export default function AiToolbox({
             <button
               onClick={handleExecuteBgRemoval}
               disabled={bgLoading || !bgFile}
-              className={`w-full py-3.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-coconut-sm active:scale-95 ${
-                bgLoading || !bgFile
-                  ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
-                  : "bg-gradient-to-r from-coconut-800 to-coconut-950 dark:from-coconut-200 dark:to-white text-coconut-50 dark:text-coconut-950 shadow-coconut-md"
-              }`}
+              className="w-full py-3.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 btn-3d-sunset active:scale-95"
             >
               {bgLoading ? (
                 <>
@@ -548,12 +544,12 @@ export default function AiToolbox({
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-palm-600" />
                         <span>{bgStage || "深度神经网络逐像素分割中..."}</span>
                       </span>
-                      <span className="font-mono font-bold text-palm-600">{bgProgress}%</span>
+                      <span className="font-mono font-bold text-orange-600 dark:text-orange-400">{bgProgress}%</span>
                     </div>
-                    <div className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-full overflow-hidden">
+                    <div className="w-full h-3 bg-coconut-200/80 dark:bg-darkbg-border rounded-full overflow-hidden p-0.5 shadow-inner">
                       <div
-                        className="h-full bg-gradient-to-r from-palm-500 to-emerald-400 transition-all duration-300"
-                        style={{ width: `${bgProgress}%` }}
+                        className="h-full rounded-full progress-sunset-striped transition-all duration-300 shadow-sm"
+                        style={{ width: `${Math.max(5, bgProgress)}%` }}
                       />
                     </div>
                   </div>
@@ -664,7 +660,7 @@ export default function AiToolbox({
 
                     <button
                       onClick={handleDownloadBgResult}
-                      className="flex items-center gap-2 py-2.5 px-5 rounded-2xl bg-coconut-900 text-coconut-50 dark:bg-coconut-100 dark:text-coconut-950 font-bold text-xs transition-all hover:opacity-90 active:scale-95 shadow-coconut-sm"
+                      className="flex items-center gap-2 py-2.5 px-5 rounded-2xl btn-3d-sunset text-xs active:scale-95"
                     >
                       <Download className="w-4 h-4" />
                       <span>下载无损透明 PNG</span>
@@ -686,10 +682,10 @@ export default function AiToolbox({
           <div className="lg:col-span-4 bg-white/80 dark:bg-darkbg-card/90 border border-coconut-200/70 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-5 backdrop-blur-md">
             <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
               <div className="flex items-center gap-2 text-xs font-bold text-coconut-900 dark:text-darkbg-text">
-                <Sliders className="w-4 h-4 text-palm-600 dark:text-palm-400" />
+                <Sliders className="w-4 h-4 text-orange-500" />
                 <span>OCR 扫描参数</span>
               </div>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-palm-100 dark:bg-palm-950 text-palm-700 dark:text-palm-300 font-mono font-medium">
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/80 text-orange-700 dark:text-orange-300 font-mono font-medium">
                 离线识别
               </span>
             </div>
@@ -707,7 +703,7 @@ export default function AiToolbox({
                     onClick={() => setOcrLang(lang.id)}
                     className={`w-full text-left p-2.5 rounded-xl border transition-all ${
                       ocrLang === lang.id
-                        ? "border-palm-500 bg-palm-50/60 dark:bg-palm-950/40 text-coconut-900 dark:text-darkbg-text shadow-sm"
+                        ? "border-orange-500 bg-orange-50/60 dark:bg-orange-950/40 text-coconut-900 dark:text-darkbg-text shadow-sm"
                         : "border-coconut-200 dark:border-darkbg-border text-coconut-600 dark:text-darkbg-muted hover:bg-coconut-50"
                     }`}
                   >
@@ -722,7 +718,7 @@ export default function AiToolbox({
 
             {/* 隐私承诺 */}
             <div className="p-3 bg-coconut-100/70 dark:bg-darkbg-subtle/80 border border-coconut-200 dark:border-darkbg-border rounded-2xl flex items-start gap-2.5 text-xs text-coconut-600 dark:text-darkbg-muted">
-              <ShieldCheck className="w-4 h-4 flex-shrink-0 text-palm-600 mt-0.5" />
+              <ShieldCheck className="w-4 h-4 flex-shrink-0 text-orange-500 mt-0.5" />
               <p className="text-[11px] leading-relaxed">
                 合同、发票、财务报表等任何敏感凭证均在本地 WASM 沙箱内解析，绝对不发送任何外部服务器。
               </p>
@@ -732,11 +728,7 @@ export default function AiToolbox({
             <button
               onClick={handleExecuteOcr}
               disabled={ocrLoading || !ocrFile}
-              className={`w-full py-3.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-coconut-sm active:scale-95 ${
-                ocrLoading || !ocrFile
-                  ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
-                  : "bg-gradient-to-r from-coconut-800 to-coconut-950 dark:from-coconut-200 dark:to-white text-coconut-50 dark:text-coconut-950 shadow-coconut-md"
-              }`}
+              className="w-full py-3.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 btn-3d-sunset active:scale-95"
             >
               {ocrLoading ? (
                 <>
@@ -819,9 +811,9 @@ export default function AiToolbox({
                       </span>
                       <span className="font-mono font-bold text-palm-600">{ocrProgress}%</span>
                     </div>
-                    <div className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-full overflow-hidden">
+                    <div className="w-full h-2.5 bg-coconut-200 dark:bg-darkbg-border rounded-full overflow-hidden p-0.5">
                       <div
-                        className="h-full bg-gradient-to-r from-palm-500 to-emerald-400 transition-all duration-300"
+                        className="h-full progress-sunset-striped rounded-full transition-all duration-300"
                         style={{ width: `${ocrProgress}%` }}
                       />
                     </div>
@@ -904,7 +896,7 @@ export default function AiToolbox({
 
                         <button
                           onClick={handleDownloadOcrTxt}
-                          className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-coconut-900 text-coconut-50 dark:bg-coconut-100 dark:text-coconut-950 text-xs font-semibold transition-all hover:opacity-90 active:scale-95 shadow-coconut-sm"
+                          className="btn-3d-sunset flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-white text-xs font-semibold"
                         >
                           <Download className="w-3.5 h-3.5" />
                           <span>导出为 TXT 文件</span>
@@ -1019,10 +1011,10 @@ export default function AiToolbox({
             <button
               onClick={handleExecuteUpscale}
               disabled={upscaleLoading || !upscaleFile}
-              className={`w-full py-3.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-coconut-sm active:scale-95 ${
+              className={`w-full py-3.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${
                 upscaleLoading || !upscaleFile
                   ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
-                  : "bg-gradient-to-r from-coconut-800 to-coconut-950 dark:from-coconut-200 dark:to-white text-coconut-50 dark:text-coconut-950 shadow-coconut-md"
+                  : "btn-3d-sunset text-white"
               }`}
             >
               {upscaleLoading ? (
@@ -1032,7 +1024,7 @@ export default function AiToolbox({
                 </>
               ) : (
                 <>
-                  <Maximize2 className="w-4 h-4 text-palm-300 dark:text-palm-700" />
+                  <Maximize2 className="w-4 h-4 text-amber-200" />
                   <span>立即执行 AI 高清修复增强</span>
                 </>
               )}
@@ -1106,9 +1098,9 @@ export default function AiToolbox({
                       </span>
                       <span className="font-mono font-bold text-palm-600">{upscaleProgress}%</span>
                     </div>
-                    <div className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-full overflow-hidden">
+                    <div className="w-full h-2.5 bg-coconut-200 dark:bg-darkbg-border rounded-full overflow-hidden p-0.5">
                       <div
-                        className="h-full bg-gradient-to-r from-palm-500 to-emerald-400 transition-all duration-300"
+                        className="h-full progress-sunset-striped rounded-full transition-all duration-300"
                         style={{ width: `${upscaleProgress}%` }}
                       />
                     </div>
@@ -1208,7 +1200,7 @@ export default function AiToolbox({
 
                     <button
                       onClick={handleDownloadUpscaleResult}
-                      className="flex items-center gap-2 py-2.5 px-5 rounded-2xl bg-coconut-900 text-coconut-50 dark:bg-coconut-100 dark:text-coconut-950 font-bold text-xs transition-all hover:opacity-90 active:scale-95 shadow-coconut-sm"
+                      className="btn-3d-sunset flex items-center gap-2 py-2.5 px-5 rounded-2xl text-white font-bold text-xs"
                     >
                       <Download className="w-4 h-4" />
                       <span>下载无损超清图 ({upscaleResult.scaleFactor}x PNG)</span>

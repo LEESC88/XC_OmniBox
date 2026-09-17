@@ -312,8 +312,8 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
               onClick={() => handleTabSelect(tab.id as ImageToolTab)}
               className={`flex items-center space-x-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap flex-shrink-0 snap-start active:scale-95 ${
                 isActive
-                  ? "bg-coconut-800 text-coconut-50 dark:bg-toast-500 dark:text-darkbg-canvas shadow-coconut-sm scale-[1.02]"
-                  : "bg-white/80 dark:bg-darkbg-card text-coconut-700 dark:text-coconut-300 border border-coconut-200/80 dark:border-darkbg-border hover:bg-coconut-100/60 dark:hover:bg-darkbg-elevated"
+                  ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white font-bold shadow-coconut-sm scale-[1.02]"
+                  : "bg-white/80 dark:bg-darkbg-card text-coconut-700 dark:text-darkbg-muted border border-coconut-200/80 dark:border-darkbg-border hover:bg-coconut-100/60 dark:hover:bg-darkbg-elevated hover:dark:text-darkbg-text"
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -321,8 +321,8 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
                   isActive
-                    ? "bg-coconut-700/80 text-coconut-100 dark:bg-darkbg-canvas/30 dark:text-darkbg-canvas"
-                    : "bg-coconut-200/80 dark:bg-darkbg-elevated text-coconut-700 dark:text-coconut-400"
+                    ? "bg-white/25 text-white"
+                    : "bg-coconut-200/80 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-muted"
                 }`}
               >
                 {tab.badge}
@@ -335,7 +335,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
       {/* 参数控制面板 (根据 activeTab 变化) */}
       <div className="bg-white/95 dark:bg-darkbg-card border border-coconut-200/90 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-4 backdrop-blur-md">
         <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
-          <div className="flex items-center space-x-2 text-coconut-900 dark:text-coconut-100 font-bold text-sm">
+          <div className="flex items-center space-x-2 text-coconut-900 dark:text-darkbg-text font-bold text-sm">
             <Sliders className="w-4 h-4 text-toast-500" />
             <span>
               {activeTab === "compress" && "压缩选项设置 (智能重采样 & 体积优化)"}
@@ -346,7 +346,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
               {activeTab === "watermark" && "水印样式、透明度与排布"}
             </span>
           </div>
-          <span className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200/50 dark:border-emerald-800/50 font-medium">
+          <span className="text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200/50 dark:border-emerald-800/50 font-medium">
             纯本地 Canvas/WASM 极速运算 · 零流量上传
           </span>
         </div>
@@ -356,8 +356,8 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-1">
             <div className="space-y-2">
               <div className="flex justify-between text-xs">
-                <span className="text-coconut-700 dark:text-coconut-300 font-medium">压缩质量</span>
-                <span className="text-coconut-800 dark:text-toast-400 font-bold">{Math.round(compressQuality * 100)}%</span>
+                <span className="text-coconut-800 dark:text-darkbg-text font-semibold">压缩质量</span>
+                <span className="text-coconut-900 dark:text-toast-400 font-bold">{Math.round(compressQuality * 100)}%</span>
               </div>
               <input
                 type="range"
@@ -366,39 +366,39 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                 step="0.05"
                 value={compressQuality}
                 onChange={(e) => setCompressQuality(parseFloat(e.target.value))}
-                className="w-full h-2 bg-coconut-200 dark:bg-coconut-900 rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-toast-500"
+                className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-palm-400"
               />
-              <p className="text-[11px] text-coconut-500 dark:text-coconut-400">推荐 70%~85%，肉眼几乎无失真，体积降低 60%~80%</p>
+              <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted">推荐 70%~85%，肉眼几乎无失真，体积降低 60%~80%</p>
             </div>
 
             <div className="space-y-2">
-              <span className="text-xs text-coconut-700 dark:text-coconut-300 font-medium">最大分辨率限制</span>
+              <span className="text-xs text-coconut-800 dark:text-darkbg-text font-semibold">最大分辨率限制</span>
               <select
                 value={compressMaxResolution}
                 onChange={(e) => setCompressMaxResolution(parseInt(e.target.value))}
-                className="w-full px-3 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-coconut-100 focus:outline-none focus:border-coconut-600 dark:focus:border-toast-500"
+                className="w-full px-3 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500"
               >
-                <option value={4096}>保持原图大尺寸 (最大 4096px)</option>
-                <option value={2560}>2K 常见大图 (最大 2560px)</option>
-                <option value={1920}>1080P 高清 (最大 1920px)</option>
-                <option value={1280}>网页极速加载 (最大 1280px)</option>
+                <option value={4096} className="dark:bg-darkbg-card dark:text-darkbg-text">保持原图大尺寸 (最大 4096px)</option>
+                <option value={2560} className="dark:bg-darkbg-card dark:text-darkbg-text">2K 常见大图 (最大 2560px)</option>
+                <option value={1920} className="dark:bg-darkbg-card dark:text-darkbg-text">1080P 高清 (最大 1920px)</option>
+                <option value={1280} className="dark:bg-darkbg-card dark:text-darkbg-text">网页极速加载 (最大 1280px)</option>
               </select>
-              <p className="text-[11px] text-coconut-500 dark:text-coconut-400">超过此分辨率将自动等比例重采样</p>
+              <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted">超过此分辨率将自动等比例重采样</p>
             </div>
 
             <div className="space-y-2">
-              <span className="text-xs text-coconut-700 dark:text-coconut-300 font-medium">目标体积上限</span>
+              <span className="text-xs text-coconut-800 dark:text-darkbg-text font-semibold">目标体积上限</span>
               <select
                 value={compressTargetSizeMB}
                 onChange={(e) => setCompressTargetSizeMB(parseFloat(e.target.value))}
-                className="w-full px-3 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-coconut-100 focus:outline-none focus:border-coconut-600 dark:focus:border-toast-500"
+                className="w-full px-3 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500"
               >
-                <option value={0.5}>极度精简 (≤ 500 KB)</option>
-                <option value={1}>日常分享 (≤ 1 MB)</option>
-                <option value={2}>标准高清 (≤ 2 MB)</option>
-                <option value={5}>大图印刷 (≤ 5 MB)</option>
+                <option value={0.5} className="dark:bg-darkbg-card dark:text-darkbg-text">极度精简 (≤ 500 KB)</option>
+                <option value={1} className="dark:bg-darkbg-card dark:text-darkbg-text">日常分享 (≤ 1 MB)</option>
+                <option value={2} className="dark:bg-darkbg-card dark:text-darkbg-text">标准高清 (≤ 2 MB)</option>
+                <option value={5} className="dark:bg-darkbg-card dark:text-darkbg-text">大图印刷 (≤ 5 MB)</option>
               </select>
-              <p className="text-[11px] text-coconut-500 dark:text-coconut-400">优先兼顾文件大小上限约束</p>
+              <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted">优先兼顾文件大小上限约束</p>
             </div>
           </div>
         )}
@@ -407,7 +407,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
         {activeTab === "heic" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
             <div className="space-y-2">
-              <span className="text-xs text-coconut-700 dark:text-coconut-300 font-medium">转换目标格式</span>
+              <span className="text-xs text-coconut-800 dark:text-darkbg-text font-semibold">转换目标格式</span>
               <div className="flex space-x-3">
                 {[
                   { value: "image/jpeg", label: "JPG / JPEG", desc: "兼容性最高，文件较小" },
@@ -417,8 +417,8 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                     key={opt.value}
                     className={`flex-1 flex flex-col p-3.5 rounded-2xl border cursor-pointer transition-all ${
                       heicTargetFormat === opt.value
-                        ? "border-coconut-700 dark:border-toast-500 bg-coconut-100/60 dark:bg-darkbg-elevated text-coconut-900 dark:text-toast-300 shadow-coconut-sm"
-                        : "border-coconut-200 dark:border-darkbg-border hover:border-coconut-300 dark:hover:border-coconut-700"
+                        ? "border-palm-600 dark:border-palm-400 bg-palm-50/50 dark:bg-palm-950/30 text-coconut-950 dark:text-darkbg-text ring-2 ring-palm-500/20 shadow-coconut-sm"
+                        : "border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:border-coconut-300 dark:hover:border-darkbg-borderLight"
                     }`}
                   >
                     <div className="flex items-center space-x-2">
@@ -427,11 +427,11 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                         name="heicFormat"
                         checked={heicTargetFormat === opt.value}
                         onChange={() => setHeicTargetFormat(opt.value as any)}
-                        className="accent-coconut-700 dark:accent-toast-500"
+                        className="accent-palm-600 dark:accent-palm-400"
                       />
-                      <span className="font-semibold text-sm">{opt.label}</span>
+                      <span className="font-semibold text-sm text-coconut-900 dark:text-darkbg-text">{opt.label}</span>
                     </div>
-                    <span className="text-[11px] text-coconut-600 dark:text-coconut-400 mt-1">{opt.desc}</span>
+                    <span className="text-[11px] text-coconut-600 dark:text-darkbg-muted mt-1">{opt.desc}</span>
                   </label>
                 ))}
               </div>
@@ -439,8 +439,8 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
 
             <div className="space-y-2">
               <div className="flex justify-between text-xs">
-                <span className="text-coconut-700 dark:text-coconut-300 font-medium">输出画质清晰度</span>
-                <span className="text-coconut-800 dark:text-toast-400 font-bold">{Math.round(heicQuality * 100)}%</span>
+                <span className="text-coconut-800 dark:text-darkbg-text font-semibold">输出画质清晰度</span>
+                <span className="text-coconut-900 dark:text-toast-400 font-bold">{Math.round(heicQuality * 100)}%</span>
               </div>
               <input
                 type="range"
@@ -449,9 +449,9 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                 step="0.05"
                 value={heicQuality}
                 onChange={(e) => setHeicQuality(parseFloat(e.target.value))}
-                className="w-full h-2 bg-coconut-200 dark:bg-coconut-900 rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-toast-500"
+                className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-palm-400"
               />
-              <p className="text-[11px] text-coconut-500 dark:text-coconut-400">苹果 iPhone 实拍 HEIC 照片直接在本地解压渲染，秒级转码</p>
+              <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted">苹果 iPhone 实拍 HEIC 照片直接在本地解压渲染，秒级转码</p>
             </div>
           </div>
         )}
@@ -460,7 +460,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
         {activeTab === "convert" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-1">
             <div className="space-y-2">
-              <span className="text-xs text-coconut-700 dark:text-coconut-300 font-medium">目标输出格式</span>
+              <span className="text-xs text-coconut-800 dark:text-darkbg-text font-semibold">目标输出格式</span>
               <div className="grid grid-cols-3 gap-2">
                 {(["webp", "png", "jpg", "ico", "bmp"] as const).map((fmt) => (
                   <button
@@ -468,15 +468,15 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                     onClick={() => setConvertTarget(fmt)}
                     className={`py-2 px-3 rounded-xl text-xs font-bold uppercase transition-all ${
                       convertTarget === fmt
-                        ? "bg-coconut-800 text-coconut-50 dark:bg-toast-500 dark:text-darkbg-canvas shadow-sm"
-                        : "bg-coconut-100/70 dark:bg-darkbg-elevated text-coconut-700 dark:text-coconut-300 hover:bg-coconut-200/70 dark:hover:bg-coconut-800/40"
+                        ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 font-bold shadow-sm"
+                        : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-200/70 dark:hover:bg-darkbg-hover hover:dark:text-darkbg-text border border-transparent dark:border-darkbg-border"
                     }`}
                   >
                     {fmt}
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-coconut-500 dark:text-coconut-400">
+              <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted">
                 {convertTarget === "ico" && "自动生成 Windows 软件/网站 favicon 标准 ICO 图标"}
                 {convertTarget === "webp" && "下一代高压缩率网络图片格式，体积仅为 JPG 的一半"}
                 {convertTarget === "png" && "无损高保真透明图"}
@@ -486,8 +486,8 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
 
             <div className="space-y-2">
               <div className="flex justify-between text-xs">
-                <span className="text-coconut-700 dark:text-coconut-300 font-medium">输出画质</span>
-                <span className="text-coconut-800 dark:text-toast-400 font-bold">{Math.round(convertQuality * 100)}%</span>
+                <span className="text-coconut-800 dark:text-darkbg-text font-semibold">输出画质</span>
+                <span className="text-coconut-900 dark:text-toast-400 font-bold">{Math.round(convertQuality * 100)}%</span>
               </div>
               <input
                 type="range"
@@ -496,23 +496,23 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                 step="0.05"
                 value={convertQuality}
                 onChange={(e) => setConvertQuality(parseFloat(e.target.value))}
-                className="w-full h-2 bg-coconut-200 dark:bg-coconut-900 rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-toast-500"
+                className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-palm-400"
               />
-              <p className="text-[11px] text-coconut-500 dark:text-coconut-400">对 WebP / JPG 格式生效</p>
+              <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted">对 WebP / JPG 格式生效</p>
             </div>
 
             <div className="space-y-2">
-              <span className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">透明背景填色</span>
+              <span className="text-xs text-coconut-800 dark:text-darkbg-text font-semibold">透明背景填色</span>
               <div className="flex items-center space-x-3">
                 <input
                   type="color"
                   value={convertBgColor}
                   onChange={(e) => setConvertBgColor(e.target.value)}
-                  className="w-8 h-8 rounded-lg border border-zinc-300 cursor-pointer"
+                  className="w-8 h-8 rounded-lg border border-coconut-300 dark:border-darkbg-border cursor-pointer bg-transparent"
                 />
-                <span className="text-xs font-mono text-zinc-600 dark:text-zinc-400">{convertBgColor}</span>
+                <span className="text-xs font-mono text-coconut-700 dark:text-darkbg-muted">{convertBgColor}</span>
               </div>
-              <p className="text-[11px] text-zinc-400">当透明 PNG 转为不支持透明的 JPG/BMP 时填充此底色</p>
+              <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted">当透明 PNG 转为不支持透明的 JPG/BMP 时填充此底色</p>
             </div>
           </div>
         )}
@@ -529,10 +529,10 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                 <button
                   key={m.id}
                   onClick={() => setResizeMode(m.id as any)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
                     resizeMode === m.id
-                      ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-sm"
-                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 font-bold shadow-sm"
+                      : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-200/70 dark:hover:bg-darkbg-hover hover:dark:text-darkbg-text border border-transparent dark:border-darkbg-border"
                   }`}
                 >
                   {m.label}
@@ -548,8 +548,8 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                     onClick={() => setResizePercent(p)}
                     className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                       resizePercent === p
-                        ? "bg-coconut-800 text-coconut-50 dark:bg-toast-500 dark:text-darkbg-canvas shadow-sm"
-                        : "bg-coconut-100/70 dark:bg-darkbg-elevated text-coconut-700 dark:text-coconut-300 hover:bg-coconut-200/60 dark:hover:bg-coconut-800/40"
+                        ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 font-bold shadow-sm"
+                        : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-200/60 dark:hover:bg-darkbg-hover hover:dark:text-darkbg-text border border-transparent dark:border-darkbg-border"
                     }`}
                   >
                     {p}% 比例
@@ -564,17 +564,17 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                   <button
                     key={pst.name}
                     onClick={() => setSelectedPreset(pst)}
-                    className={`text-left p-3 rounded-2xl border transition-all ${
+                    className={`text-left p-3.5 rounded-2xl border transition-all ${
                       selectedPreset.name === pst.name
-                        ? "border-coconut-700 dark:border-toast-500 bg-coconut-100/60 dark:bg-darkbg-elevated text-coconut-900 dark:text-toast-300 shadow-coconut-sm"
-                        : "border-coconut-200 dark:border-darkbg-border hover:border-coconut-300 dark:hover:border-coconut-700"
+                        ? "border-palm-600 dark:border-palm-400 bg-palm-50/60 dark:bg-palm-950/30 text-coconut-900 dark:text-darkbg-text ring-2 ring-palm-500/20 shadow-coconut-sm"
+                        : "border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:border-coconut-300 dark:hover:border-darkbg-borderLight"
                     }`}
                   >
-                    <div className="font-bold text-xs">{pst.name}</div>
-                    <div className="text-[11px] font-mono text-coconut-600 dark:text-coconut-400 mt-0.5">
+                    <div className="font-bold text-xs text-coconut-900 dark:text-darkbg-text">{pst.name}</div>
+                    <div className="text-[11px] font-mono text-coconut-600 dark:text-darkbg-muted mt-0.5">
                       {pst.width} × {pst.height} px
                     </div>
-                    <div className="text-[10px] text-coconut-500 dark:text-coconut-400 mt-1">{pst.desc}</div>
+                    <div className="text-[10px] text-coconut-500 dark:text-darkbg-subtext mt-1">{pst.desc}</div>
                   </button>
                 ))}
               </div>
@@ -583,33 +583,33 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
             {resizeMode === "custom" && (
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs text-coconut-600 dark:text-coconut-400">宽:</span>
+                  <span className="text-xs text-coconut-800 dark:text-darkbg-text font-semibold">宽:</span>
                   <input
                     type="number"
                     placeholder="例如 800"
                     value={customWidth}
                     onChange={(e) => setCustomWidth(e.target.value ? parseInt(e.target.value) : "")}
-                    className="w-28 px-2.5 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-coconut-100"
+                    className="w-28 px-2.5 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500"
                   />
-                  <span className="text-xs text-coconut-400">px</span>
+                  <span className="text-xs text-coconut-500 dark:text-darkbg-muted">px</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs text-coconut-600 dark:text-coconut-400">高:</span>
+                  <span className="text-xs text-coconut-800 dark:text-darkbg-text font-semibold">高:</span>
                   <input
                     type="number"
                     placeholder="例如 600"
                     value={customHeight}
                     onChange={(e) => setCustomHeight(e.target.value ? parseInt(e.target.value) : "")}
-                    className="w-28 px-2.5 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-coconut-100"
+                    className="w-28 px-2.5 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500"
                   />
-                  <span className="text-xs text-coconut-400">px</span>
+                  <span className="text-xs text-coconut-500 dark:text-darkbg-muted">px</span>
                 </div>
-                <label className="flex items-center space-x-2 text-xs text-coconut-700 dark:text-coconut-300 cursor-pointer">
+                <label className="flex items-center space-x-2 text-xs text-coconut-800 dark:text-darkbg-text cursor-pointer">
                   <input
                     type="checkbox"
                     checked={lockAspect}
                     onChange={(e) => setLockAspect(e.target.checked)}
-                    className="rounded accent-coconut-700 dark:accent-toast-500"
+                    className="rounded accent-palm-600 dark:accent-palm-400"
                   />
                   <span>锁定等比例缩放 (防止变形)</span>
                 </label>
@@ -641,8 +641,8 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                 onClick={() => setWatermarkType("text")}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                   watermarkType === "text"
-                    ? "bg-coconut-800 text-coconut-50 dark:bg-toast-500 dark:text-darkbg-canvas shadow-sm"
-                    : "bg-coconut-100/70 dark:bg-darkbg-elevated text-coconut-700 dark:text-coconut-300"
+                    ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 font-bold shadow-sm"
+                    : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:dark:text-darkbg-text border border-transparent dark:border-darkbg-border"
                 }`}
               >
                 文字水印
@@ -651,8 +651,8 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                 onClick={() => setWatermarkType("logo")}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                   watermarkType === "logo"
-                    ? "bg-coconut-800 text-coconut-50 dark:bg-toast-500 dark:text-darkbg-canvas shadow-sm"
-                    : "bg-coconut-100/70 dark:bg-darkbg-elevated text-coconut-700 dark:text-coconut-300"
+                    ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 font-bold shadow-sm"
+                    : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:dark:text-darkbg-text border border-transparent dark:border-darkbg-border"
                 }`}
               >
                 Logo 图片水印
@@ -662,28 +662,28 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
             {watermarkType === "text" ? (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-1">
-                  <span className="text-xs text-zinc-500">水印文字</span>
+                  <span className="text-xs text-coconut-800 dark:text-darkbg-text font-semibold">水印文字</span>
                   <input
                     type="text"
                     value={watermarkText}
                     onChange={(e) => setWatermarkText(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg"
+                    className="w-full px-2.5 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500"
                   />
                 </div>
                 <div className="space-y-1">
-                  <span className="text-xs text-zinc-500">文字颜色</span>
+                  <span className="text-xs text-coconut-800 dark:text-darkbg-text font-semibold">文字颜色</span>
                   <div className="flex items-center space-x-2">
                     <input
                       type="color"
                       value={watermarkTextColor}
                       onChange={(e) => setWatermarkTextColor(e.target.value)}
-                      className="w-8 h-8 rounded border cursor-pointer"
+                      className="w-8 h-8 rounded border border-coconut-300 dark:border-darkbg-border cursor-pointer bg-transparent"
                     />
-                    <span className="text-xs font-mono">{watermarkTextColor}</span>
+                    <span className="text-xs font-mono text-coconut-700 dark:text-darkbg-muted">{watermarkTextColor}</span>
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-zinc-500">
+                  <div className="flex justify-between text-xs text-coconut-800 dark:text-darkbg-text font-semibold">
                     <span>透明度</span>
                     <span>{Math.round(watermarkOpacity * 100)}%</span>
                   </div>
@@ -694,21 +694,21 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                     step="0.05"
                     value={watermarkOpacity}
                     onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
-                    className="w-full accent-coconut-700 dark:accent-toast-500"
+                    className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-palm-400"
                   />
                 </div>
                 <div className="space-y-1">
-                  <span className="text-xs text-coconut-600 dark:text-coconut-400">水印布局</span>
+                  <span className="text-xs text-coconut-800 dark:text-darkbg-text font-semibold">水印布局</span>
                   <select
                     value={watermarkPos}
                     onChange={(e) => setWatermarkPos(e.target.value as any)}
-                    className="w-full px-2.5 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-coconut-100"
+                    className="w-full px-2.5 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500"
                   >
-                    <option value="tile">全图平铺防盗 (推荐)</option>
-                    <option value="bottom-right">右下角</option>
-                    <option value="bottom-left">左下角</option>
-                    <option value="center">正中央</option>
-                    <option value="top-right">右上角</option>
+                    <option value="tile" className="dark:bg-darkbg-card dark:text-darkbg-text">全图平铺防盗 (推荐)</option>
+                    <option value="bottom-right" className="dark:bg-darkbg-card dark:text-darkbg-text">右下角</option>
+                    <option value="bottom-left" className="dark:bg-darkbg-card dark:text-darkbg-text">左下角</option>
+                    <option value="center" className="dark:bg-darkbg-card dark:text-darkbg-text">正中央</option>
+                    <option value="top-right" className="dark:bg-darkbg-card dark:text-darkbg-text">右上角</option>
                   </select>
                 </div>
               </div>
@@ -727,25 +727,25 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                 />
                 <button
                   onClick={() => logoInputRef.current?.click()}
-                  className="px-3.5 py-2 bg-coconut-100/80 dark:bg-darkbg-elevated border border-coconut-300 dark:border-darkbg-border rounded-xl text-xs font-semibold text-coconut-800 dark:text-coconut-200 hover:bg-coconut-200/80"
+                  className="px-3.5 py-2 bg-coconut-100/80 dark:bg-darkbg-elevated border border-coconut-300 dark:border-darkbg-border rounded-xl text-xs font-semibold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-200/80 dark:hover:bg-darkbg-hover"
                 >
                   {watermarkLogoFile ? `已选 Logo: ${watermarkLogoFile.name}` : "选择透明 PNG Logo"}
                 </button>
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs text-coconut-600 dark:text-coconut-400">位置:</span>
+                  <span className="text-xs text-coconut-800 dark:text-darkbg-text font-semibold">位置:</span>
                   <select
                     value={watermarkPos}
                     onChange={(e) => setWatermarkPos(e.target.value as any)}
-                    className="px-2.5 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-coconut-100"
+                    className="px-2.5 py-1.5 text-xs bg-coconut-50/70 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500"
                   >
-                    <option value="bottom-right">右下角</option>
-                    <option value="bottom-left">左下角</option>
-                    <option value="center">正中央</option>
-                    <option value="top-right">右上角</option>
+                    <option value="bottom-right" className="dark:bg-darkbg-card dark:text-darkbg-text">右下角</option>
+                    <option value="bottom-left" className="dark:bg-darkbg-card dark:text-darkbg-text">左下角</option>
+                    <option value="center" className="dark:bg-darkbg-card dark:text-darkbg-text">正中央</option>
+                    <option value="top-right" className="dark:bg-darkbg-card dark:text-darkbg-text">右上角</option>
                   </select>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs text-coconut-600 dark:text-coconut-400">透明度:</span>
+                  <span className="text-xs text-coconut-800 dark:text-darkbg-text font-semibold">透明度:</span>
                   <input
                     type="range"
                     min="0.1"
@@ -753,9 +753,9 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                     step="0.05"
                     value={watermarkOpacity}
                     onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
-                    className="w-24 accent-coconut-700 dark:accent-toast-500"
+                    className="w-24 h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-palm-400"
                   />
-                  <span className="text-xs font-mono text-coconut-700 dark:text-coconut-300">{Math.round(watermarkOpacity * 100)}%</span>
+                  <span className="text-xs font-mono text-coconut-700 dark:text-darkbg-muted">{Math.round(watermarkOpacity * 100)}%</span>
                 </div>
               </div>
             )}
@@ -768,7 +768,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className="group relative border-2 border-dashed border-coconut-300 dark:border-coconut-800/80 hover:border-coconut-500 dark:hover:border-toast-500 bg-coconut-50/40 dark:bg-darkbg-card/70 hover:bg-coconut-100/40 dark:hover:bg-darkbg-elevated rounded-3xl p-6 sm:p-10 text-center cursor-pointer transition-all duration-300 shadow-coconut-sm select-none"
+        className="group relative border-2 border-dashed border-coconut-300 dark:border-darkbg-border hover:border-coconut-500 dark:hover:border-palm-500 bg-coconut-50/40 dark:bg-darkbg-card hover:bg-coconut-100/40 dark:hover:bg-darkbg-elevated rounded-3xl p-6 sm:p-10 text-center cursor-pointer transition-all duration-300 shadow-coconut-sm select-none"
       >
         <input
           ref={fileInputRef}
@@ -779,14 +779,14 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
           className="hidden"
         />
         <div className="flex flex-col items-center space-y-3.5">
-          <div className="w-14 h-14 rounded-2xl bg-coconut-100 dark:bg-coconut-900/80 text-coconut-700 dark:text-toast-400 flex items-center justify-center group-hover:scale-105 transition-transform shadow-inner">
+          <div className="w-14 h-14 rounded-2xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-toast-400 flex items-center justify-center group-hover:scale-105 transition-transform shadow-inner">
             <UploadCloud className="w-7 h-7" />
           </div>
           <div>
-            <p className="text-base font-bold text-coconut-900 dark:text-coconut-100 tracking-tight">
+            <p className="text-base font-bold text-coconut-900 dark:text-darkbg-text tracking-tight">
               点击选择或拖拽图片到此处（支持多图批量处理）
             </p>
-            <p className="text-xs text-coconut-600/80 dark:text-coconut-400 mt-1">
+            <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
               {activeTab === "heic"
                 ? "支持苹果 iPhone / iPad 原图实拍格式: .HEIC, .HEIF"
                 : "支持主流图片格式: JPG, PNG, WebP, AVIF, BMP, SVG, HEIC 等"}
@@ -801,7 +801,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <FileImage className="w-4 h-4 text-toast-500" />
-              <span className="font-bold text-sm text-coconut-900 dark:text-coconut-100">
+              <span className="font-bold text-sm text-coconut-900 dark:text-darkbg-text">
                 已选图片 ({files.length} 张 · 总大小 {formatBytes(files.reduce((acc, f) => acc + f.size, 0))})
               </span>
             </div>
@@ -818,12 +818,12 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
             {files.map((file, idx) => (
               <div
                 key={`${file.name}_${idx}`}
-                className="group relative bg-coconut-50/70 dark:bg-darkbg-elevated/70 border border-coconut-200/70 dark:border-darkbg-border rounded-2xl p-3 flex flex-col justify-between"
+                className="group relative bg-coconut-50/70 dark:bg-darkbg-subtle border border-coconut-200/70 dark:border-darkbg-border rounded-2xl p-3 flex flex-col justify-between"
               >
-                <div className="truncate text-xs font-semibold text-coconut-900 dark:text-coconut-100" title={file.name}>
+                <div className="truncate text-xs font-semibold text-coconut-900 dark:text-darkbg-text" title={file.name}>
                   {file.name}
                 </div>
-                <div className="text-[10px] text-coconut-500 dark:text-coconut-400 font-mono mt-1">{formatBytes(file.size)}</div>
+                <div className="text-[10px] text-coconut-600 dark:text-darkbg-muted font-mono mt-1">{formatBytes(file.size)}</div>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -839,11 +839,15 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
 
           {/* 执行按钮 */}
           <div className="pt-2 flex items-center justify-between">
-            <div className="text-xs text-coconut-600 dark:text-coconut-400">{progressText}</div>
+            <div className="text-xs text-coconut-600 dark:text-darkbg-muted">{progressText}</div>
             <button
               onClick={handleExecuteBatch}
               disabled={isProcessing}
-              className="px-6 py-3 bg-gradient-to-r from-coconut-700 via-coconut-800 to-coconut-900 hover:from-coconut-800 hover:to-coconut-950 text-coconut-50 dark:from-toast-500 dark:to-toast-600 dark:text-darkbg-canvas disabled:opacity-50 rounded-2xl text-sm font-bold flex items-center space-x-2 transition-all shadow-coconut-md active:scale-95"
+              className={`px-6 py-3 rounded-2xl text-sm font-bold flex items-center space-x-2 transition-all ${
+                isProcessing
+                  ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
+                  : "btn-3d-sunset text-white"
+              }`}
             >
               {isProcessing ? (
                 <>
@@ -852,7 +856,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4 text-toast-300" />
+                  <Sparkles className="w-4 h-4 text-toast-300 dark:text-palm-700" />
                   <span>开始批量处理 ({files.length} 张)</span>
                 </>
               )}
@@ -875,13 +879,13 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
           <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
             <div className="flex items-center space-x-2">
               <CheckCircle2 className="w-5 h-5 text-palm-500" />
-              <span className="font-bold text-sm text-coconut-900 dark:text-coconut-100">
+              <span className="font-bold text-sm text-coconut-900 dark:text-darkbg-text">
                 处理已完成 ({results.length} 个文件)
               </span>
             </div>
             <button
               onClick={handleDownloadAllZip}
-              className="px-4 py-2 bg-palm-600 hover:bg-palm-700 text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 shadow-sm transition-all active:scale-95"
+              className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
             >
               <Archive className="w-4 h-4" />
               <span>一键打包下载全部 (ZIP)</span>
@@ -896,29 +900,29 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
               return (
                 <div
                   key={res.id}
-                  className="bg-coconut-50/60 dark:bg-darkbg-elevated/70 border border-coconut-200/70 dark:border-darkbg-border rounded-2xl p-3.5 flex items-center space-x-4 shadow-sm"
+                  className="bg-coconut-50/60 dark:bg-darkbg-subtle border border-coconut-200/70 dark:border-darkbg-border rounded-2xl p-3.5 flex items-center space-x-4 shadow-sm"
                 >
                   {res.previewUrl ? (
                     <img
                       src={res.previewUrl}
                       alt={res.newFilename}
-                      className="w-16 h-16 object-cover rounded-xl border border-coconut-200 dark:border-darkbg-border flex-shrink-0 bg-coconut-100 dark:bg-coconut-900"
+                      className="w-16 h-16 object-cover rounded-xl border border-coconut-200 dark:border-darkbg-border flex-shrink-0 bg-coconut-100 dark:bg-darkbg-elevated"
                     />
                   ) : (
-                    <div className="w-16 h-16 rounded-xl bg-coconut-100 dark:bg-coconut-900 flex items-center justify-center flex-shrink-0 text-coconut-400">
+                    <div className="w-16 h-16 rounded-xl bg-coconut-100 dark:bg-darkbg-elevated flex items-center justify-center flex-shrink-0 text-coconut-500 dark:text-darkbg-muted">
                       <ImageIcon className="w-6 h-6" />
                     </div>
                   )}
 
                   <div className="flex-1 min-w-0 space-y-1">
-                    <div className="text-xs font-bold text-coconut-900 dark:text-coconut-100 truncate" title={res.newFilename}>
+                    <div className="text-xs font-bold text-coconut-900 dark:text-darkbg-text truncate" title={res.newFilename}>
                       {res.newFilename}
                     </div>
 
-                    <div className="flex items-center space-x-2 text-[11px] text-coconut-600 dark:text-coconut-400 font-mono">
+                    <div className="flex items-center space-x-2 text-[11px] text-coconut-600 dark:text-darkbg-muted font-mono">
                       <span>{formatBytes(res.originalSize)}</span>
-                      <ArrowRight className="w-3 h-3 text-coconut-400" />
-                      <span className="font-bold text-coconut-800 dark:text-coconut-200">{formatBytes(res.newSize)}</span>
+                      <ArrowRight className="w-3 h-3 text-coconut-400 dark:text-darkbg-subtext" />
+                      <span className="font-bold text-coconut-900 dark:text-darkbg-text">{formatBytes(res.newSize)}</span>
                       {activeTab === "compress" && isSmaller && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-palm-100 dark:bg-palm-950/80 text-palm-700 dark:text-palm-300 font-bold">
                           {diffPercent}%
@@ -931,7 +935,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
 
                   <button
                     onClick={() => downloadBlob(res.blob, res.newFilename)}
-                    className="p-2 rounded-xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-toast-400 hover:bg-coconut-800 hover:text-coconut-50 dark:hover:bg-toast-500 dark:hover:text-darkbg-canvas transition-all flex-shrink-0 active:scale-95"
+                    className="p-2 rounded-xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-text hover:bg-coconut-800 hover:text-coconut-50 dark:hover:bg-white dark:hover:text-zinc-950 transition-all flex-shrink-0 active:scale-95"
                     title="下载单张"
                   >
                     <Download className="w-4 h-4" />

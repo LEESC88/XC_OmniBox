@@ -265,7 +265,7 @@ export default function InPlacePdfEditor({
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all active:scale-95 ${
               mode === "replace"
-                ? "bg-coconut-800 dark:bg-coconut-200 text-coconut-50 dark:text-coconut-950 shadow-coconut-sm font-semibold"
+                ? "bg-coconut-800 dark:bg-white text-coconut-50 dark:text-zinc-950 shadow-coconut-sm font-bold"
                 : "text-coconut-700 dark:text-darkbg-muted hover:text-coconut-900 dark:hover:text-darkbg-text"
             }`}
           >
@@ -280,7 +280,7 @@ export default function InPlacePdfEditor({
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all active:scale-95 ${
               mode === "whiteout"
-                ? "bg-coconut-800 dark:bg-coconut-200 text-coconut-50 dark:text-coconut-950 shadow-coconut-sm font-semibold"
+                ? "bg-coconut-800 dark:bg-white text-coconut-50 dark:text-zinc-950 shadow-coconut-sm font-bold"
                 : "text-coconut-700 dark:text-darkbg-muted hover:text-coconut-900 dark:hover:text-darkbg-text"
             }`}
           >
@@ -295,7 +295,7 @@ export default function InPlacePdfEditor({
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all active:scale-95 ${
               mode === "addText"
-                ? "bg-coconut-800 dark:bg-coconut-200 text-coconut-50 dark:text-coconut-950 shadow-coconut-sm font-semibold"
+                ? "bg-coconut-800 dark:bg-white text-coconut-50 dark:text-zinc-950 shadow-coconut-sm font-bold"
                 : "text-coconut-700 dark:text-darkbg-muted hover:text-coconut-900 dark:hover:text-darkbg-text"
             }`}
           >
@@ -339,7 +339,7 @@ export default function InPlacePdfEditor({
           <button
             onClick={handleExport}
             disabled={loadingExport}
-            className="px-4 py-2 rounded-2xl bg-gradient-to-r from-palm-600 to-palm-700 hover:from-palm-700 hover:to-palm-800 text-white text-xs font-semibold flex items-center gap-1.5 shadow-coconut-sm shadow-palm-600/20 active:scale-95 transition-all"
+            className="px-4 py-2 rounded-2xl btn-3d-sunset text-white text-xs font-bold flex items-center gap-1.5"
           >
             {loadingExport ? (
               <Loader2 className="w-4 h-4 animate-spin" />
