@@ -218,7 +218,7 @@ export default function PdfSplitStudio({
               onClick={() => setSplitMode("extract")}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 splitMode === "extract"
-                  ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-2xs"
+                  ? "bg-accent-gradient text-white shadow-2xs"
                   : "text-coconut-700 dark:text-darkbg-muted hover:text-coconut-950 dark:hover:text-white"
               }`}
             >
@@ -228,7 +228,7 @@ export default function PdfSplitStudio({
               onClick={() => setSplitMode("split-all")}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 splitMode === "split-all"
-                  ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-2xs"
+                  ? "bg-accent-gradient text-white shadow-2xs"
                   : "text-coconut-700 dark:text-darkbg-muted hover:text-coconut-950 dark:hover:text-white"
               }`}
             >
@@ -289,7 +289,7 @@ export default function PdfSplitStudio({
             <span className="text-coconut-600 dark:text-darkbg-muted">
               已选中：
             </span>
-            <span className="px-2.5 py-0.5 rounded-full font-bold font-mono bg-gradient-to-r from-amber-500/15 to-orange-500/15 text-orange-950 dark:text-orange-200 border border-orange-500/30">
+            <span className="px-2.5 py-0.5 rounded-full font-bold font-mono bg-accent-subtle text-accent border border-accent-border">
               {selectedCount} / {numPages} 页
             </span>
             {currentRangeStr && (
@@ -349,7 +349,7 @@ export default function PdfSplitStudio({
                       <div
                         className={`w-4 h-4 rounded flex items-center justify-center transition-all ${
                           isSelected
-                            ? "bg-gradient-to-br from-amber-500 to-orange-600 text-white"
+                            ? "bg-accent-gradient text-white"
                             : "border border-coconut-300 dark:border-darkbg-border bg-white dark:bg-darkbg-subtle"
                         }`}
                       >
@@ -481,10 +481,10 @@ export default function PdfSplitStudio({
 
       {/* 结果卡片 (严格点击才下载) */}
       {executionResult ? (
-        <div className="p-5 bg-gradient-to-br from-amber-500/12 via-orange-500/10 to-rose-500/10 dark:from-orange-950/40 dark:via-amber-950/30 dark:to-rose-950/30 border border-amber-300/80 dark:border-amber-600/60 rounded-2xl space-y-4 shadow-coconut-sm animate-fade-in backdrop-blur-sm">
+        <div className="p-5 bg-accent-subtle border border-accent-border rounded-2xl space-y-4 shadow-coconut-sm animate-fade-in backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 truncate">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-accent-gradient text-white flex items-center justify-center flex-shrink-0 shadow-sm">
                 <FileCheck className="w-5 h-5 text-white" />
               </div>
               <div className="truncate">

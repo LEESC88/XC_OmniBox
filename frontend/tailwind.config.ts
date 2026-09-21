@@ -15,13 +15,13 @@ const config: Config = {
           100: "#F3E5D7",  // 柔暖生肤微温 (轻度卡片底)
           200: "#E8D5C4",  // 生椰润肤底色 (微白温暖带彩)
           300: "#D2BCAB",  // 清晰暖焙肤色边框线 (清晰不粗糙)
-          400: "#BA9E8B",  // 调亮提升暗色模式对比度
-          500: "#8C6746",  // 提升中度文本对比度
-          600: "#6B4A2D",  // 浓郁烤椰壳
-          700: "#52371E",  // 经典深焙椰壳 (主品牌/CTA强调)
-          800: "#382312",  // 深浓椰褐 (主标题/文字深色)
-          900: "#22140A",  // 浓缩原生态椰壳 (最深文字)
-          950: "#140B05",  // 极深椰影
+          400: "#7A4D2E",  // 调深提升浅色模式对比度
+          500: "#54321B",  // 深度高对比文本
+          600: "#3A2010",  // 浓郁深木
+          700: "#241308",  // 经典深焙椰壳
+          800: "#180B04",  // 深浓椰褐 (主标题/文字深色)
+          900: "#0F0602",  // 浓缩原生态椰壳
+          950: "#080301",  // 极深高对比
         },
         palm: {
           50: "#F1F8F4",   // 清椰水漾 (浅色状态背景)
@@ -52,9 +52,9 @@ const config: Config = {
           border: "#44342A",   // 清晰分明的暗色椰壳轮廓线 (线条分明绝不模糊)
           borderLight: "#544237",
           borderStrong: "#6E5749",
-          text: "#FCF8F5",     // 纯净椰肉雪白主字色 (极致清晰高对比)
-          muted: "#BBA796",    // 暖调高保真辅助文字 (舒适清晰不刺眼)
-          subtext: "#8F7D70",  // 次要注释与占位说明
+          text: "#FFFFFF",     // 纯净雪白主字色 (极致清晰高对比)
+          muted: "#E8DDD3",    // 暖调高保真辅助文字 (显著增亮，高对比清晰易读)
+          subtext: "#D0C0B2",  // 次要注释与占位说明 (清晰明了)
         },
       },
       boxShadow: {
@@ -62,9 +62,9 @@ const config: Config = {
         "coconut-md": "0 8px 24px -4px rgba(66, 43, 25, 0.08)",
         "coconut-lg": "0 16px 40px -6px rgba(66, 43, 25, 0.12)",
         "coconut-glow": "0 0 20px -2px rgba(212, 163, 115, 0.25)",
-        "3d-sunset": "0 4px 0 #C2410C, 0 8px 20px -2px rgba(234, 88, 12, 0.45)",
-        "3d-sunset-hover": "0 6px 0 #C2410C, 0 12px 24px -2px rgba(234, 88, 12, 0.55)",
-        "3d-sunset-active": "0 1px 0 #C2410C, 0 3px 8px rgba(234, 88, 12, 0.35)",
+        "3d-sunset": "0 4px 0 rgba(0, 0, 0, 0.35), 0 8px 20px -2px var(--color-accent-shadow, rgba(234, 88, 12, 0.45))",
+        "3d-sunset-hover": "0 6px 0 rgba(0, 0, 0, 0.35), 0 12px 24px -2px var(--color-accent-shadow, rgba(234, 88, 12, 0.55))",
+        "3d-sunset-active": "0 1px 0 rgba(0, 0, 0, 0.35), 0 3px 8px var(--color-accent-shadow, rgba(234, 88, 12, 0.35))",
         "3d-secondary": "0 3px 0 #D4BEA3, 0 6px 12px -2px rgba(66, 43, 25, 0.08)",
         "3d-secondary-dark": "0 3px 0 #2A241E, 0 6px 12px -2px rgba(0, 0, 0, 0.35)",
       },

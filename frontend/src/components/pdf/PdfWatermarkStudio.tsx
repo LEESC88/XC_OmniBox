@@ -223,7 +223,7 @@ export default function PdfWatermarkStudio({
                   onClick={() => setWatermarkOpacity(item.val)}
                   className={`text-[10px] py-1 px-1 rounded-lg border font-semibold text-center transition-all active:scale-95 ${
                     Math.abs(watermarkOpacity - item.val) < 0.02
-                      ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white border-transparent"
+                      ? "bg-accent-gradient text-white border-transparent"
                       : "bg-white/60 dark:bg-darkbg-subtle border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:border-orange-400"
                   }`}
                 >
@@ -246,7 +246,7 @@ export default function PdfWatermarkStudio({
                   onClick={() => setWatermarkAngle(ang.val)}
                   className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all active:scale-95 text-center ${
                     watermarkAngle === ang.val
-                      ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white border-transparent shadow-xs"
+                      ? "bg-accent-gradient text-white border-transparent shadow-xs"
                       : "bg-white/60 dark:bg-darkbg-subtle border-coconut-200 dark:border-darkbg-border text-coconut-800 dark:text-darkbg-muted hover:border-orange-400"
                   }`}
                 >
@@ -273,9 +273,9 @@ export default function PdfWatermarkStudio({
 
           {/* 结果下载卡片 (严格点击才下载) */}
           {executionResult ? (
-            <div className="p-4 bg-gradient-to-br from-amber-500/12 via-orange-500/10 to-rose-500/10 dark:from-orange-950/40 dark:via-amber-950/30 dark:to-rose-950/30 border border-amber-300/80 dark:border-amber-600/60 rounded-2xl space-y-3 shadow-coconut-sm animate-fade-in backdrop-blur-sm">
+            <div className="p-4 bg-accent-subtle border border-accent-border rounded-2xl space-y-3 shadow-coconut-sm animate-fade-in backdrop-blur-sm">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                <div className="w-9 h-9 rounded-xl bg-accent-gradient text-white flex items-center justify-center flex-shrink-0 shadow-sm">
                   <FileCheck className="w-4 h-4 text-white" />
                 </div>
                 <div className="truncate">

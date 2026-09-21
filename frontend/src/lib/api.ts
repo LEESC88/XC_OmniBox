@@ -1,4 +1,17 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
+export function getApiBase(): string {
+  if (typeof window !== "undefined" && (window as any).electronAPI?.backendPort) {
+    return `http://127.0.0.1:${(window as any).electronAPI.backendPort}/api/v1`;
+  }
+  if (typeof window !== "undefined" && (window as any).electronAPI) {
+    return "http://127.0.0.1:18520/api/v1";
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
+}
+
+export const API_BASE = {
+  toString: () => getApiBase(),
+  valueOf: () => getApiBase(),
+};
 
 export interface HealthStatus {
   status: string;

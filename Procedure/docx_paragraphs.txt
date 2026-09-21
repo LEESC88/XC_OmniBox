@@ -1,0 +1,192 @@
+  0: 把当前项目（Next.js 前端 + Python FastAPI 后端）改造成带有自动更新功能的 Windows 桌面安装包，分为以下 5 个完整阶段。
+  1: 下面为你梳理从准备环境、日常热更新开发、打包安装包、到最后发布自动更新的端到端全流程：
+  2: 
+  3: 
+  4: 
+  5: 阶段一：项目环境与依赖准备
+  6: 在当前项目根目录 (Tools/) 下，安装桌面端外壳的核心依赖：
+  7: bash
+  8: # 安装 electron 开发核心、打包构建器、以及支持自动更新的模块
+  9: npm install --save-dev electron electron-builder concurrently wait-on
+ 10: npm install electron-updater tree-kill
+ 11: electron-builder：负责把所有代码与依赖压成 Windows NSIS 一键安装包。
+ 12: electron-updater：负责后台静默下载更新包、哈希校验、自动重启替换。
+ 13: tree-kill：确保用户关闭软件时，能把后台常驻的 Python 进程树彻底杀死，不留后台垃圾。
+ 14: 准备图标：找一张 256×256 的 Logo，转换成 icon.ico，保存在 resources/icon.ico。
+ 15: 
+ 16: 阶段二：Python 后端独立化（PyInstaller）
+ 17: 别人的电脑没有 Python 环境，所以必须把后端的 FastAPI 和 PyMuPDF 依赖打成一个独立的免安装文件夹。
+ 18: 在 backend/ 下安装 PyInstaller：
+ 19: bash
+ 20: pip install pyinstaller
+ 21: 编写一个打包命令/脚本，将 app/main.py 打包为免安装目录：
+ 22: bash
+ 23: pyinstaller --noconfirm --onedir --name "omni-backend" --add-data "app;app" app/main.py
+ 24: 打包完成后，会在 backend/dist/omni-backend/ 目录下生成包含 omni-backend.exe 的文件夹。这个文件夹后续会自动被 Electron 一起打进最终安装包里。
+ 25: 
+ 26: 阶段三：编写 Electron 主进程（支持开发热更 & 生产静默运行）
+ 27: 在项目根目录下新建 electron/ 目录：
+ 28: 1. electron/main.js（核心逻辑）
+ 29: javascript
+ 30: const { app, BrowserWindow, ipcMain } = require('electron');
+ 31: const path = require('path');
+ 32: const { spawn } = require('child_process');
+ 33: const treeKill = require('tree-kill');
+ 34: const isDev = process.env.NODE_ENV === 'development';
+ 35: let mainWindow = null;
+ 36: let backendProcess = null;
+ 37: const BACKEND_PORT = 18520; // 专属本地端口，防止和 8000 冲突
+ 38: // 1. 启动 Python 伴侣进程
+ 39: function startBackend() {
+ 40:   const backendExe = isDev
+ 41:     ? path.join(__dirname, '../backend/dist/omni-backend/omni-backend.exe')
+ 42:     : path.join(process.resourcesPath, 'backend', 'omni-backend.exe');
+ 43:   backendProcess = spawn(backendExe, ['--port', String(BACKEND_PORT)]);
+ 44: }
+ 45: // 2. 创建主窗口
+ 46: function createWindow() {
+ 47:   mainWindow = new BrowserWindow({
+ 48:     width: 1280,
+ 49:     height: 850,
+ 50:     icon: path.join(__dirname, '../resources/icon.ico'),
+ 51:     webPreferences: {
+ 52:       preload: path.join(__dirname, 'preload.js'),
+ 53:       nodeIntegration: false,
+ 54:       contextIsolation: true,
+ 55:     },
+ 56:   });
+ 57:   if (isDev) {
+ 58:     // 【开发阶段】：直接连 Next.js 开发服务器，支持毫秒级热更新！
+ 59:     mainWindow.loadURL('http://localhost:3000');
+ 60:     mainWindow.webContents.openDevTools(); // 自动打开 F12 控制台
+ 61:   } else {
+ 62:     // 【生产发布】：加载打包好的本地 Next.js 静态文件
+ 63:     mainWindow.loadFile(path.join(__dirname, '../frontend/out/index.html'));
+ 64:   }
+ 65: }
+ 66: app.whenReady().then(() => {
+ 67:   startBackend();
+ 68:   createWindow();
+ 69: });
+ 70: // 3. 彻底退出处理：关闭窗口时杀死后台 Python
+ 71: app.on('before-quit', () => {
+ 72:   if (backendProcess && backendProcess.pid) {
+ 73:     treeKill(backendProcess.pid, 'SIGKILL');
+ 74:   }
+ 75: });
+ 76: 2. electron/preload.js（安全通讯通道）
+ 77: javascript
+ 78: const { contextBridge, ipcRenderer } = require('electron');
+ 79: contextBridge.exposeInMainWorld('electronAPI', {
+ 80:   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+ 81:   startDownload: () => ipcRenderer.invoke('start-download'),
+ 82:   quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
+ 83:   onUpdateStatus: (callback) => ipcRenderer.on('update-status', (e, val) => callback(val)),
+ 84: });
+ 85: 
+ 86: 阶段四：前端适配与自动更新交互
+ 87: 1. Next.js 开启纯静态导出
+ 88: 修改 frontend/next.config.mjs，加上静态导出设置：
+ 89: javascript
+ 90: /** @type {import('next').NextConfig} */
+ 91: const nextConfig = {
+ 92:   output: 'export', // 导出静态 HTML/JS
+ 93:   images: { unoptimized: true },
+ 94: };
+ 95: export default nextConfig;
+ 96: 2. 前端请求地址兼容
+ 97: 前端请求 Python API 时，判断如果是桌面环境，自动请求 http://127.0.0.1:18520：
+ 98: typescript
+ 99: export const API_BASE_URL = typeof window !== 'undefined' && (window as any).electronAPI
+100:   ? 'http://127.0.0.1:18520'
+101:   : 'http://127.0.0.1:8000';
+102: 3. 主进程接入 electron-updater（监听更新事件）
+103: 在 electron/updater.js 中：
+104: javascript
+105: const { autoUpdater } = require('electron-updater');
+106: const { ipcMain } = require('electron');
+107: function setupAutoUpdater(win) {
+108:   autoUpdater.autoDownload = false; // 用户点击后再下载
+109:   // 监听到新版本
+110:   autoUpdater.on('update-available', (info) => {
+111:     win.webContents.send('update-status', { step: 'available', version: info.version });
+112:   });
+113:   // 下载进度 (0% ~ 100%)
+114:   autoUpdater.on('download-progress', (progress) => {
+115:     win.webContents.send('update-status', { step: 'downloading', percent: progress.percent });
+116:   });
+117:   // 下载完毕，准备安装
+118:   autoUpdater.on('update-downloaded', () => {
+119:     win.webContents.send('update-status', { step: 'ready' });
+120:   });
+121:   ipcMain.handle('check-for-updates', () => autoUpdater.checkForUpdates());
+122:   ipcMain.handle('start-download', () => autoUpdater.downloadUpdate());
+123:   ipcMain.handle('quit-and-install', () => autoUpdater.quitAndInstall());
+124: }
+125: module.exports = { setupAutoUpdater };
+126: 
+127: 阶段五：配置打包与一键发布
+128: 1. 在根目录 package.json 配置打包规则
+129: json
+130: {
+131:   "name": "xc-omnibox",
+132:   "version": "1.0.0",
+133:   "main": "electron/main.js",
+134:   "scripts": {
+135:     "dev:electron": "concurrently \"npm --prefix frontend run dev\" \"wait-on http://localhost:3000 && electron .\"",
+136:     "build:frontend": "npm --prefix frontend run build",
+137:     "build:backend": "cd backend && pyinstaller --noconfirm --onedir --name omni-backend app/main.py",
+138:     "dist": "npm run build:frontend && npm run build:backend && electron-builder"
+139:   },
+140:   "build": {
+141:     "appId": "com.xc.omnibox",
+142:     "productName": "XC 万象箱",
+143:     "directories": {
+144:       "output": "release"
+145:     },
+146:     "extraResources": [
+147:       {
+148:         "from": "backend/dist/omni-backend",
+149:         "to": "backend"
+150:       }
+151:     ],
+152:     "publish": [
+153:       {
+154:         "provider": "github",
+155:         "owner": "LEESC88",
+156:         "repo": "XC_OmniBox"
+157:       }
+158:     ],
+159:     "win": {
+160:       "target": ["nsis"],
+161:       "icon": "resources/icon.ico"
+162:     },
+163:     "nsis": {
+164:       "oneClick": true,
+165:       "perMachine": false,
+166:       "createDesktopShortcut": true,
+167:       "createStartMenuShortcut": true,
+168:       "shortcutName": "XC 万象箱"
+169:     }
+170:   }
+171: }
+172: 
+173: 以后你的两套工作流
+174: 工作流 A：日常写代码（99% 的时间）
+175: bash
+176: npm run dev:electron
+177: 一行命令同时拉起 Next.js 和桌面测试窗口。
+178: 在 VS Code 里改代码，桌面窗口直接热刷新，按 Ctrl + S 立即看到效果。
+179: 工作流 B：发布新版本（要给别人更新时）
+180: 把 package.json 里的版本号改成 1.0.1。
+181: 运行打包命令：
+182: bash
+183: npm run dist
+184: 1~2 分钟后，release/ 文件夹下会生成：
+185: XC 万象箱 Setup 1.0.1.exe（安装包）
+186: latest.yml（版本更新配置文件）
+187: 把这两个文件上传到你 GitHub 仓库的 Releases 页面发布。
+188: 效果：所有用户打开电脑上的老版本软件时，前端就会收到通知，点击“下载更新”，下载完毕点击“重启”，软件自动完成替换并升级到 1.0.1！
+189: 
+190: 这就是完整的工业级桌面端方案。整个骨架非常清晰，我们可以一步一步来实施。
+191: 

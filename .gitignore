@@ -11,6 +11,8 @@ node_modules/
 out/
 build/
 dist/
+release/
+*.spec
 .npm
 npm-debug.log*
 yarn-debug.log*

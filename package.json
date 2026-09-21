@@ -1,12 +1,77 @@
 {
-  "name": "xc-omnibox-root",
+  "name": "xc-omnibox",
   "version": "1.0.0",
+  "description": "XC_OmniBox (XC 万象箱) - 全能多媒体创作效率桌面客户端",
+  "author": "LEESC88",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
-    "dev": "npm --prefix frontend run dev",
-    "build": "npm --prefix frontend run build",
-    "start": "npm --prefix frontend run start",
-    "frontend": "cd frontend && npm run dev",
-    "backend": "run_backend.bat"
+    "dev": "concurrently \"npm --prefix frontend run dev\" \"run_backend.bat\"",
+    "dev:electron": "concurrently -k \"npm --prefix frontend run dev\" \"wait-on tcp:3000 && electron .\"",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:backend": "backend\\venv\\Scripts\\python.exe backend/build_backend.py",
+    "dist": "npm run build:frontend && npm run build:backend && electron-builder",
+    "dist:fast": "npm run build:frontend && electron-builder",
+    "pack": "npm run build:frontend && electron-builder --dir"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "tree-kill": "^1.2.2"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5",
+    "electron": "^44.4.3",
+    "electron-builder": "^26.15.3",
+    "wait-on": "^9.1.0"
+  },
+  "build": {
+    "appId": "com.xc.omnibox",
+    "productName": "XC_OmniBox",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "frontend/out/**/*",
+      "resources/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "backend/dist/omni-backend",
+        "to": "backend",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "LEESC88",
+        "repo": "XC_OmniBox"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "resources/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "XC 万象箱",
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "deleteAppDataOnUninstall": false
+    }
   }
 }

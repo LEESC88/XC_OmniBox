@@ -19,7 +19,6 @@ import {
   Wrench,
   Sun,
   Moon,
-  Search,
   Menu,
   X,
   ChevronRight,
@@ -37,7 +36,6 @@ import {
   Layers,
   ArrowRight,
   Shield,
-  PanelLeftClose,
   PanelLeft,
   Sliders,
   Download,
@@ -54,6 +52,16 @@ import AiToolbox, { AiTabType } from "@/components/AiToolbox";
 import PdfMergeStudio from "@/components/pdf/PdfMergeStudio";
 import PdfSplitStudio from "@/components/pdf/PdfSplitStudio";
 import PdfWatermarkStudio from "@/components/pdf/PdfWatermarkStudio";
+import UpdateModal from "@/components/UpdateModal";
+import SettingsModal from "@/components/SettingsModal";
+import CatPawLogo from "@/components/CatPawLogo";
+import {
+  getSavedTheme,
+  applyCustomTheme,
+  THEME_PRESETS,
+  applyCustomFont,
+  getSavedFont,
+} from "@/lib/themeManager";
 import { formatBytes } from "@/lib/imageProcessor";
 import {
   checkHealth,
@@ -157,7 +165,8 @@ const TOOLS_REGISTRY: { category: string; module: ModuleType; icon: any; tools: 
 
 export default function Home() {
   const [activeModule, setActiveModule] = useState<ModuleType>("document");
-  const [expandedModule, setExpandedModule] = useState<ModuleType | null>("document");
+  const [expandedModule, setExpandedModule] = useState<ModuleType | null>(null);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [activeDocTab, setActiveDocTab] = useState<DocTabType>("pdf-edit");
   const [activeImageTab, setActiveImageTab] = useState<ImageTabType>("compress");
   const [activeAudioTab, setActiveAudioTab] = useState<AudioTabType>("trim");
@@ -165,7 +174,6 @@ export default function Home() {
   const [activeAiTab, setActiveAiTab] = useState<AiTabType>("ai-bg-remove");
   const [incomingIdPhotoFile, setIncomingIdPhotoFile] = useState<File | null>(null);
 
-  const [searchQuery, setSearchQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -181,40 +189,64 @@ export default function Home() {
     size: number;
   } | null>(null);
 
-  // 初始化深色模式状态并同步 DOM
+  // 客户端自动更新弹窗状态
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [hasUpdate, setHasUpdate] = useState(false);
+
   useEffect(() => {
-    const isDarkMode = document.documentElement.classList.contains("dark");
-    setIsDark(isDarkMode);
+    if (typeof window !== "undefined" && (window as any).electronAPI) {
+      const unsubscribe = (window as any).electronAPI.onUpdateStatus((data: any) => {
+        if (data.status === "available" || data.status === "ready") {
+          setHasUpdate(true);
+        }
+      });
+      return () => {
+        if (typeof unsubscribe === "function") unsubscribe();
+      };
+    }
+  }, []);
+
+  // 初始化深色模式、自定义配色与字体偏好
+  useEffect(() => {
+    if (typeof window !== "undefined" && (window as any).electronAPI?.getDesktopConfig) {
+      (window as any).electronAPI.getDesktopConfig().then((c: any) => {
+        if (c?.customTheme) {
+          applyCustomTheme(c.customTheme);
+          setIsDark(c.customTheme.isDark);
+        } else {
+          const saved = getSavedTheme();
+          if (saved) {
+            applyCustomTheme(saved);
+            setIsDark(saved.isDark);
+          }
+        }
+        if (c?.customFont) {
+          applyCustomFont(c.customFont);
+        }
+      });
+    } else {
+      const saved = getSavedTheme();
+      if (saved) {
+        applyCustomTheme(saved);
+        setIsDark(saved.isDark);
+      } else {
+        const isDarkMode = document.documentElement.classList.contains("dark");
+        setIsDark(isDarkMode);
+      }
+
+      const savedFont = getSavedFont();
+      if (savedFont) {
+        applyCustomFont(savedFont);
+      }
+    }
   }, []);
 
   const toggleTheme = () => {
     const nextDark = !isDark;
     setIsDark(nextDark);
-    if (nextDark) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("xc_theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("xc_theme", "light");
-    }
+    const targetPreset = nextDark ? THEME_PRESETS[1] : THEME_PRESETS[0];
+    applyCustomTheme(targetPreset);
   };
-
-  // 搜索框引用与全局快捷键 Ctrl+K / ⌘K
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setSidebarCollapsed(false);
-        setTimeout(() => {
-          searchInputRef.current?.focus();
-          searchInputRef.current?.select();
-        }, 50);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
 
   // 1:1 原版 PDF 编辑器状态
   const [editorData, setEditorData] = useState<{
@@ -302,7 +334,6 @@ export default function Home() {
     } else if (item.module === "ai") {
       setActiveAiTab(item.id as AiTabType);
     }
-    setSearchQuery("");
     setMobileMenuOpen(false);
   };
 
@@ -484,14 +515,6 @@ export default function Home() {
   }
 
   const allTools = TOOLS_REGISTRY.flatMap((g) => g.tools);
-  const filteredTools = searchQuery.trim()
-    ? allTools.filter(
-        (t) =>
-          t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          t.desc.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          t.keywords.some((k) => k.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : [];
 
   const currentCategory = TOOLS_REGISTRY.find((g) => g.module === activeModule) || TOOLS_REGISTRY[0];
   const currentActiveTool =
@@ -506,7 +529,7 @@ export default function Home() {
       : allTools.find((t) => t.id === activeAiTab);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-transparent text-coconut-900 dark:text-darkbg-text antialiased">
+    <div className="flex h-screen w-screen overflow-hidden bg-transparent text-coconut-900 dark:text-darkbg-text subpixel-antialiased">
       {/* 移动端侧边抽屉遮罩 */}
       {mobileMenuOpen && (
         <div
@@ -517,56 +540,55 @@ export default function Home() {
 
       {/* ===================== 左侧 PRO 侧边栏 ===================== */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 flex flex-col bg-[#F2E5D8]/95 dark:bg-[#251E1A]/95 border-r border-[#D2BCAB] dark:border-[#4D392E] backdrop-blur-xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 flex flex-col bg-[var(--color-sidebar-bg)] border-r border-[var(--color-border)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           mobileMenuOpen ? "translate-x-0 w-80 max-w-[85vw]" : "-translate-x-full lg:translate-x-0"
         } ${sidebarCollapsed ? "lg:w-20" : "lg:w-72"}`}
       >
         {/* 顶部品牌 */}
-        <div className={`border-b border-coconut-100 dark:border-darkbg-border flex items-center transition-all duration-300 ${
+        <div className={`border-b border-coconut-200/80 dark:border-darkbg-border flex items-center transition-all duration-300 ${
           sidebarCollapsed ? "p-3 justify-center" : "p-4 justify-between"
         }`}>
           {sidebarCollapsed ? (
-            /* 折叠态：居中单个椰子 Logo 按钮，点击直接切换展开侧边栏，杜绝重叠 */
+            /* 折叠态：居中猫肉球 Logo 按钮，点击直接展开侧边栏 */
             <button
               onClick={() => setSidebarCollapsed(false)}
-              className="p-1.5 rounded-2xl hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-transform active:scale-95 group relative flex items-center justify-center"
+              className="p-1 rounded-2xl hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-transform active:scale-95 group relative flex items-center justify-center cursor-pointer"
               title="点击展开侧边栏"
             >
-              <CoconutLogo size={36} />
+              <CatPawLogo size={40} />
               <span className="sr-only">展开侧边栏</span>
             </button>
           ) : (
-            /* 展开态：左侧椰子 Logo + 品牌名，右侧折叠按钮 */
+            /* 展开态：左侧治愈系猫肉球 Logo (点击即可收起侧边栏) + 品牌名 */
             <>
-              <div className="flex items-center gap-2.5 truncate">
-                <CoconutLogo size={36} />
-                <div className="truncate">
+              <div className="flex items-center gap-3 truncate">
+                <button
+                  onClick={() => setSidebarCollapsed(true)}
+                  className="p-1 rounded-2xl hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-transform active:scale-95 cursor-pointer flex-shrink-0"
+                  title="点击收起侧边栏"
+                >
+                  <CatPawLogo size={40} />
+                </button>
+                <div className="truncate select-none">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-extrabold text-base tracking-tight text-coconut-950 dark:text-white">
+                    <span className="font-extrabold text-base text-coconut-950 dark:text-white">
                       XC OmniBox
                     </span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white font-mono font-bold shadow-xs">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-gradient text-white font-mono font-bold shadow-xs">
                       Studio
                     </span>
                   </div>
                   <p className="text-xs text-coconut-600 dark:text-darkbg-muted truncate mt-0.5">
-                    轻盈全能多媒体工作台
+                    轻盈多媒体工作台
                   </p>
                 </div>
               </div>
 
-              {/* 桌面端折叠按钮 / 移动端关闭按钮 */}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setSidebarCollapsed(true)}
-                  className="hidden lg:flex p-1.5 rounded-xl text-coconut-500 hover:text-coconut-800 dark:text-darkbg-muted dark:hover:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-colors"
-                  title="收起侧边栏"
-                >
-                  <PanelLeftClose className="w-4 h-4" />
-                </button>
+              {/* 移动端保留关闭抽屉按钮 */}
+              <div className="flex items-center gap-1 lg:hidden">
                 <button
                   onClick={() => setMobileMenuOpen(false)}
-                  className="lg:hidden p-1.5 rounded-xl text-coconut-500 hover:text-coconut-800 dark:text-darkbg-muted hover:bg-coconut-100 dark:hover:bg-darkbg-elevated"
+                  className="p-1.5 rounded-xl text-coconut-500 hover:text-coconut-800 dark:text-darkbg-muted hover:bg-coconut-100 dark:hover:bg-darkbg-elevated"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -575,107 +597,11 @@ export default function Home() {
           )}
         </div>
 
-        {/* 快速搜索框 (仅在展开态显示) */}
-        {!sidebarCollapsed && (
-          <div className="p-3 border-b border-coconut-100 dark:border-darkbg-border">
-            <div className="relative flex items-center">
-              <Search className="w-4 h-4 text-coconut-400 dark:text-darkbg-muted absolute left-3 pointer-events-none" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="搜索 22 项工具 (如抠图, 转Word)..."
-                className="w-full pl-9 pr-14 py-2 text-xs bg-white/80 dark:bg-darkbg-subtle border border-coconut-200/80 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text placeholder-coconut-400 dark:placeholder-darkbg-muted focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all font-medium"
-              />
-              {!searchQuery ? (
-                <div className="absolute right-2.5 flex items-center pointer-events-none">
-                  <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-bold text-coconut-500 dark:text-darkbg-muted bg-coconut-100 dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border rounded shadow-2xs">
-                    ⌘K
-                  </kbd>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 text-coconut-400 hover:text-coconut-700 dark:text-darkbg-muted p-0.5"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* 导航工具树：折叠态仅展示 5 个核心分类大图标，展开态为手风琴仅展开当前分类 */}
+        {/* 导航工具树：折叠态仅展示 5 个核心分类大图标，展开态为手风琴手感 */}
         <div className="flex-1 overflow-y-auto p-2 space-y-3 custom-main-scrollbar overscroll-contain">
-          {searchQuery.trim() ? (
-            /* 搜索模式：直接匹配搜索结果 */
-            <div className="space-y-1">
-              <div className="text-[11px] font-semibold text-coconut-400 dark:text-darkbg-muted px-2 py-1">
-                搜索结果 ({filteredTools.length})
-              </div>
-              {filteredTools.length === 0 ? (
-                <div className="p-6 text-center text-xs text-coconut-400 dark:text-darkbg-muted">
-                  未匹配到相关工具
-                </div>
-              ) : (
-                filteredTools.map((t) => {
-                  const Icon = t.icon;
-                  const isCur =
-                    activeModule === t.module &&
-                    ((t.module === "document" && activeDocTab === t.id) ||
-                      (t.module === "image" && activeImageTab === t.id) ||
-                      (t.module === "audio" && activeAudioTab === t.id) ||
-                      (t.module === "utilities" && activeDailyTab === t.id) ||
-                      (t.module === "ai" && activeAiTab === t.id));
-                  return (
-                    <button
-                      key={t.id}
-                      onClick={() => handleSelectTool(t)}
-                      className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left text-xs transition-all active:scale-[0.98] ${
-                        isCur
-                          ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white font-bold shadow-3d-sunset"
-                          : "text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/80 dark:hover:bg-darkbg-elevated hover:dark:text-darkbg-text"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 truncate">
-                        <Icon className={`w-4 h-4 flex-shrink-0 ${isCur ? "text-amber-100" : ""}`} />
-                        <span className="truncate">{t.name}</span>
-                      </div>
-                      {t.badge && (
-                        <span
-                          className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold transition-colors ${
-                            isCur
-                              ? "bg-white/25 text-white"
-                              : "bg-coconut-200/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted"
-                          }`}
-                        >
-                          {t.badge}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          ) : sidebarCollapsed ? (
-            /* ================= 折叠模式 (w-20)：仅显示 5 个分类大图标，告别 22 个小图标长串 ================= */
+          {sidebarCollapsed ? (
+            /* ================= 折叠模式 (w-20)：仅显示 5 个分类大图标 ================= */
             <div className="py-2 flex flex-col items-center space-y-3">
-              {/* 快捷搜索按钮 (点击展开并聚焦搜索) */}
-              <button
-                onClick={() => {
-                  setSidebarCollapsed(false);
-                  setTimeout(() => {
-                    searchInputRef.current?.focus();
-                  }, 50);
-                }}
-                className="w-10 h-10 rounded-2xl flex items-center justify-center text-coconut-600 dark:text-darkbg-muted hover:bg-coconut-100/80 dark:hover:bg-darkbg-elevated hover:text-coconut-950 dark:hover:text-darkbg-text transition-all active:scale-95 border border-transparent hover:border-coconut-200 dark:hover:border-darkbg-border"
-                title="搜索工具 (Ctrl + K / ⌘K)"
-              >
-                <Search className="w-4 h-4" />
-              </button>
-              <div className="w-8 h-[1px] bg-coconut-200/60 dark:bg-darkbg-border" />
-
               {TOOLS_REGISTRY.map((group) => {
                 const GroupIcon = group.icon;
                 const isGroupActive = activeModule === group.module;
@@ -698,14 +624,14 @@ export default function Home() {
                       setExpandedModule(group.module);
                     }}
                     title={`${group.category} (共 ${group.tools.length} 项工具)`}
-                    className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center transition-all relative group active:scale-95 ${
+                    className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center transition-all relative group active:scale-95 cursor-pointer ${
                       isGroupActive
-                        ? "bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 text-white shadow-3d-sunset scale-105"
+                        ? "bg-accent-gradient text-white shadow-3d-sunset scale-105"
                         : "text-coconut-600 dark:text-darkbg-muted hover:bg-coconut-100/80 dark:hover:bg-darkbg-elevated hover:text-coconut-950 dark:hover:text-darkbg-text"
                     }`}
                   >
-                    <GroupIcon className="w-5 h-5" />
-                    <span className="text-[9px] font-bold mt-0.5 tracking-tight">
+                    <GroupIcon className="w-5.5 h-5.5" />
+                    <span className="text-[9px] font-bold mt-0.5">
                       {shortLabel}
                     </span>
                     {isGroupActive && (
@@ -736,19 +662,19 @@ export default function Home() {
                     title={isGroupExpanded ? "点击收回折叠全部工具" : "点击展开全部工具"}
                     className={`w-full flex items-center justify-between p-2.5 rounded-2xl text-sm font-bold transition-all select-none active:scale-[0.99] ${
                       isGroupActive
-                        ? "bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-rose-500/10 text-orange-950 dark:text-orange-200 border border-orange-300/60 dark:border-orange-500/30 shadow-xs"
+                        ? "bg-accent-subtle text-coconut-950 dark:text-white border border-accent-border shadow-xs"
                         : "text-coconut-800 dark:text-darkbg-muted hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated hover:text-coconut-950 dark:hover:text-darkbg-text"
                     }`}
                   >
                     <div className="flex items-center gap-2.5 truncate">
-                      <div className={`p-2 rounded-xl flex-shrink-0 transition-transform ${
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform shadow-2xs ${
                         isGroupActive
-                          ? "bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-xs scale-105"
-                          : "bg-coconut-200/60 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted"
+                          ? "bg-accent-gradient text-white shadow-xs scale-105"
+                          : "bg-coconut-200/70 dark:bg-darkbg-subtle text-coconut-800 dark:text-darkbg-text"
                       }`}>
-                        <GroupIcon className="w-4 h-4" />
+                        <GroupIcon className="w-5 h-5" />
                       </div>
-                      <span className="tracking-tight truncate">{group.category}</span>
+                      <span className="truncate">{group.category}</span>
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <span className="text-xs px-2 py-0.5 rounded-full bg-coconut-200/60 dark:bg-darkbg-subtle font-mono text-coconut-700 dark:text-darkbg-muted font-semibold">
@@ -783,7 +709,7 @@ export default function Home() {
                             onClick={() => handleSelectTool(t)}
                             className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left text-xs sm:text-sm transition-all active:scale-[0.98] ${
                               isCur
-                                ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white font-bold shadow-3d-sunset scale-[1.01]"
+                                ? "bg-accent-gradient text-white font-bold shadow-3d-sunset scale-[1.01]"
                                 : "text-coconut-800 dark:text-darkbg-muted hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated hover:text-coconut-950 dark:hover:text-darkbg-text font-medium"
                             }`}
                           >
@@ -813,65 +739,138 @@ export default function Home() {
           )}
         </div>
 
-        {/* 侧边栏底部：深浅模式切换 (升级为触感 iOS/macOS Pill 滑动开关) */}
-        <div className="p-3 border-t border-coconut-100 dark:border-darkbg-border bg-coconut-50/50 dark:bg-darkbg-card/50 flex items-center justify-center">
+        {/* 侧边栏底部：偏好设置、深浅模式切换与软件更新中心 */}
+        <div className="p-3 border-t border-coconut-100 dark:border-darkbg-border bg-coconut-50/50 dark:bg-darkbg-card/50 flex flex-col gap-2 items-center justify-center">
           {sidebarCollapsed ? (
-            <button
-              onClick={toggleTheme}
-              className="w-12 h-12 rounded-2xl border border-coconut-200/80 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-all active:scale-95 shadow-2xs group"
-              title={`切换外观主题 (当前: ${isDark ? "曜黑暗夜" : "暖椰润肤"})`}
-            >
-              {isDark ? (
-                <Sun className="w-5 h-5 text-amber-500 transition-transform duration-300 group-hover:rotate-45" />
-              ) : (
-                <Moon className="w-5 h-5 text-coconut-700 transition-transform duration-300 group-hover:-rotate-12" />
-              )}
-            </button>
-          ) : (
-            <button
-              onClick={toggleTheme}
-              className="w-full flex items-center justify-between p-2.5 px-3 rounded-2xl border border-coconut-200/80 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle text-xs sm:text-sm font-semibold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated transition-all active:scale-[0.98] shadow-2xs cursor-pointer group"
-              title="切换界面外观主题"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-xl bg-coconut-100 dark:bg-darkbg-card flex items-center justify-center border border-coconut-200/60 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted">
-                  {isDark ? (
-                    <Sun className="w-4 h-4 text-amber-500" />
-                  ) : (
-                    <Moon className="w-4 h-4 text-coconut-700" />
-                  )}
-                </div>
-                <div className="text-left">
-                  <div className="text-xs font-bold text-coconut-900 dark:text-white leading-tight">
-                    {isDark ? "曜黑暗夜模式" : "暖椰润肤模式"}
-                  </div>
-                  <div className="text-[10px] text-coconut-500 dark:text-darkbg-muted font-mono leading-tight mt-0.5">
-                    {isDark ? "Dark Appearance" : "Light Appearance"}
-                  </div>
-                </div>
-              </div>
-
-              {/* iOS / macOS 触感滑动 Pill 开关 */}
-              <div
-                className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-300 flex items-center ${
-                  isDark
-                    ? "bg-gradient-to-r from-orange-500 to-rose-500 shadow-inner"
-                    : "bg-coconut-300/80 dark:bg-darkbg-border"
-                }`}
+            <>
+              {/* 折叠态偏好设置按钮 */}
+              <button
+                onClick={() => setSettingsModalOpen(true)}
+                className="w-12 h-12 rounded-2xl border border-coconut-200/80 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-all active:scale-95 shadow-2xs group cursor-pointer"
+                title="系统偏好设置 (托盘行为/开机自启/格式转换/文件存储)"
               >
+                <CoconutLogo size={32} variant="settings" />
+              </button>
+
+              <button
+                onClick={toggleTheme}
+                className="w-12 h-12 rounded-2xl border border-coconut-200/80 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-all active:scale-95 shadow-2xs group cursor-pointer"
+                title={`切换外观主题 (当前: ${isDark ? "曜黑暗夜" : "暖椰润肤"})`}
+              >
+                {isDark ? (
+                  <Sun className="w-6 h-6 text-amber-500 transition-transform duration-300 group-hover:rotate-45" />
+                ) : (
+                  <Moon className="w-6 h-6 text-coconut-800 transition-transform duration-300 group-hover:-rotate-12" />
+                )}
+              </button>
+
+              <button
+                onClick={() => setUpdateModalOpen(true)}
+                className="w-12 h-12 rounded-2xl border border-coconut-200/80 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-all active:scale-95 shadow-2xs relative group cursor-pointer"
+                title="检查软件版本与更新"
+              >
+                <Sparkles className="w-6 h-6 text-orange-500 transition-transform duration-300 group-hover:scale-110" />
+                {hasUpdate && (
+                  <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white dark:ring-darkbg-card animate-ping" />
+                )}
+              </button>
+            </>
+          ) : (
+            <>
+              {/* 展开态：全局偏好设置卡片按钮 (大图标对齐猫肉球尺寸) */}
+              <button
+                onClick={() => setSettingsModalOpen(true)}
+                className="w-full flex items-center justify-between p-2.5 px-3.5 rounded-2xl border border-coconut-200/90 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle text-xs font-semibold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated transition-all active:scale-[0.98] shadow-2xs cursor-pointer group"
+                title="系统偏好设置 (托盘行为/开机自启/格式引擎/文件路径/缓存清理)"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-orange-50/90 dark:bg-[#2A1F19] flex items-center justify-center border border-orange-200/80 dark:border-[#4A372C] flex-shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                    <CoconutLogo size={34} variant="settings" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white leading-tight flex items-center gap-1.5">
+                      <span>偏好与系统设置</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-950/80 dark:text-orange-300 font-mono font-bold">
+                        Settings
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-coconut-600 dark:text-darkbg-muted leading-tight mt-0.5 truncate max-w-[130px]">
+                      托盘 / 自启 / 存储 / 引擎
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-coconut-400 group-hover:translate-x-0.5 transition-transform flex-shrink-0" />
+              </button>
+
+              {/* 外观模式切换卡片按钮 (大图标) */}
+              <button
+                onClick={toggleTheme}
+                className="w-full flex items-center justify-between p-2.5 px-3.5 rounded-2xl border border-coconut-200/90 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle text-xs sm:text-sm font-semibold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated transition-all active:scale-[0.98] shadow-2xs cursor-pointer group"
+                title="切换界面外观主题"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-amber-50/90 dark:bg-[#2A1F19] flex items-center justify-center border border-amber-200/80 dark:border-[#4A372C] flex-shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                    {isDark ? (
+                      <Sun className="w-6 h-6 text-amber-500 transition-transform duration-300 group-hover:rotate-45" />
+                    ) : (
+                      <Moon className="w-6 h-6 text-coconut-800 transition-transform duration-300 group-hover:-rotate-12" />
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white leading-tight">
+                      {isDark ? "曜黑暗夜模式" : "暖椰润肤模式"}
+                    </div>
+                    <div className="text-[11px] text-coconut-600 dark:text-darkbg-muted font-mono leading-tight mt-0.5">
+                      {isDark ? "Dark Appearance" : "Light Appearance"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* iOS / macOS 触感滑动 Pill 开关 */}
                 <div
-                  className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 flex items-center justify-center ${
-                    isDark ? "translate-x-5" : "translate-x-0"
+                  className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-300 flex items-center flex-shrink-0 ${
+                    isDark
+                      ? "bg-accent-gradient shadow-inner"
+                      : "bg-coconut-300/80 dark:bg-darkbg-border"
                   }`}
                 >
-                  {isDark ? (
-                    <Moon className="w-2.5 h-2.5 text-orange-600" />
+                  <div
+                    className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 flex items-center justify-center ${
+                      isDark ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  >
+                    {isDark ? (
+                      <Moon className="w-2.5 h-2.5 text-orange-600" />
+                    ) : (
+                      <Sun className="w-2.5 h-2.5 text-amber-500" />
+                    )}
+                  </div>
+                </div>
+              </button>
+
+              {/* 软件更新中心卡片按钮 (大图标) */}
+              <button
+                onClick={() => setUpdateModalOpen(true)}
+                className="w-full flex items-center justify-between p-2.5 px-3.5 rounded-2xl border border-coconut-200/90 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle text-xs font-semibold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated transition-all active:scale-[0.98] shadow-2xs cursor-pointer group"
+                title="检查软件版本与更新"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-orange-100/80 dark:bg-[#2A1F19] flex items-center justify-center border border-orange-200/80 dark:border-[#4A372C] text-orange-600 dark:text-orange-400 flex-shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                    <Sparkles className="w-6 h-6 text-orange-500 transition-transform duration-300 group-hover:scale-110" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white">软件更新中心</span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {hasUpdate ? (
+                    <span className="px-2 py-0.5 text-[10px] font-bold bg-rose-500 text-white rounded-full animate-pulse">
+                      发现新版
+                    </span>
                   ) : (
-                    <Sun className="w-2.5 h-2.5 text-amber-500" />
+                    <span className="text-xs font-mono font-bold text-coconut-600 dark:text-darkbg-muted">v1.0.0</span>
                   )}
                 </div>
-              </div>
-            </button>
+              </button>
+            </>
           )}
         </div>
       </aside>
@@ -879,7 +878,7 @@ export default function Home() {
       {/* ===================== 右侧沉浸式主工作台 ===================== */}
       <div className="flex-1 h-full flex flex-col overflow-hidden min-w-0 relative">
         {/* 顶部工具栏与面包屑 */}
-        <header className="h-14 border-b border-[#D2BCAB] dark:border-[#4D392E] bg-[#F2E5D8]/92 dark:bg-[#251E1A]/92 backdrop-blur-xl px-4 sm:px-6 flex items-center justify-between flex-shrink-0 gap-3 z-10">
+        <header className="h-14 border-b border-[var(--color-border)] bg-[var(--color-sidebar-bg)] px-4 sm:px-6 flex items-center justify-between flex-shrink-0 gap-3 z-10">
           {/* 左侧：移动端菜单按钮 + 面包屑 */}
           <div className="flex items-center gap-3 truncate">
             <button
@@ -930,7 +929,7 @@ export default function Home() {
                   }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap flex-shrink-0 active:scale-95 ${
                     isCur
-                      ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white shadow-3d-sunset scale-[1.02]"
+                      ? "bg-accent-gradient text-white shadow-3d-sunset scale-[1.02]"
                       : "text-coconut-800 dark:text-darkbg-muted hover:text-coconut-950 dark:hover:text-darkbg-text hover:bg-coconut-200/50"
                   }`}
                 >
@@ -951,13 +950,13 @@ export default function Home() {
               <div className="coconut-panel p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-start sm:items-center gap-4">
                   {ToolIcon && (
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 text-white flex items-center justify-center flex-shrink-0 shadow-3d-sunset">
+                    <div className="w-12 h-12 rounded-2xl bg-accent-gradient text-white flex items-center justify-center flex-shrink-0 shadow-3d-sunset">
                       <ToolIcon className="w-6 h-6" />
                     </div>
                   )}
                   <div className="space-y-1">
                     <div className="flex items-center gap-2.5 flex-wrap">
-                      <h2 className="text-lg sm:text-xl font-extrabold text-coconut-950 dark:text-darkbg-text tracking-tight">
+                      <h2 className="text-lg sm:text-xl font-extrabold text-coconut-950 dark:text-darkbg-text">
                         {currentActiveTool?.name}
                       </h2>
                       {currentActiveTool?.badge && (
@@ -1240,10 +1239,10 @@ export default function Home() {
                     )}
 
                     {executionResult ? (
-                      <div className="p-5 bg-gradient-to-br from-amber-500/12 via-orange-500/10 to-rose-500/10 dark:from-orange-950/40 dark:via-amber-950/30 dark:to-rose-950/30 border border-amber-300/80 dark:border-amber-600/60 rounded-2xl space-y-4 shadow-coconut-sm animate-fade-in backdrop-blur-sm">
+                      <div className="p-5 bg-accent-subtle border border-accent-border rounded-2xl space-y-4 shadow-coconut-sm animate-fade-in backdrop-blur-sm">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3 truncate">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                            <div className="w-10 h-10 rounded-xl bg-accent-gradient text-white flex items-center justify-center flex-shrink-0 shadow-sm">
                               <FileCheck className="w-5 h-5 text-white" />
                             </div>
                             <div className="truncate">
@@ -1414,10 +1413,10 @@ export default function Home() {
                   )}
 
                   {executionResult ? (
-                    <div className="p-5 bg-gradient-to-br from-amber-500/12 via-orange-500/10 to-rose-500/10 dark:from-orange-950/40 dark:via-amber-950/30 dark:to-rose-950/30 border border-amber-300/80 dark:border-amber-600/60 rounded-2xl space-y-4 shadow-coconut-sm animate-fade-in backdrop-blur-sm">
+                    <div className="p-5 bg-accent-subtle border border-accent-border rounded-2xl space-y-4 shadow-coconut-sm animate-fade-in backdrop-blur-sm">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3 truncate">
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                          <div className="w-10 h-10 rounded-xl bg-accent-gradient text-white flex items-center justify-center flex-shrink-0 shadow-sm">
                             <FileCheck className="w-5 h-5 text-white" />
                           </div>
                           <div className="truncate">
@@ -1486,11 +1485,26 @@ export default function Home() {
           )}
 
           {/* 底部极简版权 */}
-          <footer className="py-6 text-center text-xs text-coconut-500 dark:text-darkbg-muted border-t border-coconut-200/50 dark:border-darkbg-border space-y-1">
-            <p className="font-mono text-xs font-medium">XC OmniBox Studio · 全能创作效率平台</p>
+          <footer className="py-6 text-center text-xs text-coconut-700 dark:text-neutral-400 border-t border-coconut-200/80 dark:border-darkbg-border space-y-1">
+            <p className="font-mono text-xs font-medium">XC OmniBox Studio</p>
           </footer>
         </main>
       </div>
+
+      {/* 软件版本与自动更新弹窗 */}
+      <UpdateModal
+        isOpen={updateModalOpen}
+        onClose={() => setUpdateModalOpen(false)}
+      />
+
+      {/* 全局偏好与系统设置中心 */}
+      <SettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+        isDark={isDark}
+        onToggleTheme={toggleTheme}
+        onOpenUpdateModal={() => setUpdateModalOpen(true)}
+      />
     </div>
   );
 }

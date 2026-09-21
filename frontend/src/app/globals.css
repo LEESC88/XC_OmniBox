@@ -3,46 +3,70 @@
 @tailwind utilities;
 
 :root {
-  --color-canvas: #E8D5C4;         /* 柔暖生椰润肤色基底 (微白温暖带彩) */
-  --color-card: #F7EBE0;           /* 细腻椰乳暖肤卡片底 */
-  --color-card-elevated: #FAF2EA;
-  --color-border: #CBB09C;         /* 清晰分明的高对比暖焙肤色轮廓线 */
-  --color-border-subtle: #DEC8B6;
-  --color-text-main: #1C0F07;       /* 浓郁深焙椰壳木质黑主字色 (极佳高保真对比度，清晰有力) */
-  --color-text-muted: #533C2D;      /* 暖木辅助字色，大幅调深，告别发灰模糊 */
+  --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", Roboto, sans-serif;
+  --color-canvas: #EFE4D8;         /* 柔暖生椰润肤色基底 */
+  --color-card: #FDF9F5;           /* 细腻纯净椰乳暖肤卡片底 */
+  --color-card-elevated: #FFFFFF;
+  --color-border: #C2A793;         /* 物理像素级高清晰对比轮廓线 */
+  --color-border-subtle: #D5C0B0;
+  --color-text-main: #140803;       /* 浓郁深焙黑，点对点极致清晰 */
+  --color-text-muted: #4A3324;      /* 暖深木辅助字色，杜绝任何发灰模糊 */
+  --color-accent: #EA580C;
+  --color-accent-gradient: linear-gradient(135deg, #F59E0B 0%, #EA580C 50%, #E11D48 100%);
+  --color-accent-shadow: rgba(234, 88, 12, 0.45);
+  --color-panel-bg: rgba(253, 249, 245, 0.96);
+  --color-sidebar-bg: rgba(239, 228, 216, 0.98);
 }
 
 .dark {
-  --color-canvas: #1A120E;         /* 浓郁深焙椰炭暖木色 (富含温度与琥珀感，绝非死黑) */
-  --color-card: #261D18;           /* 烘焙椰壳卡片面，温润醇厚 */
-  --color-card-elevated: #30251F;
-  --color-border: #564034;         /* 鲜明清晰的暗色椰壳轮廓线 */
-  --color-border-subtle: #3E2D24;
+  --color-canvas: #160F0C;         /* 浓郁深焙椰炭暖木色 */
+  --color-card: #221914;           /* 烘焙椰壳卡片面 */
+  --color-card-elevated: #2C201A;
+  --color-border: #523E34;         /* 鲜明清晰的暗色椰壳轮廓线，边框笔直不虚化 */
+  --color-border-subtle: #3D2D25;
   --color-text-main: #FFFFFF;       /* 纯净雪白高清晰主字色 */
-  --color-text-muted: #D5C2B1;      /* 调亮暖调辅助字色，深色模式高对比清晰 */
+  --color-text-muted: #DDD0C3;      /* 调亮暖调辅助字色，夜间高对比锐利清晰 */
+  --color-accent: #F97316;
+  --color-accent-gradient: linear-gradient(135deg, #F59E0B 0%, #EA580C 50%, #E11D48 100%);
+  --color-accent-shadow: rgba(234, 88, 12, 0.45);
+  --color-panel-bg: rgba(34, 25, 20, 0.96);
+  --color-sidebar-bg: rgba(22, 15, 12, 0.98);
 }
 
 html {
   background-color: var(--color-canvas);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+  font-family: var(--font-family);
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: geometricPrecision;
   overscroll-behavior-y: none;
   overscroll-behavior-x: none;
 }
 
-/* 页面主体与平滑色彩过渡 */
+/* 页面主体与超清像素对齐 (超清点对点字形对齐) */
 body {
   background-color: var(--color-canvas);
   color: var(--color-text-main);
+  font-family: inherit;
   min-height: 100vh;
   -webkit-tap-highlight-color: transparent;
-  transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  letter-spacing: -0.01em;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  letter-spacing: 0;
 }
 
-/* 浅色模式背景：柔暖生肤色底 + 落日暖杏光影 + 晨光柔和微晕 + 极细微有机质感纹理 (类似皮肤色，微白透着温暖生动的肤色光泽) */
+/* 全局按钮、输入框、下拉选框等表单控件强继承自定义字体 */
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+img, svg {
+  image-rendering: -webkit-optimize-contrast;
+  shape-rendering: geometricPrecision;
+}
+
+/* 浅色模式背景：柔暖生肤色底 + 落日暖杏光影 + 晨光柔和微晕 (纯净无拖影) */
 body:not(.dark) {
   background-color: var(--color-canvas);
   background-image: 
@@ -53,10 +77,9 @@ body:not(.dark) {
     radial-gradient(at 15% 90%, rgba(228, 162, 122, 0.32) 0px, transparent 55%),
     radial-gradient(at 88% 88%, rgba(245, 138, 142, 0.22) 0px, transparent 52%);
   background-size: 28px 28px, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
-  background-attachment: fixed;
 }
 
-/* 深色模式背景：深焙椰炭暖木色 + 落日琥珀余晖 + 暖栗深色光影 (富有温度，告别死黑) */
+/* 深色模式背景：深焙椰炭暖木色 + 落日琥珀余晖 + 暖栗深色光影 (纯净无拖影) */
 .dark body {
   background-color: var(--color-canvas);
   background-image: 
@@ -66,28 +89,23 @@ body:not(.dark) {
     radial-gradient(at 85% 85%, rgba(225, 29, 72, 0.08) 0px, transparent 45%),
     radial-gradient(at 20% 95%, rgba(150, 70, 25, 0.16) 0px, transparent 50%);
   background-size: 28px 28px, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
-  background-attachment: fixed;
 }
 
-/* 高精质感卡片面板 (柔暖生肤微透玻璃 + 1px清晰细线边框 + 微内倒角光泽) */
+/* 高精质感卡片面板 (柔暖生肤微透 + 1px清晰细线边框 + 微内倒角光泽，文字100%直绘无模糊离屏) */
 .coconut-panel {
-  background: rgba(247, 236, 226, 0.88);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid #D2BCAB;
+  background: var(--color-panel-bg, rgba(247, 236, 226, 0.96));
+  border: 1px solid var(--color-border, #D2BCAB);
   box-shadow: 
-    0 2px 8px -1px rgba(120, 75, 45, 0.05),
-    0 12px 32px -4px rgba(120, 75, 45, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    0 2px 8px -1px rgba(0, 0, 0, 0.05),
+    0 12px 32px -4px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
   border-radius: 1.5rem;
   transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .dark .coconut-panel {
-  background: rgba(41, 31, 26, 0.92);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid #4D392E;
+  background: var(--color-panel-bg, rgba(41, 31, 26, 0.96));
+  border: 1px solid var(--color-border, #4D392E);
   box-shadow: 
     0 1px 2px rgba(0, 0, 0, 0.3),
     0 8px 24px -4px rgba(0, 0, 0, 0.45),
@@ -95,12 +113,12 @@ body:not(.dark) {
   border-radius: 1.5rem;
 }
 
-/* 3D 触感立体落日按钮 (红黄橘渐变 + 物理厚度下沿 + 弹性按压位移) */
+/* 3D 触感立体强调按钮 (自适应色彩渐变 + 物理厚度下沿 + 弹性按压位移) */
 .btn-3d-sunset {
-  background: linear-gradient(135deg, #F59E0B 0%, #EA580C 50%, #E11D48 100%);
+  background: var(--color-accent-gradient, linear-gradient(135deg, #F59E0B 0%, #EA580C 50%, #E11D48 100%)) !important;
   color: #FFFFFF !important;
   font-weight: 700;
-  box-shadow: 0 4px 0 #9F1239, 0 8px 20px -2px rgba(234, 88, 12, 0.45);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35), 0 8px 20px -2px var(--color-accent-shadow, rgba(234, 88, 12, 0.45)) !important;
   border-top: 1px solid rgba(255, 255, 255, 0.4);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
@@ -114,21 +132,54 @@ body:not(.dark) {
 
 .btn-3d-sunset:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 0 #9F1239, 0 14px 26px -2px rgba(234, 88, 12, 0.55);
-  filter: brightness(1.05);
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35), 0 14px 26px -2px var(--color-accent-shadow, rgba(234, 88, 12, 0.55)) !important;
+  filter: brightness(1.06);
 }
 
 .btn-3d-sunset:active:not(:disabled) {
   transform: translateY(3px);
-  box-shadow: 0 1px 0 #9F1239, 0 3px 8px rgba(234, 88, 12, 0.35);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35), 0 3px 8px var(--color-accent-shadow, rgba(234, 88, 12, 0.35)) !important;
   transition-duration: 0.08s;
 }
 
 .btn-3d-sunset:disabled {
   opacity: 0.45;
   cursor: not-allowed;
-  box-shadow: none;
+  box-shadow: none !important;
   filter: grayscale(0.5);
+}
+
+/* 全局动态自适应强调色通用类 (跟随自定义调色即时响应) */
+.bg-accent-gradient {
+  background: var(--color-accent-gradient, linear-gradient(135deg, #F59E0B 0%, #EA580C 50%, #E11D48 100%)) !important;
+}
+
+.bg-accent-solid {
+  background-color: var(--color-accent, #EA580C) !important;
+}
+
+.bg-accent-subtle {
+  background-color: var(--color-accent-subtle, rgba(234, 88, 12, 0.15)) !important;
+}
+
+.text-accent {
+  color: var(--color-accent, #EA580C) !important;
+}
+
+.border-accent {
+  border-color: var(--color-accent, #EA580C) !important;
+}
+
+.border-accent-border {
+  border-color: var(--color-accent-border, rgba(234, 88, 12, 0.35)) !important;
+}
+
+.shadow-accent-glow {
+  box-shadow: 0 4px 14px var(--color-accent-shadow, rgba(234, 88, 12, 0.42)) !important;
+}
+
+.shadow-accent-3d {
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35), 0 8px 20px -2px var(--color-accent-shadow, rgba(234, 88, 12, 0.45)) !important;
 }
 
 /* 3D 触感次级微立体按钮 (线条清晰分明，高对比暖润肤色底/烘焙椰壳底) */

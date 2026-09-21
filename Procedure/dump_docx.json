@@ -1,0 +1,5083 @@
+[
+  {
+    "index": 0,
+    "style": "Normal",
+    "text": "把当前项目（Next.js 前端 + Python FastAPI 后端）改造成带有自动更新功能的 Windows 桌面安装包，分为以下 5 个完整阶段。",
+    "runs": [
+      {
+        "text": "把当前项目（",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "Next.js ",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "前端",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " + Python ",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "FastAPI",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " ",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "后端",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "）改造成",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "带有自动更新功能的",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " Windows ",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "桌面安装包",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "，分为以下",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "5 ",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "个完整阶段",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "。",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 1,
+    "style": "Normal",
+    "text": "下面为你梳理从准备环境、日常热更新开发、打包安装包、到最后发布自动更新的端到端全流程：",
+    "runs": [
+      {
+        "text": "下面为你梳理从准备环境、日常热更新开发、打包安装包、到最后发布自动更新的",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "端到端全流程",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "：",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 2,
+    "style": "Normal",
+    "text": "",
+    "runs": [
+      {
+        "text": "",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 3,
+    "style": "Normal",
+    "text": "",
+    "runs": [
+      {
+        "text": "",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 4,
+    "style": "Normal",
+    "text": "",
+    "runs": [
+      {
+        "text": "",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 5,
+    "style": "Normal",
+    "text": "阶段一：项目环境与依赖准备",
+    "runs": [
+      {
+        "text": "阶段一：项目环境与依赖准备",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 6,
+    "style": "Normal",
+    "text": "在当前项目根目录 (Tools/) 下，安装桌面端外壳的核心依赖：",
+    "runs": [
+      {
+        "text": "在当前项目根目录",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " (Tools/) ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "下，安装桌面端外壳的核心依赖：",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 7,
+    "style": "Normal",
+    "text": "bash",
+    "runs": [
+      {
+        "text": "bash",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 8,
+    "style": "Normal",
+    "text": "# 安装 electron 开发核心、打包构建器、以及支持自动更新的模块",
+    "runs": [
+      {
+        "text": "# ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "安装",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " electron ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "开发核心、打包构建器、以及支持自动更新的模块",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 9,
+    "style": "Normal",
+    "text": "npm install --save-dev electron electron-builder concurrently wait-on",
+    "runs": [
+      {
+        "text": "npm",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " install --save-dev electron electron-builder concurrently wait-on",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 10,
+    "style": "Normal",
+    "text": "npm install electron-updater tree-kill",
+    "runs": [
+      {
+        "text": "npm",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " install electron-updater tree-kill",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 11,
+    "style": "Normal",
+    "text": "electron-builder：负责把所有代码与依赖压成 Windows NSIS 一键安装包。",
+    "runs": [
+      {
+        "text": "electron-builder",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "：负责把所有代码与依赖压成",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " Windows NSIS ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "一键安装包。",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 12,
+    "style": "Normal",
+    "text": "electron-updater：负责后台静默下载更新包、哈希校验、自动重启替换。",
+    "runs": [
+      {
+        "text": "electron-updater",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "：负责后台静默下载更新包、哈希校验、自动重启替换。",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 13,
+    "style": "Normal",
+    "text": "tree-kill：确保用户关闭软件时，能把后台常驻的 Python 进程树彻底杀死，不留后台垃圾。",
+    "runs": [
+      {
+        "text": "tree-kill",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "：确保用户关闭软件时，能把后台常驻的",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " Python ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "进程树彻底杀死，不留后台垃圾。",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 14,
+    "style": "Normal",
+    "text": "准备图标：找一张 256×256 的 Logo，转换成 icon.ico，保存在 resources/icon.ico。",
+    "runs": [
+      {
+        "text": "准备图标",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "：找一张",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " 256×256 ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "的",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " Logo",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "，转换成",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " icon.ico",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "，保存在",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " resources/icon.ico",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "。",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 15,
+    "style": "Normal",
+    "text": "",
+    "runs": [
+      {
+        "text": "",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 16,
+    "style": "Normal",
+    "text": "阶段二：Python 后端独立化（PyInstaller）",
+    "runs": [
+      {
+        "text": "阶段二：",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "Python ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "后端独立化（",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "PyInstaller",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "）",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 17,
+    "style": "Normal",
+    "text": "别人的电脑没有 Python 环境，所以必须把后端的 FastAPI 和 PyMuPDF 依赖打成一个独立的免安装文件夹。",
+    "runs": [
+      {
+        "text": "别人的电脑没有",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " Python ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "环境，所以必须把后端的",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "FastAPI",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "和",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "PyMuPDF",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "依赖打成一个独立的免安装文件夹。",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 18,
+    "style": "Normal",
+    "text": "在 backend/ 下安装 PyInstaller：",
+    "runs": [
+      {
+        "text": "在",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " backend/ ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "下安装",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "PyInstaller",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "：",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 19,
+    "style": "Normal",
+    "text": "bash",
+    "runs": [
+      {
+        "text": "bash",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 20,
+    "style": "Normal",
+    "text": "pip install pyinstaller",
+    "runs": [
+      {
+        "text": "pip install ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "pyinstaller",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 21,
+    "style": "Normal",
+    "text": "编写一个打包命令/脚本，将 app/main.py 打包为免安装目录：",
+    "runs": [
+      {
+        "text": "编写一个打包命令",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "/",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "脚本，将",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " app/main.py ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "打包为免安装目录：",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 22,
+    "style": "Normal",
+    "text": "bash",
+    "runs": [
+      {
+        "text": "bash",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 23,
+    "style": "Normal",
+    "text": "pyinstaller --noconfirm --onedir --name \"omni-backend\" --add-data \"app;app\" app/main.py",
+    "runs": [
+      {
+        "text": "pyinstaller",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " --",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "noconfirm",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " --",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "onedir",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " --name \"omni-backend\" --add-data \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "app;app",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\" app/main.py",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 24,
+    "style": "Normal",
+    "text": "打包完成后，会在 backend/dist/omni-backend/ 目录下生成包含 omni-backend.exe 的文件夹。这个文件夹后续会自动被 Electron 一起打进最终安装包里。",
+    "runs": [
+      {
+        "text": "打包完成后，会在",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " backend/",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "dist",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "/omni-backend/ ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "目录下生成包含",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " omni-backend.exe ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "的文件夹。",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "这个文件夹后续会自动被",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " Electron ",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "一起打进最终安装包里。",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 25,
+    "style": "Normal",
+    "text": "",
+    "runs": [
+      {
+        "text": "",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 26,
+    "style": "Normal",
+    "text": "阶段三：编写 Electron 主进程（支持开发热更 & 生产静默运行）",
+    "runs": [
+      {
+        "text": "阶段三：编写",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " Electron ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "主进程（支持开发热更",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " & ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "生产静默运行）",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 27,
+    "style": "Normal",
+    "text": "在项目根目录下新建 electron/ 目录：",
+    "runs": [
+      {
+        "text": "在项目根目录下新建",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " electron/ ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "目录：",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 28,
+    "style": "Normal",
+    "text": "1. electron/main.js（核心逻辑）",
+    "runs": [
+      {
+        "text": "1. electron/main.js",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "（核心逻辑）",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 29,
+    "style": "Normal",
+    "text": "javascript",
+    "runs": [
+      {
+        "text": "javascript",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 30,
+    "style": "Normal",
+    "text": "const { app, BrowserWindow, ipcMain } = require('electron');",
+    "runs": [
+      {
+        "text": "const ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "{ app",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ", ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "BrowserWindow",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ", ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "ipcMain",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " }",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " = require('electron');",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 31,
+    "style": "Normal",
+    "text": "const path = require('path');",
+    "runs": [
+      {
+        "text": "const path = require('path');",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 32,
+    "style": "Normal",
+    "text": "const { spawn } = require('child_process');",
+    "runs": [
+      {
+        "text": "const ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "{ spawn",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " } = require('",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "child_process",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "');",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 33,
+    "style": "Normal",
+    "text": "const treeKill = require('tree-kill');",
+    "runs": [
+      {
+        "text": "const ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "treeKill",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " = require('tree-kill');",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 34,
+    "style": "Normal",
+    "text": "const isDev = process.env.NODE_ENV === 'development';",
+    "runs": [
+      {
+        "text": "const ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "isDev",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " = ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "process.env.NODE",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "_ENV",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " === 'development';",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 35,
+    "style": "Normal",
+    "text": "let mainWindow = null;",
+    "runs": [
+      {
+        "text": "let ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "mainWindow",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " = null;",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 36,
+    "style": "Normal",
+    "text": "let backendProcess = null;",
+    "runs": [
+      {
+        "text": "let ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "backendProcess",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " = null;",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 37,
+    "style": "Normal",
+    "text": "const BACKEND_PORT = 18520; // 专属本地端口，防止和 8000 冲突",
+    "runs": [
+      {
+        "text": "const BACKEND_PORT = 18520; // ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "专属本地端口，防止和",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " 8000 ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "冲突",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 38,
+    "style": "Normal",
+    "text": "// 1. 启动 Python 伴侣进程",
+    "runs": [
+      {
+        "text": "// 1. ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "启动",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " Python ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "伴侣进程",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 39,
+    "style": "Normal",
+    "text": "function startBackend() {",
+    "runs": [
+      {
+        "text": "function ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "startBackend",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ") {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 40,
+    "style": "Normal",
+    "text": "  const backendExe = isDev",
+    "runs": [
+      {
+        "text": "  const ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "backendExe",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " = ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "isDev",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 41,
+    "style": "Normal",
+    "text": "    ? path.join(__dirname, '../backend/dist/omni-backend/omni-backend.exe')",
+    "runs": [
+      {
+        "text": "    ? ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "path.join",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(__",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "dirname",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ", '../backend/",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "dist",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "/omni-backend/omni-backend.exe')",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 42,
+    "style": "Normal",
+    "text": "    : path.join(process.resourcesPath, 'backend', 'omni-backend.exe');",
+    "runs": [
+      {
+        "text": "    : ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "path.join",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "process.resourcesPath",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ", 'backend', 'omni-backend.exe');",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 43,
+    "style": "Normal",
+    "text": "  backendProcess = spawn(backendExe, ['--port', String(BACKEND_PORT)]);",
+    "runs": [
+      {
+        "text": "  ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "backendProcess",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " = ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "spawn(",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "backendExe",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ", ['--port', ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "String(",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "BACKEND_PORT)]);",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 44,
+    "style": "Normal",
+    "text": "}",
+    "runs": [
+      {
+        "text": "}",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 45,
+    "style": "Normal",
+    "text": "// 2. 创建主窗口",
+    "runs": [
+      {
+        "text": "// 2. ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "创建主窗口",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 46,
+    "style": "Normal",
+    "text": "function createWindow() {",
+    "runs": [
+      {
+        "text": "function ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "createWindow",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ") {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 47,
+    "style": "Normal",
+    "text": "  mainWindow = new BrowserWindow({",
+    "runs": [
+      {
+        "text": "  ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "mainWindow",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " = new ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "BrowserWindow",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "{",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 48,
+    "style": "Normal",
+    "text": "    width: 1280,",
+    "runs": [
+      {
+        "text": "    width: 1280,",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 49,
+    "style": "Normal",
+    "text": "    height: 850,",
+    "runs": [
+      {
+        "text": "    height: 850,",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 50,
+    "style": "Normal",
+    "text": "    icon: path.join(__dirname, '../resources/icon.ico'),",
+    "runs": [
+      {
+        "text": "    icon: ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "path.join",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(__",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "dirname",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ", '../resources/icon.ico'),",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 51,
+    "style": "Normal",
+    "text": "    webPreferences: {",
+    "runs": [
+      {
+        "text": "    ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "webPreferences",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ": {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 52,
+    "style": "Normal",
+    "text": "      preload: path.join(__dirname, 'preload.js'),",
+    "runs": [
+      {
+        "text": "      preload: ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "path.join",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(__",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "dirname",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ", 'preload.js'),",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 53,
+    "style": "Normal",
+    "text": "      nodeIntegration: false,",
+    "runs": [
+      {
+        "text": "      ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "nodeIntegration",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ": false,",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 54,
+    "style": "Normal",
+    "text": "      contextIsolation: true,",
+    "runs": [
+      {
+        "text": "      ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "contextIsolation",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ": true,",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 55,
+    "style": "Normal",
+    "text": "    },",
+    "runs": [
+      {
+        "text": "    },",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 56,
+    "style": "Normal",
+    "text": "  });",
+    "runs": [
+      {
+        "text": "  });",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 57,
+    "style": "Normal",
+    "text": "  if (isDev) {",
+    "runs": [
+      {
+        "text": "  if (",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "isDev",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ") {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 58,
+    "style": "Normal",
+    "text": "    // 【开发阶段】：直接连 Next.js 开发服务器，支持毫秒级热更新！",
+    "runs": [
+      {
+        "text": "    // ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "【开发阶段】：直接连",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " Next.js ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "开发服务器，支持毫秒级热更新！",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 59,
+    "style": "Normal",
+    "text": "    mainWindow.loadURL('http://localhost:3000');",
+    "runs": [
+      {
+        "text": "    ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "mainWindow.loadURL",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('http://localhost:3000');",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 60,
+    "style": "Normal",
+    "text": "    mainWindow.webContents.openDevTools(); // 自动打开 F12 控制台",
+    "runs": [
+      {
+        "text": "    ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "mainWindow.webContents.openDevTools",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(); // ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "自动打开",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " F12 ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "控制台",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 61,
+    "style": "Normal",
+    "text": "  } else {",
+    "runs": [
+      {
+        "text": "  } else {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 62,
+    "style": "Normal",
+    "text": "    // 【生产发布】：加载打包好的本地 Next.js 静态文件",
+    "runs": [
+      {
+        "text": "    // ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "【生产发布】：加载打包好的本地",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " Next.js ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "静态文件",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 63,
+    "style": "Normal",
+    "text": "    mainWindow.loadFile(path.join(__dirname, '../frontend/out/index.html'));",
+    "runs": [
+      {
+        "text": "    ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "mainWindow.loadFile",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "path.join",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(__",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "dirname",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ", '../frontend/out/index.html'));",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 64,
+    "style": "Normal",
+    "text": "  }",
+    "runs": [
+      {
+        "text": "  }",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 65,
+    "style": "Normal",
+    "text": "}",
+    "runs": [
+      {
+        "text": "}",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 66,
+    "style": "Normal",
+    "text": "app.whenReady().then(() => {",
+    "runs": [
+      {
+        "text": "app.whenReady",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ").then",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(() => {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 67,
+    "style": "Normal",
+    "text": "  startBackend();",
+    "runs": [
+      {
+        "text": "  ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "startBackend",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ");",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 68,
+    "style": "Normal",
+    "text": "  createWindow();",
+    "runs": [
+      {
+        "text": "  ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "createWindow",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ");",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 69,
+    "style": "Normal",
+    "text": "});",
+    "runs": [
+      {
+        "text": "});",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 70,
+    "style": "Normal",
+    "text": "// 3. 彻底退出处理：关闭窗口时杀死后台 Python",
+    "runs": [
+      {
+        "text": "// 3. ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "彻底退出处理：关闭窗口时杀死后台",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " Python",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 71,
+    "style": "Normal",
+    "text": "app.on('before-quit', () => {",
+    "runs": [
+      {
+        "text": "app.on",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('before-quit', () => {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 72,
+    "style": "Normal",
+    "text": "  if (backendProcess && backendProcess.pid) {",
+    "runs": [
+      {
+        "text": "  if (",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "backendProcess",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " && ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "backendProcess.pid",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ") {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 73,
+    "style": "Normal",
+    "text": "    treeKill(backendProcess.pid, 'SIGKILL');",
+    "runs": [
+      {
+        "text": "    ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "treeKill",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "backendProcess.pid",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ", 'SIGKILL');",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 74,
+    "style": "Normal",
+    "text": "  }",
+    "runs": [
+      {
+        "text": "  }",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 75,
+    "style": "Normal",
+    "text": "});",
+    "runs": [
+      {
+        "text": "});",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 76,
+    "style": "Normal",
+    "text": "2. electron/preload.js（安全通讯通道）",
+    "runs": [
+      {
+        "text": "2. electron/preload.js",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "（安全通讯通道）",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 77,
+    "style": "Normal",
+    "text": "javascript",
+    "runs": [
+      {
+        "text": "javascript",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 78,
+    "style": "Normal",
+    "text": "const { contextBridge, ipcRenderer } = require('electron');",
+    "runs": [
+      {
+        "text": "const ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "{ ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "contextBridge",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ", ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "ipcRenderer",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " }",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " = require('electron');",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 79,
+    "style": "Normal",
+    "text": "contextBridge.exposeInMainWorld('electronAPI', {",
+    "runs": [
+      {
+        "text": "contextBridge.exposeInMainWorld",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "electronAPI",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "', {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 80,
+    "style": "Normal",
+    "text": "  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),",
+    "runs": [
+      {
+        "text": "  ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "checkForUpdates",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ": () => ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "ipcRenderer.invoke",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('check-for-updates'),",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 81,
+    "style": "Normal",
+    "text": "  startDownload: () => ipcRenderer.invoke('start-download'),",
+    "runs": [
+      {
+        "text": "  ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "startDownload",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ": () => ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "ipcRenderer.invoke",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('start-download'),",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 82,
+    "style": "Normal",
+    "text": "  quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),",
+    "runs": [
+      {
+        "text": "  ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "quitAndInstall",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ": () => ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "ipcRenderer.invoke",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('quit-and-install'),",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 83,
+    "style": "Normal",
+    "text": "  onUpdateStatus: (callback) => ipcRenderer.on('update-status', (e, val) => callback(val)),",
+    "runs": [
+      {
+        "text": "  ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "onUpdateStatus",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ": (callback) => ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "ipcRenderer.on",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('update-status', (e, ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "val",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ") => callback(",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "val",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ")),",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 84,
+    "style": "Normal",
+    "text": "});",
+    "runs": [
+      {
+        "text": "});",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 85,
+    "style": "Normal",
+    "text": "",
+    "runs": [
+      {
+        "text": "",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 86,
+    "style": "Normal",
+    "text": "阶段四：前端适配与自动更新交互",
+    "runs": [
+      {
+        "text": "阶段四：前端适配与自动更新交互",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 87,
+    "style": "Normal",
+    "text": "1. Next.js 开启纯静态导出",
+    "runs": [
+      {
+        "text": "1. Next.js ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "开启纯静态导出",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 88,
+    "style": "Normal",
+    "text": "修改 frontend/next.config.mjs，加上静态导出设置：",
+    "runs": [
+      {
+        "text": "修改",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " frontend/",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "next.config.mjs",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "，加上静态导出设置：",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 89,
+    "style": "Normal",
+    "text": "javascript",
+    "runs": [
+      {
+        "text": "javascript",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 90,
+    "style": "Normal",
+    "text": "/** @type {import('next').NextConfig} */",
+    "runs": [
+      {
+        "text": "/** @type {import('next'",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ").",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "NextConfig",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "} */",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 91,
+    "style": "Normal",
+    "text": "const nextConfig = {",
+    "runs": [
+      {
+        "text": "const ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "nextConfig",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " = {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 92,
+    "style": "Normal",
+    "text": "  output: 'export', // 导出静态 HTML/JS",
+    "runs": [
+      {
+        "text": "  output: 'export', // ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "导出静态",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " HTML/JS",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 93,
+    "style": "Normal",
+    "text": "  images: { unoptimized: true },",
+    "runs": [
+      {
+        "text": "  images: ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "{ unoptimized",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ": ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "true }",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ",",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 94,
+    "style": "Normal",
+    "text": "};",
+    "runs": [
+      {
+        "text": "};",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 95,
+    "style": "Normal",
+    "text": "export default nextConfig;",
+    "runs": [
+      {
+        "text": "export default ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "nextConfig",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ";",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 96,
+    "style": "Normal",
+    "text": "2. 前端请求地址兼容",
+    "runs": [
+      {
+        "text": "2. ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "前端请求地址兼容",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 97,
+    "style": "Normal",
+    "text": "前端请求 Python API 时，判断如果是桌面环境，自动请求 http://127.0.0.1:18520：",
+    "runs": [
+      {
+        "text": "前端请求",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " Python API ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "时，判断如果是桌面环境，自动请求",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " http://127.0.0.1:18520",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "：",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 98,
+    "style": "Normal",
+    "text": "typescript",
+    "runs": [
+      {
+        "text": "typescript",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 99,
+    "style": "Normal",
+    "text": "export const API_BASE_URL = typeof window !== 'undefined' && (window as any).electronAPI",
+    "runs": [
+      {
+        "text": "export const API_BASE_URL = ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "typeof",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "window !",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "== 'undefined' && (window as any",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ").",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "electronAPI",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 100,
+    "style": "Normal",
+    "text": "  ? 'http://127.0.0.1:18520'",
+    "runs": [
+      {
+        "text": "  ? 'http://127.0.0.1:18520'",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 101,
+    "style": "Normal",
+    "text": "  : 'http://127.0.0.1:8000';",
+    "runs": [
+      {
+        "text": "  : 'http://127.0.0.1:8000';",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 102,
+    "style": "Normal",
+    "text": "3. 主进程接入 electron-updater（监听更新事件）",
+    "runs": [
+      {
+        "text": "3. ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "主进程接入",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " electron-updater",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "（监听更新事件）",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 103,
+    "style": "Normal",
+    "text": "在 electron/updater.js 中：",
+    "runs": [
+      {
+        "text": "在",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " electron/updater.js ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "中：",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 104,
+    "style": "Normal",
+    "text": "javascript",
+    "runs": [
+      {
+        "text": "javascript",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 105,
+    "style": "Normal",
+    "text": "const { autoUpdater } = require('electron-updater');",
+    "runs": [
+      {
+        "text": "const ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "{ ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "autoUpdater",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " } = require('electron-updater');",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 106,
+    "style": "Normal",
+    "text": "const { ipcMain } = require('electron');",
+    "runs": [
+      {
+        "text": "const ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "{ ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "ipcMain",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " } = require('electron');",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 107,
+    "style": "Normal",
+    "text": "function setupAutoUpdater(win) {",
+    "runs": [
+      {
+        "text": "function ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "setupAutoUpdater",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "(win) {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 108,
+    "style": "Normal",
+    "text": "  autoUpdater.autoDownload = false; // 用户点击后再下载",
+    "runs": [
+      {
+        "text": "  ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "autoUpdater.autoDownload",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " = false; // ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "用户点击后再下载",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 109,
+    "style": "Normal",
+    "text": "  // 监听到新版本",
+    "runs": [
+      {
+        "text": "  // ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "监听到新版本",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 110,
+    "style": "Normal",
+    "text": "  autoUpdater.on('update-available', (info) => {",
+    "runs": [
+      {
+        "text": "  ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "autoUpdater.on",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('update-available', (info) => {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 111,
+    "style": "Normal",
+    "text": "    win.webContents.send('update-status', { step: 'available', version: info.version });",
+    "runs": [
+      {
+        "text": "    ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "win.webContents.send",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('update-status', ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "{ step",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ": 'available', version: ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "info.version",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " });",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 112,
+    "style": "Normal",
+    "text": "  });",
+    "runs": [
+      {
+        "text": "  });",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 113,
+    "style": "Normal",
+    "text": "  // 下载进度 (0% ~ 100%)",
+    "runs": [
+      {
+        "text": "  // ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "下载进度",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " (0% ~ 100%)",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 114,
+    "style": "Normal",
+    "text": "  autoUpdater.on('download-progress', (progress) => {",
+    "runs": [
+      {
+        "text": "  ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "autoUpdater.on",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('download-progress', (progress) => {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 115,
+    "style": "Normal",
+    "text": "    win.webContents.send('update-status', { step: 'downloading', percent: progress.percent });",
+    "runs": [
+      {
+        "text": "    ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "win.webContents.send",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('update-status', ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "{ step",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ": 'downloading', percent: ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "progress.percent",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " });",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 116,
+    "style": "Normal",
+    "text": "  });",
+    "runs": [
+      {
+        "text": "  });",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 117,
+    "style": "Normal",
+    "text": "  // 下载完毕，准备安装",
+    "runs": [
+      {
+        "text": "  // ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "下载完毕，准备安装",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 118,
+    "style": "Normal",
+    "text": "  autoUpdater.on('update-downloaded', () => {",
+    "runs": [
+      {
+        "text": "  ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "autoUpdater.on",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('update-downloaded', () => {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 119,
+    "style": "Normal",
+    "text": "    win.webContents.send('update-status', { step: 'ready' });",
+    "runs": [
+      {
+        "text": "    ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "win.webContents.send",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('update-status', ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "{ step",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ": 'ready",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "' }",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": ");",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 120,
+    "style": "Normal",
+    "text": "  });",
+    "runs": [
+      {
+        "text": "  });",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 121,
+    "style": "Normal",
+    "text": "  ipcMain.handle('check-for-updates', () => autoUpdater.checkForUpdates());",
+    "runs": [
+      {
+        "text": "  ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "ipcMain.handle",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('check-for-updates', () => ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "autoUpdater.checkForUpdates",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "());",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 122,
+    "style": "Normal",
+    "text": "  ipcMain.handle('start-download', () => autoUpdater.downloadUpdate());",
+    "runs": [
+      {
+        "text": "  ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "ipcMain.handle",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('start-download', () => ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "autoUpdater.downloadUpdate",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "());",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 123,
+    "style": "Normal",
+    "text": "  ipcMain.handle('quit-and-install', () => autoUpdater.quitAndInstall());",
+    "runs": [
+      {
+        "text": "  ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "ipcMain.handle",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "('quit-and-install', () => ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "autoUpdater.quitAndInstall",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "());",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 124,
+    "style": "Normal",
+    "text": "}",
+    "runs": [
+      {
+        "text": "}",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 125,
+    "style": "Normal",
+    "text": "module.exports = { setupAutoUpdater };",
+    "runs": [
+      {
+        "text": "module.exports",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " = ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "{ ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "setupAutoUpdater",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " };",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 126,
+    "style": "Normal",
+    "text": "",
+    "runs": [
+      {
+        "text": "",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 127,
+    "style": "Normal",
+    "text": "阶段五：配置打包与一键发布",
+    "runs": [
+      {
+        "text": "阶段五：配置打包与一键发布",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 128,
+    "style": "Normal",
+    "text": "1. 在根目录 package.json 配置打包规则",
+    "runs": [
+      {
+        "text": "1. ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "在根目录",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "package.json",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "配置打包规则",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 129,
+    "style": "Normal",
+    "text": "json",
+    "runs": [
+      {
+        "text": "json",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 130,
+    "style": "Normal",
+    "text": "{",
+    "runs": [
+      {
+        "text": "{",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 131,
+    "style": "Normal",
+    "text": "  \"name\": \"xc-omnibox\",",
+    "runs": [
+      {
+        "text": "  \"name\": \"xc-omnibox\",",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 132,
+    "style": "Normal",
+    "text": "  \"version\": \"1.0.0\",",
+    "runs": [
+      {
+        "text": "  \"version\": \"1.0.0\",",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 133,
+    "style": "Normal",
+    "text": "  \"main\": \"electron/main.js\",",
+    "runs": [
+      {
+        "text": "  \"main\": \"electron/main.js\",",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 134,
+    "style": "Normal",
+    "text": "  \"scripts\": {",
+    "runs": [
+      {
+        "text": "  \"scripts\": {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 135,
+    "style": "Normal",
+    "text": "    \"dev:electron\": \"concurrently \\\"npm --prefix frontend run dev\\\" \\\"wait-on http://localhost:3000 && electron .\\\"\",",
+    "runs": [
+      {
+        "text": "    \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "dev:electron",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\": \"concurrently \\\"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "npm",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " --prefix frontend run dev\\\" \\\"wait-on http://localhost:3000 && ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "electron .",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\\\"\",",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 136,
+    "style": "Normal",
+    "text": "    \"build:frontend\": \"npm --prefix frontend run build\",",
+    "runs": [
+      {
+        "text": "    \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "build:frontend",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\": \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "npm",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " --prefix frontend run build\",",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 137,
+    "style": "Normal",
+    "text": "    \"build:backend\": \"cd backend && pyinstaller --noconfirm --onedir --name omni-backend app/main.py\",",
+    "runs": [
+      {
+        "text": "    \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "build:backend",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\": \"cd backend && ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "pyinstaller",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " --",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "noconfirm",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " --",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "onedir",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " --name omni-backend app/main.py\",",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 138,
+    "style": "Normal",
+    "text": "    \"dist\": \"npm run build:frontend && npm run build:backend && electron-builder\"",
+    "runs": [
+      {
+        "text": "    \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "dist",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\": \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "npm",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " run ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "build:frontend",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " && ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "npm",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " run ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "build:backend",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " && electron-builder\"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 139,
+    "style": "Normal",
+    "text": "  },",
+    "runs": [
+      {
+        "text": "  },",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 140,
+    "style": "Normal",
+    "text": "  \"build\": {",
+    "runs": [
+      {
+        "text": "  \"build\": {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 141,
+    "style": "Normal",
+    "text": "    \"appId\": \"com.xc.omnibox\",",
+    "runs": [
+      {
+        "text": "    \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "appId",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\": \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "com.",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "xc.omnibox",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\",",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 142,
+    "style": "Normal",
+    "text": "    \"productName\": \"XC 万象箱\",",
+    "runs": [
+      {
+        "text": "    \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "productName",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\": \"XC ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "万象箱",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\",",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 143,
+    "style": "Normal",
+    "text": "    \"directories\": {",
+    "runs": [
+      {
+        "text": "    \"directories\": {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 144,
+    "style": "Normal",
+    "text": "      \"output\": \"release\"",
+    "runs": [
+      {
+        "text": "      \"output\": \"release\"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 145,
+    "style": "Normal",
+    "text": "    },",
+    "runs": [
+      {
+        "text": "    },",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 146,
+    "style": "Normal",
+    "text": "    \"extraResources\": [",
+    "runs": [
+      {
+        "text": "    \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "extraResources",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\": [",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 147,
+    "style": "Normal",
+    "text": "      {",
+    "runs": [
+      {
+        "text": "      {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 148,
+    "style": "Normal",
+    "text": "        \"from\": \"backend/dist/omni-backend\",",
+    "runs": [
+      {
+        "text": "        \"from\": \"backend/",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "dist",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "/omni-backend\",",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 149,
+    "style": "Normal",
+    "text": "        \"to\": \"backend\"",
+    "runs": [
+      {
+        "text": "        \"to\": \"backend\"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 150,
+    "style": "Normal",
+    "text": "      }",
+    "runs": [
+      {
+        "text": "      }",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 151,
+    "style": "Normal",
+    "text": "    ],",
+    "runs": [
+      {
+        "text": "    ],",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 152,
+    "style": "Normal",
+    "text": "    \"publish\": [",
+    "runs": [
+      {
+        "text": "    \"publish\": [",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 153,
+    "style": "Normal",
+    "text": "      {",
+    "runs": [
+      {
+        "text": "      {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 154,
+    "style": "Normal",
+    "text": "        \"provider\": \"github\",",
+    "runs": [
+      {
+        "text": "        \"provider\": \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "github",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\",",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 155,
+    "style": "Normal",
+    "text": "        \"owner\": \"LEESC88\",",
+    "runs": [
+      {
+        "text": "        \"owner\": \"LEESC88\",",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 156,
+    "style": "Normal",
+    "text": "        \"repo\": \"XC_OmniBox\"",
+    "runs": [
+      {
+        "text": "        \"repo\": \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "XC_OmniBox",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 157,
+    "style": "Normal",
+    "text": "      }",
+    "runs": [
+      {
+        "text": "      }",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 158,
+    "style": "Normal",
+    "text": "    ],",
+    "runs": [
+      {
+        "text": "    ],",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 159,
+    "style": "Normal",
+    "text": "    \"win\": {",
+    "runs": [
+      {
+        "text": "    \"win\": {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 160,
+    "style": "Normal",
+    "text": "      \"target\": [\"nsis\"],",
+    "runs": [
+      {
+        "text": "      \"target\": [\"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "nsis",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\"],",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 161,
+    "style": "Normal",
+    "text": "      \"icon\": \"resources/icon.ico\"",
+    "runs": [
+      {
+        "text": "      \"icon\": \"resources/icon.ico\"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 162,
+    "style": "Normal",
+    "text": "    },",
+    "runs": [
+      {
+        "text": "    },",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 163,
+    "style": "Normal",
+    "text": "    \"nsis\": {",
+    "runs": [
+      {
+        "text": "    \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "nsis",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\": {",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 164,
+    "style": "Normal",
+    "text": "      \"oneClick\": true,",
+    "runs": [
+      {
+        "text": "      \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "oneClick",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\": true,",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 165,
+    "style": "Normal",
+    "text": "      \"perMachine\": false,",
+    "runs": [
+      {
+        "text": "      \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "perMachine",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\": false,",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 166,
+    "style": "Normal",
+    "text": "      \"createDesktopShortcut\": true,",
+    "runs": [
+      {
+        "text": "      \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "createDesktopShortcut",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\": true,",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 167,
+    "style": "Normal",
+    "text": "      \"createStartMenuShortcut\": true,",
+    "runs": [
+      {
+        "text": "      \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "createStartMenuShortcut",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\": true,",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 168,
+    "style": "Normal",
+    "text": "      \"shortcutName\": \"XC 万象箱\"",
+    "runs": [
+      {
+        "text": "      \"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "shortcutName",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\": \"XC ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "万象箱",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "\"",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 169,
+    "style": "Normal",
+    "text": "    }",
+    "runs": [
+      {
+        "text": "    }",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 170,
+    "style": "Normal",
+    "text": "  }",
+    "runs": [
+      {
+        "text": "  }",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 171,
+    "style": "Normal",
+    "text": "}",
+    "runs": [
+      {
+        "text": "}",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 172,
+    "style": "Normal",
+    "text": "",
+    "runs": [
+      {
+        "text": "",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 173,
+    "style": "Normal",
+    "text": "以后你的两套工作流",
+    "runs": [
+      {
+        "text": "以后你的两套工作流",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 174,
+    "style": "Normal",
+    "text": "工作流 A：日常写代码（99% 的时间）",
+    "runs": [
+      {
+        "text": "工作流",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " A",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "：日常写代码（",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "99% ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "的时间）",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 175,
+    "style": "Normal",
+    "text": "bash",
+    "runs": [
+      {
+        "text": "bash",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 176,
+    "style": "Normal",
+    "text": "npm run dev:electron",
+    "runs": [
+      {
+        "text": "npm",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " run ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "dev:electron",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 177,
+    "style": "Normal",
+    "text": "一行命令同时拉起 Next.js 和桌面测试窗口。",
+    "runs": [
+      {
+        "text": "一行命令同时拉起",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " Next.js ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "和桌面测试窗口。",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 178,
+    "style": "Normal",
+    "text": "在 VS Code 里改代码，桌面窗口直接热刷新，按 Ctrl + S 立即看到效果。",
+    "runs": [
+      {
+        "text": "在",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " VS Code ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "里改代码，桌面窗口直接热刷新，按",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " Ctrl + S ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "立即看到效果。",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 179,
+    "style": "Normal",
+    "text": "工作流 B：发布新版本（要给别人更新时）",
+    "runs": [
+      {
+        "text": "工作流",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " B",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "：发布新版本（要给别人更新时）",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 180,
+    "style": "Normal",
+    "text": "把 package.json 里的版本号改成 1.0.1。",
+    "runs": [
+      {
+        "text": "把",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "package.json",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "里的版本号改成",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " 1.0.1",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "。",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 181,
+    "style": "Normal",
+    "text": "运行打包命令：",
+    "runs": [
+      {
+        "text": "运行打包命令：",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 182,
+    "style": "Normal",
+    "text": "bash",
+    "runs": [
+      {
+        "text": "bash",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 183,
+    "style": "Normal",
+    "text": "npm run dist",
+    "runs": [
+      {
+        "text": "npm",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " run ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "dist",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 184,
+    "style": "Normal",
+    "text": "1~2 分钟后，release/ 文件夹下会生成：",
+    "runs": [
+      {
+        "text": "1~2 ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "分钟后，",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "release/ ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "文件夹下会生成：",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 185,
+    "style": "Normal",
+    "text": "XC 万象箱 Setup 1.0.1.exe（安装包）",
+    "runs": [
+      {
+        "text": "XC ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "万象箱",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " Setup 1.0.1.exe",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "（安装包）",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 186,
+    "style": "Normal",
+    "text": "latest.yml（版本更新配置文件）",
+    "runs": [
+      {
+        "text": "latest.yml",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "（版本更新配置文件）",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 187,
+    "style": "Normal",
+    "text": "把这两个文件上传到你 GitHub 仓库的 Releases 页面发布。",
+    "runs": [
+      {
+        "text": "把这两个文件上传到你",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " GitHub ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "仓库的",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "Releases",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " ",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "页面发布。",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 188,
+    "style": "Normal",
+    "text": "效果：所有用户打开电脑上的老版本软件时，前端就会收到通知，点击“下载更新”，下载完毕点击“重启”，软件自动完成替换并升级到 1.0.1！",
+    "runs": [
+      {
+        "text": "效果",
+        "bold": true,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "：所有用户打开电脑上的老版本软件时，前端就会收到通知，点击",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "“",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "下载更新",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "”",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "，下载完毕点击",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "“",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "重启",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "”",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "，软件自动完成替换并升级到",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": " 1.0.1",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      },
+      {
+        "text": "！",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 189,
+    "style": "Normal",
+    "text": "",
+    "runs": [
+      {
+        "text": "",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 190,
+    "style": "Normal",
+    "text": "这就是完整的工业级桌面端方案。整个骨架非常清晰，我们可以一步一步来实施。",
+    "runs": [
+      {
+        "text": "这就是完整的工业级桌面端方案。整个骨架非常清晰，我们可以一步一步来实施。",
+        "bold": null,
+        "italic": null,
+        "font": "Times New Roman"
+      }
+    ]
+  },
+  {
+    "index": 191,
+    "style": "Normal",
+    "text": "",
+    "runs": []
+  }
+]

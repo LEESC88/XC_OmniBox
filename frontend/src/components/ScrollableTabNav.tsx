@@ -132,7 +132,7 @@ export default function ScrollableTabNav({
           canScrollLeft ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-[#F2E5D8] dark:from-[#251E1A] to-transparent pointer-events-none" />
+        <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-[var(--color-canvas,#F2E5D8)] to-transparent pointer-events-none" />
         <button
           type="button"
           onClick={() => scrollByAmount(-260)}
@@ -150,7 +150,7 @@ export default function ScrollableTabNav({
           canScrollRight ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#F2E5D8] dark:from-[#251E1A] to-transparent pointer-events-none" />
+        <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[var(--color-canvas,#F2E5D8)] to-transparent pointer-events-none" />
         <button
           type="button"
           onClick={() => scrollByAmount(260)}
@@ -183,7 +183,7 @@ export default function ScrollableTabNav({
               onClick={() => handleItemClick(tab.id)}
               className={`flex items-center space-x-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap flex-shrink-0 active:scale-95 cursor-pointer ${
                 isActive
-                  ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white font-bold shadow-3d-sunset scale-[1.02]"
+                  ? "bg-accent-gradient text-white font-bold shadow-3d-sunset scale-[1.02]"
                   : "bg-white/80 dark:bg-darkbg-card text-coconut-700 dark:text-darkbg-muted border border-coconut-200/80 dark:border-darkbg-border hover:bg-coconut-100/60 dark:hover:bg-darkbg-elevated hover:dark:text-darkbg-text"
               }`}
             >

@@ -192,7 +192,7 @@ export default function PdfMergeStudio({
               className="group relative flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-2xl bg-white/90 dark:bg-darkbg-card border border-coconut-200/90 dark:border-darkbg-border shadow-2xs hover:shadow-coconut-sm hover:border-orange-400/60 dark:hover:border-orange-500/40 transition-all"
             >
               {/* 顺序序号徽标 */}
-              <div className="flex-shrink-0 flex flex-col items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 dark:from-amber-500/30 dark:to-orange-500/30 border border-orange-500/30 text-orange-950 dark:text-orange-200 font-mono font-bold text-xs sm:text-sm">
+              <div className="flex-shrink-0 flex flex-col items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-accent-subtle border border-accent-border text-accent font-mono font-bold text-xs sm:text-sm">
                 #{idx + 1}
               </div>
 
@@ -300,10 +300,10 @@ export default function PdfMergeStudio({
 
       {/* 结果卡片 (严格点击才下载) */}
       {executionResult ? (
-        <div className="p-5 bg-gradient-to-br from-amber-500/12 via-orange-500/10 to-rose-500/10 dark:from-orange-950/40 dark:via-amber-950/30 dark:to-rose-950/30 border border-amber-300/80 dark:border-amber-600/60 rounded-2xl space-y-4 shadow-coconut-sm animate-fade-in backdrop-blur-sm">
+        <div className="p-5 bg-accent-subtle border border-accent-border rounded-2xl space-y-4 shadow-coconut-sm animate-fade-in backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 truncate">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-accent-gradient text-white flex items-center justify-center flex-shrink-0 shadow-sm">
                 <FileCheck className="w-5 h-5 text-white" />
               </div>
               <div className="truncate">
