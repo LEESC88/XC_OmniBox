@@ -51,6 +51,9 @@ import ImageToolbox from "@/components/ImageToolbox";
 import AudioToolbox from "@/components/AudioToolbox";
 import DailyToolbox from "@/components/DailyToolbox";
 import AiToolbox, { AiTabType } from "@/components/AiToolbox";
+import PdfMergeStudio from "@/components/pdf/PdfMergeStudio";
+import PdfSplitStudio from "@/components/pdf/PdfSplitStudio";
+import PdfWatermarkStudio from "@/components/pdf/PdfWatermarkStudio";
 import { formatBytes } from "@/lib/imageProcessor";
 import {
   checkHealth,
@@ -230,6 +233,32 @@ export default function Home() {
   const [watermarkAngle, setWatermarkAngle] = useState<number>(45);
   const [protectPassword, setProtectPassword] = useState<string>("");
 
+  // PDF 转 Word 缩略图预览状态
+  const [pdfToWordThumb, setPdfToWordThumb] = useState<{
+    url?: string;
+    numPages?: number;
+    loading: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (activeDocTab === "pdf-to-word" && files.length > 0) {
+      setPdfToWordThumb({ loading: true });
+      renderPdfPages(files[0], 70, 1, false)
+        .then((res) => {
+          setPdfToWordThumb({
+            url: res.pages[0]?.image,
+            numPages: res.numPages,
+            loading: false,
+          });
+        })
+        .catch(() => {
+          setPdfToWordThumb({ loading: false });
+        });
+    } else {
+      setPdfToWordThumb(null);
+    }
+  }, [activeDocTab, files]);
+
   // 轮询检查后端状态
   useEffect(() => {
     const fetchHealth = async () => {
@@ -382,6 +411,58 @@ export default function Home() {
       setSuccessMsg(`处理完成！已生成 ${resultFilename}，请点击下方按钮下载保存`);
     } catch (err: any) {
       setError(err.message || "处理过程出现异常");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 拆分可视化 Studio 专用执行函数
+  const handleSplitExecute = async (customRanges?: string) => {
+    if (files.length === 0) {
+      setError("请先上传需要拆分的 PDF 文件");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+    setExecutionResult(null);
+
+    try {
+      const res = await splitPdf(files[0], customRanges || undefined);
+      setExecutionResult({
+        blob: res.blob,
+        filename: res.filename,
+        size: res.blob.size,
+      });
+      setSuccessMsg(`拆分提取成功！已生成 ${res.filename}，请点击下方按钮下载保存`);
+    } catch (err: any) {
+      setError(err.message || "拆分提取失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 水印实时预览 Studio 专用执行函数
+  const handleWatermarkExecute = async (text: string, opacity: number, angle: number) => {
+    if (files.length === 0) {
+      setError("请先上传需要添加水印的 PDF 文件");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+    setExecutionResult(null);
+
+    try {
+      const res = await addWatermark(files[0], text, opacity, angle);
+      setExecutionResult({
+        blob: res.blob,
+        filename: res.filename,
+        size: res.blob.size,
+      });
+      setSuccessMsg(`水印添加成功！已生成 ${res.filename}，请点击下方按钮下载保存`);
+    } catch (err: any) {
+      setError(err.message || "添加水印失败");
     } finally {
       setLoading(false);
     }
@@ -969,115 +1050,81 @@ export default function Home() {
                     )}
                   </button>
                 </div>
-              ) : ["pdf-watermark", "pdf-split", "pdf-protect"].includes(activeDocTab) ? (
-                /* 双栏 Studio 工作台：左侧控制台 + 右侧投放画布 */
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                  {/* 左侧：参数控制台 */}
-                  <div className="lg:col-span-5 coconut-panel p-5 sm:p-6 space-y-5">
-                    <div className="flex items-center gap-2 pb-3 border-b border-coconut-200/80 dark:border-darkbg-border text-sm font-bold text-coconut-950 dark:text-darkbg-text">
-                      <Sliders className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                      <span>工作台参数微调</span>
+              ) : activeDocTab === "pdf-merge" ? (
+                /* PDF 多文件调序合并 Studio */
+                files.length > 0 ? (
+                  <div className="coconut-panel p-6 sm:p-8">
+                    <PdfMergeStudio
+                      files={files}
+                      onFilesChange={setFiles}
+                      onExecute={handleExecute}
+                      loading={loading}
+                      error={error}
+                      successMsg={successMsg}
+                      executionResult={executionResult}
+                      onReset={() => {
+                        setFiles([]);
+                        setExecutionResult(null);
+                        setSuccessMsg(null);
+                        setError(null);
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="coconut-panel p-6 sm:p-8 space-y-6">
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                        多文件批量选择合并
+                      </h3>
+                      <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
+                        支持选中多个 PDF 批量上传，系统将自动读取首页缩略图预览，支持自由上下移动调序、追加文件后一键无损拼合。
+                      </p>
                     </div>
 
-                    {activeDocTab === "pdf-watermark" && (
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text mb-1.5">
-                            水印文字内容
-                          </label>
-                          <input
-                            type="text"
-                            value={watermarkText}
-                            onChange={(e) => setWatermarkText(e.target.value)}
-                            className="w-full text-sm p-3.5 bg-white/80 dark:bg-darkbg-subtle border border-[#CBB09C] dark:border-darkbg-border rounded-2xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-coconut-950 dark:text-darkbg-text font-medium"
-                          />
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text mb-1.5">
-                            <span>半透明度</span>
-                            <span className="font-mono font-bold text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-lg bg-orange-500/10 border border-orange-500/20">{watermarkOpacity}</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="0.1"
-                            max="0.8"
-                            step="0.05"
-                            value={watermarkOpacity}
-                            onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
-                            className="w-full accent-orange-600 cursor-pointer h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text mb-1.5">
-                            水印旋转倾斜角度
-                          </label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {[
-                              { label: "水平 (0°)", val: 0 },
-                              { label: "轻斜 (30°)", val: 30 },
-                              { label: "经典 (45°)", val: 45 },
-                              { label: "垂直 (90°)", val: 90 },
-                            ].map((ang) => (
-                              <button
-                                key={ang.val}
-                                onClick={() => setWatermarkAngle(ang.val)}
-                                className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold border transition-all active:scale-95 ${
-                                  watermarkAngle === ang.val
-                                    ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold border-transparent shadow-xs"
-                                    : "border-coconut-200 dark:border-darkbg-border text-coconut-800 dark:text-darkbg-muted hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated dark:hover:text-darkbg-text"
-                                }`}
-                              >
-                                {ang.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {activeDocTab === "pdf-split" && (
-                      <div className="space-y-3">
-                        <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text mb-1">
-                          提取页码范围 (留空则默认拆分为独立单页)
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="例如: 1-3, 5, 8-10"
-                          value={pageRanges}
-                          onChange={(e) => setPageRanges(e.target.value)}
-                          className="w-full text-sm p-3.5 bg-white/80 dark:bg-darkbg-subtle border border-[#CBB09C] dark:border-darkbg-border rounded-2xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-coconut-950 dark:text-darkbg-text font-mono font-medium"
-                        />
-                        <p className="text-xs text-coconut-700 dark:text-darkbg-muted leading-relaxed">
-                          提示：逗号分隔单个页码，短横线表示范围，支持逆序如 5-1。
-                        </p>
-                      </div>
-                    )}
-
-                    {activeDocTab === "pdf-protect" && (
-                      <div className="space-y-3">
-                        <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text mb-1">
-                          设置访问查看密码
-                        </label>
-                        <input
-                          type="password"
-                          placeholder="请输入加密密码"
-                          value={protectPassword}
-                          onChange={(e) => setProtectPassword(e.target.value)}
-                          className="w-full text-sm p-3.5 bg-white/80 dark:bg-darkbg-subtle border border-[#CBB09C] dark:border-darkbg-border rounded-2xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-coconut-950 dark:text-darkbg-text font-medium"
-                        />
-                        <p className="text-xs text-coconut-700 dark:text-darkbg-muted leading-relaxed">
-                          采用 AES-128 工业级高强度加密，无密码者无法打开、阅读或打印文档。
-                        </p>
-                      </div>
-                    )}
+                    <Dropzone
+                      accept=".pdf"
+                      multiple={true}
+                      selectedFiles={files}
+                      onFilesSelected={setFiles}
+                      onClear={() => setFiles([])}
+                      title="拖入多个 PDF 文件（按 Ctrl 多选），或点击选择"
+                      hint="支持选中多个 PDF 批量合并"
+                    />
                   </div>
-
-                  {/* 右侧：投放主舞台与执行 */}
-                  <div className="lg:col-span-7 coconut-panel p-5 sm:p-6 space-y-5">
-                    <div className="text-xs font-bold text-coconut-900 dark:text-darkbg-text">
-                      投放待处理文档
+                )
+              ) : activeDocTab === "pdf-split" ? (
+                /* PDF 全文档点选拆分 Studio */
+                files.length > 0 ? (
+                  <div className="coconut-panel p-6 sm:p-8">
+                    <PdfSplitStudio
+                      file={files[0]}
+                      onSplit={handleSplitExecute}
+                      loading={loading}
+                      error={error}
+                      successMsg={successMsg}
+                      executionResult={executionResult}
+                      onReset={() => {
+                        setExecutionResult(null);
+                        setSuccessMsg(null);
+                        setError(null);
+                      }}
+                      onClearFile={() => {
+                        setFiles([]);
+                        setExecutionResult(null);
+                        setSuccessMsg(null);
+                        setError(null);
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="coconut-panel p-6 sm:p-8 space-y-6">
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                        PDF 全文档可视化点选拆分
+                      </h3>
+                      <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
+                        拖入 PDF 文档后自动生成整篇文档的页面缩略图网格，无需记忆输入页码，直接点击卡片即可多选抽取或拆分为单页压缩包。
+                      </p>
                     </div>
 
                     <Dropzone
@@ -1086,7 +1133,95 @@ export default function Home() {
                       selectedFiles={files}
                       onFilesSelected={setFiles}
                       onClear={() => setFiles([])}
-                      title="拖入 PDF 文档 (.pdf)，或点击选择"
+                      title="拖入待拆分的 PDF 文档 (.pdf)，或点击选择"
+                      hint="支持标准 PDF 文档"
+                    />
+                  </div>
+                )
+              ) : activeDocTab === "pdf-watermark" ? (
+                /* PDF 实时效果动态预览水印 Studio */
+                files.length > 0 ? (
+                  <div className="coconut-panel p-6 sm:p-8">
+                    <PdfWatermarkStudio
+                      file={files[0]}
+                      onExecute={handleWatermarkExecute}
+                      loading={loading}
+                      error={error}
+                      successMsg={successMsg}
+                      executionResult={executionResult}
+                      onReset={() => {
+                        setExecutionResult(null);
+                        setSuccessMsg(null);
+                        setError(null);
+                      }}
+                      onClearFile={() => {
+                        setFiles([]);
+                        setExecutionResult(null);
+                        setSuccessMsg(null);
+                        setError(null);
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="coconut-panel p-6 sm:p-8 space-y-6">
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                        PDF 真实底图实时水印工作室
+                      </h3>
+                      <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
+                        拖入 PDF 文档后自动加载真实页面底图，调节水印文字、透明度与旋转角度时右侧画面实时响应随动，所见即所得。
+                      </p>
+                    </div>
+
+                    <Dropzone
+                      accept=".pdf"
+                      multiple={false}
+                      selectedFiles={files}
+                      onFilesSelected={setFiles}
+                      onClear={() => setFiles([])}
+                      title="拖入待添加水印的 PDF 文档 (.pdf)，或点击选择"
+                      hint="支持标准 PDF 文档"
+                    />
+                  </div>
+                )
+              ) : activeDocTab === "pdf-protect" ? (
+                /* PDF 权限密码保护双栏 Studio */
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  <div className="lg:col-span-5 coconut-panel p-5 sm:p-6 space-y-5">
+                    <div className="flex items-center gap-2 pb-3 border-b border-coconut-200/80 dark:border-darkbg-border text-sm font-bold text-coconut-950 dark:text-darkbg-text">
+                      <Lock className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                      <span>加密权限设置</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text mb-1">
+                        设置访问查看密码
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="请输入加密密码"
+                        value={protectPassword}
+                        onChange={(e) => setProtectPassword(e.target.value)}
+                        className="w-full text-sm p-3.5 bg-white/80 dark:bg-darkbg-subtle border border-[#CBB09C] dark:border-darkbg-border rounded-2xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-coconut-950 dark:text-darkbg-text font-medium"
+                      />
+                      <p className="text-xs text-coconut-700 dark:text-darkbg-muted leading-relaxed">
+                        采用高强度加密算法，未输入正确密码者无法打开、阅读或打印文档。
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-7 coconut-panel p-5 sm:p-6 space-y-5">
+                    <div className="text-xs font-bold text-coconut-900 dark:text-darkbg-text">
+                      投放待加密文档
+                    </div>
+
+                    <Dropzone
+                      accept=".pdf"
+                      multiple={false}
+                      selectedFiles={files}
+                      onFilesSelected={setFiles}
+                      onClear={() => setFiles([])}
+                      title="拖入待加密的 PDF 文档 (.pdf)，或点击选择"
                       hint="支持标准 PDF 文档"
                     />
 
@@ -1116,7 +1251,7 @@ export default function Home() {
                                 {executionResult.filename}
                               </h4>
                               <p className="text-xs text-orange-800 dark:text-amber-300 font-mono font-medium">
-                                {formatBytes(executionResult.size)} · 处理成功已就绪
+                                {formatBytes(executionResult.size)} · 加密成功已就绪
                               </p>
                             </div>
                           </div>
@@ -1144,16 +1279,16 @@ export default function Home() {
                             className="py-3 px-4 rounded-xl btn-3d-secondary font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
-                            <span>处理新文件</span>
+                            <span>加密新文件</span>
                           </button>
                         </div>
                       </div>
                     ) : (
                       <button
                         onClick={handleExecute}
-                        disabled={loading || files.length === 0}
+                        disabled={loading || files.length === 0 || !protectPassword}
                         className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
-                          loading || files.length === 0
+                          loading || files.length === 0 || !protectPassword
                             ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
                             : "btn-3d-sunset text-white"
                         }`}
@@ -1161,12 +1296,12 @@ export default function Home() {
                         {loading ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>正在处理中，请稍候...</span>
+                            <span>正在加密中，请稍候...</span>
                           </>
                         ) : (
                           <>
-                            <Zap className="w-4 h-4 text-amber-200" />
-                            <span>{getActionBtnText()}</span>
+                            <Lock className="w-4 h-4 text-amber-200" />
+                            <span>开始加密并导出受保护 PDF</span>
                           </>
                         )}
                       </button>
@@ -1174,46 +1309,95 @@ export default function Home() {
                   </div>
                 </div>
               ) : (
-                /* 单宽幅 Studio 工作台：转Word、转PDF、合并 */
+                /* PDF 转 Word 或 Word 转 PDF */
                 <div className="coconut-panel p-6 sm:p-8 space-y-6">
                   <div className="space-y-1">
                     <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                      {activeDocTab === "pdf-merge"
-                        ? "多文件批量选择合并"
-                        : activeDocTab === "word-to-pdf"
+                      {activeDocTab === "word-to-pdf"
                         ? "Word 文档格式转换"
-                        : "PDF 逆向格式转换"}
+                        : "PDF 逆向格式转换 (.docx)"}
                     </h3>
                     <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                      {activeDocTab === "pdf-merge"
-                        ? "支持选中多个 PDF 批量上传，按顺序无损重排拼合成单一完整文档。"
-                        : activeDocTab === "word-to-pdf"
+                      {activeDocTab === "word-to-pdf"
                         ? "支持 .docx、.doc 格式，100% 打印级矢量超清渲染，公式与表格精准保留。"
                         : "基于专业重构引擎，精准还原表格、文本排版与内嵌高清图片。"}
                     </p>
                   </div>
 
-                  <Dropzone
-                    accept={activeDocTab === "word-to-pdf" ? ".docx,.doc" : ".pdf"}
-                    multiple={activeDocTab === "pdf-merge"}
-                    selectedFiles={files}
-                    onFilesSelected={setFiles}
-                    onClear={() => setFiles([])}
-                    title={
-                      activeDocTab === "pdf-merge"
-                        ? "拖入多个 PDF 文件（按 Ctrl 多选），或点击选择"
-                        : activeDocTab === "word-to-pdf"
-                        ? "拖入 Word 文档 (.docx, .doc)，或点击选择"
-                        : "拖入 PDF 文档 (.pdf)，或点击选择"
-                    }
-                    hint={
-                      activeDocTab === "word-to-pdf"
-                        ? "支持 .docx 或 .doc 格式"
-                        : activeDocTab === "pdf-merge"
-                        ? "支持选中多个 PDF 批量合并"
-                        : "支持标准 PDF 文档"
-                    }
-                  />
+                  {/* 如果是 PDF 转 Word 且已选择文件，展示专属第一页缩略图预览卡片 */}
+                  {activeDocTab === "pdf-to-word" && files.length > 0 ? (
+                    <div className="p-4 rounded-2xl bg-coconut-50/80 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border flex flex-col sm:flex-row items-center gap-4">
+                      <div className="w-16 h-22 rounded-xl overflow-hidden border border-coconut-300 dark:border-darkbg-border bg-white dark:bg-darkbg-card flex items-center justify-center flex-shrink-0 shadow-xs">
+                        {pdfToWordThumb?.url ? (
+                          <img
+                            src={pdfToWordThumb.url}
+                            alt="PDF Preview"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : pdfToWordThumb?.loading ? (
+                          <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />
+                        ) : (
+                          <FileText className="w-7 h-7 text-coconut-400" />
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0 text-center sm:text-left">
+                        <h4 className="text-sm font-bold text-coconut-950 dark:text-white truncate">
+                          {files[0].name}
+                        </h4>
+                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1 text-xs text-coconut-600 dark:text-darkbg-muted">
+                          <span className="font-mono">{formatBytes(files[0].size)}</span>
+                          <span>·</span>
+                          <span>{pdfToWordThumb?.numPages ? `共 ${pdfToWordThumb.numPages} 页` : "PDF 格式"}</span>
+                        </div>
+
+                        {/* 起始页微调 */}
+                        <div className="flex items-center gap-2 mt-2.5">
+                          <label className="text-xs font-semibold text-coconut-800 dark:text-darkbg-text whitespace-nowrap">
+                            起始转换页码:
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={pdfToWordThumb?.numPages || 999}
+                            value={startPage + 1}
+                            onChange={(e) => setStartPage(Math.max(0, (parseInt(e.target.value) || 1) - 1))}
+                            className="w-16 px-2 py-1 text-xs font-mono font-bold bg-white dark:bg-darkbg-card border border-coconut-300 dark:border-darkbg-border rounded-lg text-center"
+                          />
+                          <span className="text-[11px] text-coconut-500">（默认从第 1 页开始）</span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setFiles([]);
+                          setPdfToWordThumb(null);
+                        }}
+                        className="p-2 rounded-xl text-coconut-500 hover:text-rose-600 hover:bg-rose-500/10 transition-colors"
+                        title="更换文件"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <Dropzone
+                      accept={activeDocTab === "word-to-pdf" ? ".docx,.doc" : ".pdf"}
+                      multiple={false}
+                      selectedFiles={files}
+                      onFilesSelected={setFiles}
+                      onClear={() => setFiles([])}
+                      title={
+                        activeDocTab === "word-to-pdf"
+                          ? "拖入 Word 文档 (.docx, .doc)，或点击选择"
+                          : "拖入 PDF 文档 (.pdf)，或点击选择"
+                      }
+                      hint={
+                        activeDocTab === "word-to-pdf"
+                          ? "支持 .docx 或 .doc 格式"
+                          : "支持标准 PDF 文档"
+                      }
+                    />
+                  )}
 
                   {error && (
                     <div className="p-3 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-2 text-toast-700 dark:text-toast-300 text-xs">
@@ -1269,7 +1453,7 @@ export default function Home() {
                           className="py-3 px-4 rounded-xl btn-3d-secondary font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5"
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
-                          <span>处理新文件</span>
+                          <span>转换新文件</span>
                         </button>
                       </div>
                     </div>
@@ -1286,7 +1470,7 @@ export default function Home() {
                       {loading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>正在处理中，请稍候...</span>
+                          <span>正在转换中，请稍候...</span>
                         </>
                       ) : (
                         <>

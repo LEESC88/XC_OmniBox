@@ -15,7 +15,9 @@ router = APIRouter(prefix="/editor", tags=["1:1 In-Place Visual PDF Editor"])
 async def render_pdf_pages(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="上传待编辑的原始 PDF 文件"),
-    dpi: int = Form(150, description="页面渲染清晰度 (默认 150 DPI)")
+    dpi: int = Form(150, description="页面渲染清晰度 (默认 150 DPI)"),
+    max_pages: Optional[int] = Form(None, description="最多渲染页数 (用于缩略图提速)"),
+    extract_words: bool = Form(True, description="是否提取物理文字块")
 ):
     """
     高保真提取原版真实 PDF 页面图像与每一个物理文字块的精确绝对坐标 (x0, y0, x1, y1)。
@@ -29,7 +31,12 @@ async def render_pdf_pages(
 
     try:
         await save_upload_file(file, input_pdf)
-        data = EditorService.render_pdf_pages_and_words(input_pdf, dpi=dpi)
+        data = EditorService.render_pdf_pages_and_words(
+            input_pdf,
+            dpi=dpi,
+            max_pages=max_pages,
+            extract_words=extract_words
+        )
         add_cleanup_task(background_tasks, task_dir)
         return {
             "success": True,

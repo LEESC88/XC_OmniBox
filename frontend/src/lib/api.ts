@@ -146,7 +146,12 @@ export async function protectPdf(file: File, password: string): Promise<{ blob: 
   return { blob, filename: `protected_${file.name}` };
 }
 
-export async function renderPdfPages(file: File): Promise<{
+export async function renderPdfPages(
+  file: File,
+  dpi: number = 100,
+  maxPages?: number,
+  extractWords: boolean = true
+): Promise<{
   success: boolean;
   title: string;
   numPages: number;
@@ -155,7 +160,7 @@ export async function renderPdfPages(file: File): Promise<{
     width: number;
     height: number;
     image: string;
-    blocks: Array<{
+    blocks?: Array<{
       id: string;
       x0: number;
       y0: number;
@@ -168,6 +173,11 @@ export async function renderPdfPages(file: File): Promise<{
 }> {
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("dpi", String(dpi));
+  if (maxPages !== undefined && maxPages !== null) {
+    formData.append("max_pages", String(maxPages));
+  }
+  formData.append("extract_words", String(extractWords));
 
   const res = await fetch(`${API_BASE}/editor/render-pages`, {
     method: "POST",
