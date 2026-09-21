@@ -66,8 +66,8 @@ export default function Dropzone({
           onClick={() => inputRef.current?.click()}
           className={`group relative border-2 border-dashed rounded-2xl p-6 sm:p-10 text-center cursor-pointer transition-all duration-300 select-none ${
             isDragOver
-              ? "border-palm-500 bg-palm-50/60 dark:bg-palm-950/30 scale-[0.99] shadow-coconut-md ring-4 ring-palm-400/15"
-              : "border-coconut-300 dark:border-darkbg-border hover:border-coconut-500 dark:hover:border-palm-500 bg-coconut-50/40 dark:bg-darkbg-card hover:bg-coconut-100/40 dark:hover:bg-darkbg-elevated shadow-coconut-sm"
+              ? "border-amber-500 bg-amber-50/70 dark:bg-amber-950/40 scale-[0.99] shadow-coconut-md ring-4 ring-amber-400/20"
+              : "border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85 dark:hover:bg-[#2E2520] shadow-2xs"
           }`}
         >
           <input
@@ -81,8 +81,8 @@ export default function Dropzone({
           <div className="flex flex-col items-center justify-center space-y-3.5">
             <div className={`p-4 rounded-2xl transition-all duration-300 shadow-sm ${
               isDragOver
-                ? "bg-palm-500 text-white scale-110"
-                : "bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-toast-400 group-hover:scale-105 group-hover:bg-coconut-200 dark:group-hover:bg-darkbg-hover"
+                ? "bg-amber-500 text-white scale-110"
+                : "bg-[#FAF1E8] dark:bg-[#2E2520] text-coconut-800 dark:text-amber-400 border border-[#D2BCAB] dark:border-[#4D392E] group-hover:scale-105 group-hover:border-amber-500 group-hover:text-amber-600"
             }`}>
               <UploadCloud className="w-8 h-8" />
             </div>
@@ -97,15 +97,15 @@ export default function Dropzone({
           </div>
         </div>
       ) : (
-        <div className="bg-white/90 dark:bg-darkbg-card border border-coconut-200/90 dark:border-darkbg-border rounded-2xl p-4 sm:p-5 shadow-coconut-sm backdrop-blur-sm">
+        <div className="bg-[#FAF1E8] dark:bg-[#251E1A] border border-[#D2BCAB] dark:border-[#4D392E] rounded-2xl p-4 sm:p-5 shadow-coconut-sm backdrop-blur-sm">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-coconut-700 dark:text-darkbg-muted flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-palm-500"></span>
+            <span className="text-xs font-bold uppercase tracking-wider text-coconut-800 dark:text-darkbg-muted flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
               已选文件 ({selectedFiles.length})
             </span>
             <button
               onClick={onClear}
-              className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 flex items-center gap-1 font-medium px-2 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+              className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 flex items-center gap-1 font-semibold px-2.5 py-1 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-transparent hover:border-rose-200 dark:hover:border-rose-900 transition-colors"
             >
               <X className="w-3.5 h-3.5" /> 重新选择
             </button>
@@ -114,15 +114,15 @@ export default function Dropzone({
             {selectedFiles.map((file, idx) => (
               <div
                 key={idx}
-                className="flex items-center justify-between p-2.5 sm:p-3 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-xl text-sm border border-coconut-200/60 dark:border-darkbg-border transition-all hover:border-coconut-300 dark:hover:border-darkbg-borderLight"
+                className="flex items-center justify-between p-2.5 sm:p-3 bg-white/90 dark:bg-[#2F2520] rounded-xl text-sm border border-[#E8DDCE] dark:border-[#362921] transition-all hover:border-[#DBC8B5] dark:hover:border-[#44342A] shadow-2xs"
               >
                 <div className="flex items-center gap-2.5 truncate">
-                  <FileIcon className="w-4 h-4 text-coconut-600 dark:text-toast-400 flex-shrink-0" />
+                  <FileIcon className="w-4 h-4 text-coconut-600 dark:text-palm-400 flex-shrink-0" />
                   <span className="truncate font-medium text-coconut-900 dark:text-darkbg-text text-xs">
                     {file.name}
                   </span>
                 </div>
-                <span className="text-xs text-coconut-600 dark:text-darkbg-muted font-mono flex-shrink-0 ml-2">
+                <span className="text-xs text-coconut-600 dark:text-darkbg-muted font-mono flex-shrink-0 ml-2 font-semibold">
                   {formatSize(file.size)}
                 </span>
               </div>

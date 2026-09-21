@@ -36,6 +36,7 @@ import {
 } from "@/lib/aiProcessor";
 import { downloadBlob } from "@/lib/api";
 import { formatBytes } from "@/lib/imageProcessor";
+import ScrollableTabNav from "@/components/ScrollableTabNav";
 
 export type AiTabType = "ai-bg-remove" | "ai-ocr" | "ai-upscale";
 
@@ -302,55 +303,31 @@ export default function AiToolbox({
 
   return (
     <div className="space-y-6">
-      {/* 顶部三栏切换 Tab */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-coconut-200/60 dark:border-darkbg-border pb-4">
-        {[
+      {/* 顶部三栏切换 Tab (支持滚轮横移、鼠标拖拽与左右翻页箭头) */}
+      <ScrollableTabNav
+        tabs={[
           {
-            id: "ai-bg-remove" as AiTabType,
+            id: "ai-bg-remove",
             label: "AI 发丝级智能抠图",
             icon: Sparkles,
             badge: "无痕透底",
           },
           {
-            id: "ai-ocr" as AiTabType,
-            label: "AI 离线 OCR 文字提取",
+            id: "ai-ocr",
+            label: "AI 文字提取 (OCR)",
             icon: FileText,
             badge: "多语言",
           },
           {
-            id: "ai-upscale" as AiTabType,
+            id: "ai-upscale",
             label: "AI 模糊图片高清修复",
             icon: Maximize2,
             badge: "2x/4x超清",
           },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all active:scale-95 ${
-                isActive
-                  ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white shadow-3d-sunset font-bold scale-[1.02]"
-                  : "bg-white/70 dark:bg-darkbg-card/70 text-coconut-700 dark:text-darkbg-muted border border-coconut-200/60 dark:border-darkbg-border hover:bg-coconut-100/50 dark:hover:text-darkbg-text"
-              }`}
-            >
-              <Icon className={`w-4 h-4 ${isActive ? "text-amber-100" : "text-coconut-500 dark:text-darkbg-muted"}`} />
-              <span>{tab.label}</span>
-              <span
-                className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-medium ${
-                  isActive
-                    ? "bg-white/25 text-white"
-                    : "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-600 dark:text-darkbg-muted"
-                }`}
-              >
-                {tab.badge}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+        ]}
+        activeTab={activeTab}
+        onTabChange={(id) => handleTabChange(id as AiTabType)}
+      />
 
       {/* ========================================================================= */}
       {/* 模块 1: AI 发丝级智能抠图                                                   */}
@@ -358,38 +335,35 @@ export default function AiToolbox({
       {activeTab === "ai-bg-remove" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* 左侧控制台 */}
-          <div className="lg:col-span-4 bg-white/80 dark:bg-darkbg-card/90 border border-coconut-200/70 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-5 backdrop-blur-md">
-            <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
-              <div className="flex items-center gap-2 text-xs font-bold text-coconut-900 dark:text-darkbg-text">
-                <Sliders className="w-4 h-4 text-orange-500" />
+          <div className="lg:col-span-5 coconut-panel p-5 sm:p-6 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-coconut-200/80 dark:border-darkbg-border">
+              <div className="flex items-center gap-2 text-sm font-bold text-coconut-950 dark:text-darkbg-text">
+                <Sliders className="w-4 h-4 text-orange-600 dark:text-orange-400" />
                 <span>抠图引擎与配置</span>
               </div>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/80 text-orange-700 dark:text-orange-300 font-mono font-medium">
-                100% 浏览器本地
-              </span>
             </div>
 
             {/* 引擎切换 */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-coconut-800 dark:text-darkbg-text">
+              <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
                 算法引擎模式
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
                   onClick={() => setBgEngine("ai")}
                   className={`p-3 rounded-2xl border text-left transition-all ${
                     bgEngine === "ai"
-                      ? "border-orange-500 bg-orange-50/60 dark:bg-orange-950/30 text-coconut-900 dark:text-darkbg-text shadow-sm"
-                      : "border-coconut-200 dark:border-darkbg-border text-coconut-600 dark:text-darkbg-muted hover:bg-coconut-50 dark:hover:bg-darkbg-subtle"
+                      ? "border-orange-500 bg-orange-50/70 dark:bg-orange-950/40 text-coconut-950 dark:text-darkbg-text shadow-sm ring-1 ring-orange-400/30"
+                      : "border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/50 dark:hover:bg-darkbg-subtle"
                   }`}
                 >
-                  <div className="flex items-center gap-1.5 text-xs font-bold mb-1">
-                    <Sparkles className="w-3.5 h-3.5 text-orange-500" />
-                    <span>AI 深度神经网络</span>
+                  <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold mb-1">
+                    <Sparkles className="w-4 h-4 text-orange-600" />
+                    <span>AI 神经网络</span>
                   </div>
-                  <p className="text-[11px] text-coconut-500 dark:text-darkbg-muted leading-tight">
-                    发丝级精细分割，自动识别复杂人像与物体主体
+                  <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed">
+                    发丝级精细分割，自动识别复杂人像与主体
                   </p>
                 </button>
 
@@ -398,16 +372,16 @@ export default function AiToolbox({
                   onClick={() => setBgEngine("chroma")}
                   className={`p-3 rounded-2xl border text-left transition-all ${
                     bgEngine === "chroma"
-                      ? "border-orange-500 bg-orange-50/60 dark:bg-orange-950/30 text-coconut-900 dark:text-darkbg-text shadow-sm"
-                      : "border-coconut-200 dark:border-darkbg-border text-coconut-600 dark:text-darkbg-muted hover:bg-coconut-50 dark:hover:bg-darkbg-subtle"
+                      ? "border-orange-500 bg-orange-50/70 dark:bg-orange-950/40 text-coconut-950 dark:text-darkbg-text shadow-sm ring-1 ring-orange-400/30"
+                      : "border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/50 dark:hover:bg-darkbg-subtle"
                   }`}
                 >
-                  <div className="flex items-center gap-1.5 text-xs font-bold mb-1">
-                    <Zap className="w-3.5 h-3.5 text-amber-500" />
+                  <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold mb-1">
+                    <Zap className="w-4 h-4 text-amber-600" />
                     <span>极速色度算法</span>
                   </div>
-                  <p className="text-[11px] text-coconut-500 dark:text-darkbg-muted leading-tight">
-                    0 延迟瞬时处理，适合纯色或单色背景图片
+                  <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed">
+                    瞬时处理，适合纯色或单色背景图片
                   </p>
                 </button>
               </div>
@@ -415,23 +389,23 @@ export default function AiToolbox({
 
             {/* 背景底色预设 */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-coconut-800 dark:text-darkbg-text">
+              <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
                 输出背景底色
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2.5">
                 {BG_PRESETS.map((preset) => (
                   <button
                     key={preset.value}
                     type="button"
                     onClick={() => handleChangeBgColor(preset.value)}
-                    className={`flex items-center gap-2 p-2 rounded-xl border text-xs font-medium transition-all ${
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs sm:text-sm font-semibold transition-all ${
                       selectedBgColor === preset.value
-                        ? "border-orange-500 bg-orange-50 dark:bg-orange-950/40 text-orange-800 dark:text-orange-300 font-bold shadow-xs"
-                        : "border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-50"
+                        ? "border-orange-500 bg-orange-50/80 dark:bg-orange-950/50 text-orange-900 dark:text-orange-200 font-bold shadow-xs ring-1 ring-orange-400/30"
+                        : "border-coconut-200 dark:border-darkbg-border text-coconut-800 dark:text-darkbg-muted hover:bg-coconut-100/50"
                     }`}
                   >
                     <span
-                      className="w-3.5 h-3.5 rounded-full border border-coconut-300 shadow-inner flex-shrink-0"
+                      className="w-4 h-4 rounded-full border border-coconut-300 shadow-inner flex-shrink-0"
                       style={{
                         backgroundColor: preset.value === "transparent" ? "transparent" : preset.color,
                         backgroundImage:
@@ -448,13 +422,13 @@ export default function AiToolbox({
             </div>
 
             {/* 证件照联动快捷入口 */}
-            <div className="p-3.5 bg-coconut-100/70 dark:bg-darkbg-subtle/80 border border-coconut-200 dark:border-darkbg-border rounded-2xl space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-coconut-900 dark:text-darkbg-text">
-                <FileCheck className="w-3.5 h-3.5 text-orange-500" />
-                <span>无缝联动 6 寸证件照排版</span>
+            <div className="p-4 bg-coconut-100/70 dark:bg-darkbg-subtle/80 border border-coconut-200 dark:border-darkbg-border rounded-2xl space-y-1.5">
+              <div className="flex items-center gap-2 text-sm font-bold text-coconut-950 dark:text-darkbg-text">
+                <FileCheck className="w-4 h-4 text-orange-600" />
+                <span>联动证件照排版</span>
               </div>
-              <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted leading-relaxed">
-                手机随手拍的生活照扣除杂乱背景后，可直接点击一键转入【证件照排版】，自动生成 1寸 / 2寸 并排入 6 寸冲印模板。
+              <p className="text-xs text-coconut-700 dark:text-darkbg-muted leading-relaxed">
+                扣除背景后，可直接点击一键转入【证件照排版】，自动生成 1寸 / 2寸 冲印模板。
               </p>
             </div>
 
@@ -462,34 +436,34 @@ export default function AiToolbox({
             <button
               onClick={handleExecuteBgRemoval}
               disabled={bgLoading || !bgFile}
-              className="w-full py-3.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 btn-3d-sunset active:scale-95"
+              className="w-full py-3.5 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 btn-3d-sunset active:scale-95"
             >
               {bgLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>AI 抠图中 ({bgProgress}%)...</span>
+                  <span>正在处理抠图 ({bgProgress}%)...</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4 text-palm-300 dark:text-palm-700" />
-                  <span>立即执行 AI 智能发丝级抠图</span>
+                  <Sparkles className="w-4 h-4 text-amber-200" />
+                  <span>立即开始智能抠图</span>
                 </>
               )}
             </button>
           </div>
 
           {/* 右侧展示与对比工作台 */}
-          <div className="lg:col-span-8 space-y-5">
+          <div className="lg:col-span-7 space-y-5">
             {/* 上传区域 */}
             {!bgFile ? (
-              <div className="bg-white/80 dark:bg-darkbg-card/90 border-2 border-dashed border-coconut-200 dark:border-darkbg-border hover:border-palm-500 dark:hover:border-palm-500 rounded-3xl p-10 text-center transition-all cursor-pointer relative group">
+              <div className="bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center transition-all cursor-pointer relative group">
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/bmp"
                   onChange={handleBgFileSelect}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-coconut-100/80 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-600 dark:text-darkbg-muted group-hover:scale-110 group-hover:text-palm-600 transition-all mb-4">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-coconut-100/80 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-600 dark:text-darkbg-muted group-hover:scale-110 group-hover:text-amber-600 transition-all mb-4">
                   <UploadCloud className="w-7 h-7" />
                 </div>
                 <h4 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text mb-1">
@@ -500,7 +474,7 @@ export default function AiToolbox({
                 </p>
               </div>
             ) : (
-              <div className="bg-white/80 dark:bg-darkbg-card/90 border border-coconut-200/70 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-4 backdrop-blur-md">
+              <div className="coconut-panel p-5 sm:p-6 space-y-4">
                 {/* 状态栏 */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-coconut-100 dark:border-darkbg-border text-xs">
                   <div className="flex items-center gap-2">
@@ -660,7 +634,7 @@ export default function AiToolbox({
 
                     <button
                       onClick={handleDownloadBgResult}
-                      className="flex items-center gap-2 py-2.5 px-5 rounded-2xl btn-3d-sunset text-xs active:scale-95"
+                      className="flex items-center gap-2 py-2.5 px-5 rounded-2xl btn-3d-sunset text-white text-xs font-bold shadow-coconut-sm"
                     >
                       <Download className="w-4 h-4" />
                       <span>下载无损透明 PNG</span>
@@ -679,36 +653,33 @@ export default function AiToolbox({
       {activeTab === "ai-ocr" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* 左侧控制台 */}
-          <div className="lg:col-span-4 bg-white/80 dark:bg-darkbg-card/90 border border-coconut-200/70 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-5 backdrop-blur-md">
-            <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
-              <div className="flex items-center gap-2 text-xs font-bold text-coconut-900 dark:text-darkbg-text">
-                <Sliders className="w-4 h-4 text-orange-500" />
-                <span>OCR 扫描参数</span>
+          <div className="lg:col-span-5 coconut-panel p-5 sm:p-6 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-coconut-200/80 dark:border-darkbg-border">
+              <div className="flex items-center gap-2 text-sm font-bold text-coconut-950 dark:text-darkbg-text">
+                <Sliders className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                <span>OCR 识别语言选择</span>
               </div>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/80 text-orange-700 dark:text-orange-300 font-mono font-medium">
-                离线识别
-              </span>
             </div>
 
             {/* 语言选择 */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-coconut-800 dark:text-darkbg-text">
+              <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
                 文字识别语言字库
               </label>
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {OCR_LANGUAGES.map((lang) => (
                   <button
                     key={lang.id}
                     type="button"
                     onClick={() => setOcrLang(lang.id)}
-                    className={`w-full text-left p-2.5 rounded-xl border transition-all ${
+                    className={`w-full text-left p-3 rounded-2xl border transition-all ${
                       ocrLang === lang.id
-                        ? "border-orange-500 bg-orange-50/60 dark:bg-orange-950/40 text-coconut-900 dark:text-darkbg-text shadow-sm"
-                        : "border-coconut-200 dark:border-darkbg-border text-coconut-600 dark:text-darkbg-muted hover:bg-coconut-50"
+                        ? "border-orange-500 bg-orange-50/70 dark:bg-orange-950/40 text-coconut-950 dark:text-darkbg-text shadow-sm ring-1 ring-orange-400/30"
+                        : "border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/50"
                     }`}
                   >
-                    <div className="text-xs font-bold">{lang.label}</div>
-                    <div className="text-[10px] text-coconut-500 dark:text-darkbg-muted mt-0.5">
+                    <div className="text-sm font-bold text-coconut-950 dark:text-white">{lang.label}</div>
+                    <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-0.5 leading-relaxed">
                       {lang.desc}
                     </div>
                   </button>
@@ -716,19 +687,11 @@ export default function AiToolbox({
               </div>
             </div>
 
-            {/* 隐私承诺 */}
-            <div className="p-3 bg-coconut-100/70 dark:bg-darkbg-subtle/80 border border-coconut-200 dark:border-darkbg-border rounded-2xl flex items-start gap-2.5 text-xs text-coconut-600 dark:text-darkbg-muted">
-              <ShieldCheck className="w-4 h-4 flex-shrink-0 text-orange-500 mt-0.5" />
-              <p className="text-[11px] leading-relaxed">
-                合同、发票、财务报表等任何敏感凭证均在本地 WASM 沙箱内解析，绝对不发送任何外部服务器。
-              </p>
-            </div>
-
             {/* 立即识别按钮 */}
             <button
               onClick={handleExecuteOcr}
               disabled={ocrLoading || !ocrFile}
-              className="w-full py-3.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 btn-3d-sunset active:scale-95"
+              className="w-full py-3.5 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 btn-3d-sunset active:scale-95"
             >
               {ocrLoading ? (
                 <>
@@ -737,24 +700,24 @@ export default function AiToolbox({
                 </>
               ) : (
                 <>
-                  <FileText className="w-4 h-4 text-palm-300 dark:text-palm-700" />
-                  <span>立即执行 AI 离线光学文字提取</span>
+                  <FileText className="w-4 h-4 text-amber-200" />
+                  <span>立即开始文字提取</span>
                 </>
               )}
             </button>
           </div>
 
           {/* 右侧展示与文字编辑区域 */}
-          <div className="lg:col-span-8 space-y-5">
+          <div className="lg:col-span-7 space-y-5">
             {!ocrFile ? (
-              <div className="bg-white/80 dark:bg-darkbg-card/90 border-2 border-dashed border-coconut-200 dark:border-darkbg-border hover:border-palm-500 dark:hover:border-palm-500 rounded-3xl p-10 text-center transition-all cursor-pointer relative group">
+              <div className="bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center transition-all cursor-pointer relative group">
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/bmp"
                   onChange={handleOcrFileSelect}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-coconut-100/80 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-600 dark:text-darkbg-muted group-hover:scale-110 group-hover:text-palm-600 transition-all mb-4">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-coconut-100/80 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-600 dark:text-darkbg-muted group-hover:scale-110 group-hover:text-amber-600 transition-all mb-4">
                   <UploadCloud className="w-7 h-7" />
                 </div>
                 <h4 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text mb-1">
@@ -765,7 +728,7 @@ export default function AiToolbox({
                 </p>
               </div>
             ) : (
-              <div className="bg-white/80 dark:bg-darkbg-card/90 border border-coconut-200/70 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-4 backdrop-blur-md">
+              <div className="coconut-panel p-5 sm:p-6 space-y-4">
                 {/* 状态与切换 */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-coconut-100 dark:border-darkbg-border text-xs">
                   <div className="flex items-center gap-2">
@@ -868,10 +831,10 @@ export default function AiToolbox({
                       placeholder={
                         ocrLoading
                           ? "AI 正在识别中，文字提取后将自动填充在此处..."
-                          : "点击左侧【立即执行 AI 离线光学文字提取】即可在此查看与直接编辑识别出的文字内容..."
+                          : "点击左侧【立即开始文字提取】即可在此查看与直接编辑内容..."
                       }
                       rows={12}
-                      className="w-full text-xs font-mono p-4 bg-coconut-50 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-2xl outline-none focus:ring-2 focus:ring-palm-500/20 focus:border-palm-500 text-coconut-900 dark:text-darkbg-text leading-relaxed resize-none shadow-inner"
+                      className="w-full text-sm font-mono p-4 bg-white/70 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-2xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-coconut-950 dark:text-darkbg-text leading-relaxed resize-none shadow-inner font-medium"
                     />
 
                     {/* 操作按钮组 */}
@@ -917,23 +880,20 @@ export default function AiToolbox({
       {activeTab === "ai-upscale" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* 左侧控制台 */}
-          <div className="lg:col-span-4 bg-white/80 dark:bg-darkbg-card/90 border border-coconut-200/70 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-5 backdrop-blur-md">
-            <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
-              <div className="flex items-center gap-2 text-xs font-bold text-coconut-900 dark:text-darkbg-text">
-                <Sliders className="w-4 h-4 text-palm-600 dark:text-palm-400" />
+          <div className="lg:col-span-5 coconut-panel p-5 sm:p-6 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-coconut-200/80 dark:border-darkbg-border">
+              <div className="flex items-center gap-2 text-sm font-bold text-coconut-950 dark:text-darkbg-text">
+                <Sliders className="w-4 h-4 text-orange-600 dark:text-orange-400" />
                 <span>修复与增强倍率</span>
               </div>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-palm-100 dark:bg-palm-950 text-palm-700 dark:text-palm-300 font-mono font-medium">
-                无损超清
-              </span>
             </div>
 
             {/* 放大倍率选择 */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-coconut-800 dark:text-darkbg-text">
+              <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
                 分辨率超清放大倍率
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2.5">
                 {[
                   { scale: 2 as const, label: "2x 超清放大", badge: "推荐" },
                   { scale: 4 as const, label: "4x 极致超清", badge: "大图" },
@@ -943,14 +903,14 @@ export default function AiToolbox({
                     key={item.scale}
                     type="button"
                     onClick={() => setUpscaleScale(item.scale)}
-                    className={`py-2.5 px-2 rounded-2xl border text-center transition-all ${
+                    className={`py-3 px-2 rounded-2xl border text-center transition-all ${
                       upscaleScale === item.scale
-                        ? "border-palm-500 bg-palm-50/70 dark:bg-palm-950/40 text-coconut-900 dark:text-darkbg-text font-bold shadow-sm"
-                        : "border-coconut-200 dark:border-darkbg-border text-coconut-600 dark:text-darkbg-muted hover:bg-coconut-50"
+                        ? "border-orange-500 bg-orange-50/70 dark:bg-orange-950/40 text-coconut-950 dark:text-darkbg-text font-bold shadow-sm ring-1 ring-orange-400/30"
+                        : "border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/50"
                     }`}
                   >
-                    <div className="text-xs">{item.label}</div>
-                    <div className="text-[10px] text-palm-600 dark:text-palm-400 mt-0.5 font-mono">
+                    <div className="text-xs sm:text-sm font-bold">{item.label}</div>
+                    <div className="text-xs text-orange-600 dark:text-orange-400 mt-0.5 font-mono font-semibold">
                       {item.badge}
                     </div>
                   </button>
@@ -960,9 +920,9 @@ export default function AiToolbox({
 
             {/* 锐化强度滑块 */}
             <div className="space-y-2">
-              <div className="flex justify-between items-center text-xs text-coconut-800 dark:text-darkbg-text font-semibold">
+              <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
                 <span>边缘与纹理锐化强度</span>
-                <span className="font-mono text-palm-600">{upscaleSharpness.toFixed(1)}x</span>
+                <span className="font-mono font-bold text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-lg bg-orange-500/10 border border-orange-500/20">{upscaleSharpness.toFixed(1)}x</span>
               </div>
               <input
                 type="range"
@@ -971,9 +931,9 @@ export default function AiToolbox({
                 step="0.1"
                 value={upscaleSharpness}
                 onChange={(e) => setUpscaleSharpness(parseFloat(e.target.value))}
-                className="w-full accent-palm-600"
+                className="w-full accent-orange-600 cursor-pointer h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none"
               />
-              <div className="flex justify-between text-[10px] text-coconut-400 dark:text-darkbg-muted">
+              <div className="flex justify-between text-xs text-coconut-500 dark:text-darkbg-muted font-medium">
                 <span>柔和自然</span>
                 <span>平衡清晰</span>
                 <span>极致锋利</span>
@@ -981,28 +941,24 @@ export default function AiToolbox({
             </div>
 
             {/* 降噪与对比度开关 */}
-            <div className="space-y-2.5 pt-2 border-t border-coconut-100 dark:border-darkbg-border">
-              <label className="flex items-center justify-between text-xs cursor-pointer">
-                <span className="text-coconut-800 dark:text-darkbg-text font-medium">
-                  JPEG 噪点与伪影消除
-                </span>
+            <div className="space-y-3 pt-2 border-t border-coconut-100 dark:border-darkbg-border">
+              <label className="flex items-center justify-between text-sm font-semibold cursor-pointer text-coconut-900 dark:text-darkbg-text">
+                <span>JPEG 噪点与伪影消除</span>
                 <input
                   type="checkbox"
                   checked={upscaleDenoise}
                   onChange={(e) => setUpscaleDenoise(e.target.checked)}
-                  className="rounded text-palm-600 focus:ring-palm-500 w-4 h-4 cursor-pointer"
+                  className="rounded text-orange-600 focus:ring-orange-500 w-4 h-4 cursor-pointer accent-orange-600"
                 />
               </label>
 
-              <label className="flex items-center justify-between text-xs cursor-pointer">
-                <span className="text-coconut-800 dark:text-darkbg-text font-medium">
-                  智能去雾与通透感拉伸
-                </span>
+              <label className="flex items-center justify-between text-sm font-semibold cursor-pointer text-coconut-900 dark:text-darkbg-text">
+                <span>智能去雾与通透感拉伸</span>
                 <input
                   type="checkbox"
                   checked={upscaleContrast}
                   onChange={(e) => setUpscaleContrast(e.target.checked)}
-                  className="rounded text-palm-600 focus:ring-palm-500 w-4 h-4 cursor-pointer"
+                  className="rounded text-orange-600 focus:ring-orange-500 w-4 h-4 cursor-pointer accent-orange-600"
                 />
               </label>
             </div>
@@ -1011,7 +967,7 @@ export default function AiToolbox({
             <button
               onClick={handleExecuteUpscale}
               disabled={upscaleLoading || !upscaleFile}
-              className={`w-full py-3.5 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${
+              className={`w-full py-3.5 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
                 upscaleLoading || !upscaleFile
                   ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
                   : "btn-3d-sunset text-white"
@@ -1032,16 +988,16 @@ export default function AiToolbox({
           </div>
 
           {/* 右侧展示与对比工作台 */}
-          <div className="lg:col-span-8 space-y-5">
+          <div className="lg:col-span-7 space-y-5">
             {!upscaleFile ? (
-              <div className="bg-white/80 dark:bg-darkbg-card/90 border-2 border-dashed border-coconut-200 dark:border-darkbg-border hover:border-palm-500 dark:hover:border-palm-500 rounded-3xl p-10 text-center transition-all cursor-pointer relative group">
+              <div className="bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center transition-all cursor-pointer relative group">
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/bmp"
                   onChange={handleUpscaleFileSelect}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-coconut-100/80 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-600 dark:text-darkbg-muted group-hover:scale-110 group-hover:text-palm-600 transition-all mb-4">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-coconut-100/80 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-600 dark:text-darkbg-muted group-hover:scale-110 group-hover:text-amber-600 transition-all mb-4">
                   <UploadCloud className="w-7 h-7" />
                 </div>
                 <h4 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text mb-1">
@@ -1052,7 +1008,7 @@ export default function AiToolbox({
                 </p>
               </div>
             ) : (
-              <div className="bg-white/80 dark:bg-darkbg-card/90 border border-coconut-200/70 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-4 backdrop-blur-md">
+              <div className="coconut-panel p-5 sm:p-6 space-y-4">
                 {/* 状态栏 */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-coconut-100 dark:border-darkbg-border text-xs">
                   <div className="flex items-center gap-2">
@@ -1200,7 +1156,7 @@ export default function AiToolbox({
 
                     <button
                       onClick={handleDownloadUpscaleResult}
-                      className="btn-3d-sunset flex items-center gap-2 py-2.5 px-5 rounded-2xl text-white font-bold text-xs"
+                      className="btn-3d-sunset flex items-center gap-2 py-2.5 px-5 rounded-2xl text-white font-bold text-xs shadow-coconut-sm"
                     >
                       <Download className="w-4 h-4" />
                       <span>下载无损超清图 ({upscaleResult.scaleFactor}x PNG)</span>

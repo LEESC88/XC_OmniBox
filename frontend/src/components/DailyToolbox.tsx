@@ -40,6 +40,7 @@ import {
 } from "@/lib/utilityProcessor";
 import { downloadBlob } from "@/lib/api";
 import { formatBytes } from "@/lib/imageProcessor";
+import ScrollableTabNav from "@/components/ScrollableTabNav";
 
 type ToolTab = "idphoto" | "qrcode" | "diff" | "dev";
 type DevSubTab = "json" | "base64" | "hash" | "timestamp";
@@ -145,7 +146,7 @@ export default function DailyToolbox({
   // =======================================================
   const [qrText, setQrText] = useState("https://github.com/LEESC88/XC_OmniBox");
   const [qrFgColor, setQrFgColor] = useState("#2b1e16");
-  const [qrBgColor, setQrBgColor] = useState("#faf8f5");
+  const [qrBgColor, setQrBgColor] = useState("#FAF1E8");
   const [qrGradient, setQrGradient] = useState(true);
   const [qrGradColor, setQrGradColor] = useState("#15803d");
   const [qrLogoFile, setQrLogoFile] = useState<File | null>(null);
@@ -231,41 +232,17 @@ export default function DailyToolbox({
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in">
-      {/* 4 大功能 Tab 切换 (平滑横向滚动与捕捉) */}
-      <div className="flex items-center space-x-2 overflow-x-auto pb-2 border-b border-coconut-200/70 dark:border-darkbg-border no-scrollbar snap-x snap-mandatory touch-pan-x">
-        {[
+      {/* 4 大功能 Tab 切换 (支持鼠标滚轮横移、鼠标拖拽滑动、专属微滑轨与左右翻页箭头) */}
+      <ScrollableTabNav
+        tabs={[
           { id: "idphoto", label: "证件照换底与相纸排版", icon: UserCheck, badge: "6寸打印级" },
           { id: "qrcode", label: "个性化艺术二维码", icon: QrCode, badge: "彩色/Logo" },
           { id: "diff", label: "文本代码差异对比", icon: GitCompare, badge: "双栏Diff" },
           { id: "dev", label: "开发与效率神器集", icon: Code2, badge: "JSON/Base64/Hash" },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabSelect(tab.id as ToolTab)}
-              className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl font-medium text-xs sm:text-sm transition-all whitespace-nowrap flex-shrink-0 snap-start active:scale-95 ${
-                isActive
-                  ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white font-bold shadow-coconut-sm scale-[1.02]"
-                  : "bg-white/80 dark:bg-darkbg-card text-coconut-700 dark:text-darkbg-muted border border-coconut-200/80 dark:border-darkbg-border hover:bg-coconut-100/60 dark:hover:bg-darkbg-elevated hover:dark:text-darkbg-text"
-              }`}
-            >
-              <Icon className={`w-4 h-4 ${isActive ? "text-amber-100" : "text-coconut-500 dark:text-darkbg-muted"}`} />
-              <span>{tab.label}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono transition-colors ${
-                  isActive
-                    ? "bg-white/25 text-white"
-                    : "bg-coconut-200/60 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-muted"
-                }`}
-              >
-                {tab.badge}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+        ]}
+        activeTab={activeTab}
+        onTabChange={(id) => handleTabSelect(id as ToolTab)}
+      />
 
       {/* ================= 1. 证件照换底色与排版面板 ================= */}
       {activeTab === "idphoto" && (
@@ -302,8 +279,8 @@ export default function DailyToolbox({
               </div>
             </div>
           ) : (
-            <div className="bg-white/80 dark:bg-darkbg-card/90 backdrop-blur-md border border-coconut-200/70 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-6">
-              <div className="flex items-center justify-between pb-4 border-b border-coconut-100 dark:border-darkbg-border">
+            <div className="coconut-panel p-5 sm:p-6 space-y-6">
+              <div className="flex items-center justify-between pb-4 border-b border-coconut-200/60 dark:border-darkbg-border">
                 <div className="text-sm font-bold text-coconut-900 dark:text-darkbg-text flex items-center space-x-2">
                   <UserCheck className="w-5 h-5 text-palm-600 dark:text-palm-400" />
                   <span>证件照智能换底色工作台</span>
@@ -326,7 +303,7 @@ export default function DailyToolbox({
                 <div className="md:col-span-7 space-y-5">
                   {/* 1. 底色选择 */}
                   <div className="space-y-2">
-                    <span className="text-xs font-semibold text-coconut-800 dark:text-darkbg-text">
+                    <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
                       选择目标证件背景色
                     </span>
                     <div className="grid grid-cols-2 gap-2.5">
@@ -334,17 +311,17 @@ export default function DailyToolbox({
                         <button
                           key={c.id}
                           onClick={() => handleBgChange(c.hex)}
-                          className={`flex items-center space-x-2.5 p-2.5 rounded-2xl border transition-all text-left ${
+                          className={`flex items-center space-x-2.5 p-3 rounded-2xl border transition-all text-left active:scale-95 ${
                             selectedBg === c.hex
-                              ? "border-palm-600 bg-palm-50/70 dark:bg-palm-950/40 text-palm-800 dark:text-palm-200 ring-2 ring-palm-500/20 font-semibold"
-                              : "border-coconut-200/80 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:border-coconut-300 dark:hover:border-darkbg-border"
+                              ? "border-palm-600 bg-palm-50/70 dark:bg-palm-950/40 text-palm-800 dark:text-palm-200 ring-2 ring-palm-500/20 font-bold"
+                              : "border-coconut-200/80 dark:border-darkbg-border text-coconut-800 dark:text-darkbg-muted hover:border-coconut-300 dark:hover:border-darkbg-border"
                           }`}
                         >
                           <span
                             className="w-5 h-5 rounded-full border border-black/10 flex-shrink-0 shadow-sm"
                             style={{ backgroundColor: c.hex }}
                           />
-                          <span className="text-xs font-medium truncate">{c.name}</span>
+                          <span className="text-xs sm:text-sm font-semibold truncate">{c.name}</span>
                         </button>
                       ))}
                     </div>
@@ -352,7 +329,7 @@ export default function DailyToolbox({
 
                   {/* 2. 冲印排版规格选择 */}
                   <div className="space-y-2">
-                    <span className="text-xs font-semibold text-coconut-800 dark:text-darkbg-text">
+                    <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
                       冲印相纸规格与尺寸
                     </span>
                     <div className="flex space-x-2">
@@ -360,14 +337,14 @@ export default function DailyToolbox({
                         <button
                           key={sp.name}
                           onClick={() => setSelectedSpec(sp)}
-                          className={`flex-1 py-2 px-3 rounded-2xl border text-xs font-medium transition-all ${
+                          className={`flex-1 py-2.5 px-3 rounded-2xl border text-xs sm:text-sm font-semibold transition-all active:scale-95 ${
                             selectedSpec.name === sp.name
-                              ? "border-coconut-800 bg-coconut-800 dark:bg-white text-coconut-50 dark:text-zinc-950 shadow-coconut-sm font-semibold"
+                              ? "border-coconut-800 bg-coconut-800 dark:bg-white text-coconut-50 dark:text-zinc-950 shadow-coconut-sm font-bold"
                               : "border-coconut-200/80 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/50 dark:hover:bg-darkbg-elevated"
                           }`}
                         >
                           <div>{sp.name}</div>
-                          <div className="text-[10px] opacity-80 mt-0.5">
+                          <div className="text-[11px] opacity-80 mt-0.5 font-mono">
                             {sp.mmWidth}×{sp.mmHeight} mm
                           </div>
                         </button>
@@ -376,8 +353,8 @@ export default function DailyToolbox({
                   </div>
 
                   {/* 3. 容差与边缘羽化微调 */}
-                  <div className="p-3.5 bg-coconut-100/40 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border space-y-3 text-xs">
-                    <div className="flex justify-between items-center text-coconut-800 dark:text-darkbg-text font-semibold">
+                  <div className="p-4 bg-coconut-100/40 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border space-y-3 text-xs sm:text-sm">
+                    <div className="flex justify-between items-center text-coconut-900 dark:text-darkbg-text font-semibold">
                       <span>抠图容差阈值 (Tolerance)</span>
                       <span className="font-mono text-palm-700 dark:text-palm-400 font-bold">{tolerance}</span>
                     </div>
@@ -387,10 +364,10 @@ export default function DailyToolbox({
                       max="80"
                       value={tolerance}
                       onChange={(e) => setTolerance(Number(e.target.value))}
-                      className="w-full h-1.5 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-palm-600 dark:accent-palm-400"
+                      className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-palm-600 dark:accent-palm-400"
                     />
 
-                    <div className="flex justify-between items-center text-coconut-800 dark:text-darkbg-text font-semibold pt-1">
+                    <div className="flex justify-between items-center text-coconut-900 dark:text-darkbg-text font-semibold pt-1">
                       <span>边缘羽化模糊度 (Feather)</span>
                       <span className="font-mono text-palm-700 dark:text-palm-400 font-bold">{feather} px</span>
                     </div>
@@ -400,7 +377,7 @@ export default function DailyToolbox({
                       max="10"
                       value={feather}
                       onChange={(e) => setFeather(Number(e.target.value))}
-                      className="w-full h-1.5 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-palm-600 dark:accent-palm-400"
+                      className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-palm-600 dark:accent-palm-400"
                     />
                   </div>
 
@@ -410,7 +387,7 @@ export default function DailyToolbox({
                       if (photoFile) processPhotoBg(photoFile, selectedBg, tolerance, feather);
                     }}
                     disabled={isProcessing}
-                    className="w-full py-3 btn-3d-sunset text-white rounded-2xl text-xs font-semibold flex items-center justify-center space-x-1.5"
+                    className="w-full py-3.5 btn-3d-sunset text-white rounded-2xl text-sm font-bold flex items-center justify-center space-x-2"
                   >
                     {isProcessing ? (
                       <>
@@ -445,29 +422,29 @@ export default function DailyToolbox({
                   </div>
 
                   {processedPhotoBlob && (
-                    <div className="w-full space-y-2">
+                    <div className="w-full space-y-2.5">
                       <button
                         onClick={() => {
                           if (processedPhotoBlob) {
                             downloadBlob(processedPhotoBlob, `id_photo_${selectedSpec.name}_clean.jpg`);
                           }
                         }}
-                        className="w-full py-2.5 btn-3d-sunset text-white rounded-2xl text-xs font-bold flex items-center justify-center space-x-1.5"
+                        className="w-full py-3 btn-3d-sunset text-white rounded-2xl text-sm font-bold flex items-center justify-center space-x-2"
                       >
-                        <Download className="w-3.5 h-3.5" />
+                        <Download className="w-4 h-4" />
                         <span>下载单张高清证件照</span>
                       </button>
 
                       <button
                         onClick={handleDownloadSheet}
                         disabled={isProcessing}
-                        className="w-full py-2.5 btn-3d-secondary rounded-2xl text-xs font-semibold flex items-center justify-center space-x-1.5"
+                        className="w-full py-3 btn-3d-secondary rounded-2xl text-sm font-bold flex items-center justify-center space-x-2"
                       >
-                        <Printer className="w-3.5 h-3.5" />
+                        <Printer className="w-4 h-4" />
                         <span>🖨️ 生成 6寸相纸排版大图 (带裁切虚线)</span>
                       </button>
-                      <p className="text-[10px] text-coconut-600 dark:text-darkbg-muted text-center leading-relaxed">
-                        💡 生成的标准 6 寸相纸 (1200x1800 px) 可直接发给冲印店打印（通常仅需 0.3 元），沿虚线裁切即得整版证件照！
+                      <p className="text-xs text-coconut-600 dark:text-darkbg-muted text-center leading-relaxed">
+                        💡 标准 6 寸相纸可直接发给冲印店打印，沿虚线裁切即得整版证件照
                       </p>
                     </div>
                   )}
@@ -481,12 +458,12 @@ export default function DailyToolbox({
       {/* ================= 2. 个性化二维码工坊面板 ================= */}
       {activeTab === "qrcode" && (
         <div className="space-y-6">
-          <div className="bg-white/80 dark:bg-darkbg-card/90 backdrop-blur-md border border-coconut-200/70 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm">
+          <div className="coconut-panel p-5 sm:p-6">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
               {/* 左侧参数调节 */}
               <div className="md:col-span-7 space-y-4">
                 <div className="space-y-1.5">
-                  <span className="text-xs font-semibold text-coconut-800 dark:text-darkbg-text">
+                  <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
                     二维码内容 (网址 / 文本 / Wi-Fi)
                   </span>
                   <textarea
@@ -494,41 +471,41 @@ export default function DailyToolbox({
                     value={qrText}
                     onChange={(e) => setQrText(e.target.value)}
                     placeholder="输入需要生成二维码的网页链接或任意文字..."
-                    className="w-full p-3 text-xs bg-coconut-50 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-2xl font-mono text-coconut-900 dark:text-darkbg-text focus:outline-none focus:ring-2 focus:ring-palm-500/20 focus:border-palm-500"
+                    className="w-full p-3.5 text-sm bg-white/70 dark:bg-darkbg-subtle border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <span className="text-xs text-coconut-500 dark:text-darkbg-muted">前景色</span>
-                    <div className="flex items-center space-x-2">
+                  <div className="space-y-1.5">
+                    <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">前景色</span>
+                    <div className="flex items-center space-x-2.5">
                       <input
                         type="color"
                         value={qrFgColor}
                         onChange={(e) => setQrFgColor(e.target.value)}
-                        className="w-8 h-8 rounded-lg border border-coconut-200 dark:border-darkbg-border cursor-pointer bg-transparent"
+                        className="w-9 h-9 rounded-lg border border-coconut-300 dark:border-darkbg-border cursor-pointer bg-transparent"
                       />
-                      <span className="text-xs font-mono text-coconut-700 dark:text-darkbg-muted">{qrFgColor}</span>
+                      <span className="text-sm font-mono font-semibold text-coconut-800 dark:text-darkbg-muted">{qrFgColor}</span>
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <span className="text-xs text-coconut-500 dark:text-darkbg-muted">背景色</span>
-                    <div className="flex items-center space-x-2">
+                  <div className="space-y-1.5">
+                    <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">背景色</span>
+                    <div className="flex items-center space-x-2.5">
                       <input
                         type="color"
                         value={qrBgColor}
                         onChange={(e) => setQrBgColor(e.target.value)}
-                        className="w-8 h-8 rounded-lg border border-coconut-200 dark:border-darkbg-border cursor-pointer bg-transparent"
+                        className="w-9 h-9 rounded-lg border border-coconut-300 dark:border-darkbg-border cursor-pointer bg-transparent"
                       />
-                      <span className="text-xs font-mono text-coconut-700 dark:text-darkbg-muted">{qrBgColor}</span>
+                      <span className="text-sm font-mono font-semibold text-coconut-800 dark:text-darkbg-muted">{qrBgColor}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* 渐变色开关 */}
                 <div className="p-3.5 bg-coconut-100/40 dark:bg-darkbg-subtle/50 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border flex items-center justify-between">
-                  <label className="flex items-center space-x-2 text-xs font-medium text-coconut-800 dark:text-darkbg-text cursor-pointer">
+                  <label className="flex items-center space-x-2 text-sm font-medium text-coconut-900 dark:text-darkbg-text cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={qrGradient}
@@ -539,7 +516,7 @@ export default function DailyToolbox({
                   </label>
                   {qrGradient && (
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs text-coconut-500 dark:text-darkbg-muted">渐变尾色:</span>
+                      <span className="text-xs text-coconut-600 dark:text-darkbg-muted">渐变尾色:</span>
                       <input
                         type="color"
                         value={qrGradColor}
@@ -552,7 +529,7 @@ export default function DailyToolbox({
 
                 {/* 嵌入 Logo */}
                 <div className="space-y-1.5">
-                  <span className="text-xs font-semibold text-coconut-800 dark:text-darkbg-text">
+                  <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
                     中心嵌入品牌 Logo (可选)
                   </span>
                   <div className="flex items-center space-x-3">
@@ -569,7 +546,7 @@ export default function DailyToolbox({
                     />
                     <button
                       onClick={() => document.getElementById("qr-logo-input")?.click()}
-                      className="px-3.5 py-2 bg-coconut-100/80 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-2xl text-xs font-medium text-coconut-800 dark:text-darkbg-text hover:bg-coconut-200/60 transition-all active:scale-95"
+                      className="px-4 py-2 bg-coconut-100/80 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-2xl text-xs sm:text-sm font-semibold text-coconut-900 dark:text-darkbg-text hover:bg-coconut-200/60 transition-all active:scale-95"
                     >
                       {qrLogoFile ? `已选: ${qrLogoFile.name}` : "选择透明 PNG / 图标"}
                     </button>
@@ -582,15 +559,15 @@ export default function DailyToolbox({
                       </button>
                     )}
                   </div>
-                  <p className="text-[11px] text-coconut-500 dark:text-darkbg-muted">
-                    嵌入 Logo 时将自动启用 High 纠错等级 (30%)，确保扫码 100% 秒开
+                  <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed">
+                    嵌入 Logo 时将自动启用 High 纠错等级 (30%)，确保扫码秒开
                   </p>
                 </div>
               </div>
 
               {/* 右侧实时渲染预览与下载 */}
               <div className="md:col-span-5 flex flex-col items-center space-y-4">
-                <div className="text-xs font-semibold text-coconut-600 dark:text-darkbg-muted">实时二维码效果</div>
+                <div className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">实时二维码效果</div>
                 <div className="p-4 bg-white dark:bg-darkbg-subtle rounded-3xl shadow-coconut-md border border-coconut-200/70 dark:border-darkbg-border flex items-center justify-center">
                   {qrResultUrl ? (
                     <img src={qrResultUrl} alt="生成的二维码" className="w-52 h-52 object-contain" />
@@ -608,9 +585,9 @@ export default function DailyToolbox({
                         downloadBlob(qrResultBlob, `qrcode_${Date.now()}.png`);
                       }
                     }}
-                    className="flex-1 py-2.5 btn-3d-sunset text-white rounded-2xl text-xs font-bold flex items-center justify-center space-x-1.5"
+                    className="w-full py-3 btn-3d-sunset text-white rounded-2xl text-sm font-bold flex items-center justify-center space-x-2"
                   >
-                    <Download className="w-3.5 h-3.5" />
+                    <Download className="w-4 h-4" />
                     <span>下载高清 PNG</span>
                   </button>
                 </div>
@@ -622,16 +599,16 @@ export default function DailyToolbox({
 
       {/* ================= 3. 文本与代码 Diff 对比面板 ================= */}
       {activeTab === "diff" && (
-        <div className="bg-white/80 dark:bg-darkbg-card/90 backdrop-blur-md border border-coconut-200/70 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-coconut-100 dark:border-darkbg-border">
+        <div className="coconut-panel p-5 sm:p-6 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-coconut-200/60 dark:border-darkbg-border">
             <div className="flex items-center space-x-3">
-              <span className="text-xs font-semibold text-coconut-800 dark:text-darkbg-text">对比模式:</span>
-              <div className="flex space-x-1">
+              <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">对比模式:</span>
+              <div className="flex space-x-1.5">
                 {(["lines", "words"] as const).map((m) => (
                   <button
                     key={m}
                     onClick={() => setDiffMode(m)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all active:scale-95 ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all active:scale-95 ${
                       diffMode === m
                         ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 shadow-coconut-sm font-bold"
                         : "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-200/60 dark:hover:text-darkbg-text"
@@ -643,11 +620,11 @@ export default function DailyToolbox({
               </div>
             </div>
 
-            <div className="flex items-center space-x-3 text-xs">
-              <span className="px-2.5 py-0.5 rounded-lg bg-palm-100/80 dark:bg-palm-950/60 text-palm-700 dark:text-palm-300 font-mono font-bold border border-palm-200/50 dark:border-palm-900/40">
+            <div className="flex items-center space-x-3 text-xs sm:text-sm">
+              <span className="px-3 py-1 rounded-xl bg-palm-100/80 dark:bg-palm-950/60 text-palm-700 dark:text-palm-300 font-mono font-bold border border-palm-200/50 dark:border-palm-900/40">
                 +{diffResult.addedCount} 新增
               </span>
-              <span className="px-2.5 py-0.5 rounded-lg bg-toast-100/80 dark:bg-toast-950/60 text-toast-700 dark:text-toast-300 font-mono font-bold border border-toast-200/50 dark:border-toast-900/40">
+              <span className="px-3 py-1 rounded-xl bg-toast-100/80 dark:bg-toast-950/60 text-toast-700 dark:text-toast-300 font-mono font-bold border border-toast-200/50 dark:border-toast-900/40">
                 -{diffResult.removedCount} 删除
               </span>
               <button
@@ -656,9 +633,9 @@ export default function DailyToolbox({
                   setDiffOriginal(diffModified);
                   setDiffModified(t);
                 }}
-                className="flex items-center space-x-1 text-coconut-500 hover:text-palm-600 dark:text-darkbg-muted dark:hover:text-palm-400 transition-colors"
+                className="flex items-center space-x-1 text-coconut-600 hover:text-palm-600 dark:text-darkbg-muted dark:hover:text-palm-400 transition-colors font-semibold"
               >
-                <ArrowRightLeft className="w-3.5 h-3.5" />
+                <ArrowRightLeft className="w-4 h-4" />
                 <span>左右交换</span>
               </button>
             </div>
@@ -666,33 +643,33 @@ export default function DailyToolbox({
 
           {/* 输入框双栏 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <span className="text-xs text-coconut-500 dark:text-darkbg-muted font-mono">原始版本 (Original)</span>
+            <div className="space-y-1.5">
+              <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text font-mono">原始版本 (Original)</span>
               <textarea
                 rows={6}
                 value={diffOriginal}
                 onChange={(e) => setDiffOriginal(e.target.value)}
-                className="w-full p-3 text-xs bg-coconut-50 dark:bg-darkbg-subtle/80 border border-coconut-200 dark:border-darkbg-border rounded-2xl font-mono leading-relaxed text-coconut-900 dark:text-darkbg-text focus:outline-none focus:ring-2 focus:ring-palm-500/20 focus:border-palm-500"
+                className="w-full p-3.5 text-sm bg-white/70 dark:bg-darkbg-subtle/80 border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono leading-relaxed text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
               />
             </div>
 
-            <div className="space-y-1">
-              <span className="text-xs text-coconut-500 dark:text-darkbg-muted font-mono">修改后版本 (Modified)</span>
+            <div className="space-y-1.5">
+              <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text font-mono">修改后版本 (Modified)</span>
               <textarea
                 rows={6}
                 value={diffModified}
                 onChange={(e) => setDiffModified(e.target.value)}
-                className="w-full p-3 text-xs bg-coconut-50 dark:bg-darkbg-subtle/80 border border-coconut-200 dark:border-darkbg-border rounded-2xl font-mono leading-relaxed text-coconut-900 dark:text-darkbg-text focus:outline-none focus:ring-2 focus:ring-palm-500/20 focus:border-palm-500"
+                className="w-full p-3.5 text-sm bg-white/70 dark:bg-darkbg-subtle/80 border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono leading-relaxed text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
               />
             </div>
           </div>
 
           {/* 差异可视化高亮输出 */}
           <div className="space-y-1.5">
-            <span className="text-xs font-semibold text-coconut-800 dark:text-darkbg-text">
+            <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
               Diff 差异高亮视图 (带增删标记)
             </span>
-            <div className="p-4 bg-darkbg-canvas rounded-2xl border border-darkbg-border font-mono text-xs leading-relaxed max-h-80 overflow-y-auto no-scrollbar">
+            <div className="p-4 bg-darkbg-canvas rounded-2xl border border-darkbg-border font-mono text-xs sm:text-sm leading-relaxed max-h-80 overflow-y-auto no-scrollbar">
               {diffResult.changes.map((part, index) => {
                 const color = part.added
                   ? "bg-palm-950/80 text-palm-300 border-l-2 border-palm-500 pl-2 block my-0.5"
@@ -712,9 +689,16 @@ export default function DailyToolbox({
 
       {/* ================= 4. 开发者与日常必备利器面板 ================= */}
       {activeTab === "dev" && (
-        <div className="bg-white/80 dark:bg-darkbg-card/90 backdrop-blur-md border border-coconut-200/70 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-6">
-          {/* 二级子 Tab */}
-          <div className="flex space-x-2 border-b border-coconut-100 dark:border-darkbg-border pb-3 overflow-x-auto no-scrollbar snap-x touch-pan-x">
+        <div className="coconut-panel p-5 sm:p-6 space-y-6">
+          {/* 二级子 Tab (支持滚轮横向滚动) */}
+          <div
+            onWheel={(e) => {
+              if (e.deltaY !== 0) {
+                e.currentTarget.scrollLeft += e.deltaY * 0.9;
+              }
+            }}
+            className="flex space-x-2 border-b border-coconut-200/60 dark:border-darkbg-border pb-3 overflow-x-auto tab-scrollbar snap-x touch-pan-x"
+          >
             {[
               { id: "json", label: "JSON 格式化校验", icon: FileCode },
               { id: "base64", label: "Base64 编解码", icon: KeyRound },
@@ -727,13 +711,13 @@ export default function DailyToolbox({
                 <button
                   key={sub.id}
                   onClick={() => setDevTab(sub.id as DevSubTab)}
-                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all snap-start active:scale-95 whitespace-nowrap ${
+                  className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all snap-start active:scale-95 whitespace-nowrap ${
                     isCur
                       ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 shadow-coconut-sm font-bold"
                       : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-200/60 dark:hover:bg-darkbg-elevated hover:dark:text-darkbg-text border border-coconut-200/40 dark:border-darkbg-border"
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className="w-4 h-4" />
                   <span>{sub.label}</span>
                 </button>
               );
@@ -744,7 +728,7 @@ export default function DailyToolbox({
           {devTab === "json" && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <span className="text-xs text-coconut-500 dark:text-darkbg-muted">输入未格式化的 JSON 字符串</span>
+                <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">输入未格式化的 JSON 字符串</span>
                 <div className="flex items-center space-x-2 flex-wrap">
                   <button
                     onClick={() => {
@@ -756,7 +740,7 @@ export default function DailyToolbox({
                         setJsonErr(res.error || "语法错误");
                       }
                     }}
-                    className="px-3 py-1.5 bg-gradient-to-r from-palm-600 to-palm-700 hover:from-palm-700 hover:to-palm-800 text-white rounded-xl text-xs font-semibold shadow-coconut-sm active:scale-95 transition-all"
+                    className="px-3.5 py-1.5 bg-gradient-to-r from-palm-600 to-palm-700 hover:from-palm-700 hover:to-palm-800 text-white rounded-xl text-xs sm:text-sm font-semibold shadow-coconut-sm active:scale-95 transition-all"
                   >
                     格式化 (2空格)
                   </button>
@@ -768,22 +752,22 @@ export default function DailyToolbox({
                         setJsonErr(null);
                       }
                     }}
-                    className="px-3 py-1.5 bg-coconut-100 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-text hover:bg-coconut-200/60 rounded-xl text-xs font-medium border border-coconut-200/50 dark:border-darkbg-border active:scale-95 transition-all"
+                    className="px-3.5 py-1.5 bg-coconut-100 dark:bg-darkbg-subtle text-coconut-800 dark:text-darkbg-text hover:bg-coconut-200/60 rounded-xl text-xs sm:text-sm font-semibold border border-coconut-200/50 dark:border-darkbg-border active:scale-95 transition-all"
                   >
                     压缩单行
                   </button>
                   <button
                     onClick={() => copyToClipboard(jsonInput)}
-                    className="px-2.5 py-1.5 text-xs text-coconut-600 hover:text-palm-600 dark:text-darkbg-muted dark:hover:text-palm-400 flex items-center space-x-1 active:scale-95 transition-colors"
+                    className="px-3 py-1.5 text-xs sm:text-sm text-coconut-700 hover:text-palm-600 dark:text-darkbg-muted dark:hover:text-palm-400 flex items-center space-x-1 active:scale-95 transition-colors font-semibold"
                   >
-                    {copied ? <Check className="w-3.5 h-3.5 text-palm-500" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? <Check className="w-4 h-4 text-palm-500" /> : <Copy className="w-4 h-4" />}
                     <span>{copied ? "已复制" : "复制"}</span>
                   </button>
                 </div>
               </div>
 
               {jsonErr && (
-                <div className="p-3 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl text-xs text-toast-700 dark:text-toast-300 font-mono">
+                <div className="p-3.5 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl text-xs sm:text-sm text-toast-700 dark:text-toast-300 font-mono">
                   ⚠️ JSON 校验错误: {jsonErr}
                 </div>
               )}
@@ -795,7 +779,7 @@ export default function DailyToolbox({
                   setJsonInput(e.target.value);
                   setJsonErr(null);
                 }}
-                className="w-full p-3.5 text-xs bg-darkbg-canvas text-palm-300 font-mono rounded-2xl border border-darkbg-border leading-relaxed focus:outline-none focus:ring-2 focus:ring-palm-500/20 no-scrollbar"
+                className="w-full p-4 text-xs sm:text-sm bg-darkbg-canvas text-palm-300 font-mono rounded-2xl border border-darkbg-border leading-relaxed focus:outline-none focus:ring-2 focus:ring-palm-500/20 no-scrollbar"
               />
             </div>
           )}
@@ -805,11 +789,11 @@ export default function DailyToolbox({
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <div className="flex justify-between items-center text-xs text-coconut-500 dark:text-darkbg-muted">
+                  <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
                     <span>原始明文文本 (支持中文 UTF-8)</span>
                     <button
                       onClick={() => setB64Result(encodeBase64(b64Text))}
-                      className="px-2.5 py-1 bg-palm-600 hover:bg-palm-700 text-white rounded-lg text-[11px] font-medium active:scale-95 transition-all"
+                      className="px-3 py-1 bg-palm-600 hover:bg-palm-700 text-white rounded-xl text-xs sm:text-sm font-semibold active:scale-95 transition-all"
                     >
                       编码为 Base64 →
                     </button>
@@ -818,12 +802,12 @@ export default function DailyToolbox({
                     rows={8}
                     value={b64Text}
                     onChange={(e) => setB64Text(e.target.value)}
-                    className="w-full p-3 text-xs bg-coconut-50 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-2xl font-mono text-coconut-900 dark:text-darkbg-text focus:outline-none focus:ring-2 focus:ring-palm-500/20"
+                    className="w-full p-3.5 text-sm bg-white/70 dark:bg-darkbg-subtle border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <div className="flex justify-between items-center text-xs text-coconut-500 dark:text-darkbg-muted">
+                  <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
                     <span>Base64 结果</span>
                     <button
                       onClick={() => {
@@ -833,7 +817,7 @@ export default function DailyToolbox({
                           setError("无效的 Base64 字符串");
                         }
                       }}
-                      className="px-2.5 py-1 bg-coconut-800 hover:bg-coconut-900 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 text-coconut-50 rounded-lg text-[11px] font-semibold active:scale-95 transition-all"
+                      className="px-3 py-1 bg-coconut-800 hover:bg-coconut-900 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 text-coconut-50 rounded-xl text-xs sm:text-sm font-semibold active:scale-95 transition-all shadow-sm"
                     >
                       ← 解码为明文
                     </button>
@@ -842,7 +826,7 @@ export default function DailyToolbox({
                     rows={8}
                     value={b64Result}
                     onChange={(e) => setB64Result(e.target.value)}
-                    className="w-full p-3 text-xs bg-darkbg-canvas text-coconut-800 dark:text-darkbg-text border border-darkbg-border rounded-2xl font-mono focus:outline-none focus:ring-2 focus:ring-palm-500/20"
+                    className="w-full p-3.5 text-sm bg-darkbg-canvas text-coconut-800 dark:text-darkbg-text border border-darkbg-border rounded-2xl font-mono focus:outline-none focus:ring-2 focus:ring-palm-500/20 shadow-inner"
                   />
                 </div>
               </div>
@@ -853,12 +837,12 @@ export default function DailyToolbox({
           {devTab === "hash" && (
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <span className="text-xs text-coconut-500 dark:text-darkbg-muted">待哈希文本</span>
+                <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">待哈希文本</span>
                 <input
                   type="text"
                   value={hashInput}
                   onChange={(e) => setHashInput(e.target.value)}
-                  className="w-full p-3 text-xs bg-coconut-50 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-2xl font-mono text-coconut-900 dark:text-darkbg-text focus:outline-none focus:ring-2 focus:ring-palm-500/20"
+                  className="w-full p-3.5 text-sm bg-white/70 dark:bg-darkbg-subtle border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
                 />
               </div>
 
@@ -871,17 +855,17 @@ export default function DailyToolbox({
                 ].map((item) => (
                   <div
                     key={item.label}
-                    className="p-3.5 bg-coconut-100/40 dark:bg-darkbg-subtle/50 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border flex items-center justify-between"
+                    className="p-4 bg-coconut-100/40 dark:bg-darkbg-subtle/50 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border flex items-center justify-between"
                   >
                     <div className="space-y-0.5 truncate pr-2">
-                      <div className="text-[11px] font-bold text-coconut-500 dark:text-darkbg-muted">{item.label}</div>
-                      <div className="text-xs font-mono text-coconut-900 dark:text-darkbg-text truncate select-all">
+                      <div className="text-xs font-bold text-coconut-600 dark:text-darkbg-muted">{item.label}</div>
+                      <div className="text-sm font-mono text-coconut-900 dark:text-darkbg-text truncate select-all font-medium">
                         {item.val || "计算中..."}
                       </div>
                     </div>
                     <button
                       onClick={() => copyToClipboard(item.val)}
-                      className="p-2 text-coconut-400 hover:text-palm-600 dark:text-darkbg-muted dark:hover:text-palm-400 transition-colors"
+                      className="p-2 text-coconut-500 hover:text-palm-600 dark:text-darkbg-muted dark:hover:text-palm-400 transition-colors"
                       title="复制哈希"
                     >
                       <Copy className="w-4 h-4" />
@@ -895,24 +879,24 @@ export default function DailyToolbox({
           {/* 4.4 Unix 时间戳互转 */}
           {devTab === "timestamp" && (
             <div className="space-y-5">
-              <div className="p-4 sm:p-5 bg-palm-50/70 dark:bg-palm-950/30 rounded-2xl border border-palm-200/60 dark:border-palm-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="p-5 sm:p-6 bg-palm-50/70 dark:bg-palm-950/30 rounded-2xl border border-palm-200/60 dark:border-palm-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="space-y-1">
-                  <div className="text-xs text-coconut-500 dark:text-darkbg-muted">当前实时 Unix 时间戳 (秒级):</div>
-                  <div className="text-2xl font-bold font-mono text-palm-700 dark:text-palm-400">
+                  <div className="text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted font-medium">当前实时 Unix 时间戳 (秒级):</div>
+                  <div className="text-2xl sm:text-3xl font-bold font-mono text-palm-700 dark:text-palm-400">
                     {currentTimestamp}
                   </div>
                 </div>
                 <div className="text-left sm:text-right space-y-1">
-                  <div className="text-xs text-coconut-500 dark:text-darkbg-muted">北京时间:</div>
-                  <div className="text-xs font-mono text-coconut-800 dark:text-darkbg-text">
+                  <div className="text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted font-medium">北京时间:</div>
+                  <div className="text-sm font-mono font-semibold text-coconut-900 dark:text-darkbg-text">
                     {new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}
                   </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-coconut-100/40 dark:bg-darkbg-subtle/50 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border space-y-3">
-                  <div className="text-xs font-semibold text-coconut-800 dark:text-darkbg-text">
+                <div className="p-5 bg-coconut-100/40 dark:bg-darkbg-subtle/50 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border space-y-3">
+                  <div className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
                     时间戳 $\rightarrow$ 日期时间
                   </div>
                   <div className="flex space-x-2">
@@ -921,7 +905,7 @@ export default function DailyToolbox({
                       value={tsInput}
                       onChange={(e) => setTsInput(e.target.value)}
                       placeholder="秒或毫秒时间戳"
-                      className="flex-1 p-2 text-xs bg-coconut-50 dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border rounded-xl font-mono text-coconut-900 dark:text-darkbg-text focus:outline-none focus:ring-2 focus:ring-palm-500/20"
+                      className="flex-1 p-2.5 text-sm bg-white/70 dark:bg-darkbg-card border border-coconut-300/80 dark:border-darkbg-border rounded-xl font-mono text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
                     />
                     <button
                       onClick={() => {
@@ -929,32 +913,32 @@ export default function DailyToolbox({
                         const ms = tsInput.length === 10 ? val * 1000 : val;
                         setTsDateResult(new Date(ms).toLocaleString("zh-CN"));
                       }}
-                      className="px-3.5 py-1.5 bg-gradient-to-r from-palm-600 to-palm-700 hover:from-palm-700 hover:to-palm-800 text-white rounded-xl text-xs font-semibold shadow-coconut-sm active:scale-95 transition-all"
+                      className="px-4 py-2 bg-gradient-to-r from-palm-600 to-palm-700 hover:from-palm-700 hover:to-palm-800 text-white rounded-xl text-xs sm:text-sm font-bold shadow-coconut-sm active:scale-95 transition-all"
                     >
                       转换
                     </button>
                   </div>
                   {tsDateResult && (
-                    <div className="text-xs font-mono text-palm-700 dark:text-palm-300 font-bold bg-palm-100/80 dark:bg-palm-950/60 p-2.5 rounded-xl border border-palm-200/50 dark:border-palm-900/40">
+                    <div className="text-sm font-mono text-palm-700 dark:text-palm-300 font-bold bg-palm-100/80 dark:bg-palm-950/60 p-3 rounded-xl border border-palm-200/50 dark:border-palm-900/40">
                       {tsDateResult}
                     </div>
                   )}
                 </div>
 
-                <div className="p-4 bg-coconut-100/40 dark:bg-darkbg-subtle/50 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border space-y-3">
-                  <div className="text-xs font-semibold text-coconut-800 dark:text-darkbg-text">
+                <div className="p-5 bg-coconut-100/40 dark:bg-darkbg-subtle/50 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border space-y-3">
+                  <div className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
                     当前常用快捷时间戳
                   </div>
-                  <div className="space-y-1.5 text-xs font-mono text-coconut-500 dark:text-darkbg-muted">
+                  <div className="space-y-2 text-xs sm:text-sm font-mono text-coconut-600 dark:text-darkbg-muted">
                     <div className="flex justify-between">
                       <span>今日零点:</span>
-                      <span className="text-coconut-800 dark:text-darkbg-text">
+                      <span className="text-coconut-900 dark:text-darkbg-text font-semibold">
                         {Math.floor(new Date(new Date().setHours(0, 0, 0, 0)).getTime() / 1000)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>毫秒级时间戳:</span>
-                      <span className="text-coconut-800 dark:text-darkbg-text">{Date.now()}</span>
+                      <span className="text-coconut-900 dark:text-darkbg-text font-semibold">{Date.now()}</span>
                     </div>
                   </div>
                 </div>

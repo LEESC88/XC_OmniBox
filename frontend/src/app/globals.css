@@ -3,19 +3,33 @@
 @tailwind utilities;
 
 :root {
-  --color-canvas: #FAF7F2;
-  --color-card: #FFFFFF;
-  --color-border: #E8DFD5;
-  --color-text-main: #1F1610;
-  --color-text-muted: #5C4B3E;
+  --color-canvas: #E8D5C4;         /* 柔暖生椰润肤色基底 (微白温暖带彩) */
+  --color-card: #F7EBE0;           /* 细腻椰乳暖肤卡片底 */
+  --color-card-elevated: #FAF2EA;
+  --color-border: #CBB09C;         /* 清晰分明的高对比暖焙肤色轮廓线 */
+  --color-border-subtle: #DEC8B6;
+  --color-text-main: #1C0F07;       /* 浓郁深焙椰壳木质黑主字色 (极佳高保真对比度，清晰有力) */
+  --color-text-muted: #533C2D;      /* 暖木辅助字色，大幅调深，告别发灰模糊 */
 }
 
 .dark {
-  --color-canvas: #0C0A09;
-  --color-card: #181512;
-  --color-border: #383027;
-  --color-text-main: #FCFBFA;
-  --color-text-muted: #B5ACA1;
+  --color-canvas: #1A120E;         /* 浓郁深焙椰炭暖木色 (富含温度与琥珀感，绝非死黑) */
+  --color-card: #261D18;           /* 烘焙椰壳卡片面，温润醇厚 */
+  --color-card-elevated: #30251F;
+  --color-border: #564034;         /* 鲜明清晰的暗色椰壳轮廓线 */
+  --color-border-subtle: #3E2D24;
+  --color-text-main: #FFFFFF;       /* 纯净雪白高清晰主字色 */
+  --color-text-muted: #D5C2B1;      /* 调亮暖调辅助字色，深色模式高对比清晰 */
+}
+
+html {
+  background-color: var(--color-canvas);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: none;
+  overscroll-behavior-x: none;
 }
 
 /* 页面主体与平滑色彩过渡 */
@@ -24,86 +38,160 @@ body {
   color: var(--color-text-main);
   min-height: 100vh;
   -webkit-tap-highlight-color: transparent;
-  transition: background-color 0.25s ease, color 0.25s ease;
+  transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  letter-spacing: -0.01em;
 }
 
-/* 浅色模式背景：温润椰乳伴随热带落日金橘微光 */
+/* 浅色模式背景：柔暖生肤色底 + 落日暖杏光影 + 晨光柔和微晕 + 极细微有机质感纹理 (类似皮肤色，微白透着温暖生动的肤色光泽) */
 body:not(.dark) {
+  background-color: var(--color-canvas);
   background-image: 
-    radial-gradient(at 10% 10%, rgba(251, 146, 60, 0.08) 0px, transparent 40%),
-    radial-gradient(at 90% 15%, rgba(244, 63, 94, 0.07) 0px, transparent 45%),
-    radial-gradient(at 50% 90%, rgba(245, 158, 11, 0.09) 0px, transparent 45%),
-    radial-gradient(at 90% 80%, rgba(230, 215, 195, 0.35) 0px, transparent 45%);
+    radial-gradient(rgba(170, 120, 90, 0.22) 1px, transparent 1px),
+    radial-gradient(at 0% 0%, rgba(250, 182, 142, 0.42) 0px, transparent 58%),
+    radial-gradient(at 100% 0%, rgba(246, 165, 105, 0.32) 0px, transparent 52%),
+    radial-gradient(at 50% 45%, rgba(255, 243, 233, 0.55) 0px, transparent 65%),
+    radial-gradient(at 15% 90%, rgba(228, 162, 122, 0.32) 0px, transparent 55%),
+    radial-gradient(at 88% 88%, rgba(245, 138, 142, 0.22) 0px, transparent 52%);
+  background-size: 28px 28px, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
   background-attachment: fixed;
 }
 
-/* 深色模式背景：纯净黑曜石基底，伴随温暖柔和的落日金橘与珊瑚红环境微晕 (告别死黑死白) */
+/* 深色模式背景：深焙椰炭暖木色 + 落日琥珀余晖 + 暖栗深色光影 (富有温度，告别死黑) */
 .dark body {
+  background-color: var(--color-canvas);
   background-image: 
-    radial-gradient(at 90% 5%, rgba(249, 115, 22, 0.07) 0px, transparent 45%),
-    radial-gradient(at 10% 20%, rgba(244, 63, 94, 0.05) 0px, transparent 50%),
-    radial-gradient(at 50% 95%, rgba(245, 158, 11, 0.06) 0px, transparent 45%);
+    radial-gradient(rgba(75, 55, 42, 0.5) 1px, transparent 1px),
+    radial-gradient(at 95% 5%, rgba(245, 158, 11, 0.15) 0px, transparent 45%),
+    radial-gradient(at 5% 25%, rgba(234, 88, 12, 0.12) 0px, transparent 50%),
+    radial-gradient(at 85% 85%, rgba(225, 29, 72, 0.08) 0px, transparent 45%),
+    radial-gradient(at 20% 95%, rgba(150, 70, 25, 0.16) 0px, transparent 50%);
+  background-size: 28px 28px, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
   background-attachment: fixed;
 }
 
-/* 3D 触感立体落日按钮 (红黄橘渐变 + 物理厚度下沿 + 按压位移) */
+/* 高精质感卡片面板 (柔暖生肤微透玻璃 + 1px清晰细线边框 + 微内倒角光泽) */
+.coconut-panel {
+  background: rgba(247, 236, 226, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid #D2BCAB;
+  box-shadow: 
+    0 2px 8px -1px rgba(120, 75, 45, 0.05),
+    0 12px 32px -4px rgba(120, 75, 45, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  border-radius: 1.5rem;
+  transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.dark .coconut-panel {
+  background: rgba(41, 31, 26, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid #4D392E;
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 8px 24px -4px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-radius: 1.5rem;
+}
+
+/* 3D 触感立体落日按钮 (红黄橘渐变 + 物理厚度下沿 + 弹性按压位移) */
 .btn-3d-sunset {
   background: linear-gradient(135deg, #F59E0B 0%, #EA580C 50%, #E11D48 100%);
-  color: #FFFFFF;
+  color: #FFFFFF !important;
   font-weight: 700;
-  box-shadow: 0 4px 0 #9F1239, 0 8px 20px -2px rgba(234, 88, 12, 0.4);
-  border-top: 1px solid rgba(255, 255, 255, 0.35);
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 0 #9F1239, 0 8px 20px -2px rgba(234, 88, 12, 0.45);
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
 }
 
 .btn-3d-sunset:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 0 #9F1239, 0 12px 24px -2px rgba(234, 88, 12, 0.55);
+  box-shadow: 0 6px 0 #9F1239, 0 14px 26px -2px rgba(234, 88, 12, 0.55);
   filter: brightness(1.05);
 }
 
 .btn-3d-sunset:active:not(:disabled) {
   transform: translateY(3px);
   box-shadow: 0 1px 0 #9F1239, 0 3px 8px rgba(234, 88, 12, 0.35);
+  transition-duration: 0.08s;
 }
 
 .btn-3d-sunset:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
   box-shadow: none;
-  filter: grayscale(0.4);
+  filter: grayscale(0.5);
 }
 
-/* 3D 触感次级微立体按钮 */
+/* 3D 触感次级微立体按钮 (线条清晰分明，高对比暖润肤色底/烘焙椰壳底) */
 .btn-3d-secondary {
-  box-shadow: 0 3px 0 #D4BEA3, 0 4px 12px -2px rgba(66, 43, 25, 0.08);
-  border-top: 1px solid rgba(255, 255, 255, 0.6);
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #FAF1E8;
+  color: #1C0F07 !important;
+  border: 1px solid #CBB09C;
+  box-shadow: 0 3px 0 #BCA08C, 0 4px 12px -2px rgba(120, 75, 45, 0.10);
+  border-top: 1px solid rgba(255, 255, 255, 0.95);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
 }
 
 .dark .btn-3d-secondary {
-  box-shadow: 0 3px 0 #2A241E, 0 4px 12px -2px rgba(0, 0, 0, 0.35);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: #30251F;
+  color: #FFFFFF !important;
+  border: 1px solid #564034;
+  box-shadow: 0 3px 0 #1A120E, 0 4px 12px -2px rgba(0, 0, 0, 0.45);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .btn-3d-secondary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 0 #D4BEA3, 0 8px 16px -2px rgba(66, 43, 25, 0.12);
+  background: #F4E5D6;
+  border-color: #BCA08C;
+  box-shadow: 0 4px 0 #BCA08C, 0 6px 16px -2px rgba(120, 75, 45, 0.16);
 }
 
 .dark .btn-3d-secondary:hover:not(:disabled) {
-  box-shadow: 0 4px 0 #2A241E, 0 8px 16px -2px rgba(0, 0, 0, 0.45);
+  background: #3B2E27;
+  box-shadow: 0 4px 0 #1A120E, 0 6px 16px -2px rgba(0, 0, 0, 0.55);
 }
 
 .btn-3d-secondary:active:not(:disabled) {
   transform: translateY(2px);
-  box-shadow: 0 1px 0 #D4BEA3;
+  box-shadow: 0 1px 0 #BCA08C;
+  transition-duration: 0.08s;
 }
 
 .dark .btn-3d-secondary:active:not(:disabled) {
-  box-shadow: 0 1px 0 #2A241E;
+  box-shadow: 0 1px 0 #1A120E;
+  transition-duration: 0.08s;
+}
+
+/* 视图平滑载入微动效 (丝滑无卡顿) */
+@keyframes viewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: viewFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* 红黄橘跑马灯动态条纹进度条 */
@@ -132,10 +220,10 @@ body:not(.dark) {
   }
 }
 
-/* 自定义椰香温润滚动条 */
+/* 丝滑现代质感极细微滚动条 */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -143,22 +231,89 @@ body:not(.dark) {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D4BEA3;
+  background: rgba(188, 160, 140, 0.38);
   border-radius: 9999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+  transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #B99B7D;
+  background: rgba(188, 160, 140, 0.7);
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: #383027;
+  background: rgba(110, 87, 73, 0.45);
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #483E33;
+  background: rgba(110, 87, 73, 0.75);
+}
+
+/* 现代轻奢主页面微滚动条 (高保真顺滑体验，告别 Windows 原生厚重死板灰条) */
+.custom-main-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(188, 160, 140, 0.45) transparent;
+}
+.dark .custom-main-scrollbar {
+  scrollbar-color: rgba(120, 95, 80, 0.5) transparent;
+}
+.custom-main-scrollbar::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+.custom-main-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-main-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(188, 160, 140, 0.4);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: content-box;
+  transition: background-color 0.2s ease;
+}
+.custom-main-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(234, 88, 12, 0.75);
+}
+.dark .custom-main-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(120, 95, 80, 0.45);
+  border: 1px solid transparent;
+  background-clip: content-box;
+}
+.dark .custom-main-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.75);
+}
+
+/* 专属横向标签微滑轨 (清爽易见，轻奢圆角，有滑块可拖拽可滚轮左右滑动) */
+.tab-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(188, 160, 140, 0.5) transparent;
+}
+.dark .tab-scrollbar {
+  scrollbar-color: rgba(120, 95, 80, 0.55) transparent;
+}
+.tab-scrollbar::-webkit-scrollbar {
+  height: 5px;
+}
+.tab-scrollbar::-webkit-scrollbar-track {
+  background: rgba(188, 160, 140, 0.15);
+  border-radius: 9999px;
+  margin: 0 44px;
+}
+.tab-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(188, 160, 140, 0.55);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+.tab-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #EA580C;
+}
+.dark .tab-scrollbar::-webkit-scrollbar-track {
+  background: rgba(60, 45, 35, 0.35);
+}
+.dark .tab-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(140, 110, 90, 0.6);
+}
+.dark .tab-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #F59E0B;
 }
 
 /* 隐藏滚动条但保留滑动功能 (针对手机端 Tab 横向平滑手势) */
@@ -169,4 +324,5 @@ body:not(.dark) {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
 

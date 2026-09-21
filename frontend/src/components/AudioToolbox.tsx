@@ -38,6 +38,7 @@ import {
 import { formatBytes } from "@/lib/imageProcessor";
 import { createZipBundle } from "@/lib/imageProcessor";
 import { downloadBlob } from "@/lib/api";
+import ScrollableTabNav from "@/components/ScrollableTabNav";
 
 type AudioToolTab = "trim" | "convert" | "merge" | "extract" | "volume";
 
@@ -499,51 +500,18 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in">
-      {/* 5 大功能 Tab 切换 (横向平滑手势滑动) */}
-      <div className="w-full flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 border-b border-coconut-200/80 dark:border-darkbg-border snap-x snap-mandatory touch-pan-x">
-        {[
+      {/* 5 大功能 Tab 切换 (支持鼠标滚轮横移、鼠标拖拽滑动、专属微滑轨与左右翻页箭头) */}
+      <ScrollableTabNav
+        tabs={[
           { id: "trim", label: "波形剪辑与铃声", icon: Scissors, badge: "毫秒级试听" },
           { id: "convert", label: "音频万能转码", icon: RefreshCw, badge: "MP3/WAV/FLAC" },
           { id: "merge", label: "多音频无缝拼接", icon: Combine, badge: "多轨合并" },
           { id: "extract", label: "视频提取纯音频", icon: Film, badge: "MP4秒提MP3" },
           { id: "volume", label: "音量放大与标准化", icon: Volume2, badge: "自动防破音" },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabSelect(tab.id as AudioToolTab)}
-              className={`flex items-center space-x-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap flex-shrink-0 snap-start active:scale-95 ${
-                isActive
-                  ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white font-bold shadow-coconut-sm scale-[1.02]"
-                  : "bg-white/80 dark:bg-darkbg-card text-coconut-700 dark:text-darkbg-muted border border-coconut-200/80 dark:border-darkbg-border hover:bg-coconut-100/60 dark:hover:bg-darkbg-elevated hover:dark:text-darkbg-text"
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
-                  isActive
-                    ? "bg-white/25 text-white"
-                    : "bg-coconut-200/80 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-muted"
-                }`}
-              >
-                {tab.badge}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* 提示与状态条 */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border rounded-2xl text-xs text-coconut-900 dark:text-darkbg-text shadow-coconut-sm">
-        <div className="flex items-center space-x-2">
-          <Music className="w-4 h-4 text-toast-500" />
-          <span>纯前端 Web Audio API 毫秒级多线程运算 · 免装外部庞大 FFmpeg · 零服务器流量消耗</span>
-        </div>
-        <span className="font-mono text-palm-700 dark:text-palm-400 font-bold">100% 隐私安全</span>
-      </div>
+        ]}
+        activeTab={activeTab}
+        onTabChange={(id) => handleTabSelect(id as AudioToolTab)}
+      />
 
       {/* ================= 1. 波形可视化剪辑与铃声面板 ================= */}
       {activeTab === "trim" && (
@@ -584,9 +552,9 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
               </div>
             </div>
           ) : (
-            <div className="bg-white/95 dark:bg-darkbg-card border border-coconut-200/90 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-6 backdrop-blur-md">
+            <div className="coconut-panel p-5 sm:p-6 space-y-6">
               {/* 文件信息与重新选择 */}
-              <div className="flex items-center justify-between pb-4 border-b border-coconut-100 dark:border-darkbg-border">
+              <div className="flex items-center justify-between pb-4 border-b border-coconut-200/60 dark:border-darkbg-border">
                 <div className="space-y-0.5">
                   <div className="font-bold text-base text-coconut-900 dark:text-darkbg-text flex items-center space-x-2">
                     <FileAudio className="w-5 h-5 text-toast-500" />
@@ -611,7 +579,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
 
               {/* 交互式波形画布 */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-coconut-600 dark:text-darkbg-muted font-mono">
+                <div className="flex items-center justify-between text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted font-mono">
                   <span>起点: {formatDuration(startTime)}</span>
                   <span className="text-coconut-900 dark:text-toast-400 font-bold">
                     截取时长: {formatDuration(endTime - startTime)}
@@ -628,14 +596,14 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                     className="w-full h-full"
                   />
                 </div>
-                <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted text-center">
+                <p className="text-xs text-coconut-600 dark:text-darkbg-muted text-center leading-relaxed">
                   💡 拖动两端高亮滑块可直接改变截取起点与终点；点击波形内部任意处可直接跳到该位置试听
                 </p>
               </div>
 
               {/* 快捷选区预设 */}
-              <div className="flex items-center space-x-2 text-xs flex-wrap gap-y-2">
-                <span className="text-coconut-800 dark:text-darkbg-text font-semibold">快捷铃声长度:</span>
+              <div className="flex items-center space-x-2.5 text-xs sm:text-sm flex-wrap gap-y-2">
+                <span className="text-coconut-900 dark:text-darkbg-text font-semibold">快捷铃声长度:</span>
                 {[
                   { label: "前 15 秒", s: 0, e: 15 },
                   { label: "前 30 秒 (推荐)", s: 0, e: 30 },
@@ -649,7 +617,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                       setEndTime(Math.min(preset.e, trimBuffer.duration));
                       setCurrentTime(preset.s);
                     }}
-                    className="px-3 py-1.5 bg-coconut-100/80 dark:bg-darkbg-subtle hover:bg-coconut-200/80 dark:hover:bg-darkbg-hover text-coconut-800 dark:text-darkbg-text border border-transparent dark:border-darkbg-border rounded-xl font-semibold transition-all"
+                    className="px-3.5 py-1.5 bg-coconut-100/80 dark:bg-darkbg-subtle hover:bg-coconut-200/80 dark:hover:bg-darkbg-hover text-coconut-900 dark:text-darkbg-text border border-transparent dark:border-darkbg-border rounded-xl font-semibold transition-all active:scale-95"
                   >
                     {preset.label}
                   </button>
@@ -657,7 +625,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
               </div>
 
               {/* 播放控制与淡入淡出参数 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 sm:p-5 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/70 dark:border-darkbg-border">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 sm:p-6 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/70 dark:border-darkbg-border">
                 {/* 试听控制 */}
                 <div className="flex items-center space-x-4">
                   <button
@@ -667,11 +635,11 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                     {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
                   </button>
                   <div className="space-y-1">
-                    <div className="font-bold text-sm text-coconut-900 dark:text-darkbg-text">
+                    <div className="font-bold text-sm sm:text-base text-coconut-900 dark:text-darkbg-text">
                       {isPlaying ? "正在试听选区..." : "试听选中片段"}
                     </div>
-                    <div className="flex items-center space-x-3 text-xs text-coconut-600 dark:text-darkbg-muted">
-                      <label className="flex items-center space-x-1.5 cursor-pointer">
+                    <div className="flex items-center space-x-3 text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted">
+                      <label className="flex items-center space-x-1.5 cursor-pointer select-none">
                         <input
                           type="checkbox"
                           checked={loopSelection}
@@ -696,10 +664,10 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
 
                 {/* 自然淡入淡出调节 */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-coconut-800 dark:text-darkbg-text font-semibold">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs sm:text-sm text-coconut-900 dark:text-darkbg-text font-semibold">
                       <span>开头淡入</span>
-                      <span className="font-mono font-bold text-coconut-900 dark:text-toast-400">{fadeIn}s</span>
+                      <span className="font-mono font-bold text-toast-500">{fadeIn}s</span>
                     </div>
                     <input
                       type="range"
@@ -708,14 +676,14 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                       step="0.5"
                       value={fadeIn}
                       onChange={(e) => setFadeIn(parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-palm-400"
+                      className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-palm-400"
                     />
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-coconut-800 dark:text-darkbg-text font-semibold">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs sm:text-sm text-coconut-900 dark:text-darkbg-text font-semibold">
                       <span>结尾淡出</span>
-                      <span className="font-mono font-bold text-coconut-900 dark:text-toast-400">{fadeOut}s</span>
+                      <span className="font-mono font-bold text-toast-500">{fadeOut}s</span>
                     </div>
                     <input
                       type="range"
@@ -724,7 +692,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                       step="0.5"
                       value={fadeOut}
                       onChange={(e) => setFadeOut(parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-palm-400"
+                      className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-palm-400"
                     />
                   </div>
                 </div>
@@ -732,14 +700,14 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
 
               {/* 导出配置与按钮 */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-                <div className="flex items-center space-x-3 text-xs">
-                  <span className="text-coconut-800 dark:text-darkbg-text font-bold">导出格式:</span>
-                  <div className="flex space-x-1">
+                <div className="flex items-center space-x-3 text-sm">
+                  <span className="text-coconut-900 dark:text-darkbg-text font-bold">导出格式:</span>
+                  <div className="flex space-x-1.5">
                     {(["mp3", "wav"] as const).map((fmt) => (
                       <button
                         key={fmt}
                         onClick={() => setTrimFormat(fmt)}
-                        className={`px-3 py-1.5 rounded-xl font-bold uppercase transition-all ${
+                        className={`px-3.5 py-1.5 rounded-xl font-bold uppercase transition-all active:scale-95 text-xs sm:text-sm ${
                           trimFormat === fmt
                             ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 font-bold shadow-sm"
                             : "bg-coconut-100/80 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:dark:text-darkbg-text border border-transparent dark:border-darkbg-border"
@@ -754,7 +722,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                     <select
                       value={trimKbps}
                       onChange={(e) => setTrimKbps(parseInt(e.target.value))}
-                      className="px-2.5 py-1.5 bg-coconut-50 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-xl font-mono text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500"
+                      className="px-3.5 py-2 bg-white/70 dark:bg-darkbg-subtle border border-coconut-300/80 dark:border-darkbg-border rounded-xl font-mono text-sm text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
                     >
                       <option value={320} className="dark:bg-darkbg-card dark:text-darkbg-text">320 kbps (最高品质)</option>
                       <option value={256} className="dark:bg-darkbg-card dark:text-darkbg-text">256 kbps (高保真)</option>
@@ -767,7 +735,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                 <button
                   onClick={handleExportTrim}
                   disabled={isProcessing}
-                  className={`w-full sm:w-auto px-6 py-3 rounded-2xl text-sm font-bold flex items-center justify-center space-x-2 transition-all ${
+                  className={`w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center space-x-2 transition-all ${
                     isProcessing
                       ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
                       : "btn-3d-sunset text-white"
@@ -794,7 +762,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
       {/* ================= 2. 音频万能转码面板 ================= */}
       {activeTab === "convert" && (
         <div className="space-y-5">
-          <div className="bg-white/95 dark:bg-darkbg-card border border-coconut-200/90 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-4 backdrop-blur-md">
+          <div className="coconut-panel p-5 sm:p-6 space-y-4">
             <div className="font-bold text-sm text-coconut-900 dark:text-darkbg-text flex items-center space-x-2">
               <RefreshCw className="w-4 h-4 text-toast-500" />
               <span>设置批量转换目标参数</span>
@@ -802,13 +770,13 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <span className="text-xs text-coconut-800 dark:text-darkbg-text font-semibold">目标音频格式</span>
+                <span className="text-sm text-coconut-900 dark:text-darkbg-text font-semibold">目标音频格式</span>
                 <div className="flex space-x-2">
                   {(["mp3", "wav"] as const).map((fmt) => (
                     <button
                       key={fmt}
                       onClick={() => setConvertTargetFormat(fmt)}
-                      className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase transition-all ${
+                      className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold uppercase transition-all active:scale-95 ${
                         convertTargetFormat === fmt
                           ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 font-bold shadow-sm"
                           : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:dark:text-darkbg-text border border-transparent dark:border-darkbg-border"
@@ -822,11 +790,11 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
 
               {convertTargetFormat === "mp3" && (
                 <div className="space-y-1.5">
-                  <span className="text-xs text-coconut-800 dark:text-darkbg-text font-semibold">MP3 压缩比特率</span>
+                  <span className="text-sm text-coconut-900 dark:text-darkbg-text font-semibold">MP3 压缩比特率</span>
                   <select
                     value={convertKbps}
                     onChange={(e) => setConvertKbps(parseInt(e.target.value))}
-                    className="w-full px-3 py-2 text-xs bg-coconut-50/70 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500"
+                    className="w-full px-3.5 py-2.5 text-sm bg-white/70 dark:bg-darkbg-subtle border border-coconut-300/80 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
                   >
                     <option value={320} className="dark:bg-darkbg-card dark:text-darkbg-text">320 kbps (录音室母带级音乐)</option>
                     <option value={256} className="dark:bg-darkbg-card dark:text-darkbg-text">256 kbps (高保真音乐)</option>
@@ -848,7 +816,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                 setConvertFiles((prev) => [...prev, ...Array.from(e.dataTransfer.files)]);
               }
             }}
-            className="border-2 border-dashed border-coconut-300 dark:border-darkbg-border hover:border-coconut-500 dark:hover:border-palm-500 bg-coconut-50/40 dark:bg-darkbg-card hover:bg-coconut-100/40 dark:hover:bg-darkbg-elevated rounded-3xl p-8 text-center cursor-pointer transition-all duration-300 shadow-coconut-sm select-none"
+            className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85 dark:hover:bg-[#2E2520] rounded-3xl p-8 text-center cursor-pointer transition-all duration-300 shadow-2xs select-none"
           >
             <input
               id="audio-convert-upload"
@@ -873,7 +841,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
 
           {/* 待转码文件列表 */}
           {convertFiles.length > 0 && (
-            <div className="bg-white/95 dark:bg-darkbg-card border border-coconut-200/90 dark:border-darkbg-border rounded-3xl p-5 shadow-coconut-sm space-y-4 backdrop-blur-md">
+            <div className="coconut-panel p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-xs text-coconut-900 dark:text-darkbg-text">
                   待转码音频 ({convertFiles.length} 首)
@@ -931,7 +899,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
 
           {/* 转码结果展示 */}
           {convertResults.length > 0 && (
-            <div className="bg-white/95 dark:bg-darkbg-card border border-coconut-200/90 dark:border-darkbg-border rounded-3xl p-5 shadow-coconut-sm space-y-4 backdrop-blur-md">
+            <div className="coconut-panel p-5 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
                 <div className="flex items-center space-x-2 text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
                   <CheckCircle2 className="w-4 h-4" />
@@ -981,8 +949,8 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
       {/* ================= 3. 多音频无缝拼接合并面板 ================= */}
       {activeTab === "merge" && (
         <div className="space-y-5">
-          <div className="bg-white/95 dark:bg-darkbg-card border border-coconut-200/90 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-4 backdrop-blur-md">
-            <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
+          <div className="coconut-panel p-5 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-coconut-200/60 dark:border-darkbg-border">
               <div>
                 <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
                   多段音频拼接队列 ({mergeTracks.length} 段)
@@ -1010,7 +978,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
             {mergeTracks.length === 0 ? (
               <div
                 onClick={() => document.getElementById("merge-upload-input")?.click()}
-                className="border-2 border-dashed border-coconut-300 dark:border-darkbg-border hover:border-coconut-500 dark:hover:border-palm-500 rounded-3xl p-10 text-center cursor-pointer transition-all bg-coconut-50/40 dark:bg-darkbg-card"
+                className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center cursor-pointer transition-all bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85"
               >
                 <Combine className="w-8 h-8 text-coconut-400 dark:text-darkbg-muted mx-auto mb-2" />
                 <div className="text-xs text-coconut-600 dark:text-darkbg-muted">点击添加两段或多段音频开始拼接</div>
@@ -1124,14 +1092,13 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
       {/* ================= 4. 视频提取纯音频面板 ================= */}
       {activeTab === "extract" && (
         <div className="space-y-5">
-          <div className="bg-white/95 dark:bg-darkbg-card border border-coconut-200/90 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-4 backdrop-blur-md">
+          <div className="coconut-panel p-5 sm:p-6 space-y-4">
             <div>
-              <h3 className="text-base font-bold text-coconut-900 dark:text-darkbg-text">
-                本地视频秒级剥离提取纯音频
+              <h3 className="text-base sm:text-lg font-bold text-coconut-900 dark:text-darkbg-text">
+                视频提取纯音频
               </h3>
-              <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
-                直接拖入数十兆或数百兆的 MP4, MOV, WebM, MKV 视频，浏览器纯本地解码提取音轨，
-                <strong>无需将视频上传到服务器</strong>，瞬间获得高保真 MP3/WAV 音乐文件！
+              <p className="text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted mt-1 leading-relaxed">
+                支持 MP4, MOV, WebM, MKV 等常见视频格式，快速提取高保真 MP3 / WAV 纯音频音轨。
               </p>
             </div>
 
@@ -1144,7 +1111,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   setVideoFile(e.dataTransfer.files[0]);
                 }
               }}
-              className="border-2 border-dashed border-coconut-300 dark:border-darkbg-border hover:border-coconut-500 dark:hover:border-palm-500 rounded-3xl p-10 text-center cursor-pointer transition-all bg-coconut-50/40 dark:bg-darkbg-card"
+              className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center cursor-pointer transition-all bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85"
             >
               <input
                 id="video-extract-upload"
@@ -1158,7 +1125,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                 className="hidden"
               />
               <Film className="w-10 h-10 text-toast-500 mx-auto mb-2" />
-              <div className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+              <div className="text-sm sm:text-base font-bold text-coconut-900 dark:text-darkbg-text">
                 {videoFile ? `已选视频: ${videoFile.name} (${formatBytes(videoFile.size)})` : "点击或拖拽视频文件至此处"}
               </div>
               <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">支持 MP4, MOV, WebM, MKV 等常见视频格式</div>
@@ -1166,13 +1133,13 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
 
             {videoFile && (
               <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center space-x-3 text-xs">
-                  <span className="text-coconut-800 dark:text-darkbg-text font-bold">导出音频格式:</span>
+                <div className="flex items-center space-x-3 text-sm">
+                  <span className="text-coconut-900 dark:text-darkbg-text font-bold">导出音频格式:</span>
                   {(["mp3", "wav"] as const).map((fmt) => (
                     <button
                       key={fmt}
                       onClick={() => setExtractFormat(fmt)}
-                      className={`px-3 py-1.5 rounded-xl font-bold uppercase transition-all ${
+                      className={`px-3.5 py-1.5 rounded-xl font-bold uppercase transition-all active:scale-95 text-xs sm:text-sm ${
                         extractFormat === fmt
                           ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 font-bold shadow-sm"
                           : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:dark:text-darkbg-text border border-transparent dark:border-darkbg-border"
@@ -1213,7 +1180,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
       {/* ================= 5. 音量放大与标准化面板 ================= */}
       {activeTab === "volume" && (
         <div className="space-y-5">
-          <div className="bg-white/95 dark:bg-darkbg-card border border-coconut-200/90 dark:border-darkbg-border rounded-3xl p-5 sm:p-6 shadow-coconut-sm space-y-5 backdrop-blur-md">
+          <div className="coconut-panel p-5 sm:p-6 space-y-5">
             <div>
               <h3 className="text-base font-bold text-coconut-900 dark:text-darkbg-text">
                 音频音量智能增强与防破音标准化
