@@ -210,6 +210,30 @@ export async function generatePrintSheet(
 // 2. 个性化艺术二维码生成器
 // ==========================================
 
+/** 解析 hex 颜色为 RGB 分量 */
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  return [
+    parseInt(h.substring(0, 2), 16),
+    parseInt(h.substring(2, 4), 16),
+    parseInt(h.substring(4, 6), 16),
+  ];
+}
+
+/** 在两个 RGB 颜色之间线性插值 */
+function lerpColor(
+  c1: [number, number, number],
+  c2: [number, number, number],
+  t: number
+): string {
+  const r = Math.round(c1[0] + (c2[0] - c1[0]) * t);
+  const g = Math.round(c1[1] + (c2[1] - c1[1]) * t);
+  const b = Math.round(c1[2] + (c2[2] - c1[2]) * t);
+  return `rgb(${r},${g},${b})`;
+}
+
+export type QrDotStyle = "square" | "rounded" | "dot";
+
 export async function generateCustomQrCode(options: {
   text: string;
   size?: number;
@@ -219,44 +243,102 @@ export async function generateCustomQrCode(options: {
   gradientColor?: string;
   logoFile?: File;
   errorCorrection?: "L" | "M" | "Q" | "H";
+  dotStyle?: QrDotStyle;
+  margin?: number;
+  borderWidth?: number;
+  borderColor?: string;
 }): Promise<{ dataUrl: string; blob: Blob }> {
-  const size = options.size || 500;
+  const size = options.size || 512;
+  const fgColor = options.fgColor || "#000000";
+  const bgColor = options.bgColor || "#FFFFFF";
+  const dotStyle = options.dotStyle || "square";
+  const margin = options.margin ?? 2;
+  const borderWidth = options.borderWidth ?? 0;
+  const borderColor = options.borderColor || fgColor;
+  const ecLevel = options.logoFile ? "H" : options.errorCorrection || "M";
+
+  // 1. 使用 QRCode.create() 获取模块矩阵数据
+  const qrData = QRCode.create(options.text, { errorCorrectionLevel: ecLevel });
+  const modules = qrData.modules;
+  const moduleCount = modules.size; // 模块行/列数
+  const data = modules.data; // Uint8Array, 1 = dark, 0 = light
+
+  // 2. 计算绘制参数
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
-
-  // 1. 生成基础二维码
-  await QRCode.toCanvas(canvas, options.text, {
-    width: size,
-    margin: 2,
-    color: {
-      dark: options.fgColor || "#000000",
-      light: options.bgColor || "#FFFFFF",
-    },
-    errorCorrectionLevel: options.logoFile ? "H" : options.errorCorrection || "M",
-  });
-
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("无法初始化二维码画布");
 
-  // 2. 如果开启渐变色
-  if (options.gradient && options.gradientColor) {
-    const qrData = ctx.getImageData(0, 0, size, size);
-    const grad = ctx.createLinearGradient(0, 0, size, size);
-    grad.addColorStop(0, options.fgColor || "#2563eb");
-    grad.addColorStop(1, options.gradientColor);
+  // 每个模块的像素大小
+  const totalModules = moduleCount + margin * 2;
+  const moduleSize = size / totalModules;
+  const offsetX = margin * moduleSize;
+  const offsetY = margin * moduleSize;
 
-    // 绘制覆盖
-    ctx.globalCompositeOperation = "source-in";
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, size, size);
-    ctx.globalCompositeOperation = "destination-over";
-    ctx.fillStyle = options.bgColor || "#FFFFFF";
-    ctx.fillRect(0, 0, size, size);
-    ctx.globalCompositeOperation = "source-over";
+  // 3. 绘制背景
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, size, size);
+
+  // 4. 渐变色预计算
+  const useGradient = options.gradient && options.gradientColor;
+  let fgRgb: [number, number, number] | null = null;
+  let gradRgb: [number, number, number] | null = null;
+  if (useGradient) {
+    fgRgb = hexToRgb(fgColor);
+    gradRgb = hexToRgb(options.gradientColor!);
   }
 
-  // 3. 如果嵌入 Logo
+  // 5. 逐模块绘制 (修复渐变: 只对 dark modules 着色)
+  for (let row = 0; row < moduleCount; row++) {
+    for (let col = 0; col < moduleCount; col++) {
+      const isDark = data[row * moduleCount + col];
+      if (!isDark) continue;
+
+      const x = offsetX + col * moduleSize;
+      const y = offsetY + row * moduleSize;
+
+      // 计算该模块的颜色
+      if (useGradient && fgRgb && gradRgb) {
+        // 对角线方向渐变: 左上 → 右下
+        const t = (row + col) / (2 * (moduleCount - 1));
+        ctx.fillStyle = lerpColor(fgRgb, gradRgb, t);
+      } else {
+        ctx.fillStyle = fgColor;
+      }
+
+      // 根据样式绘制
+      const gap = moduleSize * 0.05; // 微小间隙让码点独立
+      const drawSize = moduleSize - gap;
+
+      if (dotStyle === "dot") {
+        // 圆形码点
+        const radius = drawSize / 2;
+        ctx.beginPath();
+        ctx.arc(x + moduleSize / 2, y + moduleSize / 2, radius, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (dotStyle === "rounded") {
+        // 圆角方块
+        const r = drawSize * 0.35;
+        ctx.beginPath();
+        ctx.roundRect(x + gap / 2, y + gap / 2, drawSize, drawSize, r);
+        ctx.fill();
+      } else {
+        // 默认方块
+        ctx.fillRect(x, y, moduleSize, moduleSize);
+      }
+    }
+  }
+
+  // 6. 绘制边框
+  if (borderWidth > 0) {
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = borderWidth;
+    const bHalf = borderWidth / 2;
+    ctx.strokeRect(bHalf, bHalf, size - borderWidth, size - borderWidth);
+  }
+
+  // 7. 如果嵌入 Logo
   if (options.logoFile) {
     const logo = await loadImageFromFile(options.logoFile);
     const logoSize = Math.floor(size * 0.22); // 占 22%
@@ -265,7 +347,7 @@ export async function generateCustomQrCode(options: {
 
     // 白色圆角衬底
     const pad = 6;
-    ctx.fillStyle = options.bgColor || "#FFFFFF";
+    ctx.fillStyle = bgColor;
     ctx.beginPath();
     ctx.roundRect(lx - pad, ly - pad, logoSize + pad * 2, logoSize + pad * 2, 8);
     ctx.fill();

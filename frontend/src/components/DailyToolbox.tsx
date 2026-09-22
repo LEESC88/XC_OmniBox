@@ -37,6 +37,7 @@ import {
   encodeBase64,
   decodeBase64,
   formatJson,
+  QrDotStyle,
 } from "@/lib/utilityProcessor";
 import { downloadBlob } from "@/lib/api";
 import { formatBytes } from "@/lib/imageProcessor";
@@ -152,22 +153,34 @@ export default function DailyToolbox({
   const [qrLogoFile, setQrLogoFile] = useState<File | null>(null);
   const [qrResultUrl, setQrResultUrl] = useState<string>("");
   const [qrResultBlob, setQrResultBlob] = useState<Blob | null>(null);
+  const [qrSize, setQrSize] = useState(512);
+  const [qrDotStyle, setQrDotStyle] = useState<QrDotStyle>("square");
+  const [qrMargin, setQrMargin] = useState(2);
+  const [qrBorderWidth, setQrBorderWidth] = useState(0);
+  const [qrBorderColor, setQrBorderColor] = useState("#2b1e16");
+  const [qrErrorLevel, setQrErrorLevel] = useState<"L" | "M" | "Q" | "H">("M");
 
   // 实时更新二维码
   useEffect(() => {
     if (activeTab !== "qrcode" || !qrText.trim()) return;
     generateCustomQrCode({
       text: qrText,
+      size: qrSize,
       fgColor: qrFgColor,
       bgColor: qrBgColor,
       gradient: qrGradient,
       gradientColor: qrGradColor,
       logoFile: qrLogoFile || undefined,
+      errorCorrection: qrErrorLevel,
+      dotStyle: qrDotStyle,
+      margin: qrMargin,
+      borderWidth: qrBorderWidth,
+      borderColor: qrBorderColor,
     }).then(({ dataUrl, blob }) => {
       setQrResultUrl(dataUrl);
       setQrResultBlob(blob);
     });
-  }, [activeTab, qrText, qrFgColor, qrBgColor, qrGradient, qrGradColor, qrLogoFile]);
+  }, [activeTab, qrText, qrFgColor, qrBgColor, qrGradient, qrGradColor, qrLogoFile, qrSize, qrDotStyle, qrMargin, qrBorderWidth, qrBorderColor, qrErrorLevel]);
 
   // =======================================================
   // 3. 文本 Diff 状态
@@ -475,6 +488,7 @@ export default function DailyToolbox({
                   />
                 </div>
 
+                {/* 颜色 + 输出尺寸 */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">前景色</span>
@@ -502,6 +516,124 @@ export default function DailyToolbox({
                     </div>
                   </div>
                 </div>
+
+                {/* 输出尺寸 */}
+                <div className="space-y-1.5">
+                  <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">输出尺寸</span>
+                  <div className="flex flex-wrap gap-2">
+                    {[256, 512, 768, 1024].map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setQrSize(s)}
+                        className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition-all active:scale-95 ${
+                          qrSize === s
+                            ? "bg-palm-500 text-white border-palm-500 shadow-sm"
+                            : "bg-coconut-50/80 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted border-coconut-200 dark:border-darkbg-border hover:bg-coconut-100"
+                        }`}
+                      >
+                        {s}×{s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 码点样式 */}
+                <div className="space-y-1.5">
+                  <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">码点样式</span>
+                  <div className="flex flex-wrap gap-2">
+                    {([
+                      { id: "square" as QrDotStyle, label: "■ 方块" },
+                      { id: "rounded" as QrDotStyle, label: "▢ 圆角" },
+                      { id: "dot" as QrDotStyle, label: "● 圆点" },
+                    ]).map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => setQrDotStyle(s.id)}
+                        className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition-all active:scale-95 ${
+                          qrDotStyle === s.id
+                            ? "bg-palm-500 text-white border-palm-500 shadow-sm"
+                            : "bg-coconut-50/80 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted border-coconut-200 dark:border-darkbg-border hover:bg-coconut-100"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 纠错等级 */}
+                <div className="space-y-1.5">
+                  <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                    纠错等级 {qrLogoFile && <span className="text-xs text-palm-600 font-normal">(Logo 已锁定为 H)</span>}
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {([
+                      { id: "L" as const, label: "L 低 (7%)", desc: "尺寸最小" },
+                      { id: "M" as const, label: "M 中 (15%)", desc: "推荐" },
+                      { id: "Q" as const, label: "Q 高 (25%)", desc: "复杂场景" },
+                      { id: "H" as const, label: "H 极高 (30%)", desc: "嵌入Logo" },
+                    ]).map((lv) => (
+                      <button
+                        key={lv.id}
+                        onClick={() => !qrLogoFile && setQrErrorLevel(lv.id)}
+                        disabled={!!qrLogoFile}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all active:scale-95 ${
+                          (qrLogoFile ? "H" : qrErrorLevel) === lv.id
+                            ? "bg-palm-500 text-white border-palm-500 shadow-sm"
+                            : "bg-coconut-50/80 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted border-coconut-200 dark:border-darkbg-border hover:bg-coconut-100"
+                        } ${qrLogoFile ? "opacity-60 cursor-not-allowed" : ""}`}
+                      >
+                        {lv.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 边距 & 边框 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                      边距 <span className="text-xs text-coconut-500 dark:text-darkbg-muted font-normal">({qrMargin})</span>
+                    </span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={6}
+                      value={qrMargin}
+                      onChange={(e) => setQrMargin(Number(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none bg-coconut-200 dark:bg-darkbg-border accent-palm-500 cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                      边框粗细 <span className="text-xs text-coconut-500 dark:text-darkbg-muted font-normal">({qrBorderWidth}px)</span>
+                    </span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={8}
+                      value={qrBorderWidth}
+                      onChange={(e) => setQrBorderWidth(Number(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none bg-coconut-200 dark:bg-darkbg-border accent-palm-500 cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {/* 边框颜色 (仅在有边框时显示) */}
+                {qrBorderWidth > 0 && (
+                  <div className="space-y-1.5">
+                    <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">边框颜色</span>
+                    <div className="flex items-center space-x-2.5">
+                      <input
+                        type="color"
+                        value={qrBorderColor}
+                        onChange={(e) => setQrBorderColor(e.target.value)}
+                        className="w-9 h-9 rounded-lg border border-coconut-300 dark:border-darkbg-border cursor-pointer bg-transparent"
+                      />
+                      <span className="text-sm font-mono font-semibold text-coconut-800 dark:text-darkbg-muted">{qrBorderColor}</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* 渐变色开关 */}
                 <div className="p-3.5 bg-coconut-100/40 dark:bg-darkbg-subtle/50 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border flex items-center justify-between">
@@ -576,6 +708,12 @@ export default function DailyToolbox({
                       正在生成...
                     </div>
                   )}
+                </div>
+
+                <div className="w-full text-center">
+                  <span className="text-xs text-coconut-500 dark:text-darkbg-muted">
+                    输出: {qrSize}×{qrSize}px · {qrLogoFile ? "H" : qrErrorLevel} 纠错 · {qrDotStyle === "square" ? "方块" : qrDotStyle === "rounded" ? "圆角" : "圆点"}
+                  </span>
                 </div>
 
                 <div className="flex space-x-3 w-full">
