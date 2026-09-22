@@ -113,6 +113,32 @@ class EditorService:
                     color_hex = mod.get("color", "#000000")
                     color_rgb = cls._hex_to_rgb(color_hex)
 
+            # 加载 CJK 中文字体用于替换或新增文本
+            cjk_font = pymupdf.Font("china-s")
+            font_buffer = cjk_font.buffer
+
+            for page in doc:
+                page.insert_font(fontname="cjk", fontbuffer=font_buffer)
+
+            for mod in modifications:
+                page_index = int(mod.get("pageIndex", 0))
+                if page_index < 0 or page_index >= len(doc):
+                    continue
+
+                page = doc[page_index]
+                mod_type = mod.get("type")
+
+                if mod_type == "replace":
+                    # 替换模式：遮盖旧文本并在相同基线位置绘制新文本
+                    x0 = float(mod["x0"])
+                    y0 = float(mod["y0"])
+                    x1 = float(mod["x1"])
+                    y1 = float(mod["y1"])
+                    new_text = mod.get("newText", "")
+                    font_size = float(mod.get("fontSize", 12))
+                    color_hex = mod.get("color", "#000000")
+                    color_rgb = cls._hex_to_rgb(color_hex)
+
                     # 涂抹遮盖原文字
                     rect = pymupdf.Rect(x0, y0, x1, y1)
                     page.draw_rect(rect, color=(1, 1, 1), fill=(1, 1, 1))
@@ -123,6 +149,7 @@ class EditorService:
                         page.insert_text(
                             insert_point,
                             new_text,
+                            fontname="cjk",
                             fontsize=font_size,
                             color=color_rgb
                         )
@@ -149,11 +176,17 @@ class EditorService:
                         page.insert_text(
                             pymupdf.Point(x, y),
                             text,
+                            fontname="cjk",
                             fontsize=font_size,
                             color=color_rgb
                         )
 
-            doc.save(str(output_path))
+            try:
+                doc.subset_fonts()
+            except Exception:
+                pass
+
+            doc.save(str(output_path), deflate=True, garbage=4)
             doc.close()
 
             if not output_path.exists() or output_path.stat().st_size == 0:

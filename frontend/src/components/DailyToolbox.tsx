@@ -158,6 +158,7 @@ export default function DailyToolbox({
   const [qrMargin, setQrMargin] = useState(2);
   const [qrBorderWidth, setQrBorderWidth] = useState(0);
   const [qrBorderColor, setQrBorderColor] = useState("#2b1e16");
+  const [qrBorderRadius, setQrBorderRadius] = useState(0);
   const [qrErrorLevel, setQrErrorLevel] = useState<"L" | "M" | "Q" | "H">("M");
 
   // 实时更新二维码
@@ -176,11 +177,12 @@ export default function DailyToolbox({
       margin: qrMargin,
       borderWidth: qrBorderWidth,
       borderColor: qrBorderColor,
+      borderRadius: qrBorderRadius,
     }).then(({ dataUrl, blob }) => {
       setQrResultUrl(dataUrl);
       setQrResultBlob(blob);
     });
-  }, [activeTab, qrText, qrFgColor, qrBgColor, qrGradient, qrGradColor, qrLogoFile, qrSize, qrDotStyle, qrMargin, qrBorderWidth, qrBorderColor, qrErrorLevel]);
+  }, [activeTab, qrText, qrFgColor, qrBgColor, qrGradient, qrGradColor, qrLogoFile, qrSize, qrDotStyle, qrMargin, qrBorderWidth, qrBorderColor, qrBorderRadius, qrErrorLevel]);
 
   // =======================================================
   // 3. 文本 Diff 状态
@@ -589,7 +591,7 @@ export default function DailyToolbox({
                   </div>
                 </div>
 
-                {/* 边距 & 边框 */}
+                {/* 边距 & 边框粗细 */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
@@ -611,7 +613,7 @@ export default function DailyToolbox({
                     <input
                       type="range"
                       min={0}
-                      max={8}
+                      max={12}
                       value={qrBorderWidth}
                       onChange={(e) => setQrBorderWidth(Number(e.target.value))}
                       className="w-full h-2 rounded-lg appearance-none bg-coconut-200 dark:bg-darkbg-border accent-palm-500 cursor-pointer"
@@ -619,21 +621,68 @@ export default function DailyToolbox({
                   </div>
                 </div>
 
-                {/* 边框颜色 (仅在有边框时显示) */}
-                {qrBorderWidth > 0 && (
-                  <div className="space-y-1.5">
-                    <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">边框颜色</span>
-                    <div className="flex items-center space-x-2.5">
-                      <input
-                        type="color"
-                        value={qrBorderColor}
-                        onChange={(e) => setQrBorderColor(e.target.value)}
-                        className="w-9 h-9 rounded-lg border border-coconut-300 dark:border-darkbg-border cursor-pointer bg-transparent"
-                      />
-                      <span className="text-sm font-mono font-semibold text-coconut-800 dark:text-darkbg-muted">{qrBorderColor}</span>
-                    </div>
+                {/* 边框圆滑度 (圆角) 与 颜色 */}
+                <div className="p-3.5 bg-coconut-100/40 dark:bg-darkbg-subtle/50 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                      边框圆滑度 / 圆角
+                    </span>
+                    <span className="text-xs font-mono font-semibold text-palm-600 dark:text-palm-400">
+                      {qrBorderRadius === 0 ? "直角 (0px)" : `${qrBorderRadius}px`}
+                    </span>
                   </div>
-                )}
+
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { r: 0, label: "直角" },
+                      { r: 12, label: "微圆 (12px)" },
+                      { r: 24, label: "圆滑 (24px)" },
+                      { r: 36, label: "大圆 (36px)" },
+                      { r: 48, label: "超圆 (48px)" },
+                    ].map((item) => (
+                      <button
+                        key={item.r}
+                        type="button"
+                        onClick={() => setQrBorderRadius(item.r)}
+                        className={`px-3 py-1 text-xs font-bold rounded-xl border transition-all active:scale-95 ${
+                          qrBorderRadius === item.r
+                            ? "bg-palm-500 text-white border-palm-500 shadow-sm"
+                            : "bg-white/80 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted border-coconut-200 dark:border-darkbg-border hover:bg-coconut-100"
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="pt-1">
+                    <input
+                      type="range"
+                      min={0}
+                      max={56}
+                      step={2}
+                      value={qrBorderRadius}
+                      onChange={(e) => setQrBorderRadius(Number(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none bg-coconut-200 dark:bg-darkbg-border accent-palm-500 cursor-pointer"
+                    />
+                  </div>
+
+                  {/* 边框颜色 (仅在有边框粗细时提供选色) */}
+                  {qrBorderWidth > 0 && (
+                    <div className="flex items-center justify-between pt-2 border-t border-coconut-200/50 dark:border-darkbg-border">
+                      <span className="text-xs font-semibold text-coconut-800 dark:text-darkbg-text">边框描边颜色:</span>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="color"
+                          value={qrBorderColor}
+                          onChange={(e) => setQrBorderColor(e.target.value)}
+                          className="w-7 h-7 rounded-lg border border-coconut-300 dark:border-darkbg-border cursor-pointer bg-transparent"
+                        />
+                        <span className="text-xs font-mono font-semibold text-coconut-800 dark:text-darkbg-muted">{qrBorderColor}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* 渐变色开关 */}
                 <div className="p-3.5 bg-coconut-100/40 dark:bg-darkbg-subtle/50 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border flex items-center justify-between">
@@ -712,7 +761,7 @@ export default function DailyToolbox({
 
                 <div className="w-full text-center">
                   <span className="text-xs text-coconut-500 dark:text-darkbg-muted">
-                    输出: {qrSize}×{qrSize}px · {qrLogoFile ? "H" : qrErrorLevel} 纠错 · {qrDotStyle === "square" ? "方块" : qrDotStyle === "rounded" ? "圆角" : "圆点"}
+                    输出: {qrSize}×{qrSize}px · {qrLogoFile ? "H" : qrErrorLevel} 纠错 · {qrDotStyle === "square" ? "方块" : qrDotStyle === "rounded" ? "圆角" : "圆点"} · {qrBorderWidth > 0 ? (qrBorderRadius > 0 ? `圆滑边框(${qrBorderRadius}px)` : "直角边框") : (qrBorderRadius > 0 ? `圆角卡片(${qrBorderRadius}px)` : "无边框")}
                   </span>
                 </div>
 

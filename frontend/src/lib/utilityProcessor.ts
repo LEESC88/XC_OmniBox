@@ -247,6 +247,7 @@ export async function generateCustomQrCode(options: {
   margin?: number;
   borderWidth?: number;
   borderColor?: string;
+  borderRadius?: number;
 }): Promise<{ dataUrl: string; blob: Blob }> {
   const size = options.size || 512;
   const fgColor = options.fgColor || "#000000";
@@ -255,6 +256,7 @@ export async function generateCustomQrCode(options: {
   const margin = options.margin ?? 2;
   const borderWidth = options.borderWidth ?? 0;
   const borderColor = options.borderColor || fgColor;
+  const borderRadius = Math.max(0, options.borderRadius ?? 0);
   const ecLevel = options.logoFile ? "H" : options.errorCorrection || "M";
 
   // 1. 使用 QRCode.create() 获取模块矩阵数据
@@ -276,9 +278,19 @@ export async function generateCustomQrCode(options: {
   const offsetX = margin * moduleSize;
   const offsetY = margin * moduleSize;
 
-  // 3. 绘制背景
-  ctx.fillStyle = bgColor;
-  ctx.fillRect(0, 0, size, size);
+  // 3. 绘制背景 (支持圆角/圆滑外框裁剪)
+  if (borderRadius > 0) {
+    ctx.beginPath();
+    ctx.roundRect(0, 0, size, size, borderRadius);
+    ctx.fillStyle = bgColor;
+    ctx.fill();
+    // 限制绘制区域，防止四周码点超出圆角边缘
+    ctx.save();
+    ctx.clip();
+  } else {
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, size, size);
+  }
 
   // 4. 渐变色预计算
   const useGradient = options.gradient && options.gradientColor;
@@ -330,12 +342,25 @@ export async function generateCustomQrCode(options: {
     }
   }
 
-  // 6. 绘制边框
+  // 恢复画布裁剪状态
+  if (borderRadius > 0) {
+    ctx.restore();
+  }
+
+  // 6. 绘制边框 (支持圆滑圆角)
   if (borderWidth > 0) {
     ctx.strokeStyle = borderColor;
     ctx.lineWidth = borderWidth;
     const bHalf = borderWidth / 2;
-    ctx.strokeRect(bHalf, bHalf, size - borderWidth, size - borderWidth);
+    const bSize = size - borderWidth;
+    if (borderRadius > 0) {
+      const r = Math.max(0, borderRadius - bHalf);
+      ctx.beginPath();
+      ctx.roundRect(bHalf, bHalf, bSize, bSize, r);
+      ctx.stroke();
+    } else {
+      ctx.strokeRect(bHalf, bHalf, bSize, bSize);
+    }
   }
 
   // 7. 如果嵌入 Logo

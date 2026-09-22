@@ -107,31 +107,49 @@ class PdfService:
             import pymupdf
             
             doc = pymupdf.open(str(pdf_path))
+            
+            # 加载内置 CJK 中文字体 (Droid Sans Fallback)，确保中文/日文/韩文及特殊字符正常渲染，杜绝菱形方框乱码
+            cjk_font = pymupdf.Font("china-s")
+            font_buffer = cjk_font.buffer
+
+            font_size = max(8, font_size)
+            opacity = max(0.05, min(1.0, opacity))
+
             for page in doc:
+                # 注册 CJK 字体到当前页面
+                page.insert_font(fontname="cjk", fontbuffer=font_buffer)
+                
                 rect = page.rect
                 center_point = pymupdf.Point(rect.width / 2, rect.height / 2)
                 
-                # 如果是标准正交角度使用 rotate，非正交角度使用 morph 变换
-                if angle in (0, 90, 180, 270):
-                    page.insert_text(
-                        center_point,
-                        watermark_text,
-                        fontsize=font_size,
-                        rotate=angle,
-                        color=(0.5, 0.5, 0.5),
-                        fill_opacity=opacity
-                    )
-                else:
-                    mat = pymupdf.Matrix(angle)
-                    page.insert_text(
-                        center_point,
-                        watermark_text,
-                        fontsize=font_size,
-                        morph=(center_point, mat),
-                        color=(0.5, 0.5, 0.5),
-                        fill_opacity=opacity
-                    )
-            doc.save(str(output_path))
+                # 计算水印文字的精确排版宽度以实现真正居中
+                try:
+                    text_len = pymupdf.get_text_length(watermark_text, fontname="china-s", fontsize=font_size)
+                except Exception:
+                    text_len = len(watermark_text) * font_size * 0.9
+
+                # 垂直微调 baseline 保证视觉严格居中
+                start_pt = pymupdf.Point(center_point.x - text_len / 2, center_point.y + font_size * 0.35)
+                
+                # 使用 Matrix morph 变换实现全角度平滑无畸变倾斜旋转
+                mat = pymupdf.Matrix(angle)
+                page.insert_text(
+                    start_pt,
+                    watermark_text,
+                    fontname="cjk",
+                    fontsize=font_size,
+                    morph=(center_point, mat),
+                    color=(0.5, 0.5, 0.5),
+                    fill_opacity=opacity
+                )
+
+            # 执行字体子集化压缩 (Font Subsetting)，将嵌入字体体积从几兆压缩到十几KB
+            try:
+                doc.subset_fonts()
+            except Exception:
+                pass
+
+            doc.save(str(output_path), deflate=True, garbage=4)
             doc.close()
             return output_path
         except Exception as e:

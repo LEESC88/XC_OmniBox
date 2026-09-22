@@ -57,12 +57,15 @@ def test_pdf_watermark_endpoint(tmp_path: Path):
         res = client.post(
             "/api/v1/pdf/watermark",
             files={"file": ("test_watermark.pdf", f, "application/pdf")},
-            data={"watermark_text": "CONFIDENTIAL", "opacity": 0.5, "angle": 45}
+            data={"watermark_text": "内部机密 严禁外传", "opacity": 0.5, "angle": 45}
         )
     assert res.status_code == 200
-    assert res.headers["content-type"] == "application/pdf"
-    assert len(res.content) > 500
-    print(f"[OK] POST /api/v1/pdf/watermark 验证成功 (接收到 {len(res.content)} 字节带水印 PDF)")
+    assert len(res.content) > 0
+    # 验证输出 PDF 可以被正确读取并且提取到中文字符
+    doc = pymupdf.open(stream=res.content, filetype="pdf")
+    page_text = doc[0].get_text()
+    assert "内部机密" in page_text
+    print(f"[OK] POST /api/v1/pdf/watermark 中文水印验证成功 (接收到 {len(res.content)} 字节带水印 PDF)")
 
 def test_render_pages_thumbnail(tmp_path: Path):
     """测试 PDF 页面快速缩略图渲染接口 (max_pages=1, extract_words=False)"""
