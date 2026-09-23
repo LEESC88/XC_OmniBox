@@ -20,6 +20,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { applyPdfModifications, downloadBlob } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 interface Block {
   id: string;
@@ -72,6 +73,7 @@ export default function InPlacePdfEditor({
   pages,
   onExit,
 }: InPlacePdfEditorProps) {
+  const { lang } = useI18n();
   const [currentPage, setCurrentPage] = useState(0);
   const [scale, setScale] = useState(1.0); // 缩放比例
   const [mode, setMode] = useState<EditMode>("replace");
@@ -127,7 +129,7 @@ export default function InPlacePdfEditor({
     };
     setModifications((prev) => [...prev, newMod]);
     setActiveReplaceBlock(null);
-    showToast("success", "已就地替换文字");
+    showToast("success", lang === "en" ? "Text replaced in place" : "已就地替换文字");
   };
 
   // 涂抹拖拽逻辑
@@ -169,7 +171,7 @@ export default function InPlacePdfEditor({
           y1,
         };
         setModifications((prev) => [...prev, newMod]);
-        showToast("success", "已涂抹遮白所选区域");
+        showToast("success", lang === "en" ? "Selected area whited out" : "已涂抹遮白所选区域");
       }
       setDragStart(null);
       setCurrentDrag(null);
@@ -204,13 +206,13 @@ export default function InPlacePdfEditor({
     };
     setModifications((prev) => [...prev, newMod]);
     setNewTextDialog(null);
-    showToast("success", "已成功插入新文字");
+    showToast("success", lang === "en" ? "New text inserted successfully" : "已成功插入新文字");
   };
 
   const handleUndo = () => {
     if (modifications.length === 0) return;
     setModifications((prev) => prev.slice(0, prev.length - 1));
-    showToast("success", "已撤销最近修改");
+    showToast("success", lang === "en" ? "Undid last modification" : "已撤销最近修改");
   };
 
   // 导出原子级修改后的 PDF
@@ -219,9 +221,9 @@ export default function InPlacePdfEditor({
     try {
       const { blob, filename } = await applyPdfModifications(originalFile, modifications);
       downloadBlob(blob, filename);
-      showToast("success", "已生成并下载 100% 原版不跑偏 PDF！");
+      showToast("success", lang === "en" ? "Generated and downloaded 100% true-layout PDF!" : "已生成并下载 100% 原版不跑偏 PDF！");
     } catch (err: any) {
-      showToast("error", err.message || "导出失败");
+      showToast("error", err.message || (lang === "en" ? "Export failed" : "导出失败"));
     } finally {
       setLoadingExport(false);
     }
@@ -239,7 +241,7 @@ export default function InPlacePdfEditor({
           <button
             onClick={onExit}
             className="p-2 rounded-xl text-coconut-600 dark:text-darkbg-muted hover:text-coconut-900 dark:hover:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-colors active:scale-95"
-            title="返回重选"
+            title={lang === "en" ? "Back to reselect" : "返回重选"}
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -247,11 +249,13 @@ export default function InPlacePdfEditor({
             <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text flex items-center gap-2 truncate max-w-[200px] sm:max-w-xs">
               <span>{docTitle}.pdf</span>
               <span className="text-[10px] px-2 py-0.5 rounded-md bg-toast-100 dark:bg-toast-950/60 text-toast-800 dark:text-toast-300 font-semibold border border-toast-200/60 dark:border-toast-900/50">
-                1:1 原版模式
+                {lang === "en" ? "1:1 Native Mode" : "1:1 原版模式"}
               </span>
             </h3>
             <p className="text-[11px] text-coconut-500 dark:text-darkbg-muted">
-              已就地修改 {modifications.length} 处 · 原版排版 100% 绝不跑偏
+              {lang === "en"
+                ? `${modifications.length} modification(s) · 100% original layout preserved`
+                : `已就地修改 ${modifications.length} 处 · 原版排版 100% 绝不跑偏`}
             </p>
           </div>
         </div>
@@ -270,7 +274,7 @@ export default function InPlacePdfEditor({
             }`}
           >
             <Edit3 className={`w-3.5 h-3.5 ${mode === "replace" ? "text-palm-300 dark:text-palm-700" : "text-coconut-600 dark:text-darkbg-muted"}`} />
-            <span>原位改字</span>
+            <span>{lang === "en" ? "In-place Text" : "原位改字"}</span>
           </button>
 
           <button
@@ -285,7 +289,7 @@ export default function InPlacePdfEditor({
             }`}
           >
             <Eraser className="w-3.5 h-3.5 text-toast-500" />
-            <span>修正带涂抹</span>
+            <span>{lang === "en" ? "Whiteout" : "修正带涂抹"}</span>
           </button>
 
           <button
@@ -300,7 +304,7 @@ export default function InPlacePdfEditor({
             }`}
           >
             <Type className="w-3.5 h-3.5 text-palm-500" />
-            <span>新增文字</span>
+            <span>{lang === "en" ? "Add Text" : "新增文字"}</span>
           </button>
         </div>
 
@@ -311,7 +315,7 @@ export default function InPlacePdfEditor({
             onClick={handleUndo}
             disabled={modifications.length === 0}
             className="p-2 rounded-xl border border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100 dark:hover:bg-darkbg-elevated disabled:opacity-30 active:scale-95 transition-all"
-            title="撤销上一步"
+            title={lang === "en" ? "Undo" : "撤销上一步"}
           >
             <Undo2 className="w-4 h-4" />
           </button>
@@ -321,7 +325,7 @@ export default function InPlacePdfEditor({
             <button
               onClick={() => setScale((s) => Math.max(0.6, s - 0.15))}
               className="px-2.5 py-1.5 hover:bg-coconut-100 dark:hover:bg-darkbg-elevated border-r border-coconut-200 dark:border-darkbg-border transition-colors"
-              title="缩小"
+              title={lang === "en" ? "Zoom Out" : "缩小"}
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
@@ -329,7 +333,7 @@ export default function InPlacePdfEditor({
             <button
               onClick={() => setScale((s) => Math.min(1.8, s + 0.15))}
               className="px-2.5 py-1.5 hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-colors"
-              title="放大"
+              title={lang === "en" ? "Zoom In" : "放大"}
             >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
@@ -346,7 +350,7 @@ export default function InPlacePdfEditor({
             ) : (
               <Download className="w-4 h-4" />
             )}
-            <span>导出修改后 PDF</span>
+            <span>{lang === "en" ? "Export Edited PDF" : "导出修改后 PDF"}</span>
           </button>
         </div>
       </div>
@@ -486,10 +490,10 @@ export default function InPlacePdfEditor({
                     width: `${width}%`,
                     height: `${height}%`,
                   }}
-                  title="点击原地替换文字"
+                  title={lang === "en" ? "Click to replace text" : "点击原地替换文字"}
                 >
                   <span className="hidden group-hover:flex absolute -top-6 left-0 bg-palm-700 text-white text-[10px] px-2 py-0.5 rounded-md shadow-coconut-sm whitespace-nowrap items-center gap-1 z-30 font-medium">
-                    <Edit3 className="w-2.5 h-2.5" /> 点击就地改字
+                    <Edit3 className="w-2.5 h-2.5" /> {lang === "en" ? "Click to edit text" : "点击就地改字"}
                   </span>
                 </div>
               );
@@ -503,7 +507,10 @@ export default function InPlacePdfEditor({
           <div className="bg-white dark:bg-darkbg-card rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-coconut-lg border border-coconut-200 dark:border-darkbg-border animate-fade-in">
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-coconut-100 dark:border-darkbg-border">
               <span className="text-xs font-bold text-coconut-900 dark:text-darkbg-text flex items-center gap-1.5">
-                <Edit3 className="w-4 h-4 text-palm-600 dark:text-palm-400" /> 原位替换文字 (保持原位置不跑偏)
+                <Edit3 className="w-4 h-4 text-palm-600 dark:text-palm-400" />{" "}
+                {lang === "en"
+                  ? "In-place Text Replacement (Preserves layout)"
+                  : "原位替换文字 (保持原位置不跑偏)"}
               </span>
               <button
                 onClick={() => setActiveReplaceBlock(null)}
@@ -515,27 +522,33 @@ export default function InPlacePdfEditor({
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] text-coconut-500 dark:text-darkbg-muted mb-1 font-medium">原文字内容：</label>
+                <label className="block text-[11px] text-coconut-500 dark:text-darkbg-muted mb-1 font-medium">
+                  {lang === "en" ? "Original text:" : "原文字内容："}
+                </label>
                 <div className="text-xs p-2.5 bg-coconut-50 dark:bg-darkbg-subtle rounded-xl text-coconut-600 dark:text-darkbg-muted border border-coconut-200/60 dark:border-darkbg-border max-h-20 overflow-y-auto font-mono">
                   {activeReplaceBlock.text}
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] text-coconut-800 dark:text-darkbg-text mb-1 font-semibold">修改后的新文字：</label>
+                <label className="block text-[11px] text-coconut-800 dark:text-darkbg-text mb-1 font-semibold">
+                  {lang === "en" ? "New replacement text:" : "修改后的新文字："}
+                </label>
                 <textarea
                   rows={3}
                   value={replaceText}
                   onChange={(e) => setReplaceText(e.target.value)}
                   className="w-full text-xs p-3 bg-coconut-50 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-xl outline-none focus:ring-2 focus:ring-palm-500/20 focus:border-palm-500 font-sans text-coconut-900 dark:text-darkbg-text"
-                  placeholder="在此输入新的文字内容..."
+                  placeholder={lang === "en" ? "Enter replacement text here..." : "在此输入新的文字内容..."}
                   autoFocus
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] text-coconut-700 dark:text-darkbg-muted mb-1">字号大小 ({replaceFontSize} pt)</label>
+                  <label className="block text-[11px] text-coconut-700 dark:text-darkbg-muted mb-1">
+                    {lang === "en" ? `Font Size (${replaceFontSize} pt)` : `字号大小 (${replaceFontSize} pt)`}
+                  </label>
                   <input
                     type="number"
                     min="6"
@@ -546,7 +559,9 @@ export default function InPlacePdfEditor({
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-coconut-700 dark:text-darkbg-muted mb-1">文字颜色</label>
+                  <label className="block text-[11px] text-coconut-700 dark:text-darkbg-muted mb-1">
+                    {lang === "en" ? "Text Color" : "文字颜色"}
+                  </label>
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
@@ -564,13 +579,13 @@ export default function InPlacePdfEditor({
                   onClick={() => setActiveReplaceBlock(null)}
                   className="px-3.5 py-2 text-xs text-coconut-600 dark:text-darkbg-muted hover:bg-coconut-100 dark:hover:bg-darkbg-elevated rounded-xl font-medium transition-colors"
                 >
-                  取消
+                  {lang === "en" ? "Cancel" : "取消"}
                 </button>
                 <button
                   onClick={handleConfirmReplace}
                   className="px-4 py-2 text-xs bg-gradient-to-r from-palm-600 to-palm-700 hover:from-palm-700 hover:to-palm-800 text-white rounded-xl font-semibold shadow-coconut-sm flex items-center gap-1 active:scale-95 transition-all"
                 >
-                  <Check className="w-3.5 h-3.5" /> 确认替换
+                  <Check className="w-3.5 h-3.5" /> {lang === "en" ? "Confirm Replace" : "确认替换"}
                 </button>
               </div>
             </div>
@@ -584,7 +599,8 @@ export default function InPlacePdfEditor({
           <div className="bg-white dark:bg-darkbg-card rounded-3xl p-5 sm:p-6 max-w-sm w-full shadow-coconut-lg border border-coconut-200 dark:border-darkbg-border animate-fade-in">
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-coconut-100 dark:border-darkbg-border">
               <span className="text-xs font-bold text-coconut-900 dark:text-darkbg-text flex items-center gap-1.5">
-                <Type className="w-4 h-4 text-palm-600 dark:text-palm-400" /> 在选定位置插入文字
+                <Type className="w-4 h-4 text-palm-600 dark:text-palm-400" />{" "}
+                {lang === "en" ? "Insert Text at Position" : "在选定位置插入文字"}
               </span>
               <button
                 onClick={() => setNewTextDialog(null)}
@@ -597,7 +613,7 @@ export default function InPlacePdfEditor({
               type="text"
               value={addedText}
               onChange={(e) => setAddedText(e.target.value)}
-              placeholder="请输入需要添加的文字..."
+              placeholder={lang === "en" ? "Enter text to insert..." : "请输入需要添加的文字..."}
               className="w-full text-xs p-2.5 bg-coconut-50 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-xl outline-none focus:ring-2 focus:ring-palm-500/20 focus:border-palm-500 mb-4 text-coconut-900 dark:text-darkbg-text"
               autoFocus
             />
@@ -606,13 +622,13 @@ export default function InPlacePdfEditor({
                 onClick={() => setNewTextDialog(null)}
                 className="px-3.5 py-2 text-xs text-coconut-600 dark:text-darkbg-muted hover:bg-coconut-100 dark:hover:bg-darkbg-elevated rounded-xl font-medium transition-colors"
               >
-                取消
+                {lang === "en" ? "Cancel" : "取消"}
               </button>
               <button
                 onClick={handleConfirmAddText}
                 className="px-4 py-2 text-xs bg-gradient-to-r from-palm-600 to-palm-700 hover:from-palm-700 hover:to-palm-800 text-white rounded-xl font-semibold shadow-coconut-sm active:scale-95 transition-all"
               >
-                确认插入
+                {lang === "en" ? "Insert Text" : "确认插入"}
               </button>
             </div>
           </div>
@@ -623,7 +639,11 @@ export default function InPlacePdfEditor({
       <div className="w-full bg-white/90 dark:bg-darkbg-card/90 backdrop-blur-md border-t border-coconut-200/70 dark:border-darkbg-border py-2.5 px-6 flex items-center justify-between text-xs text-coconut-600 dark:text-darkbg-muted">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-palm-500"></span>
-          <span>1:1 原版物理层锁定 · 格式与间距 100% 不跑偏</span>
+          <span>
+            {lang === "en"
+              ? "1:1 Native layout lock · 100% format & spacing preserved"
+              : "1:1 原版物理层锁定 · 格式与间距 100% 不跑偏"}
+          </span>
         </div>
 
         {/* 翻页器 */}
@@ -633,18 +653,18 @@ export default function InPlacePdfEditor({
               onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
               disabled={currentPage === 0}
               className="p-1 hover:text-coconut-900 dark:hover:text-darkbg-text disabled:opacity-30"
-              title="上一页"
+              title={lang === "en" ? "Previous Page" : "上一页"}
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <span className="font-mono text-xs font-semibold text-coconut-800 dark:text-darkbg-text">
-              第 {currentPage + 1} / {numPages} 页
+              {lang === "en" ? `Page ${currentPage + 1} / ${numPages}` : `第 ${currentPage + 1} / ${numPages} 页`}
             </span>
             <button
               onClick={() => setCurrentPage((p) => Math.min(numPages - 1, p + 1))}
               disabled={currentPage >= numPages - 1}
               className="p-1 hover:text-coconut-900 dark:hover:text-darkbg-text disabled:opacity-30"
-              title="下一页"
+              title={lang === "en" ? "Next Page" : "下一页"}
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -652,7 +672,9 @@ export default function InPlacePdfEditor({
         )}
 
         <span className="hidden sm:inline text-coconut-400 dark:text-darkbg-muted font-mono">
-          原始尺寸: {page.width} x {page.height} pt
+          {lang === "en"
+            ? `Original size: ${page.width} x ${page.height} pt`
+            : `原始尺寸: ${page.width} x ${page.height} pt`}
         </span>
       </div>
     </div>

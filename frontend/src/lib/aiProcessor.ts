@@ -225,11 +225,41 @@ export interface OcrResult {
 }
 
 export const OCR_LANGUAGES = [
-  { id: "chi_sim+eng", label: "中文简体 + 英文 (推荐)", desc: "适用于绝大多数中文文档、书籍、收据和截图" },
-  { id: "chi_sim", label: "纯简体中文", desc: "专注中文印刷体与手写体识别" },
-  { id: "eng", label: "English (纯英文)", desc: "专注英文报告、学术文献、代码段落识别" },
-  { id: "chi_tra+eng", label: "中文繁體 + English", desc: "港澳台及古籍传统繁体中文提取" },
-  { id: "jpn+eng", label: "日本語 + English", desc: "日文动漫、说明书及日常文本抽取" },
+  {
+    id: "chi_sim+eng",
+    label: "中文简体 + 英文 (推荐)",
+    labelEn: "Simplified Chinese + English (Recommended)",
+    desc: "适用于绝大多数中文文档、书籍、收据和截图",
+    descEn: "Suitable for most Chinese documents, books, receipts and screenshots",
+  },
+  {
+    id: "chi_sim",
+    label: "纯简体中文",
+    labelEn: "Simplified Chinese",
+    desc: "专注中文印刷体与手写体识别",
+    descEn: "Focused on printed and handwritten Chinese text recognition",
+  },
+  {
+    id: "eng",
+    label: "English (纯英文)",
+    labelEn: "English",
+    desc: "专注英文报告、学术文献、代码段落识别",
+    descEn: "Focused on English reports, academic literature, and code snippets",
+  },
+  {
+    id: "chi_tra+eng",
+    label: "中文繁體 + English",
+    labelEn: "Traditional Chinese + English",
+    desc: "港澳台及古籍传统繁体中文提取",
+    descEn: "Traditional Chinese extraction for Hong Kong, Taiwan, and classical texts",
+  },
+  {
+    id: "jpn+eng",
+    label: "日本語 + English",
+    labelEn: "Japanese + English",
+    desc: "日文动漫、说明书及日常文本抽取",
+    descEn: "Japanese text extraction for manuals and daily documents",
+  },
 ];
 
 /**

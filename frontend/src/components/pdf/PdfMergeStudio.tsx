@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { formatBytes } from "@/lib/imageProcessor";
 import { renderPdfPages, downloadBlob } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 interface PdfMergeStudioProps {
   files: File[];
@@ -46,6 +47,7 @@ export default function PdfMergeStudio({
   executionResult,
   onReset,
 }: PdfMergeStudioProps) {
+  const { lang } = useI18n();
   const [thumbnails, setThumbnails] = useState<Record<string, FileThumbnailInfo>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -144,10 +146,14 @@ export default function PdfMergeStudio({
         <div>
           <h3 className="text-base font-bold text-coconut-950 dark:text-darkbg-text flex items-center gap-2">
             <Combine className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-            <span>PDF 自由调序合并工作台</span>
+            <span>
+              {lang === "en" ? "PDF Free Reorder & Merge Studio" : "PDF 自由调序合并工作台"}
+            </span>
           </h3>
           <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
-            已上传 {files.length} 个文件 · 最终合并文档将严格按照当前从上至下的次序拼合
+            {lang === "en"
+              ? `${files.length} files uploaded · Final document will merge strictly in top-to-bottom order`
+              : `已上传 ${files.length} 个文件 · 最终合并文档将严格按照当前从上至下的次序拼合`}
           </p>
         </div>
 
@@ -158,16 +164,16 @@ export default function PdfMergeStudio({
             className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-darkbg-card border border-coconut-300 dark:border-darkbg-border hover:border-orange-500 text-coconut-800 dark:text-darkbg-text hover:text-orange-600 transition-all flex items-center gap-1.5 shadow-2xs active:scale-95"
           >
             <Plus className="w-3.5 h-3.5 text-orange-600" />
-            <span>追加更多 PDF</span>
+            <span>{lang === "en" ? "Append More PDFs" : "追加更多 PDF"}</span>
           </button>
           {files.length > 1 && (
             <button
               onClick={handleReverse}
               className="px-3 py-1.5 rounded-xl text-xs font-medium bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:text-coconut-950 dark:hover:text-white transition-all flex items-center gap-1 active:scale-95"
-              title="一键颠倒全部文件的合并顺序"
+              title={lang === "en" ? "Reverse order of all files" : "一键颠倒全部文件的合并顺序"}
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>翻转顺序</span>
+              <span>{lang === "en" ? "Reverse Order" : "翻转顺序"}</span>
             </button>
           )}
           <button
@@ -175,7 +181,7 @@ export default function PdfMergeStudio({
             className="px-3 py-1.5 rounded-xl text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-all flex items-center gap-1 active:scale-95"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>清空全部</span>
+            <span>{lang === "en" ? "Clear All" : "清空全部"}</span>
           </button>
         </div>
       </div>
@@ -224,10 +230,14 @@ export default function PdfMergeStudio({
                 <div className="flex items-center gap-2 mt-1 text-[11px] text-coconut-600 dark:text-darkbg-muted font-medium">
                   <span className="font-mono">{formatBytes(file.size)}</span>
                   <span>·</span>
-                  <span>{thumb?.numPages ? `共 ${thumb.numPages} 页` : "PDF 格式"}</span>
+                  <span>
+                    {thumb?.numPages
+                      ? (lang === "en" ? `${thumb.numPages} pages` : `共 ${thumb.numPages} 页`)
+                      : (lang === "en" ? "PDF format" : "PDF 格式")}
+                  </span>
                   <span className="hidden sm:inline">·</span>
                   <span className="hidden sm:inline text-orange-700 dark:text-orange-300">
-                    第 {idx + 1} 位参与拼合
+                    {lang === "en" ? `#${idx + 1} in sequence` : `第 ${idx + 1} 位参与拼合`}
                   </span>
                 </div>
               </div>
@@ -238,7 +248,7 @@ export default function PdfMergeStudio({
                   type="button"
                   onClick={() => handleMoveUp(idx)}
                   disabled={idx === 0}
-                  title="上移此文件 (提前合并)"
+                  title={lang === "en" ? "Move up (merge earlier)" : "上移此文件 (提前合并)"}
                   className={`p-1.5 sm:p-2 rounded-xl border transition-all active:scale-90 ${
                     idx === 0
                       ? "opacity-30 cursor-not-allowed border-transparent text-coconut-400"
@@ -252,7 +262,7 @@ export default function PdfMergeStudio({
                   type="button"
                   onClick={() => handleMoveDown(idx)}
                   disabled={idx === files.length - 1}
-                  title="下移此文件 (靠后合并)"
+                  title={lang === "en" ? "Move down (merge later)" : "下移此文件 (靠后合并)"}
                   className={`p-1.5 sm:p-2 rounded-xl border transition-all active:scale-90 ${
                     idx === files.length - 1
                       ? "opacity-30 cursor-not-allowed border-transparent text-coconut-400"
@@ -265,7 +275,7 @@ export default function PdfMergeStudio({
                 <button
                   type="button"
                   onClick={() => handleRemove(idx)}
-                  title="从合并列表中移除"
+                  title={lang === "en" ? "Remove from merge list" : "从合并列表中移除"}
                   className="p-1.5 sm:p-2 rounded-xl border border-transparent hover:border-rose-300 dark:hover:border-rose-900/60 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 transition-all active:scale-90 ml-1"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -280,7 +290,11 @@ export default function PdfMergeStudio({
       {files.length < 2 && (
         <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center gap-2 text-amber-900 dark:text-amber-200 text-xs">
           <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-600" />
-          <span>合并至少需要 2 个 PDF 文件，请点击上方“追加更多 PDF”或继续拖入文件</span>
+          <span>
+            {lang === "en"
+              ? "Merging requires at least 2 PDF files. Please click 'Append More PDFs' above or drag more files in."
+              : "合并至少需要 2 个 PDF 文件，请点击上方“追加更多 PDF”或继续拖入文件"}
+          </span>
         </div>
       )}
 
@@ -311,12 +325,15 @@ export default function PdfMergeStudio({
                   {executionResult.filename}
                 </h4>
                 <p className="text-xs text-orange-800 dark:text-amber-300 font-mono font-medium">
-                  {formatBytes(executionResult.size)} · 成功合并 {files.length} 个文件
+                  {formatBytes(executionResult.size)} ·{" "}
+                  {lang === "en"
+                    ? `Successfully merged ${files.length} files`
+                    : `成功合并 ${files.length} 个文件`}
                 </p>
               </div>
             </div>
             <span className="hidden sm:inline-block px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-900 dark:text-amber-200 border border-amber-500/30 flex-shrink-0">
-              ✓ 就绪 · 点击下载
+              {lang === "en" ? "✓ Ready · Click to Download" : "✓ 就绪 · 点击下载"}
             </span>
           </div>
 
@@ -326,7 +343,7 @@ export default function PdfMergeStudio({
               className="flex-1 py-3 px-4 rounded-xl btn-3d-sunset text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-coconut-sm"
             >
               <Download className="w-4 h-4" />
-              <span>立即下载该文件</span>
+              <span>{lang === "en" ? "Download Merged PDF" : "立即下载该文件"}</span>
             </button>
 
             <button
@@ -334,7 +351,7 @@ export default function PdfMergeStudio({
               className="py-3 px-4 rounded-xl btn-3d-secondary font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>合并其它文件</span>
+              <span>{lang === "en" ? "Merge Other Files" : "合并其它文件"}</span>
             </button>
           </div>
         </div>
@@ -352,12 +369,16 @@ export default function PdfMergeStudio({
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>正在无损拼合中，请稍候...</span>
+              <span>{lang === "en" ? "Merging losslessly, please wait..." : "正在无损拼合中，请稍候..."}</span>
             </>
           ) : (
             <>
               <Sparkles className="w-4 h-4 text-amber-200" />
-              <span>开始合并选中的 {files.length} 个 PDF 文件</span>
+              <span>
+                {lang === "en"
+                  ? `Merge ${files.length} Selected PDF Files`
+                  : `开始合并选中的 ${files.length} 个 PDF 文件`}
+              </span>
             </>
           )}
         </button>

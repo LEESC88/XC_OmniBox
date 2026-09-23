@@ -40,6 +40,7 @@ def build():
         "--hidden-import", "uvicorn.lifespans",
         "--hidden-import", "uvicorn.lifespans.on",
         "--hidden-import", "fitz",
+        "--hidden-import", "pymupdf",
         "--hidden-import", "pdf2docx",
         "--hidden-import", "docx2pdf",
         "--hidden-import", "pypdf",

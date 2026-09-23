@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Edit3,
   FileText,
@@ -55,6 +55,7 @@ import PdfWatermarkStudio from "@/components/pdf/PdfWatermarkStudio";
 import UpdateModal from "@/components/UpdateModal";
 import SettingsModal from "@/components/SettingsModal";
 import CatPawLogo from "@/components/CatPawLogo";
+import { useI18n, getLocalizedTools } from "@/lib/i18n";
 import {
   getSavedTheme,
   applyCustomTheme,
@@ -164,6 +165,8 @@ const TOOLS_REGISTRY: { category: string; module: ModuleType; icon: any; tools: 
 ];
 
 export default function Home() {
+  const { lang, setLang, t } = useI18n();
+  const toolsRegistry = useMemo(() => getLocalizedTools(TOOLS_REGISTRY, lang), [lang]);
   const [activeModule, setActiveModule] = useState<ModuleType>("document");
   const [expandedModule, setExpandedModule] = useState<ModuleType | null>(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
@@ -260,10 +263,21 @@ export default function Home() {
   // 参数状态
   const [startPage, setStartPage] = useState<number>(0);
   const [pageRanges, setPageRanges] = useState<string>("");
-  const [watermarkText, setWatermarkText] = useState<string>("内部机密 严禁外传");
+  const [watermarkText, setWatermarkText] = useState<string>(() =>
+    lang === "en" ? "CONFIDENTIAL" : "内部机密 严禁外传"
+  );
   const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.3);
   const [watermarkAngle, setWatermarkAngle] = useState<number>(45);
   const [protectPassword, setProtectPassword] = useState<string>("");
+  const [conversionQuality, setConversionQuality] = useState<"light" | "standard" | "high">("high");
+
+  useEffect(() => {
+    if (lang === "en" && watermarkText === "内部机密 严禁外传") {
+      setWatermarkText("CONFIDENTIAL");
+    } else if (lang === "zh" && watermarkText === "CONFIDENTIAL") {
+      setWatermarkText("内部机密 严禁外传");
+    }
+  }, [lang]);
 
   // PDF 转 Word 缩略图预览状态
   const [pdfToWordThumb, setPdfToWordThumb] = useState<{
@@ -340,7 +354,7 @@ export default function Home() {
   // 启动 1:1 原版在线编辑工作台
   const handleStartEditor = async () => {
     if (files.length === 0) {
-      setError("请先上传需要编辑的 PDF 文件");
+      setError(lang === "en" ? "Please select a PDF file first" : "请先上传需要编辑的 PDF 文件");
       return;
     }
     setParsingEditor(true);
@@ -354,7 +368,7 @@ export default function Home() {
         pages: data.pages,
       });
     } catch (err: any) {
-      setError(err.message || "解析原版 PDF 失败");
+      setError(err.message || (lang === "en" ? "Failed to parse original PDF" : "解析原版 PDF 失败"));
     } finally {
       setParsingEditor(false);
     }
@@ -363,25 +377,25 @@ export default function Home() {
   const getActionBtnText = () => {
     switch (activeDocTab) {
       case "pdf-to-word":
-        return "开始逆向转换为 Word (.docx)";
+        return t.common.actionPdfToWord;
       case "word-to-pdf":
-        return "开始转换为高保真超清 PDF";
+        return t.common.actionWordToPdf;
       case "pdf-merge":
-        return `开始合并选中的 ${files.length} 个 PDF 文件`;
+        return t.common.actionPdfMerge.replace("{n}", String(files.length));
       case "pdf-split":
-        return "开始提取并拆分 PDF";
+        return t.common.actionPdfSplit;
       case "pdf-watermark":
-        return "开始添加文字水印并导出";
+        return t.common.actionPdfWatermark;
       case "pdf-protect":
-        return "开始加密并导出受保护 PDF";
+        return t.common.actionPdfProtect;
       default:
-        return "开始执行转换任务";
+        return t.common.startConvert;
     }
   };
 
   const handleExecute = async () => {
     if (files.length === 0) {
-      setError("请先上传需要处理的文件");
+      setError(t.common.pleaseUpload);
       return;
     }
 
@@ -399,12 +413,12 @@ export default function Home() {
         resultBlob = res.blob;
         resultFilename = res.filename;
       } else if (activeDocTab === "word-to-pdf") {
-        const res = await convertWordToPdf(files[0]);
+        const res = await convertWordToPdf(files[0], conversionQuality);
         resultBlob = res.blob;
         resultFilename = res.filename;
       } else if (activeDocTab === "pdf-merge") {
         if (files.length < 2) {
-          throw new Error("合并至少需要选择 2 个 PDF 文件");
+          throw new Error(t.common.mergeAtLeastTwo);
         }
         const res = await mergePdfs(files);
         resultBlob = res.blob;
@@ -424,13 +438,13 @@ export default function Home() {
         resultFilename = res.filename;
       } else if (activeDocTab === "pdf-protect") {
         if (!protectPassword) {
-          throw new Error("请输入要设置的密码");
+          throw new Error(t.common.enterPasswordFirst);
         }
         const res = await protectPdf(files[0], protectPassword);
         resultBlob = res.blob;
         resultFilename = res.filename;
       } else {
-        throw new Error("未知的处理任务类型");
+        throw new Error(t.common.errorOccurred);
       }
 
       setExecutionResult({
@@ -439,9 +453,13 @@ export default function Home() {
         size: resultBlob.size,
       });
 
-      setSuccessMsg(`处理完成！已生成 ${resultFilename}，请点击下方按钮下载保存`);
+      setSuccessMsg(
+        lang === "en"
+          ? `Finished! Generated ${resultFilename}, click below to download.`
+          : `处理完成！已生成 ${resultFilename}，请点击下方按钮下载保存`
+      );
     } catch (err: any) {
-      setError(err.message || "处理过程出现异常");
+      setError(err.message || t.common.errorOccurred);
     } finally {
       setLoading(false);
     }
@@ -450,7 +468,7 @@ export default function Home() {
   // 拆分可视化 Studio 专用执行函数
   const handleSplitExecute = async (customRanges?: string) => {
     if (files.length === 0) {
-      setError("请先上传需要拆分的 PDF 文件");
+      setError(t.common.uploadSplitPdfFirst);
       return;
     }
     setLoading(true);
@@ -465,9 +483,13 @@ export default function Home() {
         filename: res.filename,
         size: res.blob.size,
       });
-      setSuccessMsg(`拆分提取成功！已生成 ${res.filename}，请点击下方按钮下载保存`);
+      setSuccessMsg(
+        lang === "en"
+          ? `Split & extracted! Generated ${res.filename}, click below to download.`
+          : `拆分提取成功！已生成 ${res.filename}，请点击下方按钮下载保存`
+      );
     } catch (err: any) {
-      setError(err.message || "拆分提取失败");
+      setError(err.message || t.common.errorOccurred);
     } finally {
       setLoading(false);
     }
@@ -476,7 +498,7 @@ export default function Home() {
   // 水印实时预览 Studio 专用执行函数
   const handleWatermarkExecute = async (text: string, opacity: number, angle: number) => {
     if (files.length === 0) {
-      setError("请先上传需要添加水印的 PDF 文件");
+      setError(t.common.uploadWatermarkPdfFirst);
       return;
     }
     setLoading(true);
@@ -491,9 +513,13 @@ export default function Home() {
         filename: res.filename,
         size: res.blob.size,
       });
-      setSuccessMsg(`水印添加成功！已生成 ${res.filename}，请点击下方按钮下载保存`);
+      setSuccessMsg(
+        lang === "en"
+          ? `Watermark applied! Generated ${res.filename}, click below to download.`
+          : `水印添加成功！已生成 ${res.filename}，请点击下方按钮下载保存`
+      );
     } catch (err: any) {
-      setError(err.message || "添加水印失败");
+      setError(err.message || t.common.errorOccurred);
     } finally {
       setLoading(false);
     }
@@ -514,9 +540,9 @@ export default function Home() {
     );
   }
 
-  const allTools = TOOLS_REGISTRY.flatMap((g) => g.tools);
+  const allTools = toolsRegistry.flatMap((g) => g.tools);
 
-  const currentCategory = TOOLS_REGISTRY.find((g) => g.module === activeModule) || TOOLS_REGISTRY[0];
+  const currentCategory = toolsRegistry.find((g) => g.module === activeModule) || toolsRegistry[0];
   const currentActiveTool =
     activeModule === "document"
       ? allTools.find((t) => t.id === activeDocTab)
@@ -553,10 +579,10 @@ export default function Home() {
             <button
               onClick={() => setSidebarCollapsed(false)}
               className="p-1 rounded-2xl hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-transform active:scale-95 group relative flex items-center justify-center cursor-pointer"
-              title="点击展开侧边栏"
+              title={lang === "en" ? "Click to expand sidebar" : "点击展开侧边栏"}
             >
               <CatPawLogo size={40} />
-              <span className="sr-only">展开侧边栏</span>
+              <span className="sr-only">{lang === "en" ? "Expand sidebar" : "展开侧边栏"}</span>
             </button>
           ) : (
             /* 展开态：左侧治愈系猫肉球 Logo (点击即可收起侧边栏) + 品牌名 */
@@ -565,7 +591,7 @@ export default function Home() {
                 <button
                   onClick={() => setSidebarCollapsed(true)}
                   className="p-1 rounded-2xl hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-transform active:scale-95 cursor-pointer flex-shrink-0"
-                  title="点击收起侧边栏"
+                  title={lang === "en" ? "Click to collapse sidebar" : "点击收起侧边栏"}
                 >
                   <CatPawLogo size={40} />
                 </button>
@@ -579,7 +605,7 @@ export default function Home() {
                     </span>
                   </div>
                   <p className="text-xs text-coconut-600 dark:text-darkbg-muted truncate mt-0.5">
-                    轻盈多媒体工作台
+                    {t.sidebar.subTitle}
                   </p>
                 </div>
               </div>
@@ -602,11 +628,21 @@ export default function Home() {
           {sidebarCollapsed ? (
             /* ================= 折叠模式 (w-20)：仅显示 5 个分类大图标 ================= */
             <div className="py-2 flex flex-col items-center space-y-3">
-              {TOOLS_REGISTRY.map((group) => {
+              {toolsRegistry.map((group) => {
                 const GroupIcon = group.icon;
                 const isGroupActive = activeModule === group.module;
                 const shortLabel =
-                  group.module === "document"
+                  lang === "en"
+                    ? group.module === "document"
+                      ? "Docs"
+                      : group.module === "image"
+                      ? "Image"
+                      : group.module === "audio"
+                      ? "Audio"
+                      : group.module === "utilities"
+                      ? "Utils"
+                      : "AI"
+                    : group.module === "document"
                     ? "文档"
                     : group.module === "image"
                     ? "图片"
@@ -623,7 +659,7 @@ export default function Home() {
                       setActiveModule(group.module);
                       setExpandedModule(group.module);
                     }}
-                    title={`${group.category} (共 ${group.tools.length} 项工具)`}
+                    title={`${group.category} (${lang === "en" ? `${group.tools.length} tools` : `共 ${group.tools.length} 项工具`})`}
                     className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center transition-all relative group active:scale-95 cursor-pointer ${
                       isGroupActive
                         ? "bg-accent-gradient text-white shadow-3d-sunset scale-105"
@@ -643,7 +679,7 @@ export default function Home() {
             </div>
           ) : (
             /* ================= 展开模式 (w-72)：手风琴分类导航，支持点击展开与再次点击收回 ================= */
-            TOOLS_REGISTRY.map((group) => {
+            toolsRegistry.map((group) => {
               const GroupIcon = group.icon;
               const isGroupActive = activeModule === group.module;
               const isGroupExpanded = expandedModule === group.module;
@@ -659,7 +695,15 @@ export default function Home() {
                         setActiveModule(group.module);
                       }
                     }}
-                    title={isGroupExpanded ? "点击收回折叠全部工具" : "点击展开全部工具"}
+                    title={
+                      isGroupExpanded
+                        ? lang === "en"
+                          ? "Click to collapse all tools"
+                          : "点击收回折叠全部工具"
+                        : lang === "en"
+                        ? "Click to expand all tools"
+                        : "点击展开全部工具"
+                    }
                     className={`w-full flex items-center justify-between p-2.5 rounded-2xl text-sm font-bold transition-all select-none active:scale-[0.99] ${
                       isGroupActive
                         ? "bg-accent-subtle text-coconut-950 dark:text-white border border-accent-border shadow-xs"
@@ -713,13 +757,13 @@ export default function Home() {
                                 : "text-coconut-800 dark:text-darkbg-muted hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated hover:text-coconut-950 dark:hover:text-darkbg-text font-medium"
                             }`}
                           >
-                            <div className="flex items-center gap-2.5 truncate">
+                            <div className="flex items-center gap-2.5 truncate min-w-0 flex-1">
                               <Icon className={`w-4 h-4 flex-shrink-0 ${isCur ? "text-amber-100" : "text-coconut-600 dark:text-darkbg-muted"}`} />
                               <span className="truncate">{t.name}</span>
                             </div>
                             {t.badge && (
                               <span
-                                className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold transition-colors ${
+                                className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold transition-colors flex-shrink-0 ml-1.5 ${
                                   isCur
                                     ? "bg-white/25 text-white"
                                     : "bg-coconut-200/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted"
@@ -747,7 +791,7 @@ export default function Home() {
               <button
                 onClick={() => setSettingsModalOpen(true)}
                 className="w-12 h-12 rounded-2xl border border-coconut-200/80 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-all active:scale-95 shadow-2xs group cursor-pointer"
-                title="系统偏好设置 (托盘行为/开机自启/格式转换/文件存储)"
+                title={lang === "en" ? "System Preferences (Tray / Auto-start / Formats / Storage)" : "系统偏好设置 (托盘行为/开机自启/格式转换/文件存储)"}
               >
                 <CoconutLogo size={32} variant="settings" />
               </button>
@@ -755,7 +799,7 @@ export default function Home() {
               <button
                 onClick={toggleTheme}
                 className="w-12 h-12 rounded-2xl border border-coconut-200/80 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-all active:scale-95 shadow-2xs group cursor-pointer"
-                title={`切换外观主题 (当前: ${isDark ? "曜黑暗夜" : "暖椰润肤"})`}
+                title={lang === "en" ? `Switch theme (Current: ${isDark ? "Dark" : "Light"})` : `切换外观主题 (当前: ${isDark ? "曜黑暗夜" : "暖椰润肤"})`}
               >
                 {isDark ? (
                   <Sun className="w-6 h-6 text-amber-500 transition-transform duration-300 group-hover:rotate-45" />
@@ -767,7 +811,7 @@ export default function Home() {
               <button
                 onClick={() => setUpdateModalOpen(true)}
                 className="w-12 h-12 rounded-2xl border border-coconut-200/80 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-all active:scale-95 shadow-2xs relative group cursor-pointer"
-                title="检查软件版本与更新"
+                title={lang === "en" ? "Check software version & updates" : "检查软件版本与更新"}
               >
                 <Sparkles className="w-6 h-6 text-orange-500 transition-transform duration-300 group-hover:scale-110" />
                 {hasUpdate && (
@@ -781,34 +825,34 @@ export default function Home() {
               <button
                 onClick={() => setSettingsModalOpen(true)}
                 className="w-full flex items-center justify-between p-2.5 px-3.5 rounded-2xl border border-coconut-200/90 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle text-xs font-semibold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated transition-all active:scale-[0.98] shadow-2xs cursor-pointer group"
-                title="系统偏好设置 (托盘行为/开机自启/格式引擎/文件路径/缓存清理)"
+                title={lang === "en" ? "System Preferences (Tray / Auto-start / Engine / Storage / Cache)" : "系统偏好设置 (托盘行为/开机自启/格式引擎/文件路径/缓存清理)"}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="w-11 h-11 rounded-2xl bg-orange-50/90 dark:bg-[#2A1F19] flex items-center justify-center border border-orange-200/80 dark:border-[#4A372C] flex-shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                     <CoconutLogo size={34} variant="settings" />
                   </div>
-                  <div className="text-left">
+                  <div className="text-left min-w-0 flex-1">
                     <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white leading-tight flex items-center gap-1.5">
-                      <span>偏好与系统设置</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-950/80 dark:text-orange-300 font-mono font-bold">
+                      <span className="truncate">{t.sidebar.preferences}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-950/80 dark:text-orange-300 font-mono font-bold flex-shrink-0">
                         Settings
                       </span>
                     </div>
-                    <div className="text-[11px] text-coconut-600 dark:text-darkbg-muted leading-tight mt-0.5 truncate max-w-[130px]">
-                      托盘 / 自启 / 存储 / 引擎
+                    <div className="text-[11px] text-coconut-600 dark:text-darkbg-muted leading-tight mt-0.5 truncate">
+                      {t.sidebar.preferencesSub}
                     </div>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-coconut-400 group-hover:translate-x-0.5 transition-transform flex-shrink-0" />
+                <ChevronRight className="w-4 h-4 text-coconut-400 group-hover:translate-x-0.5 transition-transform flex-shrink-0 ml-1.5" />
               </button>
 
               {/* 外观模式切换卡片按钮 (大图标) */}
               <button
                 onClick={toggleTheme}
                 className="w-full flex items-center justify-between p-2.5 px-3.5 rounded-2xl border border-coconut-200/90 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle text-xs sm:text-sm font-semibold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated transition-all active:scale-[0.98] shadow-2xs cursor-pointer group"
-                title="切换界面外观主题"
+                title={lang === "en" ? "Switch interface theme" : "切换界面外观主题"}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="w-11 h-11 rounded-2xl bg-amber-50/90 dark:bg-[#2A1F19] flex items-center justify-center border border-amber-200/80 dark:border-[#4A372C] flex-shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                     {isDark ? (
                       <Sun className="w-6 h-6 text-amber-500 transition-transform duration-300 group-hover:rotate-45" />
@@ -816,12 +860,14 @@ export default function Home() {
                       <Moon className="w-6 h-6 text-coconut-800 transition-transform duration-300 group-hover:-rotate-12" />
                     )}
                   </div>
-                  <div className="text-left">
-                    <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white leading-tight">
-                      {isDark ? "曜黑暗夜模式" : "暖椰润肤模式"}
+                  <div className="text-left min-w-0 flex-1">
+                    <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white leading-tight truncate">
+                      {isDark ? t.sidebar.darkAppearance : t.sidebar.lightAppearance}
                     </div>
-                    <div className="text-[11px] text-coconut-600 dark:text-darkbg-muted font-mono leading-tight mt-0.5">
-                      {isDark ? "Dark Appearance" : "Light Appearance"}
+                    <div className="text-[11px] text-coconut-600 dark:text-darkbg-muted font-mono leading-tight mt-0.5 truncate">
+                      {lang === "en"
+                        ? (isDark ? "OLED Dark Mode" : "Warm Coconut Aesthetic")
+                        : (isDark ? "Dark Appearance" : "Light Appearance")}
                     </div>
                   </div>
                 </div>
@@ -852,18 +898,18 @@ export default function Home() {
               <button
                 onClick={() => setUpdateModalOpen(true)}
                 className="w-full flex items-center justify-between p-2.5 px-3.5 rounded-2xl border border-coconut-200/90 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle text-xs font-semibold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated transition-all active:scale-[0.98] shadow-2xs cursor-pointer group"
-                title="检查软件版本与更新"
+                title={t.sidebar.checkUpdate}
               >
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-2xl bg-orange-100/80 dark:bg-[#2A1F19] flex items-center justify-center border border-orange-200/80 dark:border-[#4A372C] text-orange-600 dark:text-orange-400 flex-shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                     <Sparkles className="w-6 h-6 text-orange-500 transition-transform duration-300 group-hover:scale-110" />
                   </div>
-                  <span className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white">软件更新中心</span>
+                  <span className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white">{t.sidebar.updateCenter}</span>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {hasUpdate ? (
                     <span className="px-2 py-0.5 text-[10px] font-bold bg-rose-500 text-white rounded-full animate-pulse">
-                      发现新版
+                      {lang === "en" ? "NEW" : "发现新版"}
                     </span>
                   ) : (
                     <span className="text-xs font-mono font-bold text-coconut-600 dark:text-darkbg-muted">v1.0.0</span>
@@ -884,13 +930,13 @@ export default function Home() {
             <button
               onClick={() => setMobileMenuOpen(true)}
               className="lg:hidden p-2 rounded-xl text-coconut-600 dark:text-darkbg-muted hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-colors"
-              aria-label="打开侧边导航"
+              aria-label={lang === "en" ? "Open sidebar navigation" : "打开侧边导航"}
             >
               <Menu className="w-5 h-5" />
             </button>
 
             <nav className="flex items-center gap-2 text-xs sm:text-sm text-coconut-700 dark:text-darkbg-muted truncate">
-              <span className="hover:text-coconut-950 dark:hover:text-white transition-colors">工作台</span>
+              <span className="hover:text-coconut-950 dark:hover:text-white transition-colors">{t.workspace}</span>
               <ChevronRight className="w-4 h-4 flex-shrink-0 text-coconut-400" />
               <span className="font-semibold text-coconut-800 dark:text-darkbg-text">
                 {currentCategory?.category}
@@ -912,11 +958,11 @@ export default function Home() {
             className="flex items-center gap-1.5 overflow-x-auto no-scrollbar max-w-[65vw] sm:max-w-none bg-coconut-100/80 dark:bg-darkbg-subtle p-1 rounded-2xl border border-coconut-200/80 dark:border-darkbg-border flex-shrink-0 touch-pan-x"
           >
             {[
-              { id: "document", label: "文档", icon: FileText },
-              { id: "image", label: "图片", icon: ImageIcon },
-              { id: "audio", label: "音频", icon: Music },
-              { id: "utilities", label: "日常", icon: Wrench },
-              { id: "ai", label: "AI工坊", icon: Sparkles },
+              { id: "document", label: t.modules.document, icon: FileText },
+              { id: "image", label: t.modules.image, icon: ImageIcon },
+              { id: "audio", label: t.modules.audio, icon: Music },
+              { id: "utilities", label: t.modules.utilities, icon: Wrench },
+              { id: "ai", label: t.modules.ai, icon: Sparkles },
             ].map((m) => {
               const Icon = m.icon;
               const isCur = activeModule === m.id;
@@ -1003,10 +1049,10 @@ export default function Home() {
                 <div className="coconut-panel p-6 sm:p-8 space-y-6">
                   <div className="space-y-1">
                     <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                      PDF 1:1 原版排版在线工作台
+                      {t.pdfEdit.title}
                     </h3>
                     <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                      拖入需要就地修改的 PDF 文件，即可进入原位文字改字、遮盖涂抹与新增段落模式，完全锁定原版排版绝不跑偏。
+                      {t.pdfEdit.desc}
                     </p>
                   </div>
 
@@ -1016,8 +1062,8 @@ export default function Home() {
                     selectedFiles={files}
                     onFilesSelected={setFiles}
                     onClear={() => setFiles([])}
-                    title="拖入待编辑的 PDF 文件，点击即可进入在线工作台"
-                    hint="支持标准 PDF 文档"
+                    title={t.pdfEdit.dropzoneTitle}
+                    hint={t.pdfEdit.dropzoneHint}
                   />
 
                   {error && (
@@ -1039,12 +1085,12 @@ export default function Home() {
                     {parsingEditor ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>正在深度解析 PDF 页面排版，请稍候...</span>
+                        <span>{t.pdfEdit.parsing}</span>
                       </>
                     ) : (
                       <>
                         <Edit3 className="w-4 h-4 text-amber-100" />
-                        <span>进入在线 Word 级编辑工作台</span>
+                        <span>{t.pdfEdit.launchBtn}</span>
                       </>
                     )}
                   </button>
@@ -1073,10 +1119,10 @@ export default function Home() {
                   <div className="coconut-panel p-6 sm:p-8 space-y-6">
                     <div className="space-y-1">
                       <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                        多文件批量选择合并
+                        {t.pdfMerge.title}
                       </h3>
                       <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                        支持选中多个 PDF 批量上传，系统将自动读取首页缩略图预览，支持自由上下移动调序、追加文件后一键无损拼合。
+                        {t.pdfMerge.desc}
                       </p>
                     </div>
 
@@ -1086,8 +1132,8 @@ export default function Home() {
                       selectedFiles={files}
                       onFilesSelected={setFiles}
                       onClear={() => setFiles([])}
-                      title="拖入多个 PDF 文件（按 Ctrl 多选），或点击选择"
-                      hint="支持选中多个 PDF 批量合并"
+                      title={t.pdfMerge.dropzoneTitle}
+                      hint={t.pdfMerge.dropzoneHint}
                     />
                   </div>
                 )
@@ -1119,10 +1165,10 @@ export default function Home() {
                   <div className="coconut-panel p-6 sm:p-8 space-y-6">
                     <div className="space-y-1">
                       <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                        PDF 全文档可视化点选拆分
+                        {t.pdfSplit.title}
                       </h3>
                       <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                        拖入 PDF 文档后自动生成整篇文档的页面缩略图网格，无需记忆输入页码，直接点击卡片即可多选抽取或拆分为单页压缩包。
+                        {t.pdfSplit.desc}
                       </p>
                     </div>
 
@@ -1132,8 +1178,8 @@ export default function Home() {
                       selectedFiles={files}
                       onFilesSelected={setFiles}
                       onClear={() => setFiles([])}
-                      title="拖入待拆分的 PDF 文档 (.pdf)，或点击选择"
-                      hint="支持标准 PDF 文档"
+                      title={t.pdfSplit.dropzoneTitle}
+                      hint={t.pdfSplit.dropzoneHint}
                     />
                   </div>
                 )
@@ -1165,10 +1211,10 @@ export default function Home() {
                   <div className="coconut-panel p-6 sm:p-8 space-y-6">
                     <div className="space-y-1">
                       <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                        PDF 真实底图实时水印工作室
+                        {t.pdfWatermark.title}
                       </h3>
                       <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                        拖入 PDF 文档后自动加载真实页面底图，调节水印文字、透明度与旋转角度时右侧画面实时响应随动，所见即所得。
+                        {t.pdfWatermark.desc}
                       </p>
                     </div>
 
@@ -1178,8 +1224,8 @@ export default function Home() {
                       selectedFiles={files}
                       onFilesSelected={setFiles}
                       onClear={() => setFiles([])}
-                      title="拖入待添加水印的 PDF 文档 (.pdf)，或点击选择"
-                      hint="支持标准 PDF 文档"
+                      title={t.pdfWatermark.dropzoneTitle}
+                      hint={t.pdfWatermark.dropzoneHint}
                     />
                   </div>
                 )
@@ -1189,29 +1235,29 @@ export default function Home() {
                   <div className="lg:col-span-5 coconut-panel p-5 sm:p-6 space-y-5">
                     <div className="flex items-center gap-2 pb-3 border-b border-coconut-200/80 dark:border-darkbg-border text-sm font-bold text-coconut-950 dark:text-darkbg-text">
                       <Lock className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                      <span>加密权限设置</span>
+                      <span>{t.pdfProtect.title}</span>
                     </div>
 
                     <div className="space-y-3">
                       <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text mb-1">
-                        设置访问查看密码
+                        {t.pdfProtect.label}
                       </label>
                       <input
                         type="password"
-                        placeholder="请输入加密密码"
+                        placeholder={t.pdfProtect.placeholder}
                         value={protectPassword}
                         onChange={(e) => setProtectPassword(e.target.value)}
                         className="w-full text-sm p-3.5 bg-white/80 dark:bg-darkbg-subtle border border-[#CBB09C] dark:border-darkbg-border rounded-2xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-coconut-950 dark:text-darkbg-text font-medium"
                       />
                       <p className="text-xs text-coconut-700 dark:text-darkbg-muted leading-relaxed">
-                        采用高强度加密算法，未输入正确密码者无法打开、阅读或打印文档。
+                        {t.pdfProtect.desc}
                       </p>
                     </div>
                   </div>
 
                   <div className="lg:col-span-7 coconut-panel p-5 sm:p-6 space-y-5">
                     <div className="text-xs font-bold text-coconut-900 dark:text-darkbg-text">
-                      投放待加密文档
+                      {t.pdfProtect.dropzoneHeader}
                     </div>
 
                     <Dropzone
@@ -1220,8 +1266,8 @@ export default function Home() {
                       selectedFiles={files}
                       onFilesSelected={setFiles}
                       onClear={() => setFiles([])}
-                      title="拖入待加密的 PDF 文档 (.pdf)，或点击选择"
-                      hint="支持标准 PDF 文档"
+                      title={t.pdfProtect.dropzoneTitle}
+                      hint={t.pdfProtect.dropzoneHint}
                     />
 
                     {error && (
@@ -1250,12 +1296,12 @@ export default function Home() {
                                 {executionResult.filename}
                               </h4>
                               <p className="text-xs text-orange-800 dark:text-amber-300 font-mono font-medium">
-                                {formatBytes(executionResult.size)} · 加密成功已就绪
+                                {formatBytes(executionResult.size)} · {t.pdfProtect.readyText}
                               </p>
                             </div>
                           </div>
                           <span className="hidden sm:inline-block px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-900 dark:text-amber-200 border border-amber-500/30 flex-shrink-0">
-                            ✓ 就绪 · 点击下载
+                            {t.pdfProtect.readyBadge}
                           </span>
                         </div>
 
@@ -1265,7 +1311,7 @@ export default function Home() {
                             className="flex-1 py-3 px-4 rounded-xl btn-3d-sunset text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-coconut-sm"
                           >
                             <Download className="w-4 h-4" />
-                            <span>立即下载该文件</span>
+                            <span>{t.pdfProtect.downloadNow}</span>
                           </button>
 
                           <button
@@ -1278,7 +1324,7 @@ export default function Home() {
                             className="py-3 px-4 rounded-xl btn-3d-secondary font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
-                            <span>加密新文件</span>
+                            <span>{t.pdfProtect.encryptAnother}</span>
                           </button>
                         </div>
                       </div>
@@ -1295,12 +1341,12 @@ export default function Home() {
                         {loading ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>正在加密中，请稍候...</span>
+                            <span>{t.pdfProtect.processing}</span>
                           </>
                         ) : (
                           <>
                             <Lock className="w-4 h-4 text-amber-200" />
-                            <span>开始加密并导出受保护 PDF</span>
+                            <span>{t.pdfProtect.launchBtn}</span>
                           </>
                         )}
                       </button>
@@ -1313,15 +1359,53 @@ export default function Home() {
                   <div className="space-y-1">
                     <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
                       {activeDocTab === "word-to-pdf"
-                        ? "Word 文档格式转换"
-                        : "PDF 逆向格式转换 (.docx)"}
+                        ? t.common.wordConversion
+                        : t.common.pdfConversion}
                     </h3>
                     <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
                       {activeDocTab === "word-to-pdf"
-                        ? "支持 .docx、.doc 格式，100% 打印级矢量超清渲染，公式与表格精准保留。"
-                        : "基于专业重构引擎，精准还原表格、文本排版与内嵌高清图片。"}
+                        ? t.common.wordDesc
+                        : t.common.pdfDesc}
                     </p>
                   </div>
+
+                  {/* 质量档位选择器 — 仅 Word 转 PDF 显示 */}
+                  {activeDocTab === "word-to-pdf" && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-coconut-800 dark:text-darkbg-text">{t.quality.label}</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {([
+                          { key: "light" as const, label: t.quality.light, icon: "📄", dpi: t.quality.lightDpi, desc: t.quality.lightDesc, size: t.quality.lightSize },
+                          { key: "standard" as const, label: t.quality.standard, icon: "📋", dpi: t.quality.standardDpi, desc: t.quality.standardDesc, size: t.quality.standardSize },
+                          { key: "high" as const, label: t.quality.high, icon: "🖨️", dpi: t.quality.highDpi, desc: t.quality.highDesc, size: t.quality.highSize },
+                        ]).map((q) => (
+                          <button
+                            key={q.key}
+                            onClick={() => setConversionQuality(q.key)}
+                            className={`relative p-3 rounded-xl border-2 text-left transition-all ${
+                              conversionQuality === q.key
+                                ? "border-accent-solid bg-accent-subtle shadow-sm"
+                                : "border-coconut-200 dark:border-darkbg-border bg-coconut-50/50 dark:bg-darkbg-subtle hover:border-coconut-300 dark:hover:border-darkbg-border/80"
+                            }`}
+                          >
+                            <div className="text-base leading-none mb-1">{q.icon}</div>
+                            <div className={`text-xs font-bold ${conversionQuality === q.key ? "text-accent-solid" : "text-coconut-900 dark:text-darkbg-text"}`}>
+                              {q.label}
+                            </div>
+                            <div className="text-[10px] font-mono text-coconut-500 dark:text-darkbg-muted mt-0.5">{q.dpi}</div>
+                            <div className="text-[10px] text-coconut-400 dark:text-darkbg-muted">{q.size}</div>
+                            {conversionQuality === q.key && (
+                              <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-accent-solid text-white flex items-center justify-center">
+                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* 如果是 PDF 转 Word 且已选择文件，展示专属第一页缩略图预览卡片 */}
                   {activeDocTab === "pdf-to-word" && files.length > 0 ? (
@@ -1347,13 +1431,17 @@ export default function Home() {
                         <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1 text-xs text-coconut-600 dark:text-darkbg-muted">
                           <span className="font-mono">{formatBytes(files[0].size)}</span>
                           <span>·</span>
-                          <span>{pdfToWordThumb?.numPages ? `共 ${pdfToWordThumb.numPages} 页` : "PDF 格式"}</span>
+                          <span>
+                            {pdfToWordThumb?.numPages
+                              ? t.common.pdfPageCount.replace("{n}", String(pdfToWordThumb.numPages))
+                              : t.common.pdfFormat}
+                          </span>
                         </div>
 
                         {/* 起始页微调 */}
                         <div className="flex items-center gap-2 mt-2.5">
                           <label className="text-xs font-semibold text-coconut-800 dark:text-darkbg-text whitespace-nowrap">
-                            起始转换页码:
+                            {t.common.startPage}
                           </label>
                           <input
                             type="number"
@@ -1363,7 +1451,7 @@ export default function Home() {
                             onChange={(e) => setStartPage(Math.max(0, (parseInt(e.target.value) || 1) - 1))}
                             className="w-16 px-2 py-1 text-xs font-mono font-bold bg-white dark:bg-darkbg-card border border-coconut-300 dark:border-darkbg-border rounded-lg text-center"
                           />
-                          <span className="text-[11px] text-coconut-500">（默认从第 1 页开始）</span>
+                          <span className="text-[11px] text-coconut-500">{t.common.startPageHint}</span>
                         </div>
                       </div>
 
@@ -1373,7 +1461,7 @@ export default function Home() {
                           setPdfToWordThumb(null);
                         }}
                         className="p-2 rounded-xl text-coconut-500 hover:text-rose-600 hover:bg-rose-500/10 transition-colors"
-                        title="更换文件"
+                        title={t.common.changeFile}
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -1387,13 +1475,13 @@ export default function Home() {
                       onClear={() => setFiles([])}
                       title={
                         activeDocTab === "word-to-pdf"
-                          ? "拖入 Word 文档 (.docx, .doc)，或点击选择"
-                          : "拖入 PDF 文档 (.pdf)，或点击选择"
+                          ? t.common.uploadWordHint
+                          : t.common.uploadPdfHint
                       }
                       hint={
                         activeDocTab === "word-to-pdf"
-                          ? "支持 .docx 或 .doc 格式"
-                          : "支持标准 PDF 文档"
+                          ? t.common.supportsWord
+                          : t.common.supportsPdf
                       }
                     />
                   )}
@@ -1424,12 +1512,12 @@ export default function Home() {
                               {executionResult.filename}
                             </h4>
                             <p className="text-xs text-orange-800 dark:text-amber-300 font-mono font-medium">
-                              {formatBytes(executionResult.size)} · 转换成功已就绪
+                              {formatBytes(executionResult.size)} · {t.common.readyForDownload}
                             </p>
                           </div>
                         </div>
                         <span className="hidden sm:inline-block px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-900 dark:text-amber-200 border border-amber-500/30 flex-shrink-0">
-                          ✓ 就绪 · 点击下载
+                          {t.common.readyBadge}
                         </span>
                       </div>
 
@@ -1439,7 +1527,7 @@ export default function Home() {
                           className="flex-1 py-3 px-4 rounded-xl btn-3d-sunset text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-coconut-sm"
                         >
                           <Download className="w-4 h-4" />
-                          <span>立即下载该文件</span>
+                          <span>{t.common.downloadNow}</span>
                         </button>
 
                         <button
@@ -1452,7 +1540,7 @@ export default function Home() {
                           className="py-3 px-4 rounded-xl btn-3d-secondary font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5"
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
-                          <span>转换新文件</span>
+                          <span>{t.common.convertAnother}</span>
                         </button>
                       </div>
                     </div>
@@ -1469,7 +1557,7 @@ export default function Home() {
                       {loading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>正在转换中，请稍候...</span>
+                          <span>{t.common.processing}</span>
                         </>
                       ) : (
                         <>

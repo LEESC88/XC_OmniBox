@@ -42,6 +42,7 @@ import {
 import { downloadBlob } from "@/lib/api";
 import { formatBytes } from "@/lib/imageProcessor";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
+import { useI18n } from "@/lib/i18n";
 
 type ToolTab = "idphoto" | "qrcode" | "diff" | "dev";
 type DevSubTab = "json" | "base64" | "hash" | "timestamp";
@@ -57,6 +58,7 @@ export default function DailyToolbox({
   onTabChange,
   initialPhotoFile,
 }: DailyToolboxProps = {}) {
+  const { lang } = useI18n();
   const [activeTab, setActiveTab] = useState<ToolTab>(currentTab || "idphoto");
   const [copied, setCopied] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -114,7 +116,7 @@ export default function DailyToolbox({
       setProcessedPhotoBlob(blob);
       setProcessedPhotoUrl(URL.createObjectURL(blob));
     } catch (err: any) {
-      setError("换底色处理失败: " + err.message);
+      setError((lang === "en" ? "Background replacement failed: " : "换底色处理失败: ") + err.message);
     } finally {
       setIsProcessing(false);
     }
@@ -136,7 +138,7 @@ export default function DailyToolbox({
       const { blob, filename } = await generatePrintSheet(processedPhotoBlob, selectedSpec);
       downloadBlob(blob, filename);
     } catch (err: any) {
-      setError("生成相纸排版失败: " + err.message);
+      setError((lang === "en" ? "Failed to generate print sheet: " : "生成相纸排版失败: ") + err.message);
     } finally {
       setIsProcessing(false);
     }
@@ -191,7 +193,7 @@ export default function DailyToolbox({
     "const name = 'XC_OmniBox';\nconsole.log('Hello, ' + name);\nfunction calculate() {\n  return 10 * 20;\n}"
   );
   const [diffModified, setDiffModified] = useState(
-    "const name = 'XC_OmniBox (万象箱)';\nconsole.log(`Hello, ${name}!`);\nfunction calculate(factor = 1) {\n  return 10 * 20 * factor;\n}"
+    "const name = 'XC_OmniBox (Universal)';\nconsole.log(`Hello, ${name}!`);\nfunction calculate(factor = 1) {\n  return 10 * 20 * factor;\n}"
   );
   const [diffMode, setDiffMode] = useState<"lines" | "words">("lines");
   const [diffViewMode, setDiffViewMode] = useState<"split" | "unified">("split");
@@ -211,7 +213,9 @@ export default function DailyToolbox({
   const [jsonErr, setJsonErr] = useState<string | null>(null);
 
   // Base64
-  const [b64Text, setB64Text] = useState("XC 万象箱 - 极速全能本地工具箱");
+  const [b64Text, setB64Text] = useState(
+    lang === "en" ? "XC OmniBox - High-Speed All-in-One Local Toolbox" : "XC 万象箱 - 极速全能本地工具箱"
+  );
   const [b64Result, setB64Result] = useState("");
 
   // Hash
@@ -250,10 +254,30 @@ export default function DailyToolbox({
       {/* 4 大功能 Tab 切换 (支持鼠标滚轮横移、鼠标拖拽滑动、专属微滑轨与左右翻页箭头) */}
       <ScrollableTabNav
         tabs={[
-          { id: "idphoto", label: "证件照换底与相纸排版", icon: UserCheck, badge: "6寸打印级" },
-          { id: "qrcode", label: "个性化艺术二维码", icon: QrCode, badge: "彩色/Logo" },
-          { id: "diff", label: "文本代码差异对比", icon: GitCompare, badge: "双栏Diff" },
-          { id: "dev", label: "开发与效率神器集", icon: Code2, badge: "JSON/Base64/Hash" },
+          {
+            id: "idphoto",
+            label: lang === "en" ? "ID Photo Studio" : "证件照换底与相纸排版",
+            icon: UserCheck,
+            badge: lang === "en" ? "6-Inch Print" : "6寸打印级",
+          },
+          {
+            id: "qrcode",
+            label: lang === "en" ? "Artistic QR Code" : "个性化艺术二维码",
+            icon: QrCode,
+            badge: lang === "en" ? "Color / Logo" : "彩色/Logo",
+          },
+          {
+            id: "diff",
+            label: lang === "en" ? "Text & Code Diff" : "文本代码差异对比",
+            icon: GitCompare,
+            badge: lang === "en" ? "Dual-Pane Diff" : "双栏Diff",
+          },
+          {
+            id: "dev",
+            label: lang === "en" ? "Dev & Efficiency Toolkit" : "开发与效率神器集",
+            icon: Code2,
+            badge: "JSON/Base64/Hash",
+          },
         ]}
         activeTab={activeTab}
         onTabChange={(id) => handleTabSelect(id as ToolTab)}
@@ -287,10 +311,12 @@ export default function DailyToolbox({
               />
               <UploadCloud className="w-12 h-12 text-palm-600 dark:text-palm-400 mx-auto mb-3" />
               <div className="text-base font-semibold text-coconut-900 dark:text-darkbg-text">
-                点击或拖拽上传人像证件照
+                {lang === "en" ? "Click or drag portrait photo here" : "点击或拖拽上传人像证件照"}
               </div>
               <div className="text-xs text-coconut-500 dark:text-darkbg-muted mt-1">
-                支持白底、蓝底、红底或纯色背景自拍照，智能平滑替换底色并自动排版
+                {lang === "en"
+                  ? "Supports white, blue, red or plain color background portraits. Smart replacement and automatic layout"
+                  : "支持白底、蓝底、红底或纯色背景自拍照，智能平滑替换底色并自动排版"}
               </div>
             </div>
           ) : (
@@ -298,7 +324,7 @@ export default function DailyToolbox({
               <div className="flex items-center justify-between pb-4 border-b border-coconut-200/60 dark:border-darkbg-border">
                 <div className="text-sm font-bold text-coconut-900 dark:text-darkbg-text flex items-center space-x-2">
                   <UserCheck className="w-5 h-5 text-palm-600 dark:text-palm-400" />
-                  <span>证件照智能换底色工作台</span>
+                  <span>{lang === "en" ? "ID Photo Background Studio" : "证件照智能换底色工作台"}</span>
                 </div>
                 <button
                   onClick={() => {
@@ -308,7 +334,7 @@ export default function DailyToolbox({
                   }}
                   className="text-xs text-coconut-500 hover:text-palm-600 dark:text-darkbg-muted dark:hover:text-palm-400 transition-colors"
                 >
-                  更换人像照片
+                  {lang === "en" ? "Change Portrait Photo" : "更换人像照片"}
                 </button>
               </div>
 
@@ -319,7 +345,7 @@ export default function DailyToolbox({
                   {/* 1. 底色选择 */}
                   <div className="space-y-2">
                     <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                      选择目标证件背景色
+                      {lang === "en" ? "Select Target Background Color" : "选择目标证件背景色"}
                     </span>
                     <div className="grid grid-cols-2 gap-2.5">
                       {BG_COLORS.map((c) => (
@@ -336,7 +362,9 @@ export default function DailyToolbox({
                             className="w-5 h-5 rounded-full border border-black/10 flex-shrink-0 shadow-sm"
                             style={{ backgroundColor: c.hex }}
                           />
-                          <span className="text-xs sm:text-sm font-semibold truncate">{c.name}</span>
+                          <span className="text-xs sm:text-sm font-semibold truncate">
+                            {lang === "en" ? c.nameEn || c.name : c.name}
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -345,21 +373,23 @@ export default function DailyToolbox({
                   {/* 2. 冲印排版规格选择 */}
                   <div className="space-y-2">
                     <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                      冲印相纸规格与尺寸
+                      {lang === "en" ? "Print Sheet Specs & Dimensions" : "冲印相纸规格与尺寸"}
                     </span>
-                    <div className="flex space-x-2">
+                    <div className="grid grid-cols-3 gap-2">
                       {Object.values(ID_SPECS).map((sp) => (
                         <button
                           key={sp.name}
                           onClick={() => setSelectedSpec(sp)}
-                          className={`flex-1 py-2.5 px-3 rounded-2xl border text-xs sm:text-sm font-semibold transition-all active:scale-95 ${
+                          className={`py-2 px-1.5 rounded-2xl border text-center transition-all active:scale-95 ${
                             selectedSpec.name === sp.name
                               ? "border-coconut-800 bg-coconut-800 dark:bg-white text-coconut-50 dark:text-zinc-950 shadow-coconut-sm font-bold"
                               : "border-coconut-200/80 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/50 dark:hover:bg-darkbg-elevated"
                           }`}
                         >
-                          <div>{sp.name}</div>
-                          <div className="text-[11px] opacity-80 mt-0.5 font-mono">
+                          <div className="text-xs truncate font-bold" title={lang === "en" ? sp.nameEn || sp.name : sp.name}>
+                            {lang === "en" ? sp.nameEn || sp.name : sp.name}
+                          </div>
+                          <div className="text-[11px] opacity-80 mt-0.5 font-mono whitespace-nowrap">
                             {sp.mmWidth}×{sp.mmHeight} mm
                           </div>
                         </button>
@@ -370,7 +400,7 @@ export default function DailyToolbox({
                   {/* 3. 容差与边缘羽化微调 */}
                   <div className="p-4 bg-coconut-100/40 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border space-y-3 text-xs sm:text-sm">
                     <div className="flex justify-between items-center text-coconut-900 dark:text-darkbg-text font-semibold">
-                      <span>抠图容差阈值 (Tolerance)</span>
+                      <span>{lang === "en" ? "Tolerance Threshold" : "抠图容差阈值 (Tolerance)"}</span>
                       <span className="font-mono text-palm-700 dark:text-palm-400 font-bold">{tolerance}</span>
                     </div>
                     <input
@@ -383,7 +413,7 @@ export default function DailyToolbox({
                     />
 
                     <div className="flex justify-between items-center text-coconut-900 dark:text-darkbg-text font-semibold pt-1">
-                      <span>边缘羽化模糊度 (Feather)</span>
+                      <span>{lang === "en" ? "Edge Feathering" : "边缘羽化模糊度 (Feather)"}</span>
                       <span className="font-mono text-palm-700 dark:text-palm-400 font-bold">{feather} px</span>
                     </div>
                     <input
@@ -407,12 +437,12 @@ export default function DailyToolbox({
                     {isProcessing ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>正在处理换底...</span>
+                        <span>{lang === "en" ? "Processing background..." : "正在处理换底..."}</span>
                       </>
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4" />
-                        <span>应用参数重新生成</span>
+                        <span>{lang === "en" ? "Re-apply & Generate" : "应用参数重新生成"}</span>
                       </>
                     )}
                   </button>
@@ -424,13 +454,13 @@ export default function DailyToolbox({
                     {processedPhotoBlob ? (
                       <img
                         src={URL.createObjectURL(processedPhotoBlob)}
-                        alt="证件照效果"
+                        alt={lang === "en" ? "ID photo preview" : "证件照效果"}
                         className="max-h-64 object-contain rounded-xl shadow-md border border-coconut-200 dark:border-darkbg-border"
                       />
                     ) : photoPreview ? (
                       <img
                         src={photoPreview}
-                        alt="原图预览"
+                        alt={lang === "en" ? "Original preview" : "原图预览"}
                         className="max-h-64 object-contain rounded-xl shadow-md opacity-70"
                       />
                     ) : null}
@@ -447,7 +477,7 @@ export default function DailyToolbox({
                         className="w-full py-3 btn-3d-sunset text-white rounded-2xl text-sm font-bold flex items-center justify-center space-x-2"
                       >
                         <Download className="w-4 h-4" />
-                        <span>下载单张高清证件照</span>
+                        <span>{lang === "en" ? "Download Single HD Photo" : "下载单张高清证件照"}</span>
                       </button>
 
                       <button
@@ -456,10 +486,12 @@ export default function DailyToolbox({
                         className="w-full py-3 btn-3d-secondary rounded-2xl text-sm font-bold flex items-center justify-center space-x-2"
                       >
                         <Printer className="w-4 h-4" />
-                        <span>🖨️ 生成 6寸相纸排版大图 (带裁切虚线)</span>
+                        <span>{lang === "en" ? "🖨️ Generate 6-Inch Print Sheet (with crop lines)" : "🖨️ 生成 6寸相纸排版大图 (带裁切虚线)"}</span>
                       </button>
                       <p className="text-xs text-coconut-600 dark:text-darkbg-muted text-center leading-relaxed">
-                        💡 标准 6 寸相纸可直接发给冲印店打印，沿虚线裁切即得整版证件照
+                        {lang === "en"
+                          ? "💡 Standard 6-inch photo paper can be directly sent to print shops; cut along dashed lines for standard photos"
+                          : "💡 标准 6 寸相纸可直接发给冲印店打印，沿虚线裁切即得整版证件照"}
                       </p>
                     </div>
                   )}
@@ -479,13 +511,17 @@ export default function DailyToolbox({
               <div className="md:col-span-7 space-y-4">
                 <div className="space-y-1.5">
                   <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                    二维码内容 (网址 / 文本 / Wi-Fi)
+                    {lang === "en" ? "QR Code Content (URL / Text / Wi-Fi)" : "二维码内容 (网址 / 文本 / Wi-Fi)"}
                   </span>
                   <textarea
                     rows={3}
                     value={qrText}
                     onChange={(e) => setQrText(e.target.value)}
-                    placeholder="输入需要生成二维码的网页链接或任意文字..."
+                    placeholder={
+                      lang === "en"
+                        ? "Enter URL, text, or any content to encode..."
+                        : "输入需要生成二维码的网页链接或任意文字..."
+                    }
                     className="w-full p-3.5 text-sm bg-white/70 dark:bg-darkbg-subtle border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
                   />
                 </div>
@@ -493,7 +529,9 @@ export default function DailyToolbox({
                 {/* 颜色 + 输出尺寸 */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">前景色</span>
+                    <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                      {lang === "en" ? "Foreground Color" : "前景色"}
+                    </span>
                     <div className="flex items-center space-x-2.5">
                       <input
                         type="color"
@@ -506,7 +544,9 @@ export default function DailyToolbox({
                   </div>
 
                   <div className="space-y-1.5">
-                    <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">背景色</span>
+                    <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                      {lang === "en" ? "Background Color" : "背景色"}
+                    </span>
                     <div className="flex items-center space-x-2.5">
                       <input
                         type="color"
@@ -521,7 +561,9 @@ export default function DailyToolbox({
 
                 {/* 输出尺寸 */}
                 <div className="space-y-1.5">
-                  <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">输出尺寸</span>
+                  <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                    {lang === "en" ? "Output Size" : "输出尺寸"}
+                  </span>
                   <div className="flex flex-wrap gap-2">
                     {[256, 512, 768, 1024].map((s) => (
                       <button
@@ -541,12 +583,14 @@ export default function DailyToolbox({
 
                 {/* 码点样式 */}
                 <div className="space-y-1.5">
-                  <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">码点样式</span>
+                  <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                    {lang === "en" ? "Dot Style" : "码点样式"}
+                  </span>
                   <div className="flex flex-wrap gap-2">
                     {([
-                      { id: "square" as QrDotStyle, label: "■ 方块" },
-                      { id: "rounded" as QrDotStyle, label: "▢ 圆角" },
-                      { id: "dot" as QrDotStyle, label: "● 圆点" },
+                      { id: "square" as QrDotStyle, label: lang === "en" ? "■ Square" : "■ 方块" },
+                      { id: "rounded" as QrDotStyle, label: lang === "en" ? "▢ Rounded" : "▢ 圆角" },
+                      { id: "dot" as QrDotStyle, label: lang === "en" ? "● Dots" : "● 圆点" },
                     ]).map((s) => (
                       <button
                         key={s.id}
@@ -566,14 +610,19 @@ export default function DailyToolbox({
                 {/* 纠错等级 */}
                 <div className="space-y-1.5">
                   <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                    纠错等级 {qrLogoFile && <span className="text-xs text-palm-600 font-normal">(Logo 已锁定为 H)</span>}
+                    {lang === "en" ? "Error Correction" : "纠错等级"}{" "}
+                    {qrLogoFile && (
+                      <span className="text-xs text-palm-600 font-normal">
+                        ({lang === "en" ? "Locked to H for Logo" : "Logo 已锁定为 H"})
+                      </span>
+                    )}
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {([
-                      { id: "L" as const, label: "L 低 (7%)", desc: "尺寸最小" },
-                      { id: "M" as const, label: "M 中 (15%)", desc: "推荐" },
-                      { id: "Q" as const, label: "Q 高 (25%)", desc: "复杂场景" },
-                      { id: "H" as const, label: "H 极高 (30%)", desc: "嵌入Logo" },
+                      { id: "L" as const, label: lang === "en" ? "L Low (7%)" : "L 低 (7%)", desc: lang === "en" ? "Smallest size" : "尺寸最小" },
+                      { id: "M" as const, label: lang === "en" ? "M Mid (15%)" : "M 中 (15%)", desc: lang === "en" ? "Recommended" : "推荐" },
+                      { id: "Q" as const, label: lang === "en" ? "Q High (25%)" : "Q 高 (25%)", desc: lang === "en" ? "Complex conditions" : "复杂场景" },
+                      { id: "H" as const, label: lang === "en" ? "H Ultra (30%)" : "H 极高 (30%)", desc: lang === "en" ? "Embedded Logo" : "嵌入Logo" },
                     ]).map((lv) => (
                       <button
                         key={lv.id}
@@ -595,7 +644,8 @@ export default function DailyToolbox({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                      边距 <span className="text-xs text-coconut-500 dark:text-darkbg-muted font-normal">({qrMargin})</span>
+                      {lang === "en" ? "Margin" : "边距"}{" "}
+                      <span className="text-xs text-coconut-500 dark:text-darkbg-muted font-normal">({qrMargin})</span>
                     </span>
                     <input
                       type="range"
@@ -608,7 +658,8 @@ export default function DailyToolbox({
                   </div>
                   <div className="space-y-1.5">
                     <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                      边框粗细 <span className="text-xs text-coconut-500 dark:text-darkbg-muted font-normal">({qrBorderWidth}px)</span>
+                      {lang === "en" ? "Border Width" : "边框粗细"}{" "}
+                      <span className="text-xs text-coconut-500 dark:text-darkbg-muted font-normal">({qrBorderWidth}px)</span>
                     </span>
                     <input
                       type="range"
@@ -625,20 +676,20 @@ export default function DailyToolbox({
                 <div className="p-3.5 bg-coconut-100/40 dark:bg-darkbg-subtle/50 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                      边框圆滑度 / 圆角
+                      {lang === "en" ? "Corner Smoothness / Radius" : "边框圆滑度 / 圆角"}
                     </span>
                     <span className="text-xs font-mono font-semibold text-palm-600 dark:text-palm-400">
-                      {qrBorderRadius === 0 ? "直角 (0px)" : `${qrBorderRadius}px`}
+                      {qrBorderRadius === 0 ? (lang === "en" ? "Square (0px)" : "直角 (0px)") : `${qrBorderRadius}px`}
                     </span>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { r: 0, label: "直角" },
-                      { r: 12, label: "微圆 (12px)" },
-                      { r: 24, label: "圆滑 (24px)" },
-                      { r: 36, label: "大圆 (36px)" },
-                      { r: 48, label: "超圆 (48px)" },
+                      { r: 0, label: lang === "en" ? "Square" : "直角" },
+                      { r: 12, label: lang === "en" ? "Subtle (12px)" : "微圆 (12px)" },
+                      { r: 24, label: lang === "en" ? "Smooth (24px)" : "圆滑 (24px)" },
+                      { r: 36, label: lang === "en" ? "Round (36px)" : "大圆 (36px)" },
+                      { r: 48, label: lang === "en" ? "Pill (48px)" : "超圆 (48px)" },
                     ].map((item) => (
                       <button
                         key={item.r}
@@ -670,7 +721,9 @@ export default function DailyToolbox({
                   {/* 边框颜色 (仅在有边框粗细时提供选色) */}
                   {qrBorderWidth > 0 && (
                     <div className="flex items-center justify-between pt-2 border-t border-coconut-200/50 dark:border-darkbg-border">
-                      <span className="text-xs font-semibold text-coconut-800 dark:text-darkbg-text">边框描边颜色:</span>
+                      <span className="text-xs font-semibold text-coconut-800 dark:text-darkbg-text">
+                        {lang === "en" ? "Border Color:" : "边框描边颜色:"}
+                      </span>
                       <div className="flex items-center space-x-2">
                         <input
                           type="color"
@@ -693,11 +746,13 @@ export default function DailyToolbox({
                       onChange={(e) => setQrGradient(e.target.checked)}
                       className="rounded accent-palm-600 text-palm-600"
                     />
-                    <span>开启炫彩渐变色效果</span>
+                    <span>{lang === "en" ? "Enable Color Gradient" : "开启炫彩渐变色效果"}</span>
                   </label>
                   {qrGradient && (
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs text-coconut-600 dark:text-darkbg-muted">渐变尾色:</span>
+                      <span className="text-xs text-coconut-600 dark:text-darkbg-muted">
+                        {lang === "en" ? "Gradient End Color:" : "渐变尾色:"}
+                      </span>
                       <input
                         type="color"
                         value={qrGradColor}
@@ -711,7 +766,7 @@ export default function DailyToolbox({
                 {/* 嵌入 Logo */}
                 <div className="space-y-1.5">
                   <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                    中心嵌入品牌 Logo (可选)
+                    {lang === "en" ? "Embed Brand Logo in Center (Optional)" : "中心嵌入品牌 Logo (可选)"}
                   </span>
                   <div className="flex items-center space-x-3">
                     <input
@@ -729,39 +784,63 @@ export default function DailyToolbox({
                       onClick={() => document.getElementById("qr-logo-input")?.click()}
                       className="px-4 py-2 bg-coconut-100/80 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-2xl text-xs sm:text-sm font-semibold text-coconut-900 dark:text-darkbg-text hover:bg-coconut-200/60 transition-all active:scale-95"
                     >
-                      {qrLogoFile ? `已选: ${qrLogoFile.name}` : "选择透明 PNG / 图标"}
+                      {qrLogoFile
+                        ? lang === "en"
+                          ? `Selected: ${qrLogoFile.name}`
+                          : `已选: ${qrLogoFile.name}`
+                        : lang === "en"
+                        ? "Choose Transparent PNG / Icon"
+                        : "选择透明 PNG / 图标"}
                     </button>
                     {qrLogoFile && (
                       <button
                         onClick={() => setQrLogoFile(null)}
                         className="text-xs text-toast-600 hover:text-toast-700 transition-colors"
                       >
-                        移除 Logo
+                        {lang === "en" ? "Remove Logo" : "移除 Logo"}
                       </button>
                     )}
                   </div>
                   <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed">
-                    嵌入 Logo 时将自动启用 High 纠错等级 (30%)，确保扫码秒开
+                    {lang === "en"
+                      ? "High error correction (30%) is automatically enabled when embedding a logo to ensure instant scanning"
+                      : "嵌入 Logo 时将自动启用 High 纠错等级 (30%)，确保扫码秒开"}
                   </p>
                 </div>
               </div>
 
               {/* 右侧实时渲染预览与下载 */}
               <div className="md:col-span-5 flex flex-col items-center space-y-4">
-                <div className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">实时二维码效果</div>
+                <div className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                  {lang === "en" ? "Real-time QR Preview" : "实时二维码效果"}
+                </div>
                 <div className="p-4 bg-white dark:bg-darkbg-subtle rounded-3xl shadow-coconut-md border border-coconut-200/70 dark:border-darkbg-border flex items-center justify-center">
                   {qrResultUrl ? (
-                    <img src={qrResultUrl} alt="生成的二维码" className="w-52 h-52 object-contain" />
+                    <img src={qrResultUrl} alt={lang === "en" ? "Generated QR Code" : "生成的二维码"} className="w-52 h-52 object-contain" />
                   ) : (
                     <div className="w-52 h-52 flex items-center justify-center text-xs text-coconut-400 dark:text-darkbg-muted">
-                      正在生成...
+                      {lang === "en" ? "Generating..." : "正在生成..."}
                     </div>
                   )}
                 </div>
 
                 <div className="w-full text-center">
                   <span className="text-xs text-coconut-500 dark:text-darkbg-muted">
-                    输出: {qrSize}×{qrSize}px · {qrLogoFile ? "H" : qrErrorLevel} 纠错 · {qrDotStyle === "square" ? "方块" : qrDotStyle === "rounded" ? "圆角" : "圆点"} · {qrBorderWidth > 0 ? (qrBorderRadius > 0 ? `圆滑边框(${qrBorderRadius}px)` : "直角边框") : (qrBorderRadius > 0 ? `圆角卡片(${qrBorderRadius}px)` : "无边框")}
+                    {lang === "en" ? "Output: " : "输出: "}
+                    {qrSize}×{qrSize}px · {qrLogoFile ? "H" : qrErrorLevel}{" "}
+                    {lang === "en" ? "EC" : "纠错"} ·{" "}
+                    {qrDotStyle === "square"
+                      ? lang === "en" ? "Square" : "方块"
+                      : qrDotStyle === "rounded"
+                      ? lang === "en" ? "Rounded" : "圆角"
+                      : lang === "en" ? "Dots" : "圆点"} ·{" "}
+                    {qrBorderWidth > 0
+                      ? qrBorderRadius > 0
+                        ? lang === "en" ? `Smooth Border(${qrBorderRadius}px)` : `圆滑边框(${qrBorderRadius}px)`
+                        : lang === "en" ? "Square Border" : "直角边框"
+                      : qrBorderRadius > 0
+                      ? lang === "en" ? `Rounded Card(${qrBorderRadius}px)` : `圆角卡片(${qrBorderRadius}px)`
+                      : lang === "en" ? "No Border" : "无边框"}
                   </span>
                 </div>
 
@@ -775,7 +854,7 @@ export default function DailyToolbox({
                     className="w-full py-3 btn-3d-sunset text-white rounded-2xl text-sm font-bold flex items-center justify-center space-x-2"
                   >
                     <Download className="w-4 h-4" />
-                    <span>下载高清 PNG</span>
+                    <span>{lang === "en" ? "Download High-Res PNG" : "下载高清 PNG"}</span>
                   </button>
                 </div>
               </div>
@@ -789,7 +868,9 @@ export default function DailyToolbox({
         <div className="coconut-panel p-5 sm:p-6 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-coconut-200/60 dark:border-darkbg-border">
             <div className="flex items-center space-x-3">
-              <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">对比模式:</span>
+              <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                {lang === "en" ? "Diff Mode:" : "对比模式:"}
+              </span>
               <div className="flex space-x-1.5">
                 {(["lines", "words"] as const).map((m) => (
                   <button
@@ -801,7 +882,9 @@ export default function DailyToolbox({
                         : "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-200/60 dark:hover:text-darkbg-text"
                     }`}
                   >
-                    {m === "lines" ? "按行对比 (推荐)" : "按词精细对比"}
+                    {m === "lines"
+                      ? lang === "en" ? "By Lines (Recommended)" : "按行对比 (推荐)"
+                      : lang === "en" ? "By Words" : "按词精细对比"}
                   </button>
                 ))}
               </div>
@@ -809,10 +892,10 @@ export default function DailyToolbox({
 
             <div className="flex items-center space-x-3 text-xs sm:text-sm">
               <span className="px-3 py-1 rounded-xl bg-palm-100/80 dark:bg-palm-950/60 text-palm-700 dark:text-palm-300 font-mono font-bold border border-palm-200/50 dark:border-palm-900/40">
-                +{diffResult.addedCount} 新增
+                +{diffResult.addedCount} {lang === "en" ? "Added" : "新增"}
               </span>
               <span className="px-3 py-1 rounded-xl bg-toast-100/80 dark:bg-toast-950/60 text-toast-700 dark:text-toast-300 font-mono font-bold border border-toast-200/50 dark:border-toast-900/40">
-                -{diffResult.removedCount} 删除
+                -{diffResult.removedCount} {lang === "en" ? "Removed" : "删除"}
               </span>
               <button
                 onClick={() => {
@@ -823,7 +906,7 @@ export default function DailyToolbox({
                 className="flex items-center space-x-1 text-coconut-600 hover:text-palm-600 dark:text-darkbg-muted dark:hover:text-palm-400 transition-colors font-semibold"
               >
                 <ArrowRightLeft className="w-4 h-4" />
-                <span>左右交换</span>
+                <span>{lang === "en" ? "Swap Sides" : "左右交换"}</span>
               </button>
             </div>
           </div>
@@ -831,7 +914,9 @@ export default function DailyToolbox({
           {/* 输入框双栏 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text font-mono">原始版本 (Original)</span>
+              <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text font-mono">
+                {lang === "en" ? "Original Version" : "原始版本 (Original)"}
+              </span>
               <textarea
                 rows={6}
                 value={diffOriginal}
@@ -841,7 +926,9 @@ export default function DailyToolbox({
             </div>
 
             <div className="space-y-1.5">
-              <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text font-mono">修改后版本 (Modified)</span>
+              <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text font-mono">
+                {lang === "en" ? "Modified Version" : "修改后版本 (Modified)"}
+              </span>
               <textarea
                 rows={6}
                 value={diffModified}
@@ -854,7 +941,9 @@ export default function DailyToolbox({
           {/* 差异可视化高亮输出 */}
           <div className="space-y-1.5">
             <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-              Diff 差异高亮视图 (带增删标记)
+              {lang === "en"
+                ? "Diff Visualizer (with additions & deletions highlighted)"
+                : "Diff 差异高亮视图 (带增删标记)"}
             </span>
             <div className="p-4 bg-darkbg-canvas rounded-2xl border border-darkbg-border font-mono text-xs sm:text-sm leading-relaxed max-h-80 overflow-y-auto no-scrollbar">
               {diffResult.changes.map((part, index) => {
@@ -887,10 +976,10 @@ export default function DailyToolbox({
             className="flex space-x-2 border-b border-coconut-200/60 dark:border-darkbg-border pb-3 overflow-x-auto tab-scrollbar snap-x touch-pan-x"
           >
             {[
-              { id: "json", label: "JSON 格式化校验", icon: FileCode },
-              { id: "base64", label: "Base64 编解码", icon: KeyRound },
-              { id: "hash", label: "哈希计算 (SHA/MD5)", icon: Sparkles },
-              { id: "timestamp", label: "Unix 时间戳互转", icon: Clock },
+              { id: "json", label: lang === "en" ? "JSON Formatter" : "JSON 格式化校验", icon: FileCode },
+              { id: "base64", label: lang === "en" ? "Base64 Codec" : "Base64 编解码", icon: KeyRound },
+              { id: "hash", label: lang === "en" ? "Hash Generator" : "哈希计算 (SHA/MD5)", icon: Sparkles },
+              { id: "timestamp", label: lang === "en" ? "Unix Timestamp" : "Unix 时间戳互转", icon: Clock },
             ].map((sub) => {
               const Icon = sub.icon;
               const isCur = devTab === sub.id;
@@ -915,7 +1004,9 @@ export default function DailyToolbox({
           {devTab === "json" && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">输入未格式化的 JSON 字符串</span>
+                <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                  {lang === "en" ? "Input raw JSON string" : "输入未格式化的 JSON 字符串"}
+                </span>
                 <div className="flex items-center space-x-2 flex-wrap">
                   <button
                     onClick={() => {
@@ -924,12 +1015,12 @@ export default function DailyToolbox({
                         setJsonInput(res.result);
                         setJsonErr(null);
                       } else {
-                        setJsonErr(res.error || "语法错误");
+                        setJsonErr(res.error || (lang === "en" ? "Syntax Error" : "语法错误"));
                       }
                     }}
                     className="px-3.5 py-1.5 bg-gradient-to-r from-palm-600 to-palm-700 hover:from-palm-700 hover:to-palm-800 text-white rounded-xl text-xs sm:text-sm font-semibold shadow-coconut-sm active:scale-95 transition-all"
                   >
-                    格式化 (2空格)
+                    {lang === "en" ? "Format (2 Spaces)" : "格式化 (2空格)"}
                   </button>
                   <button
                     onClick={() => {
@@ -941,21 +1032,21 @@ export default function DailyToolbox({
                     }}
                     className="px-3.5 py-1.5 bg-coconut-100 dark:bg-darkbg-subtle text-coconut-800 dark:text-darkbg-text hover:bg-coconut-200/60 rounded-xl text-xs sm:text-sm font-semibold border border-coconut-200/50 dark:border-darkbg-border active:scale-95 transition-all"
                   >
-                    压缩单行
+                    {lang === "en" ? "Minify" : "压缩单行"}
                   </button>
                   <button
                     onClick={() => copyToClipboard(jsonInput)}
                     className="px-3 py-1.5 text-xs sm:text-sm text-coconut-700 hover:text-palm-600 dark:text-darkbg-muted dark:hover:text-palm-400 flex items-center space-x-1 active:scale-95 transition-colors font-semibold"
                   >
                     {copied ? <Check className="w-4 h-4 text-palm-500" /> : <Copy className="w-4 h-4" />}
-                    <span>{copied ? "已复制" : "复制"}</span>
+                    <span>{copied ? (lang === "en" ? "Copied" : "已复制") : (lang === "en" ? "Copy" : "复制")}</span>
                   </button>
                 </div>
               </div>
 
               {jsonErr && (
                 <div className="p-3.5 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl text-xs sm:text-sm text-toast-700 dark:text-toast-300 font-mono">
-                  ⚠️ JSON 校验错误: {jsonErr}
+                  ⚠️ {lang === "en" ? "JSON Syntax Error: " : "JSON 校验错误: "}{jsonErr}
                 </div>
               )}
 
@@ -977,12 +1068,12 @@ export default function DailyToolbox({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                    <span>原始明文文本 (支持中文 UTF-8)</span>
+                    <span>{lang === "en" ? "Plaintext (UTF-8)" : "原始明文文本 (支持中文 UTF-8)"}</span>
                     <button
                       onClick={() => setB64Result(encodeBase64(b64Text))}
                       className="px-3 py-1 bg-palm-600 hover:bg-palm-700 text-white rounded-xl text-xs sm:text-sm font-semibold active:scale-95 transition-all"
                     >
-                      编码为 Base64 →
+                      {lang === "en" ? "Encode to Base64 →" : "编码为 Base64 →"}
                     </button>
                   </div>
                   <textarea
@@ -995,18 +1086,18 @@ export default function DailyToolbox({
 
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                    <span>Base64 结果</span>
+                    <span>{lang === "en" ? "Base64 Result" : "Base64 结果"}</span>
                     <button
                       onClick={() => {
                         try {
                           setB64Text(decodeBase64(b64Result));
                         } catch (e) {
-                          setError("无效的 Base64 字符串");
+                          setError(lang === "en" ? "Invalid Base64 string" : "无效的 Base64 字符串");
                         }
                       }}
                       className="px-3 py-1 bg-coconut-800 hover:bg-coconut-900 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 text-coconut-50 rounded-xl text-xs sm:text-sm font-semibold active:scale-95 transition-all shadow-sm"
                     >
-                      ← 解码为明文
+                      {lang === "en" ? "← Decode to Plaintext" : "← 解码为明文"}
                     </button>
                   </div>
                   <textarea
@@ -1024,7 +1115,9 @@ export default function DailyToolbox({
           {devTab === "hash" && (
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">待哈希文本</span>
+                <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                  {lang === "en" ? "Text to Hash" : "待哈希文本"}
+                </span>
                 <input
                   type="text"
                   value={hashInput}
@@ -1035,10 +1128,10 @@ export default function DailyToolbox({
 
               <div className="space-y-3 pt-2">
                 {[
-                  { label: "MD5 (32位)", val: hashes.md5 },
-                  { label: "SHA-256 (64位)", val: hashes.sha256 },
-                  { label: "SHA-1 (40位)", val: hashes.sha1 },
-                  { label: "SHA-512 (128位)", val: hashes.sha512 },
+                  { label: lang === "en" ? "MD5 (32-bit)" : "MD5 (32位)", val: hashes.md5 },
+                  { label: lang === "en" ? "SHA-256 (64-bit)" : "SHA-256 (64位)", val: hashes.sha256 },
+                  { label: lang === "en" ? "SHA-1 (40-bit)" : "SHA-1 (40位)", val: hashes.sha1 },
+                  { label: lang === "en" ? "SHA-512 (128-bit)" : "SHA-512 (128位)", val: hashes.sha512 },
                 ].map((item) => (
                   <div
                     key={item.label}
@@ -1047,13 +1140,13 @@ export default function DailyToolbox({
                     <div className="space-y-0.5 truncate pr-2">
                       <div className="text-xs font-bold text-coconut-600 dark:text-darkbg-muted">{item.label}</div>
                       <div className="text-sm font-mono text-coconut-900 dark:text-darkbg-text truncate select-all font-medium">
-                        {item.val || "计算中..."}
+                        {item.val || (lang === "en" ? "Calculating..." : "计算中...")}
                       </div>
                     </div>
                     <button
                       onClick={() => copyToClipboard(item.val)}
                       className="p-2 text-coconut-500 hover:text-palm-600 dark:text-darkbg-muted dark:hover:text-palm-400 transition-colors"
-                      title="复制哈希"
+                      title={lang === "en" ? "Copy Hash" : "复制哈希"}
                     >
                       <Copy className="w-4 h-4" />
                     </button>
@@ -1068,15 +1161,19 @@ export default function DailyToolbox({
             <div className="space-y-5">
               <div className="p-5 sm:p-6 bg-palm-50/70 dark:bg-palm-950/30 rounded-2xl border border-palm-200/60 dark:border-palm-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="space-y-1">
-                  <div className="text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted font-medium">当前实时 Unix 时间戳 (秒级):</div>
+                  <div className="text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted font-medium">
+                    {lang === "en" ? "Current Unix Timestamp (seconds):" : "当前实时 Unix 时间戳 (秒级):"}
+                  </div>
                   <div className="text-2xl sm:text-3xl font-bold font-mono text-palm-700 dark:text-palm-400">
                     {currentTimestamp}
                   </div>
                 </div>
                 <div className="text-left sm:text-right space-y-1">
-                  <div className="text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted font-medium">北京时间:</div>
+                  <div className="text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted font-medium">
+                    {lang === "en" ? "Local Time (UTC+8):" : "北京时间:"}
+                  </div>
                   <div className="text-sm font-mono font-semibold text-coconut-900 dark:text-darkbg-text">
-                    {new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}
+                    {new Date().toLocaleString(lang === "en" ? "en-US" : "zh-CN", { timeZone: "Asia/Shanghai" })}
                   </div>
                 </div>
               </div>
@@ -1084,25 +1181,25 @@ export default function DailyToolbox({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-5 bg-coconut-100/40 dark:bg-darkbg-subtle/50 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border space-y-3">
                   <div className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                    时间戳 $\rightarrow$ 日期时间
+                    {lang === "en" ? "Timestamp → Date & Time" : "时间戳 → 日期时间"}
                   </div>
                   <div className="flex space-x-2">
                     <input
                       type="number"
                       value={tsInput}
                       onChange={(e) => setTsInput(e.target.value)}
-                      placeholder="秒或毫秒时间戳"
+                      placeholder={lang === "en" ? "Timestamp in seconds or ms" : "秒或毫秒时间戳"}
                       className="flex-1 p-2.5 text-sm bg-white/70 dark:bg-darkbg-card border border-coconut-300/80 dark:border-darkbg-border rounded-xl font-mono text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
                     />
                     <button
                       onClick={() => {
                         const val = parseInt(tsInput);
                         const ms = tsInput.length === 10 ? val * 1000 : val;
-                        setTsDateResult(new Date(ms).toLocaleString("zh-CN"));
+                        setTsDateResult(new Date(ms).toLocaleString(lang === "en" ? "en-US" : "zh-CN"));
                       }}
                       className="px-4 py-2 bg-gradient-to-r from-palm-600 to-palm-700 hover:from-palm-700 hover:to-palm-800 text-white rounded-xl text-xs sm:text-sm font-bold shadow-coconut-sm active:scale-95 transition-all"
                     >
-                      转换
+                      {lang === "en" ? "Convert" : "转换"}
                     </button>
                   </div>
                   {tsDateResult && (
@@ -1114,17 +1211,17 @@ export default function DailyToolbox({
 
                 <div className="p-5 bg-coconut-100/40 dark:bg-darkbg-subtle/50 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border space-y-3">
                   <div className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                    当前常用快捷时间戳
+                    {lang === "en" ? "Common Preset Timestamps" : "当前常用快捷时间戳"}
                   </div>
                   <div className="space-y-2 text-xs sm:text-sm font-mono text-coconut-600 dark:text-darkbg-muted">
                     <div className="flex justify-between">
-                      <span>今日零点:</span>
+                      <span>{lang === "en" ? "Today 00:00:" : "今日零点:"}</span>
                       <span className="text-coconut-900 dark:text-darkbg-text font-semibold">
                         {Math.floor(new Date(new Date().setHours(0, 0, 0, 0)).getTime() / 1000)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span>毫秒级时间戳:</span>
+                      <span>{lang === "en" ? "Millisecond Timestamp:" : "毫秒级时间戳:"}</span>
                       <span className="text-coconut-900 dark:text-darkbg-text font-semibold">{Date.now()}</span>
                     </div>
                   </div>

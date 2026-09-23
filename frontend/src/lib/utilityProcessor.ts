@@ -8,23 +8,24 @@ import { loadImageFromFile } from "./imageProcessor";
 
 export interface IdPhotoSpec {
   name: string;
+  nameEn?: string;
   width: number;
   height: number;
   mmWidth: number;
   mmHeight: number;
 }
 
-export const ID_SPECS = {
-  ONE_INCH: { name: "标准 1 寸", width: 295, height: 413, mmWidth: 25, mmHeight: 35 },
-  TWO_INCH: { name: "标准 2 寸", width: 413, height: 579, mmWidth: 35, mmHeight: 49 },
-  SMALL_TWO: { name: "小 2 寸 (护照/签证)", width: 390, height: 567, mmWidth: 33, mmHeight: 48 },
+export const ID_SPECS: Record<string, IdPhotoSpec> = {
+  ONE_INCH: { name: "标准 1 寸", nameEn: "Standard 1-Inch", width: 295, height: 413, mmWidth: 25, mmHeight: 35 },
+  TWO_INCH: { name: "标准 2 寸", nameEn: "Standard 2-Inch", width: 413, height: 579, mmWidth: 35, mmHeight: 49 },
+  SMALL_TWO: { name: "小 2 寸 (护照/签证)", nameEn: "Small 2-Inch (Passport/Visa)", width: 390, height: 567, mmWidth: 33, mmHeight: 48 },
 };
 
 export const BG_COLORS = [
-  { id: "white", name: "标准白底 (驾照/求职/日常)", hex: "#FFFFFF" },
-  { id: "blue", name: "标准蓝底 (毕业证/社保卡/考试)", hex: "#438EDB" },
-  { id: "red", name: "标准红底 (党政/结婚登记/工会)", hex: "#D92B2B" },
-  { id: "gray", name: "高级商务灰 (形象/职场/领英)", hex: "#8E9EAB" },
+  { id: "white", name: "标准白底 (驾照/求职/日常)", nameEn: "White (Driver's / Resume)", hex: "#FFFFFF" },
+  { id: "blue", name: "标准蓝底 (毕业证/社保卡/考试)", nameEn: "Blue (Diploma / Social / Exam)", hex: "#438EDB" },
+  { id: "red", name: "标准红底 (党政/结婚登记/工会)", nameEn: "Red (Official / Marriage / Union)", hex: "#D92B2B" },
+  { id: "gray", name: "高级商务灰 (形象/职场/领英)", nameEn: "Business Gray (Profile / LinkedIn)", hex: "#8E9EAB" },
 ];
 
 /**

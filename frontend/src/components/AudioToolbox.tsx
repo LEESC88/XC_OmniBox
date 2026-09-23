@@ -39,6 +39,7 @@ import { formatBytes } from "@/lib/imageProcessor";
 import { createZipBundle } from "@/lib/imageProcessor";
 import { downloadBlob } from "@/lib/api";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
+import { useI18n } from "@/lib/i18n";
 
 type AudioToolTab = "trim" | "convert" | "merge" | "extract" | "volume";
 
@@ -67,6 +68,7 @@ export interface AudioToolboxProps {
 }
 
 export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxProps = {}) {
+  const { lang } = useI18n();
   const [activeTab, setActiveTab] = useState<AudioToolTab>(currentTab || "trim");
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -163,7 +165,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
     stopPlayback();
     setTrimFile(file);
     setIsProcessing(true);
-    setProgressMsg("正在解析并生成音频波形...");
+    setProgressMsg(lang === "en" ? "Parsing and generating waveform..." : "正在解析并生成音频波形...");
     setError(null);
 
     try {
@@ -175,7 +177,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
       setEndTime(Math.min(30, buffer.duration));
       setCurrentTime(0);
     } catch (err: any) {
-      setError(err.message || "加载音频文件失败");
+      setError(err.message || (lang === "en" ? "Failed to load audio file" : "加载音频文件失败"));
     } finally {
       setIsProcessing(false);
       setProgressMsg("");
@@ -336,7 +338,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
   const handleExportTrim = async () => {
     if (!trimBuffer || !trimFile) return;
     setIsProcessing(true);
-    setProgressMsg("正在裁剪并无损编码音频...");
+    setProgressMsg(lang === "en" ? "Trimming and encoding audio..." : "正在裁剪并无损编码音频...");
     setError(null);
 
     try {
@@ -348,7 +350,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
       ).replace(":", "m")}.${ext}`;
       downloadBlob(blob, outputFilename);
     } catch (err: any) {
-      setError("裁剪导出失败: " + err.message);
+      setError((lang === "en" ? "Trim export failed: " : "裁剪导出失败: ") + err.message);
     } finally {
       setIsProcessing(false);
       setProgressMsg("");
@@ -365,7 +367,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
     try {
       for (let i = 0; i < convertFiles.length; i++) {
         const file = convertFiles[i];
-        setProgressMsg(`正在转码 (${i + 1}/${convertFiles.length}): ${file.name}`);
+        setProgressMsg(lang === "en" ? `Transcoding (${i + 1}/${convertFiles.length}): ${file.name}` : `正在转码 (${i + 1}/${convertFiles.length}): ${file.name}`);
         const buffer = await decodeAudioFile(file);
         const { blob, ext } = await exportAudioBuffer(buffer, convertTargetFormat, convertKbps);
         const baseName = file.name.replace(/\.[^/.]+$/, "");
@@ -381,7 +383,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
       }
       setConvertResults(results);
     } catch (err: any) {
-      setError("批量格式转码失败: " + err.message);
+      setError((lang === "en" ? "Batch convert failed: " : "批量格式转码失败: ") + err.message);
     } finally {
       setIsProcessing(false);
       setProgressMsg("");
@@ -392,7 +394,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
   const handleAddMergeTracks = async (files: FileList | null) => {
     if (!files) return;
     setIsProcessing(true);
-    setProgressMsg("正在解析音轨数据...");
+    setProgressMsg(lang === "en" ? "Parsing track data..." : "正在解析音轨数据...");
     const incoming: MergeTrack[] = [];
 
     for (let i = 0; i < files.length; i++) {
@@ -408,7 +410,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
           buffer: buf,
         });
       } catch (err) {
-        console.error("加载片段失败", f.name);
+        console.error(lang === "en" ? "Failed to load clip" : "加载片段失败", f.name);
       }
     }
 
@@ -419,11 +421,11 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
 
   const handleExecuteMerge = async () => {
     if (mergeTracks.length < 2) {
-      setError("请至少添加两个音频片段进行拼接");
+      setError(lang === "en" ? "Please add at least 2 audio clips to merge" : "请至少添加两个音频片段进行拼接");
       return;
     }
     setIsProcessing(true);
-    setProgressMsg("正在无缝对齐采样率并合并多音轨...");
+    setProgressMsg(lang === "en" ? "Aligning sample rates and merging tracks..." : "正在无缝对齐采样率并合并多音轨...");
     setError(null);
 
     try {
@@ -433,7 +435,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
       const outputFilename = `XC_Merged_Audio_${Date.now()}.${ext}`;
       downloadBlob(blob, outputFilename);
     } catch (err: any) {
-      setError("音频合并失败: " + err.message);
+      setError((lang === "en" ? "Audio merge failed: " : "音频合并失败: ") + err.message);
     } finally {
       setIsProcessing(false);
       setProgressMsg("");
@@ -444,7 +446,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
   const handleExecuteExtract = async () => {
     if (!videoFile) return;
     setIsProcessing(true);
-    setProgressMsg("正在从本地视频提取纯净音轨 (无需上传服务器)...");
+    setProgressMsg(lang === "en" ? "Extracting audio track from local video (no upload needed)..." : "正在从本地视频提取纯净音轨 (无需上传服务器)...");
     setError(null);
 
     try {
@@ -453,7 +455,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
       const baseName = videoFile.name.replace(/\.[^/.]+$/, "");
       downloadBlob(blob, `${baseName}_audio.${ext}`);
     } catch (err: any) {
-      setError("视频提取音频失败，请确认视频包含有效声轨: " + err.message);
+      setError((lang === "en" ? "Video audio extraction failed: " : "视频提取音频失败，请确认视频包含有效声轨: ") + err.message);
     } finally {
       setIsProcessing(false);
       setProgressMsg("");
@@ -464,12 +466,12 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
   const handleVolumeFileSelected = async (file: File) => {
     setVolumeFile(file);
     setIsProcessing(true);
-    setProgressMsg("正在分析音频电平...");
+    setProgressMsg(lang === "en" ? "Analyzing audio levels..." : "正在分析音频电平...");
     try {
       const buf = await decodeAudioFile(file);
       setVolumeBuffer(buf);
     } catch (err: any) {
-      setError("加载音频失败: " + err.message);
+      setError((lang === "en" ? "Failed to load audio: " : "加载音频失败: ") + err.message);
     } finally {
       setIsProcessing(false);
       setProgressMsg("");
@@ -479,7 +481,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
   const handleExecuteVolume = async () => {
     if (!volumeBuffer || !volumeFile) return;
     setIsProcessing(true);
-    setProgressMsg("正在重构增益电平与防失真计算...");
+    setProgressMsg(lang === "en" ? "Recalculating gain levels and peak normalization..." : "正在重构增益电平与防失真计算...");
     setError(null);
 
     try {
@@ -491,7 +493,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
       const tag = isNorm ? "normalized" : `gain_${gainPercent}pct`;
       downloadBlob(blob, `${baseName}_${tag}.${ext}`);
     } catch (err: any) {
-      setError("音量处理失败: " + err.message);
+      setError((lang === "en" ? "Volume adjustment failed: " : "音量处理失败: ") + err.message);
     } finally {
       setIsProcessing(false);
       setProgressMsg("");
@@ -503,11 +505,36 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
       {/* 5 大功能 Tab 切换 (支持鼠标滚轮横移、鼠标拖拽滑动、专属微滑轨与左右翻页箭头) */}
       <ScrollableTabNav
         tabs={[
-          { id: "trim", label: "波形剪辑与铃声", icon: Scissors, badge: "毫秒级试听" },
-          { id: "convert", label: "音频万能转码", icon: RefreshCw, badge: "MP3/WAV/FLAC" },
-          { id: "merge", label: "多音频无缝拼接", icon: Combine, badge: "多轨合并" },
-          { id: "extract", label: "视频提取纯音频", icon: Film, badge: "MP4秒提MP3" },
-          { id: "volume", label: "音量放大与标准化", icon: Volume2, badge: "自动防破音" },
+          {
+            id: "trim",
+            label: lang === "en" ? "Waveform Trim & Ringtone" : "波形剪辑与铃声",
+            icon: Scissors,
+            badge: lang === "en" ? "Precise Preview" : "毫秒级试听",
+          },
+          {
+            id: "convert",
+            label: lang === "en" ? "Audio Converter" : "音频万能转码",
+            icon: RefreshCw,
+            badge: "MP3/WAV/FLAC",
+          },
+          {
+            id: "merge",
+            label: lang === "en" ? "Audio Merger" : "多音频无缝拼接",
+            icon: Combine,
+            badge: lang === "en" ? "Multi-track" : "多轨合并",
+          },
+          {
+            id: "extract",
+            label: lang === "en" ? "Extract from Video" : "视频提取纯音频",
+            icon: Film,
+            badge: lang === "en" ? "Video to MP3" : "MP4秒提MP3",
+          },
+          {
+            id: "volume",
+            label: lang === "en" ? "Volume & Normalizer" : "音量放大与标准化",
+            icon: Volume2,
+            badge: lang === "en" ? "Anti-clipping" : "自动防破音",
+          },
         ]}
         activeTab={activeTab}
         onTabChange={(id) => handleTabSelect(id as AudioToolTab)}
@@ -544,10 +571,12 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   <UploadCloud className="w-7 h-7" />
                 </div>
                 <div className="font-bold text-coconut-900 dark:text-darkbg-text">
-                  点击或拖拽上传音频文件进行波形剪辑
+                  {lang === "en" ? "Click or drag audio file here to trim" : "点击或拖拽上传音频文件进行波形剪辑"}
                 </div>
                 <div className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                  支持 MP3, WAV, FLAC, AAC, M4A, OGG 等全部音乐格式
+                  {lang === "en"
+                    ? "Supports MP3, WAV, FLAC, AAC, M4A, OGG and other audio formats"
+                    : "支持 MP3, WAV, FLAC, AAC, M4A, OGG 等全部音乐格式"}
                 </div>
               </div>
             </div>
@@ -561,7 +590,9 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                     <span>{trimFile?.name}</span>
                   </div>
                   <div className="text-xs text-coconut-600 dark:text-darkbg-muted font-mono">
-                    总时长: {formatDuration(trimBuffer.duration)} · 采样率: {trimBuffer.sampleRate} Hz · 声道:{" "}
+                    {lang === "en" ? "Duration: " : "总时长: "}
+                    {formatDuration(trimBuffer.duration)} · {lang === "en" ? "Sample Rate: " : "采样率: "}
+                    {trimBuffer.sampleRate} Hz · {lang === "en" ? "Channels: " : "声道: "}
                     {trimBuffer.numberOfChannels}
                   </div>
                 </div>
@@ -573,18 +604,20 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   }}
                   className="px-3.5 py-1.5 rounded-xl border border-coconut-200 dark:border-darkbg-border text-xs font-semibold text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/60 dark:hover:bg-darkbg-elevated hover:dark:text-darkbg-text"
                 >
-                  更换音频
+                  {lang === "en" ? "Change Audio" : "更换音频"}
                 </button>
               </div>
 
               {/* 交互式波形画布 */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted font-mono">
-                  <span>起点: {formatDuration(startTime)}</span>
+                  <span>{lang === "en" ? `Start: ${formatDuration(startTime)}` : `起点: ${formatDuration(startTime)}`}</span>
                   <span className="text-coconut-900 dark:text-toast-400 font-bold">
-                    截取时长: {formatDuration(endTime - startTime)}
+                    {lang === "en"
+                      ? `Selection: ${formatDuration(endTime - startTime)}`
+                      : `截取时长: ${formatDuration(endTime - startTime)}`}
                   </span>
-                  <span>终点: {formatDuration(endTime)}</span>
+                  <span>{lang === "en" ? `End: ${formatDuration(endTime)}` : `终点: ${formatDuration(endTime)}`}</span>
                 </div>
 
                 <div className="relative w-full h-36 bg-[#0E0C0A] rounded-2xl overflow-hidden cursor-crosshair border border-coconut-900/60 dark:border-darkbg-border shadow-inner">
@@ -597,18 +630,22 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   />
                 </div>
                 <p className="text-xs text-coconut-600 dark:text-darkbg-muted text-center leading-relaxed">
-                  💡 拖动两端高亮滑块可直接改变截取起点与终点；点击波形内部任意处可直接跳到该位置试听
+                  {lang === "en"
+                    ? "💡 Drag the highlighted handles at both ends to change start/end; click anywhere on waveform to preview"
+                    : "💡 拖动两端高亮滑块可直接改变截取起点与终点；点击波形内部任意处可直接跳到该位置试听"}
                 </p>
               </div>
 
               {/* 快捷选区预设 */}
               <div className="flex items-center space-x-2.5 text-xs sm:text-sm flex-wrap gap-y-2">
-                <span className="text-coconut-900 dark:text-darkbg-text font-semibold">快捷铃声长度:</span>
+                <span className="text-coconut-900 dark:text-darkbg-text font-semibold">
+                  {lang === "en" ? "Quick Ringtone Length:" : "快捷铃声长度:"}
+                </span>
                 {[
-                  { label: "前 15 秒", s: 0, e: 15 },
-                  { label: "前 30 秒 (推荐)", s: 0, e: 30 },
-                  { label: "前 60 秒", s: 0, e: 60 },
-                  { label: "全选", s: 0, e: trimBuffer.duration },
+                  { label: lang === "en" ? "First 15s" : "前 15 秒", s: 0, e: 15 },
+                  { label: lang === "en" ? "First 30s (Rec)" : "前 30 秒 (推荐)", s: 0, e: 30 },
+                  { label: lang === "en" ? "First 60s" : "前 60 秒", s: 0, e: 60 },
+                  { label: lang === "en" ? "Select All" : "全选", s: 0, e: trimBuffer.duration },
                 ].map((preset) => (
                   <button
                     key={preset.label}
@@ -636,7 +673,13 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   </button>
                   <div className="space-y-1">
                     <div className="font-bold text-sm sm:text-base text-coconut-900 dark:text-darkbg-text">
-                      {isPlaying ? "正在试听选区..." : "试听选中片段"}
+                      {isPlaying
+                        ? lang === "en"
+                          ? "Playing selection..."
+                          : "正在试听选区..."
+                        : lang === "en"
+                        ? "Play Selection"
+                        : "试听选中片段"}
                     </div>
                     <div className="flex items-center space-x-3 text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted">
                       <label className="flex items-center space-x-1.5 cursor-pointer select-none">
@@ -646,7 +689,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                           onChange={(e) => setLoopSelection(e.target.checked)}
                           className="rounded accent-palm-600 dark:accent-palm-400"
                         />
-                        <span>循环试听</span>
+                        <span>{lang === "en" ? "Loop" : "循环试听"}</span>
                       </label>
                       <button
                         onClick={() => {
@@ -656,7 +699,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                         className="hover:text-palm-600 dark:hover:text-palm-400 flex items-center space-x-0.5"
                       >
                         <RotateCcw className="w-3 h-3" />
-                        <span>重头播放</span>
+                        <span>{lang === "en" ? "Restart" : "重头播放"}</span>
                       </button>
                     </div>
                   </div>
@@ -666,7 +709,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-xs sm:text-sm text-coconut-900 dark:text-darkbg-text font-semibold">
-                      <span>开头淡入</span>
+                      <span>{lang === "en" ? "Fade In" : "开头淡入"}</span>
                       <span className="font-mono font-bold text-toast-500">{fadeIn}s</span>
                     </div>
                     <input
@@ -682,7 +725,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
 
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-xs sm:text-sm text-coconut-900 dark:text-darkbg-text font-semibold">
-                      <span>结尾淡出</span>
+                      <span>{lang === "en" ? "Fade Out" : "结尾淡出"}</span>
                       <span className="font-mono font-bold text-toast-500">{fadeOut}s</span>
                     </div>
                     <input
@@ -701,7 +744,9 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
               {/* 导出配置与按钮 */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
                 <div className="flex items-center space-x-3 text-sm">
-                  <span className="text-coconut-900 dark:text-darkbg-text font-bold">导出格式:</span>
+                  <span className="text-coconut-900 dark:text-darkbg-text font-bold">
+                    {lang === "en" ? "Export Format:" : "导出格式:"}
+                  </span>
                   <div className="flex space-x-1.5">
                     {(["mp3", "wav"] as const).map((fmt) => (
                       <button
@@ -724,10 +769,18 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                       onChange={(e) => setTrimKbps(parseInt(e.target.value))}
                       className="px-3.5 py-2 bg-white/70 dark:bg-darkbg-subtle border border-coconut-300/80 dark:border-darkbg-border rounded-xl font-mono text-sm text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
                     >
-                      <option value={320} className="dark:bg-darkbg-card dark:text-darkbg-text">320 kbps (最高品质)</option>
-                      <option value={256} className="dark:bg-darkbg-card dark:text-darkbg-text">256 kbps (高保真)</option>
-                      <option value={192} className="dark:bg-darkbg-card dark:text-darkbg-text">192 kbps (标准音乐)</option>
-                      <option value={128} className="dark:bg-darkbg-card dark:text-darkbg-text">128 kbps (省流小体积)</option>
+                      <option value={320} className="dark:bg-darkbg-card dark:text-darkbg-text">
+                        {lang === "en" ? "320 kbps (Highest Quality)" : "320 kbps (最高品质)"}
+                      </option>
+                      <option value={256} className="dark:bg-darkbg-card dark:text-darkbg-text">
+                        {lang === "en" ? "256 kbps (High Fidelity)" : "256 kbps (高保真)"}
+                      </option>
+                      <option value={192} className="dark:bg-darkbg-card dark:text-darkbg-text">
+                        {lang === "en" ? "192 kbps (Standard Music)" : "192 kbps (标准音乐)"}
+                      </option>
+                      <option value={128} className="dark:bg-darkbg-card dark:text-darkbg-text">
+                        {lang === "en" ? "128 kbps (Compact Size)" : "128 kbps (省流小体积)"}
+                      </option>
                     </select>
                   )}
                 </div>
@@ -744,12 +797,12 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   {isProcessing ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>处理导出中...</span>
+                      <span>{lang === "en" ? "Exporting..." : "处理导出中..."}</span>
                     </>
                   ) : (
                     <>
                       <Scissors className="w-4 h-4" />
-                      <span>立即导出截取音频</span>
+                      <span>{lang === "en" ? "Export Trimmed Audio" : "立即导出截取音频"}</span>
                     </>
                   )}
                 </button>
@@ -765,12 +818,14 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
           <div className="coconut-panel p-5 sm:p-6 space-y-4">
             <div className="font-bold text-sm text-coconut-900 dark:text-darkbg-text flex items-center space-x-2">
               <RefreshCw className="w-4 h-4 text-toast-500" />
-              <span>设置批量转换目标参数</span>
+              <span>{lang === "en" ? "Target Conversion Settings" : "设置批量转换目标参数"}</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <span className="text-sm text-coconut-900 dark:text-darkbg-text font-semibold">目标音频格式</span>
+                <span className="text-sm text-coconut-900 dark:text-darkbg-text font-semibold">
+                  {lang === "en" ? "Target Audio Format" : "目标音频格式"}
+                </span>
                 <div className="flex space-x-2">
                   {(["mp3", "wav"] as const).map((fmt) => (
                     <button
@@ -790,16 +845,26 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
 
               {convertTargetFormat === "mp3" && (
                 <div className="space-y-1.5">
-                  <span className="text-sm text-coconut-900 dark:text-darkbg-text font-semibold">MP3 压缩比特率</span>
+                  <span className="text-sm text-coconut-900 dark:text-darkbg-text font-semibold">
+                    {lang === "en" ? "MP3 Bitrate" : "MP3 压缩比特率"}
+                  </span>
                   <select
                     value={convertKbps}
                     onChange={(e) => setConvertKbps(parseInt(e.target.value))}
                     className="w-full px-3.5 py-2.5 text-sm bg-white/70 dark:bg-darkbg-subtle border border-coconut-300/80 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
                   >
-                    <option value={320} className="dark:bg-darkbg-card dark:text-darkbg-text">320 kbps (录音室母带级音乐)</option>
-                    <option value={256} className="dark:bg-darkbg-card dark:text-darkbg-text">256 kbps (高保真音乐)</option>
-                    <option value={192} className="dark:bg-darkbg-card dark:text-darkbg-text">192 kbps (通用标准 CD 级)</option>
-                    <option value={128} className="dark:bg-darkbg-card dark:text-darkbg-text">128 kbps (网络播客省流)</option>
+                    <option value={320} className="dark:bg-darkbg-card dark:text-darkbg-text">
+                      {lang === "en" ? "320 kbps (Studio Master Music)" : "320 kbps (录音室母带级音乐)"}
+                    </option>
+                    <option value={256} className="dark:bg-darkbg-card dark:text-darkbg-text">
+                      {lang === "en" ? "256 kbps (High Fidelity Music)" : "256 kbps (高保真音乐)"}
+                    </option>
+                    <option value={192} className="dark:bg-darkbg-card dark:text-darkbg-text">
+                      {lang === "en" ? "192 kbps (Standard CD Quality)" : "192 kbps (通用标准 CD 级)"}
+                    </option>
+                    <option value={128} className="dark:bg-darkbg-card dark:text-darkbg-text">
+                      {lang === "en" ? "128 kbps (Compact Podcast)" : "128 kbps (网络播客省流)"}
+                    </option>
                   </select>
                 </div>
               )}
@@ -833,9 +898,13 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
             <div className="flex flex-col items-center space-y-2.5">
               <UploadCloud className="w-8 h-8 text-toast-500" />
               <div className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                点击或拖拽多个音频文件至此处
+                {lang === "en" ? "Click or drag audio files here" : "点击或拖拽多个音频文件至此处"}
               </div>
-              <div className="text-xs text-coconut-600 dark:text-darkbg-muted">支持 MP3, WAV, AAC, M4A, OGG, FLAC 等</div>
+              <div className="text-xs text-coconut-600 dark:text-darkbg-muted">
+                {lang === "en"
+                  ? "Supports MP3, WAV, AAC, M4A, OGG, FLAC, etc."
+                  : "支持 MP3, WAV, AAC, M4A, OGG, FLAC 等"}
+              </div>
             </div>
           </div>
 
@@ -844,7 +913,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
             <div className="coconut-panel p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-xs text-coconut-900 dark:text-darkbg-text">
-                  待转码音频 ({convertFiles.length} 首)
+                  {lang === "en" ? `Pending Audio (${convertFiles.length})` : `待转码音频 (${convertFiles.length} 首)`}
                 </span>
                 <button
                   onClick={() => {
@@ -853,7 +922,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   }}
                   className="text-xs text-rose-500 hover:text-rose-600 font-medium"
                 >
-                  清空列表
+                  {lang === "en" ? "Clear List" : "清空列表"}
                 </button>
               </div>
 
@@ -884,12 +953,12 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   {isProcessing ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>正在并行转码中...</span>
+                      <span>{lang === "en" ? "Transcoding in parallel..." : "正在并行转码中..."}</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4 text-amber-200" />
-                      <span>开始批量转码</span>
+                      <span>{lang === "en" ? "Start Batch Transcoding" : "开始批量转码"}</span>
                     </>
                   )}
                 </button>
@@ -903,7 +972,11 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
               <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
                 <div className="flex items-center space-x-2 text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>转码完成！共生成 {convertResults.length} 首高保真音频</span>
+                  <span>
+                    {lang === "en"
+                      ? `Transcode Complete! Generated ${convertResults.length} audio files`
+                      : `转码完成！共生成 ${convertResults.length} 首高保真音频`}
+                  </span>
                 </div>
                 <button
                   onClick={async () => {
@@ -914,7 +987,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
                 >
                   <Archive className="w-3.5 h-3.5" />
-                  <span>一键打包下载 (ZIP)</span>
+                  <span>{lang === "en" ? "Download All as ZIP" : "一键打包下载 (ZIP)"}</span>
                 </button>
               </div>
 
@@ -929,7 +1002,8 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                         {res.newFilename}
                       </div>
                       <div className="text-[10px] text-coconut-600 dark:text-darkbg-muted font-mono">
-                        时长: {formatDuration(res.duration)} · {formatBytes(res.newSize)}
+                        {lang === "en" ? "Duration: " : "时长: "}
+                        {formatDuration(res.duration)} · {formatBytes(res.newSize)}
                       </div>
                     </div>
                     <button
@@ -953,10 +1027,14 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
             <div className="flex items-center justify-between pb-3 border-b border-coconut-200/60 dark:border-darkbg-border">
               <div>
                 <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                  多段音频拼接队列 ({mergeTracks.length} 段)
+                  {lang === "en"
+                    ? `Audio Merge Queue (${mergeTracks.length} tracks)`
+                    : `多段音频拼接队列 (${mergeTracks.length} 段)`}
                 </h3>
                 <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-0.5">
-                  上下调整音频先后顺序，算法将自动统一对齐重采样无缝首尾连接
+                  {lang === "en"
+                    ? "Reorder audio clips as needed. Audio streams will be seamlessly concatenated and resampled."
+                    : "上下调整音频先后顺序，算法将自动统一对齐重采样无缝首尾连接"}
                 </p>
               </div>
               <input
@@ -971,7 +1049,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                 onClick={() => document.getElementById("merge-upload-input")?.click()}
                 className="px-3.5 py-1.5 bg-coconut-100 dark:bg-darkbg-subtle text-coconut-800 dark:text-darkbg-text hover:bg-coconut-200 dark:hover:bg-darkbg-hover border border-transparent dark:border-darkbg-border rounded-xl text-xs font-bold transition-all"
               >
-                + 添加音频片段
+                {lang === "en" ? "+ Add Audio Clips" : "+ 添加音频片段"}
               </button>
             </div>
 
@@ -981,7 +1059,9 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                 className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center cursor-pointer transition-all bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85"
               >
                 <Combine className="w-8 h-8 text-coconut-400 dark:text-darkbg-muted mx-auto mb-2" />
-                <div className="text-xs text-coconut-600 dark:text-darkbg-muted">点击添加两段或多段音频开始拼接</div>
+                <div className="text-xs text-coconut-600 dark:text-darkbg-muted">
+                  {lang === "en" ? "Click to add two or more audio clips to merge" : "点击添加两段或多段音频开始拼接"}
+                </div>
               </div>
             ) : (
               <div className="space-y-2">
@@ -997,7 +1077,9 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                       <div>
                         <div className="text-xs font-semibold text-coconut-900 dark:text-darkbg-text">{track.name}</div>
                         <div className="text-[10px] text-coconut-600 dark:text-darkbg-muted font-mono">
-                          时长: {formatDuration(track.duration || 0)} · 大小: {formatBytes(track.size)}
+                          {lang === "en" ? "Duration: " : "时长: "}
+                          {formatDuration(track.duration || 0)} · {lang === "en" ? "Size: " : "大小: "}
+                          {formatBytes(track.size)}
                         </div>
                       </div>
                     </div>
@@ -1013,7 +1095,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                           setMergeTracks(arr);
                         }}
                         className="p-1 text-coconut-400 dark:text-darkbg-muted hover:text-coconut-700 dark:hover:text-darkbg-text disabled:opacity-30"
-                        title="上移"
+                        title={lang === "en" ? "Move Up" : "上移"}
                       >
                         <ArrowUp className="w-4 h-4" />
                       </button>
@@ -1027,14 +1109,14 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                           setMergeTracks(arr);
                         }}
                         className="p-1 text-coconut-400 dark:text-darkbg-muted hover:text-coconut-700 dark:hover:text-darkbg-text disabled:opacity-30"
-                        title="下移"
+                        title={lang === "en" ? "Move Down" : "下移"}
                       >
                         <ArrowDown className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setMergeTracks((prev) => prev.filter((_, i) => i !== idx))}
                         className="p-1 text-rose-400 hover:text-rose-600 ml-2"
-                        title="移除"
+                        title={lang === "en" ? "Remove" : "移除"}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -1044,7 +1126,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
 
                 <div className="flex items-center justify-between pt-4 border-t border-coconut-100 dark:border-darkbg-border">
                   <div className="text-xs text-coconut-600 dark:text-darkbg-muted font-mono">
-                    合并总时长预计:{" "}
+                    {lang === "en" ? "Estimated Total Duration: " : "合并总时长预计: "}
                     <span className="font-bold text-coconut-900 dark:text-toast-400">
                       {formatDuration(mergeTracks.reduce((acc, t) => acc + (t.duration || 0), 0))}
                     </span>
@@ -1057,7 +1139,9 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                       className="px-2.5 py-1.5 bg-coconut-100 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-xl text-xs font-bold uppercase text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500"
                     >
                       <option value="mp3" className="dark:bg-darkbg-card dark:text-darkbg-text">MP3 (320kbps)</option>
-                      <option value="wav" className="dark:bg-darkbg-card dark:text-darkbg-text">WAV (CD级无损)</option>
+                      <option value="wav" className="dark:bg-darkbg-card dark:text-darkbg-text">
+                        {lang === "en" ? "WAV (Lossless CD)" : "WAV (CD级无损)"}
+                      </option>
                     </select>
 
                     <button
@@ -1072,12 +1156,12 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                       {isProcessing ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>正在合并中...</span>
+                          <span>{lang === "en" ? "Merging..." : "正在合并中..."}</span>
                         </>
                       ) : (
                         <>
                           <Combine className="w-4 h-4" />
-                          <span>一键合并并下载</span>
+                          <span>{lang === "en" ? "Merge & Download" : "一键合并并下载"}</span>
                         </>
                       )}
                     </button>
@@ -1095,10 +1179,12 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
           <div className="coconut-panel p-5 sm:p-6 space-y-4">
             <div>
               <h3 className="text-base sm:text-lg font-bold text-coconut-900 dark:text-darkbg-text">
-                视频提取纯音频
+                {lang === "en" ? "Extract Audio from Video" : "视频提取纯音频"}
               </h3>
               <p className="text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted mt-1 leading-relaxed">
-                支持 MP4, MOV, WebM, MKV 等常见视频格式，快速提取高保真 MP3 / WAV 纯音频音轨。
+                {lang === "en"
+                  ? "Supports MP4, MOV, WebM, MKV and other video formats. Rapidly extract high-fidelity MP3 / WAV audio tracks."
+                  : "支持 MP4, MOV, WebM, MKV 等常见视频格式，快速提取高保真 MP3 / WAV 纯音频音轨。"}
               </p>
             </div>
 
@@ -1126,15 +1212,27 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
               />
               <Film className="w-10 h-10 text-toast-500 mx-auto mb-2" />
               <div className="text-sm sm:text-base font-bold text-coconut-900 dark:text-darkbg-text">
-                {videoFile ? `已选视频: ${videoFile.name} (${formatBytes(videoFile.size)})` : "点击或拖拽视频文件至此处"}
+                {videoFile
+                  ? lang === "en"
+                    ? `Selected Video: ${videoFile.name} (${formatBytes(videoFile.size)})`
+                    : `已选视频: ${videoFile.name} (${formatBytes(videoFile.size)})`
+                  : lang === "en"
+                  ? "Click or drag video file here"
+                  : "点击或拖拽视频文件至此处"}
               </div>
-              <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">支持 MP4, MOV, WebM, MKV 等常见视频格式</div>
+              <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
+                {lang === "en"
+                  ? "Supports MP4, MOV, WebM, MKV and other common video formats"
+                  : "支持 MP4, MOV, WebM, MKV 等常见视频格式"}
+              </div>
             </div>
 
             {videoFile && (
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center space-x-3 text-sm">
-                  <span className="text-coconut-900 dark:text-darkbg-text font-bold">导出音频格式:</span>
+                  <span className="text-coconut-900 dark:text-darkbg-text font-bold">
+                    {lang === "en" ? "Export Audio Format:" : "导出音频格式:"}
+                  </span>
                   {(["mp3", "wav"] as const).map((fmt) => (
                     <button
                       key={fmt}
@@ -1162,12 +1260,12 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   {isProcessing ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>正在极速剥离提取中...</span>
+                      <span>{lang === "en" ? "Extracting audio track..." : "正在极速剥离提取中..."}</span>
                     </>
                   ) : (
                     <>
                       <Download className="w-4 h-4" />
-                      <span>提取并下载纯音频</span>
+                      <span>{lang === "en" ? "Extract & Download Audio" : "提取并下载纯音频"}</span>
                     </>
                   )}
                 </button>
@@ -1183,10 +1281,12 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
           <div className="coconut-panel p-5 sm:p-6 space-y-5">
             <div>
               <h3 className="text-base font-bold text-coconut-900 dark:text-darkbg-text">
-                音频音量智能增强与防破音标准化
+                {lang === "en" ? "Audio Volume Normalizer & Booster" : "音频音量智能增强与防破音标准化"}
               </h3>
               <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
-                解决手机录音、网课授课、采访录音声音太小的问题。支持自动峰值标准化（消除破音）或手动倍数放大。
+                {lang === "en"
+                  ? "Fix quiet phone recordings, lectures, or interviews. Supports peak normalization (anti-clipping) or manual gain boost."
+                  : "解决手机录音、网课授课、采访录音声音太小的问题。支持自动峰值标准化（消除破音）或手动倍数放大。"}
               </p>
             </div>
 
@@ -1207,7 +1307,9 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   className="hidden"
                 />
                 <Volume2 className="w-10 h-10 text-toast-500 mx-auto mb-2" />
-                <div className="text-xs text-coconut-600 dark:text-darkbg-muted">点击或拖拽上传音频文件调节音量</div>
+                <div className="text-xs text-coconut-600 dark:text-darkbg-muted">
+                  {lang === "en" ? "Click or drag audio file here to adjust volume" : "点击或拖拽上传音频文件调节音量"}
+                </div>
               </div>
             ) : (
               <div className="space-y-5">
@@ -1222,7 +1324,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                     }}
                     className="text-xs text-coconut-600 hover:text-coconut-900 dark:text-darkbg-muted dark:hover:text-darkbg-text"
                   >
-                    更换文件
+                    {lang === "en" ? "Change File" : "更换文件"}
                   </button>
                 </div>
 
@@ -1235,9 +1337,13 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                         : "border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:border-coconut-300 dark:hover:border-darkbg-borderLight"
                     }`}
                   >
-                    <div className="font-bold text-sm text-coconut-900 dark:text-darkbg-text">自动峰值标准化 (Peak Normalization)</div>
+                    <div className="font-bold text-sm text-coconut-900 dark:text-darkbg-text">
+                      {lang === "en" ? "Peak Normalization (Auto Anti-Clipping)" : "自动峰值标准化 (Peak Normalization)"}
+                    </div>
                     <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
-                      全曲电平扫描并拉满至 -0.1 dB 极限音量，保证声音最大化的同时绝对不破音失真（推荐）。
+                      {lang === "en"
+                        ? "Scans whole track and normalizes to -0.1 dB ceiling, maximizing loudness without any clipping distortion (Recommended)."
+                        : "全曲电平扫描并拉满至 -0.1 dB 极限音量，保证声音最大化的同时绝对不破音失真（推荐）。"}
                     </p>
                   </label>
 
@@ -1250,7 +1356,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                     }`}
                   >
                     <div className="flex justify-between items-center font-bold text-sm text-coconut-900 dark:text-darkbg-text">
-                      <span>手动强力增益放大</span>
+                      <span>{lang === "en" ? "Manual Gain Boost" : "手动强力增益放大"}</span>
                       <span className="font-mono text-coconut-900 dark:text-toast-400 font-bold">{gainPercent}%</span>
                     </div>
                     <input
@@ -1279,12 +1385,12 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                     {isProcessing ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>正在增益处理...</span>
+                        <span>{lang === "en" ? "Applying gain..." : "正在增益处理..."}</span>
                       </>
                     ) : (
                       <>
                         <Download className="w-4 h-4" />
-                        <span>应用并下载增强音频</span>
+                        <span>{lang === "en" ? "Apply & Download Audio" : "应用并下载增强音频"}</span>
                       </>
                     )}
                   </button>

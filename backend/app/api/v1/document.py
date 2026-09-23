@@ -56,14 +56,17 @@ async def convert_pdf_to_word(
         add_cleanup_task(background_tasks, task_dir)
         raise HTTPException(status_code=500, detail=f"转换处理异常: {str(e)}")
 
-@router.post("/word-to-pdf", summary="Word 转高质量 PDF (300+ DPI 原图保真)")
+@router.post("/word-to-pdf", summary="Word 转 PDF (支持质量选择)")
 async def convert_word_to_pdf(
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(..., description="上传的 Word (.docx / .doc) 文件")
+    file: UploadFile = File(..., description="上传的 Word (.docx / .doc) 文件"),
+    quality: str = Form("high", description="输出质量: light(轻量96DPI) / standard(标准150DPI) / high(高清300DPI)")
 ):
     """
-    接收 Word 文档，以打印级超高质量 (300+ DPI 矢量与位图无损) 渲染导出为 PDF。
-    避免市面常规工具出现的图片压缩模糊与排版跑位问题。
+    接收 Word 文档，根据选择的质量档位渲染导出为 PDF。
+    - light: 96 DPI 屏幕优化，文件最小
+    - standard: 150 DPI 平衡画质与体积
+    - high: 300+ DPI 打印级超高质量 (默认)
     """
     valid_exts = (".docx", ".doc")
     if not any(file.filename.lower().endswith(ext) for ext in valid_exts):
@@ -75,7 +78,7 @@ async def convert_word_to_pdf(
 
     try:
         await save_upload_file(file, input_docx)
-        WordToPdfService.convert(docx_path=input_docx, output_pdf_path=output_pdf)
+        WordToPdfService.convert(docx_path=input_docx, output_pdf_path=output_pdf, quality=quality)
 
         add_cleanup_task(background_tasks, task_dir)
 

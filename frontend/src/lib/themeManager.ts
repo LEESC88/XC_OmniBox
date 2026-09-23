@@ -5,6 +5,7 @@
 export interface CustomThemeConfig {
   id: string;
   name: string;
+  nameEn?: string;
   background: string; // 窗口背景主底色 (Canvas / Window Background)
   foreground: string; // 面板与卡片底色 (Surface / Panel / Card)
   accent: string;     // 核心强调色 (Primary Accent for buttons & highlights)
@@ -17,9 +18,13 @@ export interface CustomThemeConfig {
 export interface FontOption {
   id: string;
   name: string;
+  nameEn?: string;
   badge: string;
+  badgeEn?: string;
   desc: string;
+  descEn?: string;
   sample: string;
+  sampleEn?: string;
   fontFamily: string;
 }
 
@@ -28,6 +33,7 @@ export const THEME_PRESETS: CustomThemeConfig[] = [
   {
     id: "coconut",
     name: "暖椰润肤 (经典浅色)",
+    nameEn: "Warm Cream (Classic Light)",
     background: "#F2E5D8",
     foreground: "#FAF1E8",
     accent: "#EA580C",
@@ -39,6 +45,7 @@ export const THEME_PRESETS: CustomThemeConfig[] = [
   {
     id: "obsidian",
     name: "曜黑暗夜 (经典深色)",
+    nameEn: "Obsidian Night (Classic Dark)",
     background: "#1A120E",
     foreground: "#261D18",
     accent: "#F97316",
@@ -50,6 +57,7 @@ export const THEME_PRESETS: CustomThemeConfig[] = [
   {
     id: "sakura",
     name: "樱花奶芙 (甜美轻粉)",
+    nameEn: "Sakura Souffle (Sweet Pink)",
     background: "#FDF2F4",
     foreground: "#FFFFFF",
     accent: "#EC4899",
@@ -61,6 +69,7 @@ export const THEME_PRESETS: CustomThemeConfig[] = [
   {
     id: "mint",
     name: "薄荷苏打 (清新青翠)",
+    nameEn: "Mint Soda (Fresh Green)",
     background: "#ECFDF5",
     foreground: "#FFFFFF",
     accent: "#0D9488",
@@ -72,6 +81,7 @@ export const THEME_PRESETS: CustomThemeConfig[] = [
   {
     id: "cyber",
     name: "赛博霓紫 (深邃电幻)",
+    nameEn: "Cyber Neon (Deep Purple)",
     background: "#0F0B1E",
     foreground: "#1A1435",
     accent: "#8B5CF6",
@@ -83,6 +93,7 @@ export const THEME_PRESETS: CustomThemeConfig[] = [
   {
     id: "mocha",
     name: "复古暖咖 (雅致皮革)",
+    nameEn: "Retro Mocha (Rich Leather)",
     background: "#2B1D14",
     foreground: "#3A291E",
     accent: "#D97706",
@@ -98,49 +109,73 @@ export const FONT_PRESETS: FontOption[] = [
   {
     id: "system",
     name: "现代黑体 (系统默认)",
+    nameEn: "Modern Sans (System Default)",
     badge: "极简无衬线",
+    badgeEn: "Clean Sans",
     desc: "点对点极清锐利，字形方正开阔，与 Windows Segoe UI / 微软雅黑完美融合",
+    descEn: "Crisp pixel-aligned glyphs, perfectly unified with Windows Segoe UI",
     sample: "永和九年 岁在癸丑 · Modern UI 123",
+    sampleEn: "Sphinx of black quartz, judge my vow · Modern UI 123",
     fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", Roboto, sans-serif',
   },
   {
     id: "kaiti",
     name: "行云楷体 (毛笔书法)",
+    nameEn: "Flowing KaiTi (Brush Script)",
     badge: "古风书道",
+    badgeEn: "Calligraphy",
     desc: "地道中华毛笔楷书，运笔行云流水，带有真实墨韵与转折顿挫",
+    descEn: "Traditional calligraphy with flowing strokes and ink charm",
     sample: "落霞与孤鹜齐飞，秋水共长天一色 · Calligraphy",
+    sampleEn: "Pack my box with five dozen liquor jugs · Calligraphy",
     fontFamily: 'KaiTi, "楷体", "STKaiti", "BiauKai", cursive, serif',
   },
   {
     id: "serif",
     name: "人文宋体 (典雅明体)",
+    nameEn: "Humanist SongTi (Classic Serif)",
     badge: "文墨书卷",
+    badgeEn: "Bookish Serif",
     desc: "横细竖粗，尖锐三角衬线，经典图书报纸高雅铅印质感",
+    descEn: "Thin horizontals and thick verticals with sharp triangular serifs",
     sample: "白日依山尽，黄河入海流 · Literature 2026",
+    sampleEn: "The quick brown fox jumps over the lazy dog · Literature 2026",
     fontFamily: 'SimSun, "宋体", "STSong", "Songti SC", serif',
   },
   {
     id: "fangsong",
     name: "经典仿宋 (政务公文)",
+    nameEn: "Classic FangSong (Formal Print)",
     badge: "刚劲挺秀",
+    badgeEn: "Upright Script",
     desc: "字身修长挺拔，笔画刚劲利落，经典公文报告典范用字",
+    descEn: "Slender, upright and crisp geometry, standard for official publications",
     sample: "海内存知己，天涯若比邻 · Official Document",
+    sampleEn: "Jackdaws love my big sphinx of quartz · Official Document",
     fontFamily: 'FangSong, "仿宋", "STFangsong", serif',
   },
   {
     id: "heavy",
     name: "重装粗黑 (工业特黑)",
+    nameEn: "Heavy Industrial (Extra Bold)",
     badge: "厚重硬核",
+    badgeEn: "Impact Bold",
     desc: "特粗工业方正笔画，视觉份量饱满沉稳，极具视觉冲击力",
+    descEn: "Ultra-thick industrial strokes with bold visual weight and impact",
     sample: "大漠孤烟直，长河落日圆 · HEAVY BOLD",
+    sampleEn: "HOW RAZORBACK-JUMPING FROGS CAN LEVEL · HEAVY BOLD",
     fontFamily: 'SimHei, "黑体", "Arial Black", Impact, sans-serif',
   },
   {
     id: "mono",
     name: "极客等宽 (终端代码)",
+    nameEn: "Geek Monospace (Code Terminal)",
     badge: "代码等宽",
+    badgeEn: "Monospace",
     desc: "严格等宽定宽字符，字母与数字严谨对齐，浓厚黑客极客风",
+    descEn: "Strict fixed-width characters with precise letter & number alignment",
     sample: 'const omni = new OmniBox(); // Code 0x88',
+    sampleEn: 'const omni = new OmniBox(); // Code 0x88',
     fontFamily: '"Cascadia Code", Consolas, "Courier New", monospace',
   },
 ];
@@ -277,8 +312,11 @@ export function getSavedFont(): string {
 export interface CatPawOption {
   id: string;
   name: string;
+  nameEn?: string;
   tag: string;
+  tagEn?: string;
   desc: string;
+  descEn?: string;
   src: string;
   thumb: string;
 }
@@ -288,32 +326,44 @@ export const CAT_PAW_PRESETS: CatPawOption[] = [
   {
     id: "3_calico_pink",
     name: "三花粉嫩肉球",
+    nameEn: "Calico Pink Paw",
     tag: "默认精选",
+    tagEn: "Default",
     desc: "甜美三花软糖粉肉垫，晶莹通透高反光，萌力十足",
+    descEn: "Sweet jelly pink cat paw with glossy highlights",
     src: "/cat_paws/3_calico_pink/paw_coconut_calico_pink_transparent.png",
     thumb: "/cat_paws/3_calico_pink/paw_coconut_calico_pink_256.png",
   },
   {
     id: "1_fresh_green",
     name: "青椰萌绿肉球",
+    nameEn: "Fresh Mint Paw",
     tag: "清爽青椰",
+    tagEn: "Fresh Mint",
     desc: "青椰薄荷清新萌绿肉垫，清爽自然，活力盎然",
+    descEn: "Refreshing mint green cat paw with natural vitality",
     src: "/cat_paws/1_fresh_green/paw_coconut_green_transparent.png",
     thumb: "/cat_paws/1_fresh_green/paw_coconut_green_256.png",
   },
   {
     id: "2_warm_brown",
     name: "浓焙椰咖肉球",
+    nameEn: "Roasted Caramel Paw",
     tag: "焦糖浓焙",
+    tagEn: "Caramel",
     desc: "浓焙椰咖焦糖温暖肉垫，沉稳内敛，醇厚雅致",
+    descEn: "Warm roasted caramel cat paw, cozy and elegant",
     src: "/cat_paws/2_warm_brown/paw_coconut_brown_transparent.png",
     thumb: "/cat_paws/2_warm_brown/paw_coconut_brown_256.png",
   },
   {
     id: "4_calico_white",
     name: "三花雪白肉球",
+    nameEn: "Snow White Paw",
     tag: "纯净雪白",
+    tagEn: "Snow White",
     desc: "雪白三花金肉垫，温润明亮，高对比超清晰",
+    descEn: "Bright snow white cat paw with clear contrast",
     src: "/cat_paws/4_calico_white/paw_coconut_calico_white_transparent.png",
     thumb: "/cat_paws/4_calico_white/paw_coconut_calico_white_256.png",
   },

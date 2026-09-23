@@ -12,6 +12,7 @@ import {
   ExternalLink,
   Laptop,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 interface UpdateInfo {
   status: "idle" | "checking" | "available" | "not-available" | "downloading" | "ready" | "error";
@@ -29,6 +30,7 @@ export default function UpdateModal({
   onClose: () => void;
   triggerFromUser?: boolean;
 }) {
+  const { t, lang } = useI18n();
   const [updateState, setUpdateState] = useState<UpdateInfo>({ status: "idle" });
   const [currentVersion, setCurrentVersion] = useState<string>("1.0.0");
   const [isElectron, setIsElectron] = useState(false);
@@ -78,7 +80,10 @@ export default function UpdateModal({
       try {
         await (window as any).electronAPI.checkForUpdates();
       } catch (err: any) {
-        setUpdateState({ status: "error", message: err.message || "无法连接更新服务器" });
+        setUpdateState({
+          status: "error",
+          message: err.message || (lang === "en" ? "Cannot connect to update server" : "无法连接更新服务器"),
+        });
       }
     }
   };
@@ -89,7 +94,10 @@ export default function UpdateModal({
       try {
         await (window as any).electronAPI.startDownload();
       } catch (err: any) {
-        setUpdateState({ status: "error", message: err.message || "下载启动失败" });
+        setUpdateState({
+          status: "error",
+          message: err.message || (lang === "en" ? "Failed to start download" : "下载启动失败"),
+        });
       }
     }
   };
@@ -120,10 +128,11 @@ export default function UpdateModal({
           </div>
           <div>
             <h3 className="text-lg font-extrabold text-coconut-950 dark:text-white">
-              软件更新中心
+              {t.updateModal.title}
             </h3>
             <p className="text-xs text-coconut-700 dark:text-neutral-200 mt-0.5">
-              当前版本：v{currentVersion} {isElectron ? "(桌面原生端)" : "(在线网页端)"}
+              {t.updateModal.currentVersion.replace("{version}", currentVersion)}{" "}
+              {isElectron ? t.updateModal.desktopNative : t.updateModal.webOnline}
             </p>
           </div>
         </div>
@@ -133,66 +142,67 @@ export default function UpdateModal({
           {!isElectron ? (
             <div className="space-y-2 text-xs text-coconut-800 dark:text-neutral-200">
               <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold">
-                <Laptop className="w-4 h-4" /> 您当前使用的是在线网页版
+                <Laptop className="w-4 h-4" /> {t.updateModal.webNoticeTitle}
               </div>
-              <p>桌面原生端已支持 Windows 一键安装与静默自动升级。您可以前往 GitHub 下载最新 Windows 安装包使用。</p>
+              <p>{t.updateModal.webNoticeDesc}</p>
               <a
                 href="https://github.com/LEESC88/XC_OmniBox/releases"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-orange-600 dark:text-orange-400 hover:underline"
               >
-                前往 Releases 页面下载安装包 <ExternalLink className="w-3.5 h-3.5" />
+                {t.updateModal.webNoticeBtn} <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>
           ) : updateState.status === "idle" ? (
             <div className="text-center py-3">
               <p className="text-xs text-coconut-800 dark:text-neutral-200 mb-3">
-                点击下方按钮检查是否有新版本发布。
+                {t.updateModal.idleNotice}
               </p>
               <button
                 onClick={handleCheckUpdates}
                 className="px-4 py-2 bg-accent-gradient hover:opacity-95 text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95"
               >
-                立即检查新版本
+                {t.updateModal.checkBtn}
               </button>
             </div>
           ) : updateState.status === "checking" ? (
             <div className="flex flex-col items-center justify-center py-4 space-y-2">
               <Loader2 className="w-6 h-6 animate-spin text-accent" />
               <p className="text-xs font-medium text-coconut-900 dark:text-white">
-                正在联网检查最新版本...
+                {t.updateModal.checking}
               </p>
             </div>
           ) : updateState.status === "not-available" ? (
             <div className="flex items-center gap-3 py-2 text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="w-6 h-6 flex-shrink-0" />
               <div className="text-xs">
-                <div className="font-bold">恭喜，当前已是最新版本！</div>
+                <div className="font-bold">{t.updateModal.latestSuccess}</div>
                 <div className="text-coconut-700 dark:text-neutral-200 mt-0.5">
-                  所有功能均已升级至最新状态。
+                  {t.updateModal.latestSuccessDesc}
                 </div>
               </div>
             </div>
           ) : updateState.status === "available" ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-bold text-sm">
-                <Sparkles className="w-4 h-4" /> 发现新版本：v{updateState.version}！
+                <Sparkles className="w-4 h-4" />{" "}
+                {t.updateModal.newVersionFound.replace("{version}", updateState.version || "")}
               </div>
               <p className="text-xs text-coconut-800 dark:text-neutral-200">
-                新版本包含功能升级与体验优化。点击下方按钮即可在后台高速静默下载。
+                {t.updateModal.newVersionDesc}
               </p>
               <button
                 onClick={handleStartDownload}
                 className="w-full py-2.5 bg-accent-gradient hover:opacity-95 text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
               >
-                <Download className="w-4 h-4" /> 立即下载更新包
+                <Download className="w-4 h-4" /> {t.updateModal.downloadBtn}
               </button>
             </div>
           ) : updateState.status === "downloading" ? (
             <div className="space-y-2">
               <div className="flex justify-between text-xs font-bold text-coconut-900 dark:text-white">
-                <span>正在下载新版本安装包...</span>
+                <span>{t.updateModal.downloading}</span>
                 <span>{updateState.percent ?? 0}%</span>
               </div>
               <div className="w-full bg-coconut-200 dark:bg-neutral-700 h-2.5 rounded-full overflow-hidden">
@@ -202,35 +212,35 @@ export default function UpdateModal({
                 />
               </div>
               <p className="text-xs text-coconut-700 dark:text-neutral-200 text-center pt-1">
-                下载完成后将自动提示您重启替换
+                {t.updateModal.downloadNote}
               </p>
             </div>
           ) : updateState.status === "ready" ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
-                <CheckCircle2 className="w-5 h-5" /> 下载完成，随时可安装升级！
+                <CheckCircle2 className="w-5 h-5" /> {t.updateModal.readyTitle}
               </div>
               <p className="text-xs text-coconut-800 dark:text-neutral-200">
-                点击下方按钮，软件将自动关闭、秒级完成文件覆盖，并重新启动进入最新版本。
+                {t.updateModal.readyDesc}
               </p>
               <button
                 onClick={handleQuitAndInstall}
                 className="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
               >
-                <RotateCcw className="w-4 h-4" /> 重启应用并完成升级
+                <RotateCcw className="w-4 h-4" /> {t.updateModal.restartBtn}
               </button>
             </div>
           ) : (
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-bold text-xs">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{updateState.message || "检查更新出现异常"}</span>
+                <span>{updateState.message || t.updateModal.errorOccurred}</span>
               </div>
               <button
                 onClick={handleCheckUpdates}
                 className="text-xs text-orange-600 dark:text-orange-400 hover:underline font-bold"
               >
-                重试一次
+                {t.updateModal.retry}
               </button>
             </div>
           )}
@@ -242,7 +252,7 @@ export default function UpdateModal({
             onClick={onClose}
             className="px-4 py-1.5 text-xs font-bold text-coconut-700 dark:text-neutral-200 hover:text-coconut-950 dark:hover:text-white transition-colors"
           >
-            关闭窗口
+            {t.updateModal.closeBtn}
           </button>
         </div>
       </div>

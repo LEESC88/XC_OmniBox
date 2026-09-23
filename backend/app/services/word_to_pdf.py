@@ -9,35 +9,57 @@ from app.core.exceptions import FileProcessingException
 
 class WordToPdfService:
     """
-    高质量 Word (.docx) 转 PDF 服务
-    重点针对用户要求的【保持高质量图片与排版无损】进行优化：
-    1. 首选策略 (Windows 环境)：若本地有 MS Word，使用 COM 接口以【打印级超高质量 (wdExportOptimizeForPrint)】导出，绝不压缩降低图片分辨率。
-    2. 备选策略 (通用/无 Word 环境)：调用 LibreOffice Headless 引擎，注入 PDF 导出滤镜参数：
-       - ReduceImageResolution = False (禁用图片降质)
-       - Quality = 100 (最高无损画质)
-       - MaxImageResolution = 300 (锁定 300+ DPI 打印画质)
+    Word (.docx) 转 PDF 服务，支持三档质量选择：
+    - light  (轻量): 96 DPI, 屏幕优化, 文件小
+    - standard (标准): 150 DPI, 平衡画质与体积
+    - high   (高清): 300 DPI, 打印级超清无损 (默认)
     """
 
+    # 质量预设参数映射
+    QUALITY_PRESETS = {
+        "light": {
+            "com_optimize": 1,   # wdExportOptimizeForOnScreen
+            "lo_quality": 50,
+            "lo_max_res": 96,
+            "lo_reduce": "true",
+        },
+        "standard": {
+            "com_optimize": 1,   # wdExportOptimizeForOnScreen
+            "lo_quality": 75,
+            "lo_max_res": 150,
+            "lo_reduce": "true",
+        },
+        "high": {
+            "com_optimize": 0,   # wdExportOptimizeForPrint
+            "lo_quality": 100,
+            "lo_max_res": 300,
+            "lo_reduce": "false",
+        },
+    }
+
     @classmethod
-    def convert(cls, docx_path: Path, output_pdf_path: Path) -> Path:
-        """执行高质量 Word 转 PDF"""
+    def convert(cls, docx_path: Path, output_pdf_path: Path, quality: str = "high") -> Path:
+        """执行 Word 转 PDF，quality 可选 light / standard / high"""
         docx_path = docx_path.resolve()
         output_pdf_path = output_pdf_path.resolve()
+        if quality not in cls.QUALITY_PRESETS:
+            quality = "high"
+        preset = cls.QUALITY_PRESETS[quality]
 
-        # 策略 1: 尝试 Windows 原生 Office COM 接口 (排版与原图质量最佳)
+        # 策略 1: 尝试 Windows 原生 Office COM 接口
         if sys.platform == "win32":
             try:
-                converted = cls._convert_via_windows_com(docx_path, output_pdf_path)
+                converted = cls._convert_via_windows_com(docx_path, output_pdf_path, preset)
                 if converted and output_pdf_path.exists() and output_pdf_path.stat().st_size > 0:
                     return output_pdf_path
             except Exception as e:
                 print(f"Notice: MS Word COM convert not available or failed ({e}), falling back...")
 
-        # 策略 2: 尝试 LibreOffice Headless 高清滤镜导出
+        # 策略 2: 尝试 LibreOffice Headless 导出
         libreoffice_bin = LIBREOFFICE_PATH or cls._find_libreoffice()
         if libreoffice_bin:
             try:
-                converted = cls._convert_via_libreoffice(libreoffice_bin, docx_path, output_pdf_path)
+                converted = cls._convert_via_libreoffice(libreoffice_bin, docx_path, output_pdf_path, preset)
                 if converted and output_pdf_path.exists() and output_pdf_path.stat().st_size > 0:
                     return output_pdf_path
             except Exception as e:
@@ -58,8 +80,8 @@ class WordToPdfService:
         )
 
     @classmethod
-    def _convert_via_windows_com(cls, docx_path: Path, output_pdf_path: Path) -> bool:
-        """通过 Windows win32com 调用 Word 原生导出，并强制 OptimizeForPrint 高保真"""
+    def _convert_via_windows_com(cls, docx_path: Path, output_pdf_path: Path, preset: dict) -> bool:
+        """通过 Windows win32com 调用 Word 原生导出，根据 preset 选择优化级别"""
         import pythoncom
         import win32com.client
 
@@ -67,25 +89,22 @@ class WordToPdfService:
         word = None
         doc = None
         try:
-            # 启动不可见的 Word 进程
             word = win32com.client.DispatchEx("Word.Application")
             word.Visible = False
             word.DisplayAlerts = 0
 
-            # 打开文档 (只读模式打开，防止冲突)
             doc = word.Documents.Open(str(docx_path), ReadOnly=True)
 
             # wdExportFormatPDF = 17
-            # wdExportOptimizeForPrint = 0 (保证打印级超清图片，而不是 wdExportOptimizeForOnScreen 压缩画质)
+            # OptimizeFor: 0 = wdExportOptimizeForPrint, 1 = wdExportOptimizeForOnScreen
             wdExportFormatPDF = 17
-            wdExportOptimizeForPrint = 0
 
             doc.ExportAsFixedFormat(
                 OutputFileName=str(output_pdf_path),
                 ExportFormat=wdExportFormatPDF,
                 OpenAfterExport=False,
-                OptimizeFor=wdExportOptimizeForPrint,
-                CreateBookmarks=1,  # 保留书签
+                OptimizeFor=preset["com_optimize"],
+                CreateBookmarks=1,
                 DocStructureTags=True,
                 BitmapMissingFonts=True,
                 UseISO19005_1=False
@@ -105,15 +124,14 @@ class WordToPdfService:
             pythoncom.CoUninitialize()
 
     @classmethod
-    def _convert_via_libreoffice(cls, libreoffice_bin: str, docx_path: Path, output_pdf_path: Path) -> bool:
-        """调用 LibreOffice 并配置高清无损 PDF 导出滤镜"""
+    def _convert_via_libreoffice(cls, libreoffice_bin: str, docx_path: Path, output_pdf_path: Path, preset: dict) -> bool:
+        """调用 LibreOffice 并根据 preset 配置 PDF 导出滤镜"""
         out_dir = output_pdf_path.parent
-        # 配置高质量导出参数：禁用图片压缩，设置质量 100%，分辨率 300
         filter_options = (
             '{"SelectPdfVersion":{"type":"long","value":"1"},'
-            '"Quality":{"type":"long","value":"100"},'
-            '"ReduceImageResolution":{"type":"boolean","value":"false"},'
-            '"MaxImageResolution":{"type":"long","value":"300"}}'
+            f'"Quality":{{"type":"long","value":"{preset["lo_quality"]}"}},'
+            f'"ReduceImageResolution":{{"type":"boolean","value":"{preset["lo_reduce"]}"}},'
+            f'"MaxImageResolution":{{"type":"long","value":"{preset["lo_max_res"]}"}}}}'
         )
         
         cmd = [

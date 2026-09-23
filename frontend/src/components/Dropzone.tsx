@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import { UploadCloud, File as FileIcon, X } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 interface DropzoneProps {
   accept: string;
@@ -19,9 +20,12 @@ export default function Dropzone({
   onFilesSelected,
   selectedFiles,
   onClear,
-  title = "拖拽文件到此处，或点击上传",
-  hint = "支持相应格式文档",
+  title,
+  hint,
 }: DropzoneProps) {
+  const { t } = useI18n();
+  const displayTitle = title ?? t.dropzone.defaultTitle;
+  const displayHint = hint ?? t.dropzone.defaultHint;
   const [isDragOver, setIsDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -88,10 +92,10 @@ export default function Dropzone({
             </div>
             <div>
               <p className="text-sm sm:text-base font-semibold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                {title}
+                {displayTitle}
               </p>
               <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
-                {hint}
+                {displayHint}
               </p>
             </div>
           </div>
@@ -101,13 +105,13 @@ export default function Dropzone({
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-coconut-800 dark:text-darkbg-muted flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-              已选文件 ({selectedFiles.length})
+              {t.dropzone.selectedFiles.replace("{n}", String(selectedFiles.length))}
             </span>
             <button
               onClick={onClear}
               className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 flex items-center gap-1 font-semibold px-2.5 py-1 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-transparent hover:border-rose-200 dark:hover:border-rose-900 transition-colors"
             >
-              <X className="w-3.5 h-3.5" /> 重新选择
+              <X className="w-3.5 h-3.5" /> {t.dropzone.reselect}
             </button>
           </div>
           <div className="space-y-2 max-h-52 overflow-y-auto pr-1">

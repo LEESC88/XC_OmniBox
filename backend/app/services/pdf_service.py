@@ -101,49 +101,61 @@ class PdfService:
     ) -> Path:
         """
         为 PDF 每页添加自定义半透明文字倾斜水印
-        使用 PyMuPDF (fitz) 实现矢量级高清晰度渲染
+        支持纯中文、中英混排、纯英文、数字符号，杜绝任何乱码、菱形方块或省略点问题
         """
         try:
             import pymupdf
             
             doc = pymupdf.open(str(pdf_path))
             
-            # 加载内置 CJK 中文字体 (Droid Sans Fallback)，确保中文/日文/韩文及特殊字符正常渲染，杜绝菱形方框乱码
-            cjk_font = pymupdf.Font("china-s")
-            font_buffer = cjk_font.buffer
+            # 首选 Windows 官方预装超清晰高对比 TrueType 中文字体 (优先 SimHei 黑体，粗壮醒目极适宜水印)
+            font_file = None
+            candidate_fonts = [
+                Path("C:/Windows/Fonts/simhei.ttf"),
+                Path("C:/Windows/Fonts/msyh.ttc"),
+                Path("C:/Windows/Fonts/simsun.ttc"),
+                Path("/System/Library/Fonts/PingFang.ttc"), # macOS
+                Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"), # Linux
+            ]
+            for p in candidate_fonts:
+                if p.exists():
+                    font_file = str(p)
+                    break
+
+            if font_file:
+                font = pymupdf.Font(fontfile=font_file)
+                font_buffer = None
+            else:
+                # 若非 Windows 或系统字体缺失，平滑回退到 PyMuPDF 官方内置 CJK 字体
+                font = pymupdf.Font("china-s")
+                font_buffer = font.buffer
 
             font_size = max(8, font_size)
             opacity = max(0.05, min(1.0, opacity))
+            text_len = font.text_length(watermark_text, fontsize=font_size)
+            mat = pymupdf.Matrix(angle)
 
             for page in doc:
-                # 注册 CJK 字体到当前页面
-                page.insert_font(fontname="cjk", fontbuffer=font_buffer)
-                
+                if font_file:
+                    page.insert_font(fontname="wm_font", fontfile=font_file)
+                else:
+                    page.insert_font(fontname="wm_font", fontbuffer=font_buffer)
+
                 rect = page.rect
                 center_point = pymupdf.Point(rect.width / 2, rect.height / 2)
-                
-                # 计算水印文字的精确排版宽度以实现真正居中
-                try:
-                    text_len = pymupdf.get_text_length(watermark_text, fontname="china-s", fontsize=font_size)
-                except Exception:
-                    text_len = len(watermark_text) * font_size * 0.9
-
-                # 垂直微调 baseline 保证视觉严格居中
                 start_pt = pymupdf.Point(center_point.x - text_len / 2, center_point.y + font_size * 0.35)
-                
-                # 使用 Matrix morph 变换实现全角度平滑无畸变倾斜旋转
-                mat = pymupdf.Matrix(angle)
+
                 page.insert_text(
                     start_pt,
                     watermark_text,
-                    fontname="cjk",
+                    fontname="wm_font",
                     fontsize=font_size,
                     morph=(center_point, mat),
                     color=(0.5, 0.5, 0.5),
                     fill_opacity=opacity
                 )
 
-            # 执行字体子集化压缩 (Font Subsetting)，将嵌入字体体积从几兆压缩到十几KB
+            # 字体子集化压缩，将嵌入字体体积大幅度瘦身
             try:
                 doc.subset_fonts()
             except Exception:

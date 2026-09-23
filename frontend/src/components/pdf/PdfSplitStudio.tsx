@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { formatBytes } from "@/lib/imageProcessor";
 import { renderPdfPages, downloadBlob } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 interface PdfSplitStudioProps {
   file: File;
@@ -70,6 +71,7 @@ export default function PdfSplitStudio({
   onReset,
   onClearFile,
 }: PdfSplitStudioProps) {
+  const { lang } = useI18n();
   const [pages, setPages] = useState<PageData[]>([]);
   const [numPages, setNumPages] = useState<number>(0);
   const [renderingPages, setRenderingPages] = useState<boolean>(true);
@@ -105,7 +107,9 @@ export default function PdfSplitStudio({
       })
       .catch((err) => {
         if (!isCancelled) {
-          setRenderError(err.message || "解析 PDF 页面缩略图失败");
+          setRenderError(
+            err.message || (lang === "en" ? "Failed to parse PDF page thumbnails" : "解析 PDF 页面缩略图失败")
+          );
           setRenderingPages(false);
         }
       });
@@ -205,8 +209,10 @@ export default function PdfSplitStudio({
             </div>
             <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-0.5">
               {renderingPages
-                ? "正在载入整篇文档缩略图..."
-                : `整本文档共 ${numPages} 页 · 点击下方任意页面即可直接点选`}
+                ? (lang === "en" ? "Loading full document page thumbnails..." : "正在载入整篇文档缩略图...")
+                : (lang === "en"
+                    ? `${numPages} pages in total · Click any page below to select`
+                    : `整本文档共 ${numPages} 页 · 点击下方任意页面即可直接点选`)}
             </p>
           </div>
         </div>
@@ -222,7 +228,7 @@ export default function PdfSplitStudio({
                   : "text-coconut-700 dark:text-darkbg-muted hover:text-coconut-950 dark:hover:text-white"
               }`}
             >
-              提取选中页面为新 PDF
+              {lang === "en" ? "Extract Selected Pages" : "提取选中页面为新 PDF"}
             </button>
             <button
               onClick={() => setSplitMode("split-all")}
@@ -232,14 +238,14 @@ export default function PdfSplitStudio({
                   : "text-coconut-700 dark:text-darkbg-muted hover:text-coconut-950 dark:hover:text-white"
               }`}
             >
-              拆分为单页压缩包
+              {lang === "en" ? "Split All Pages to ZIP" : "拆分为单页压缩包"}
             </button>
           </div>
 
           <button
             onClick={onClearFile}
             className="p-2 rounded-xl text-coconut-500 hover:text-rose-600 hover:bg-rose-500/10 transition-colors"
-            title="更换其他文件"
+            title={lang === "en" ? "Change File" : "更换其他文件"}
           >
             <X className="w-4 h-4" />
           </button>
@@ -251,46 +257,46 @@ export default function PdfSplitStudio({
         <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-coconut-50/70 dark:bg-darkbg-subtle/50 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-bold text-coconut-800 dark:text-darkbg-text mr-1">
-              快捷选择：
+              {lang === "en" ? "Quick Select:" : "快捷选择："}
             </span>
             <button
               onClick={handleSelectAll}
               className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border hover:border-orange-500 text-coconut-800 dark:text-darkbg-text transition-all active:scale-95 shadow-2xs"
             >
-              全选
+              {lang === "en" ? "All" : "全选"}
             </button>
             <button
               onClick={handleDeselectAll}
               className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border hover:border-orange-500 text-coconut-800 dark:text-darkbg-text transition-all active:scale-95 shadow-2xs"
             >
-              清空
+              {lang === "en" ? "Clear" : "清空"}
             </button>
             <button
               onClick={handleInvertSelection}
               className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border hover:border-orange-500 text-coconut-800 dark:text-darkbg-text transition-all active:scale-95 shadow-2xs"
             >
-              反选
+              {lang === "en" ? "Invert" : "反选"}
             </button>
             <button
               onClick={handleSelectOdd}
               className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border hover:border-orange-500 text-coconut-800 dark:text-darkbg-text transition-all active:scale-95 shadow-2xs"
             >
-              奇数页
+              {lang === "en" ? "Odd" : "奇数页"}
             </button>
             <button
               onClick={handleSelectEven}
               className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border hover:border-orange-500 text-coconut-800 dark:text-darkbg-text transition-all active:scale-95 shadow-2xs"
             >
-              偶数页
+              {lang === "en" ? "Even" : "偶数页"}
             </button>
           </div>
 
           <div className="flex items-center gap-2 text-xs font-medium">
             <span className="text-coconut-600 dark:text-darkbg-muted">
-              已选中：
+              {lang === "en" ? "Selected:" : "已选中："}
             </span>
             <span className="px-2.5 py-0.5 rounded-full font-bold font-mono bg-accent-subtle text-accent border border-accent-border">
-              {selectedCount} / {numPages} 页
+              {selectedCount} / {numPages} {lang === "en" ? "pages" : "页"}
             </span>
             {currentRangeStr && (
               <span className="hidden sm:inline text-coconut-500 font-mono text-[11px] truncate max-w-xs">
@@ -306,17 +312,19 @@ export default function PdfSplitStudio({
         <div className="p-12 text-center space-y-3 rounded-2xl border border-dashed border-coconut-300 dark:border-darkbg-border bg-white/40 dark:bg-darkbg-card/40">
           <Loader2 className="w-8 h-8 mx-auto text-orange-500 animate-spin" />
           <p className="text-sm font-semibold text-coconut-900 dark:text-white">
-            正在生成整篇 PDF 页面交互缩略图...
+            {lang === "en" ? "Generating full PDF interactive page thumbnails..." : "正在生成整篇 PDF 页面交互缩略图..."}
           </p>
           <p className="text-xs text-coconut-500 dark:text-darkbg-muted">
-            无需手动输入繁琐页码，即将呈现可点选的页面网格
+            {lang === "en"
+              ? "No manual page numbers required, clickable page grid is loading"
+              : "无需手动输入繁琐页码，即将呈现可点选的页面网格"}
           </p>
         </div>
       ) : renderError ? (
         <div className="p-6 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-3 text-toast-700 dark:text-toast-300 text-xs">
           <AlertCircle className="w-5 h-5 flex-shrink-0 text-toast-500" />
           <div>
-            <div className="font-bold">缩略图解析失败</div>
+            <div className="font-bold">{lang === "en" ? "Failed to render thumbnails" : "缩略图解析失败"}</div>
             <div className="mt-1">{renderError}</div>
           </div>
         </div>
@@ -368,7 +376,7 @@ export default function PdfSplitStudio({
                       e.stopPropagation();
                       setZoomedPage(p);
                     }}
-                    title="点击放大查看该页"
+                    title={lang === "en" ? "Click to zoom into this page" : "点击放大查看该页"}
                     className="p-1 rounded-md text-coconut-500 hover:text-orange-600 hover:bg-orange-500/10 transition-colors"
                   >
                     <ZoomIn className="w-3.5 h-3.5" />
@@ -392,10 +400,10 @@ export default function PdfSplitStudio({
                 {/* 底部文字 */}
                 <div className="py-1 px-2 text-center text-[10px] font-semibold text-coconut-600 dark:text-darkbg-muted bg-coconut-50/50 dark:bg-darkbg-subtle/50 border-t border-coconut-100 dark:border-darkbg-border">
                   {splitMode === "split-all"
-                    ? "将拆分为独立文件"
+                    ? (lang === "en" ? "Split as separate file" : "将拆分为独立文件")
                     : isSelected
-                    ? "✓ 已选中导出"
-                    : "点击选中"}
+                    ? (lang === "en" ? "✓ Selected for export" : "✓ 已选中导出")
+                    : (lang === "en" ? "Click to select" : "点击选中")}
                 </div>
               </div>
             );
@@ -416,7 +424,9 @@ export default function PdfSplitStudio({
             <div className="p-4 border-b border-coconut-200 dark:border-darkbg-border flex items-center justify-between bg-coconut-50/90 dark:bg-darkbg-card">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-sm text-coconut-950 dark:text-white">
-                  单页高清预览 · 第 {zoomedPage.pageIndex + 1} 页
+                  {lang === "en"
+                    ? `High-Res Preview · Page ${zoomedPage.pageIndex + 1}`
+                    : `单页高清预览 · 第 ${zoomedPage.pageIndex + 1} 页`}
                 </span>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-coconut-200/80 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted font-mono">
                   {Math.round(zoomedPage.width)} × {Math.round(zoomedPage.height)} px
@@ -450,14 +460,14 @@ export default function PdfSplitStudio({
                 }`}
               >
                 {selectedPages.has(zoomedPage.pageIndex + 1)
-                  ? "取消选中该页"
-                  : "✓ 勾选此页加入提取"}
+                  ? (lang === "en" ? "Deselect This Page" : "取消选中该页")
+                  : (lang === "en" ? "✓ Select This Page for Extraction" : "✓ 勾选此页加入提取")}
               </button>
               <button
                 onClick={() => setZoomedPage(null)}
                 className="py-2 px-4 rounded-xl text-xs font-semibold text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100 dark:hover:bg-darkbg-subtle"
               >
-                关闭预览
+                {lang === "en" ? "Close Preview" : "关闭预览"}
               </button>
             </div>
           </div>
@@ -492,12 +502,13 @@ export default function PdfSplitStudio({
                   {executionResult.filename}
                 </h4>
                 <p className="text-xs text-orange-800 dark:text-amber-300 font-mono font-medium">
-                  {formatBytes(executionResult.size)} · 拆分提取成功已就绪
+                  {formatBytes(executionResult.size)} ·{" "}
+                  {lang === "en" ? "Split & extracted successfully" : "拆分提取成功已就绪"}
                 </p>
               </div>
             </div>
             <span className="hidden sm:inline-block px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-900 dark:text-amber-200 border border-amber-500/30 flex-shrink-0">
-              ✓ 就绪 · 点击下载
+              {lang === "en" ? "✓ Ready · Click to Download" : "✓ 就绪 · 点击下载"}
             </span>
           </div>
 
@@ -507,7 +518,7 @@ export default function PdfSplitStudio({
               className="flex-1 py-3 px-4 rounded-xl btn-3d-sunset text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-coconut-sm"
             >
               <Download className="w-4 h-4" />
-              <span>立即下载该文件</span>
+              <span>{lang === "en" ? "Download File Now" : "立即下载该文件"}</span>
             </button>
 
             <button
@@ -515,7 +526,7 @@ export default function PdfSplitStudio({
               className="py-3 px-4 rounded-xl btn-3d-secondary font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>重新选择页面提取</span>
+              <span>{lang === "en" ? "Select Other Pages" : "重新选择页面提取"}</span>
             </button>
           </div>
         </div>
@@ -533,15 +544,15 @@ export default function PdfSplitStudio({
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>正在提取拆分中，请稍候...</span>
+              <span>{lang === "en" ? "Extracting and splitting pages, please wait..." : "正在提取拆分中，请稍候..."}</span>
             </>
           ) : (
             <>
               <Scissors className="w-4 h-4 text-amber-200" />
               <span>
                 {splitMode === "split-all"
-                  ? `开始拆分为 ${numPages} 份独立单页压缩包`
-                  : `开始提取选中的 ${selectedCount} 个页面为新 PDF`}
+                  ? (lang === "en" ? `Split into ${numPages} single-page files (ZIP)` : `开始拆分为 ${numPages} 份独立单页压缩包`)
+                  : (lang === "en" ? `Extract selected ${selectedCount} pages to new PDF` : `开始提取选中的 ${selectedCount} 个页面为新 PDF`)}
               </span>
             </>
           )}

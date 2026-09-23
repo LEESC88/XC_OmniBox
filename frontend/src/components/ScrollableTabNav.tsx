@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, LucideIcon } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 export interface TabItem {
   id: string;
@@ -23,6 +24,7 @@ export default function ScrollableTabNav({
   onTabChange,
   className = "",
 }: ScrollableTabNavProps) {
+  const { lang } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -137,8 +139,8 @@ export default function ScrollableTabNav({
           type="button"
           onClick={() => scrollByAmount(-260)}
           className="relative pointer-events-auto p-1.5 rounded-xl bg-white/90 dark:bg-darkbg-elevated/90 border border-coconut-200/90 dark:border-darkbg-border text-coconut-800 dark:text-darkbg-text shadow-md hover:scale-110 active:scale-95 transition-all backdrop-blur-xs cursor-pointer ml-1"
-          title="向左滑移"
-          aria-label="向左滑移"
+          title={lang === "en" ? "Scroll Left" : "向左滑移"}
+          aria-label={lang === "en" ? "Scroll Left" : "向左滑移"}
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
@@ -155,8 +157,8 @@ export default function ScrollableTabNav({
           type="button"
           onClick={() => scrollByAmount(260)}
           className="relative pointer-events-auto p-1.5 rounded-xl bg-white/90 dark:bg-darkbg-elevated/90 border border-coconut-200/90 dark:border-darkbg-border text-coconut-800 dark:text-darkbg-text shadow-md hover:scale-110 active:scale-95 transition-all backdrop-blur-xs cursor-pointer mr-1"
-          title="向右滑移"
-          aria-label="向右滑移"
+          title={lang === "en" ? "Scroll Right" : "向右滑移"}
+          aria-label={lang === "en" ? "Scroll Right" : "向右滑移"}
         >
           <ChevronRight className="w-4 h-4" />
         </button>

@@ -56,9 +56,10 @@ export async function convertPdfToWord(
   return { blob, filename };
 }
 
-export async function convertWordToPdf(file: File): Promise<{ blob: Blob; filename: string }> {
+export async function convertWordToPdf(file: File, quality: string = "high"): Promise<{ blob: Blob; filename: string }> {
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("quality", quality);
 
   const res = await fetch(`${API_BASE}/document/word-to-pdf`, {
     method: "POST",

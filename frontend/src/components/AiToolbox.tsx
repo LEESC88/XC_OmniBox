@@ -37,6 +37,7 @@ import {
 import { downloadBlob } from "@/lib/api";
 import { formatBytes } from "@/lib/imageProcessor";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
+import { useI18n } from "@/lib/i18n";
 
 export type AiTabType = "ai-bg-remove" | "ai-ocr" | "ai-upscale";
 
@@ -47,12 +48,12 @@ export interface AiToolboxProps {
 }
 
 const BG_PRESETS = [
-  { label: "透明底", value: "transparent", color: "transparent" },
-  { label: "纯白底", value: "#ffffff", color: "#ffffff" },
-  { label: "证件蓝", value: "#438EDB", color: "#438EDB" },
-  { label: "证件红", value: "#D9001B", color: "#D9001B" },
-  { label: "极简灰", value: "#E2E8F0", color: "#E2E8F0" },
-  { label: "深邃黑", value: "#1E293B", color: "#1E293B" },
+  { label: "透明底", labelEn: "Transparent", value: "transparent", color: "transparent" },
+  { label: "纯白底", labelEn: "White", value: "#ffffff", color: "#ffffff" },
+  { label: "证件蓝", labelEn: "ID Blue", value: "#438EDB", color: "#438EDB" },
+  { label: "证件红", labelEn: "ID Red", value: "#D9001B", color: "#D9001B" },
+  { label: "极简灰", labelEn: "Light Gray", value: "#E2E8F0", color: "#E2E8F0" },
+  { label: "深邃黑", labelEn: "Dark Slate", value: "#1E293B", color: "#1E293B" },
 ];
 
 export default function AiToolbox({
@@ -60,7 +61,32 @@ export default function AiToolbox({
   onTabChange,
   onNavigateToIdPhoto,
 }: AiToolboxProps) {
+  const { lang } = useI18n();
   const [activeTab, setActiveTab] = useState<AiTabType>(currentTab);
+
+  const localizeAiStage = (stage: string) => {
+    if (lang !== "en" || !stage) return stage;
+    if (stage.includes("准备模型")) return "Preparing model...";
+    if (stage.includes("抠图完成")) return "Cutout complete!";
+    if (stage.includes("发丝边缘") || stage.includes("逐像素计算")) return "Neural network computing pixel edges...";
+    if (stage.includes("神经网络") || stage.includes("分割") || stage.includes("分割中")) return "Segmenting image with AI neural network...";
+    if (stage.includes("启动备用") || stage.includes("色度")) return "Running chroma edge algorithm...";
+    if (stage.includes("合成高质量") || stage.includes("透明通道")) return "Compositing transparent layer...";
+    if (stage.includes("启动 OCR") || stage.includes("WebAssembly")) return "Initializing OCR engine...";
+    if (stage.includes("OCR 离线核心") || stage.includes("载入 OCR")) return "Loading OCR offline engine...";
+    if (stage.includes("字库字典") || stage.includes("语言字库")) return "Loading language dictionary...";
+    if (stage.includes("光学识别") || stage.includes("分析文字") || stage.includes("排版")) return "AI analyzing text lines and layout...";
+    if (stage.includes("深度扫描")) return "Scanning image features...";
+    if (stage.includes("识别完成")) return "Recognition complete!";
+    if (stage.includes("初始化超清")) return "Initializing upscale enhancement...";
+    if (stage.includes("像素拓扑")) return "Computing pixel topology...";
+    if (stage.includes("超分辨率重采样") || stage.includes("双三次") || stage.includes("重采样")) return "Executing super-resolution resampling...";
+    if (stage.includes("锐化") || stage.includes("高频")) return "Extracting edge features and adaptive sharpening...";
+    if (stage.includes("色彩增强")) return "Executing color enhancement...";
+    if (stage.includes("生成超清") || stage.includes("修复完成") || stage.includes("修复增强完成")) return "Enhancement complete!";
+    if (stage.includes("处理中") || stage.includes("正在")) return "Processing...";
+    return stage;
+  };
 
   useEffect(() => {
     if (currentTab && currentTab !== activeTab) {
@@ -104,7 +130,7 @@ export default function AiToolbox({
     setBgLoading(true);
     setBgError(null);
     setBgProgress(5);
-    setBgStage("正在准备模型...");
+    setBgStage(lang === "en" ? "Preparing model..." : "正在准备模型...");
 
     try {
       const blob = await removeBackgroundAI(bgFile, {
@@ -119,9 +145,14 @@ export default function AiToolbox({
       setBgResultBlob(blob);
       setBgResultUrl(URL.createObjectURL(blob));
       setBgProgress(100);
-      setBgStage("抠图完成！");
+      setBgStage(lang === "en" ? "Cutout complete!" : "抠图完成！");
     } catch (err: any) {
-      setBgError(err.message || "智能抠图失败，请重试或尝试切换为快速算法模式");
+      setBgError(
+        err.message ||
+          (lang === "en"
+            ? "AI cutout failed, please retry or try switching to Rapid Chroma Algorithm mode"
+            : "智能抠图失败，请重试或尝试切换为快速算法模式")
+      );
     } finally {
       setBgLoading(false);
     }
@@ -206,7 +237,7 @@ export default function AiToolbox({
     setOcrLoading(true);
     setOcrError(null);
     setOcrProgress(5);
-    setOcrStage("启动 OCR 离线识别...");
+    setOcrStage(lang === "en" ? "Starting offline OCR recognition..." : "启动 OCR 离线识别...");
 
     try {
       const result = await recognizeTextOCR(ocrFile, ocrLang, (pct, stage) => {
@@ -217,9 +248,14 @@ export default function AiToolbox({
       setOcrResult(result);
       setOcrEditableText(result.text);
       setOcrProgress(100);
-      setOcrStage("识别完成！");
+      setOcrStage(lang === "en" ? "Recognition complete!" : "识别完成！");
     } catch (err: any) {
-      setOcrError(err.message || "OCR 识别异常，请尝试换用更清晰的图片");
+      setOcrError(
+        err.message ||
+          (lang === "en"
+            ? "OCR recognition error, please try using a clearer image"
+            : "OCR 识别异常，请尝试换用更清晰的图片")
+      );
     } finally {
       setOcrLoading(false);
     }
@@ -271,7 +307,9 @@ export default function AiToolbox({
     setUpscaleLoading(true);
     setUpscaleError(null);
     setUpscaleProgress(5);
-    setUpscaleStage("初始化超清增强算法...");
+    setUpscaleStage(
+      lang === "en" ? "Initializing ultra-clear enhancement algorithm..." : "初始化超清增强算法..."
+    );
 
     try {
       const res = await enhanceAndUpscaleImage(upscaleFile, {
@@ -288,9 +326,12 @@ export default function AiToolbox({
       setUpscaleResult(res);
       setUpscaleResultUrl(URL.createObjectURL(res.blob));
       setUpscaleProgress(100);
-      setUpscaleStage("修复增强完成！");
+      setUpscaleStage(lang === "en" ? "Enhancement complete!" : "修复增强完成！");
     } catch (err: any) {
-      setUpscaleError(err.message || "超分辨率修复失败，请重试");
+      setUpscaleError(
+        err.message ||
+          (lang === "en" ? "Super-resolution enhancement failed, please retry" : "超分辨率修复失败，请重试")
+      );
     } finally {
       setUpscaleLoading(false);
     }
@@ -308,21 +349,21 @@ export default function AiToolbox({
         tabs={[
           {
             id: "ai-bg-remove",
-            label: "AI 发丝级智能抠图",
+            label: lang === "en" ? "AI Smart Cutout" : "AI 发丝级智能抠图",
             icon: Sparkles,
-            badge: "无痕透底",
+            badge: lang === "en" ? "Transparent" : "无痕透底",
           },
           {
             id: "ai-ocr",
-            label: "AI 文字提取 (OCR)",
+            label: lang === "en" ? "AI Text OCR" : "AI 文字提取 (OCR)",
             icon: FileText,
-            badge: "多语言",
+            badge: lang === "en" ? "Multi-language" : "多语言",
           },
           {
             id: "ai-upscale",
-            label: "AI 模糊图片高清修复",
+            label: lang === "en" ? "AI Image Upscaler" : "AI 模糊图片高清修复",
             icon: Maximize2,
-            badge: "2x/4x超清",
+            badge: lang === "en" ? "2x/4x HD" : "2x/4x超清",
           },
         ]}
         activeTab={activeTab}
@@ -339,14 +380,14 @@ export default function AiToolbox({
             <div className="flex items-center justify-between pb-3 border-b border-coconut-200/80 dark:border-darkbg-border">
               <div className="flex items-center gap-2 text-sm font-bold text-coconut-950 dark:text-darkbg-text">
                 <Sliders className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                <span>抠图引擎与配置</span>
+                <span>{lang === "en" ? "Cutout Engine & Settings" : "抠图引擎与配置"}</span>
               </div>
             </div>
 
             {/* 引擎切换 */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                算法引擎模式
+                {lang === "en" ? "Algorithm Engine Mode" : "算法引擎模式"}
               </label>
               <div className="grid grid-cols-2 gap-2.5">
                 <button
@@ -360,10 +401,12 @@ export default function AiToolbox({
                 >
                   <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold mb-1">
                     <Sparkles className="w-4 h-4 text-orange-600" />
-                    <span>AI 神经网络</span>
+                    <span>{lang === "en" ? "AI Neural Network" : "AI 神经网络"}</span>
                   </div>
                   <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed">
-                    发丝级精细分割，自动识别复杂人像与主体
+                    {lang === "en"
+                      ? "Hair-level fine segmentation, auto-identifies complex subjects"
+                      : "发丝级精细分割，自动识别复杂人像与主体"}
                   </p>
                 </button>
 
@@ -378,10 +421,12 @@ export default function AiToolbox({
                 >
                   <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold mb-1">
                     <Zap className="w-4 h-4 text-amber-600" />
-                    <span>极速色度算法</span>
+                    <span>{lang === "en" ? "Rapid Chroma Algorithm" : "极速色度算法"}</span>
                   </div>
                   <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed">
-                    瞬时处理，适合纯色或单色背景图片
+                    {lang === "en"
+                      ? "Instant processing, ideal for solid or uniform backgrounds"
+                      : "瞬时处理，适合纯色或单色背景图片"}
                   </p>
                 </button>
               </div>
@@ -390,7 +435,7 @@ export default function AiToolbox({
             {/* 背景底色预设 */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                输出背景底色
+                {lang === "en" ? "Output Background Color" : "输出背景底色"}
               </label>
               <div className="grid grid-cols-3 gap-2.5">
                 {BG_PRESETS.map((preset) => (
@@ -415,7 +460,7 @@ export default function AiToolbox({
                         backgroundSize: "6px 6px",
                       }}
                     />
-                    <span className="truncate">{preset.label}</span>
+                    <span className="truncate">{lang === "en" ? preset.labelEn : preset.label}</span>
                   </button>
                 ))}
               </div>
@@ -425,10 +470,12 @@ export default function AiToolbox({
             <div className="p-4 bg-coconut-100/70 dark:bg-darkbg-subtle/80 border border-coconut-200 dark:border-darkbg-border rounded-2xl space-y-1.5">
               <div className="flex items-center gap-2 text-sm font-bold text-coconut-950 dark:text-darkbg-text">
                 <FileCheck className="w-4 h-4 text-orange-600" />
-                <span>联动证件照排版</span>
+                <span>{lang === "en" ? "Link to ID Photo Studio" : "联动证件照排版"}</span>
               </div>
               <p className="text-xs text-coconut-700 dark:text-darkbg-muted leading-relaxed">
-                扣除背景后，可直接点击一键转入【证件照排版】，自动生成 1寸 / 2寸 冲印模板。
+                {lang === "en"
+                  ? "After removing background, click one button to jump to [ID Photo Studio] and generate 1-inch/2-inch print templates."
+                  : "扣除背景后，可直接点击一键转入【证件照排版】，自动生成 1寸 / 2寸 冲印模板。"}
               </p>
             </div>
 
@@ -441,12 +488,16 @@ export default function AiToolbox({
               {bgLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>正在处理抠图 ({bgProgress}%)...</span>
+                  <span>
+                    {lang === "en"
+                      ? `Processing Cutout (${bgProgress}%)...`
+                      : `正在处理抠图 (${bgProgress}%)...`}
+                  </span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 text-amber-200" />
-                  <span>立即开始智能抠图</span>
+                  <span>{lang === "en" ? "Start AI Smart Cutout" : "立即开始智能抠图"}</span>
                 </>
               )}
             </button>
@@ -467,10 +518,14 @@ export default function AiToolbox({
                   <UploadCloud className="w-7 h-7" />
                 </div>
                 <h4 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text mb-1">
-                  拖入需要抠图的图片，或点击选择
+                  {lang === "en"
+                    ? "Drag image here to remove background, or click to upload"
+                    : "拖入需要抠图的图片，或点击选择"}
                 </h4>
                 <p className="text-xs text-coconut-500 dark:text-darkbg-muted max-w-sm mx-auto">
-                  支持人像、证件照自拍、宠物毛发、静物电商图（JPG, PNG, WebP），100% 本地运算不上传
+                  {lang === "en"
+                    ? "Supports portraits, ID selfies, pets, and e-commerce products (JPG, PNG, WebP). 100% processed locally."
+                    : "支持人像、证件照自拍、宠物毛发、静物电商图（JPG, PNG, WebP），100% 本地运算不上传"}
                 </p>
               </div>
             ) : (
@@ -487,7 +542,7 @@ export default function AiToolbox({
                   </div>
                   <div className="flex items-center gap-2">
                     <label className="text-coconut-600 dark:text-darkbg-muted hover:text-palm-600 cursor-pointer font-medium">
-                      更换图片
+                      {lang === "en" ? "Change Image" : "更换图片"}
                       <input
                         type="file"
                         accept="image/*"
@@ -505,7 +560,7 @@ export default function AiToolbox({
                       className="text-toast-500 hover:text-toast-600 flex items-center gap-1 font-medium"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>清空</span>
+                      <span>{lang === "en" ? "Clear" : "清空"}</span>
                     </button>
                   </div>
                 </div>
@@ -516,7 +571,12 @@ export default function AiToolbox({
                     <div className="flex justify-between text-xs text-coconut-700 dark:text-darkbg-muted">
                       <span className="font-medium flex items-center gap-1.5">
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-palm-600" />
-                        <span>{bgStage || "深度神经网络逐像素分割中..."}</span>
+                        <span>
+                          {localizeAiStage(bgStage) ||
+                            (lang === "en"
+                              ? "Deep neural network segmenting pixels..."
+                              : "深度神经网络逐像素分割中...")}
+                        </span>
                       </span>
                       <span className="font-mono font-bold text-orange-600 dark:text-orange-400">{bgProgress}%</span>
                     </div>
@@ -553,7 +613,7 @@ export default function AiToolbox({
                   {!bgResultUrl && bgPreviewUrl && (
                     <img
                       src={bgPreviewUrl}
-                      alt="原图预览"
+                      alt={lang === "en" ? "Original Preview" : "原图预览"}
                       className="relative z-10 max-w-full max-h-[500px] object-contain shadow-md rounded-lg"
                     />
                   )}
@@ -564,7 +624,7 @@ export default function AiToolbox({
                       {/* 底层：原图 */}
                       <img
                         src={bgPreviewUrl}
-                        alt="原图"
+                        alt={lang === "en" ? "Original" : "原图"}
                         className="absolute max-h-[460px] max-w-full object-contain"
                       />
 
@@ -577,7 +637,7 @@ export default function AiToolbox({
                       >
                         <img
                           src={bgResultUrl}
-                          alt="抠图效果"
+                          alt={lang === "en" ? "Cutout Result" : "抠图效果"}
                           className="max-h-[460px] max-w-full object-contain"
                         />
                       </div>
@@ -594,10 +654,10 @@ export default function AiToolbox({
 
                       {/* 标尺角标 */}
                       <div className="absolute top-3 left-3 px-2.5 py-1 rounded-xl bg-black/60 text-white text-[10px] font-mono backdrop-blur-sm z-20">
-                        抠图效果 ({bgCompareSlider}%)
+                        {lang === "en" ? `Cutout Effect (${bgCompareSlider}%)` : `抠图效果 (${bgCompareSlider}%)`}
                       </div>
                       <div className="absolute top-3 right-3 px-2.5 py-1 rounded-xl bg-black/60 text-white text-[10px] font-mono backdrop-blur-sm z-20">
-                        原始图片
+                        {lang === "en" ? "Original" : "原始图片"}
                       </div>
                     </div>
                   )}
@@ -607,7 +667,7 @@ export default function AiToolbox({
                 {bgResultUrl && (
                   <div className="space-y-1.5 pt-1">
                     <div className="flex justify-between text-xs text-coconut-600 dark:text-darkbg-muted">
-                      <span>左右滑动对比抠图边缘与原图</span>
+                      <span>{lang === "en" ? "Slide to compare cutout edges with original" : "左右滑动对比抠图边缘与原图"}</span>
                       <span className="font-mono">{bgCompareSlider}%</span>
                     </div>
                     <input
@@ -629,7 +689,7 @@ export default function AiToolbox({
                       className="flex items-center gap-2 py-2.5 px-4 rounded-2xl bg-palm-100 dark:bg-palm-950/80 text-palm-800 dark:text-palm-300 border border-palm-300/60 dark:border-palm-800/80 font-bold text-xs transition-all hover:bg-palm-200/80 active:scale-95 shadow-sm"
                     >
                       <UserCheck className="w-4 h-4 text-palm-600" />
-                      <span>转入 6 寸证件照排版 🚀</span>
+                      <span>{lang === "en" ? "Jump to 6\" ID Photo Layout 🚀" : "转入 6 寸证件照排版 🚀"}</span>
                     </button>
 
                     <button
@@ -637,7 +697,7 @@ export default function AiToolbox({
                       className="flex items-center gap-2 py-2.5 px-5 rounded-2xl btn-3d-sunset text-white text-xs font-bold shadow-coconut-sm"
                     >
                       <Download className="w-4 h-4" />
-                      <span>下载无损透明 PNG</span>
+                      <span>{lang === "en" ? "Download Lossless Transparent PNG" : "下载无损透明 PNG"}</span>
                     </button>
                   </div>
                 )}
@@ -657,30 +717,32 @@ export default function AiToolbox({
             <div className="flex items-center justify-between pb-3 border-b border-coconut-200/80 dark:border-darkbg-border">
               <div className="flex items-center gap-2 text-sm font-bold text-coconut-950 dark:text-darkbg-text">
                 <Sliders className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                <span>OCR 识别语言选择</span>
+                <span>{lang === "en" ? "OCR Language Selection" : "OCR 识别语言选择"}</span>
               </div>
             </div>
 
             {/* 语言选择 */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                文字识别语言字库
+                {lang === "en" ? "OCR Language Thesaurus" : "文字识别语言字库"}
               </label>
               <div className="space-y-2.5">
-                {OCR_LANGUAGES.map((lang) => (
+                {OCR_LANGUAGES.map((item) => (
                   <button
-                    key={lang.id}
+                    key={item.id}
                     type="button"
-                    onClick={() => setOcrLang(lang.id)}
+                    onClick={() => setOcrLang(item.id)}
                     className={`w-full text-left p-3 rounded-2xl border transition-all ${
-                      ocrLang === lang.id
+                      ocrLang === item.id
                         ? "border-orange-500 bg-orange-50/70 dark:bg-orange-950/40 text-coconut-950 dark:text-darkbg-text shadow-sm ring-1 ring-orange-400/30"
                         : "border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/50"
                     }`}
                   >
-                    <div className="text-sm font-bold text-coconut-950 dark:text-white">{lang.label}</div>
+                    <div className="text-sm font-bold text-coconut-950 dark:text-white">
+                      {lang === "en" ? item.labelEn || item.label : item.label}
+                    </div>
                     <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-0.5 leading-relaxed">
-                      {lang.desc}
+                      {lang === "en" ? item.descEn || item.desc : item.desc}
                     </div>
                   </button>
                 ))}
@@ -696,12 +758,16 @@ export default function AiToolbox({
               {ocrLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>正在识别提取 ({ocrProgress}%)...</span>
+                  <span>
+                    {lang === "en"
+                      ? `Recognizing Text (${ocrProgress}%)...`
+                      : `正在识别提取 (${ocrProgress}%)...`}
+                  </span>
                 </>
               ) : (
                 <>
                   <FileText className="w-4 h-4 text-amber-200" />
-                  <span>立即开始文字提取</span>
+                  <span>{lang === "en" ? "Start Text Extraction" : "立即开始文字提取"}</span>
                 </>
               )}
             </button>
@@ -721,10 +787,14 @@ export default function AiToolbox({
                   <UploadCloud className="w-7 h-7" />
                 </div>
                 <h4 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text mb-1">
-                  拖入需要识别的图片或截图，或点击上传
+                  {lang === "en"
+                    ? "Drag image or screenshot here, or click to upload"
+                    : "拖入需要识别的图片或截图，或点击上传"}
                 </h4>
                 <p className="text-xs text-coconut-500 dark:text-darkbg-muted max-w-sm mx-auto">
-                  支持拍照合同、教材书籍、电子发票、证件单据与网页截图
+                  {lang === "en"
+                    ? "Supports scanned contracts, textbooks, e-invoices, receipts, and web screenshots"
+                    : "支持拍照合同、教材书籍、电子发票、证件单据与网页截图"}
                 </p>
               </div>
             ) : (
@@ -741,7 +811,7 @@ export default function AiToolbox({
                   </div>
                   <div className="flex items-center gap-2">
                     <label className="text-coconut-600 dark:text-darkbg-muted hover:text-palm-600 cursor-pointer font-medium">
-                      更换图片
+                      {lang === "en" ? "Change Image" : "更换图片"}
                       <input
                         type="file"
                         accept="image/*"
@@ -759,7 +829,7 @@ export default function AiToolbox({
                       className="text-toast-500 hover:text-toast-600 flex items-center gap-1 font-medium"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>清空</span>
+                      <span>{lang === "en" ? "Clear" : "清空"}</span>
                     </button>
                   </div>
                 </div>
@@ -770,7 +840,10 @@ export default function AiToolbox({
                     <div className="flex justify-between text-xs text-coconut-700 dark:text-darkbg-muted">
                       <span className="font-medium flex items-center gap-1.5">
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-palm-600" />
-                        <span>{ocrStage || "正在解析文字排版..."}</span>
+                        <span>
+                          {localizeAiStage(ocrStage) ||
+                            (lang === "en" ? "Parsing text layout..." : "正在解析文字排版...")}
+                        </span>
                       </span>
                       <span className="font-mono font-bold text-palm-600">{ocrProgress}%</span>
                     </div>
@@ -795,12 +868,12 @@ export default function AiToolbox({
                   {/* 原图缩略预览 */}
                   <div className="md:col-span-4 bg-coconut-100/50 dark:bg-darkbg-subtle p-2 rounded-2xl border border-coconut-200/60 dark:border-darkbg-border flex flex-col items-center">
                     <div className="text-[11px] font-semibold text-coconut-700 dark:text-darkbg-muted mb-2 self-start">
-                      原图参考
+                      {lang === "en" ? "Original Reference" : "原图参考"}
                     </div>
                     {ocrPreviewUrl && (
                       <img
                         src={ocrPreviewUrl}
-                        alt="待识别图片"
+                        alt={lang === "en" ? "Image for Recognition" : "待识别图片"}
                         className="max-h-[360px] w-auto rounded-xl object-contain shadow-sm border border-coconut-200 dark:border-darkbg-border"
                       />
                     )}
@@ -810,16 +883,16 @@ export default function AiToolbox({
                   <div className="md:col-span-8 space-y-3">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-coconut-900 dark:text-darkbg-text">
-                        提取结果与在线编辑
+                        {lang === "en" ? "Extracted Text & Editor" : "提取结果与在线编辑"}
                       </span>
                       {ocrResult && (
                         <div className="flex items-center gap-2 text-[11px] text-coconut-500 dark:text-darkbg-muted font-mono">
-                          <span>字数: {ocrResult.characterCount}</span>
+                          <span>{lang === "en" ? `Characters: ${ocrResult.characterCount}` : `字数: ${ocrResult.characterCount}`}</span>
                           <span>·</span>
-                          <span>行数: {ocrResult.linesCount}</span>
+                          <span>{lang === "en" ? `Lines: ${ocrResult.linesCount}` : `行数: ${ocrResult.linesCount}`}</span>
                           <span>·</span>
                           <span className="text-palm-600 font-semibold">
-                            置信度: {ocrResult.confidence}%
+                            {lang === "en" ? `Confidence: ${ocrResult.confidence}%` : `置信度: ${ocrResult.confidence}%`}
                           </span>
                         </div>
                       )}
@@ -830,8 +903,12 @@ export default function AiToolbox({
                       onChange={(e) => setOcrEditableText(e.target.value)}
                       placeholder={
                         ocrLoading
-                          ? "AI 正在识别中，文字提取后将自动填充在此处..."
-                          : "点击左侧【立即开始文字提取】即可在此查看与直接编辑内容..."
+                          ? (lang === "en"
+                              ? "AI recognizing text, results will populate here automatically..."
+                              : "AI 正在识别中，文字提取后将自动填充在此处...")
+                          : (lang === "en"
+                              ? "Click [Start Text Extraction] on the left to view and edit text here..."
+                              : "点击左侧【立即开始文字提取】即可在此查看与直接编辑内容...")
                       }
                       rows={12}
                       className="w-full text-sm font-mono p-4 bg-white/70 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border rounded-2xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-coconut-950 dark:text-darkbg-text leading-relaxed resize-none shadow-inner font-medium"
@@ -847,12 +924,12 @@ export default function AiToolbox({
                           {ocrCopied ? (
                             <>
                               <Check className="w-3.5 h-3.5 text-palm-500" />
-                              <span className="text-palm-600">已复制到剪贴板</span>
+                              <span className="text-palm-600">{lang === "en" ? "Copied to Clipboard" : "已复制到剪贴板"}</span>
                             </>
                           ) : (
                             <>
                               <Copy className="w-3.5 h-3.5" />
-                              <span>一键复制全文</span>
+                              <span>{lang === "en" ? "Copy Full Text" : "一键复制全文"}</span>
                             </>
                           )}
                         </button>
@@ -862,7 +939,7 @@ export default function AiToolbox({
                           className="btn-3d-sunset flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-white text-xs font-semibold"
                         >
                           <Download className="w-3.5 h-3.5" />
-                          <span>导出为 TXT 文件</span>
+                          <span>{lang === "en" ? "Export as TXT" : "导出为 TXT 文件"}</span>
                         </button>
                       </div>
                     )}
@@ -884,20 +961,32 @@ export default function AiToolbox({
             <div className="flex items-center justify-between pb-3 border-b border-coconut-200/80 dark:border-darkbg-border">
               <div className="flex items-center gap-2 text-sm font-bold text-coconut-950 dark:text-darkbg-text">
                 <Sliders className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                <span>修复与增强倍率</span>
+                <span>{lang === "en" ? "Enhance & Upscale Scale" : "修复与增强倍率"}</span>
               </div>
             </div>
 
             {/* 放大倍率选择 */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                分辨率超清放大倍率
+                {lang === "en" ? "Upscale Resolution Scale" : "分辨率超清放大倍率"}
               </label>
               <div className="grid grid-cols-3 gap-2.5">
                 {[
-                  { scale: 2 as const, label: "2x 超清放大", badge: "推荐" },
-                  { scale: 4 as const, label: "4x 极致超清", badge: "大图" },
-                  { scale: 1 as const, label: "1x 原图锐化", badge: "去模糊" },
+                  {
+                    scale: 2 as const,
+                    label: lang === "en" ? "2x Upscale" : "2x 超清放大",
+                    badge: lang === "en" ? "Recommended" : "推荐",
+                  },
+                  {
+                    scale: 4 as const,
+                    label: lang === "en" ? "4x Ultra HD" : "4x 极致超清",
+                    badge: lang === "en" ? "Large" : "大图",
+                  },
+                  {
+                    scale: 1 as const,
+                    label: lang === "en" ? "1x Sharpen" : "1x 原图锐化",
+                    badge: lang === "en" ? "Deblur" : "去模糊",
+                  },
                 ].map((item) => (
                   <button
                     key={item.scale}
@@ -921,7 +1010,7 @@ export default function AiToolbox({
             {/* 锐化强度滑块 */}
             <div className="space-y-2">
               <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                <span>边缘与纹理锐化强度</span>
+                <span>{lang === "en" ? "Edge & Texture Sharpening" : "边缘与纹理锐化强度"}</span>
                 <span className="font-mono font-bold text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-lg bg-orange-500/10 border border-orange-500/20">{upscaleSharpness.toFixed(1)}x</span>
               </div>
               <input
@@ -934,16 +1023,16 @@ export default function AiToolbox({
                 className="w-full accent-orange-600 cursor-pointer h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none"
               />
               <div className="flex justify-between text-xs text-coconut-500 dark:text-darkbg-muted font-medium">
-                <span>柔和自然</span>
-                <span>平衡清晰</span>
-                <span>极致锋利</span>
+                <span>{lang === "en" ? "Soft Natural" : "柔和自然"}</span>
+                <span>{lang === "en" ? "Balanced Clear" : "平衡清晰"}</span>
+                <span>{lang === "en" ? "Ultra Sharp" : "极致锋利"}</span>
               </div>
             </div>
 
             {/* 降噪与对比度开关 */}
             <div className="space-y-3 pt-2 border-t border-coconut-100 dark:border-darkbg-border">
               <label className="flex items-center justify-between text-sm font-semibold cursor-pointer text-coconut-900 dark:text-darkbg-text">
-                <span>JPEG 噪点与伪影消除</span>
+                <span>{lang === "en" ? "JPEG Noise & Artifact Reduction" : "JPEG 噪点与伪影消除"}</span>
                 <input
                   type="checkbox"
                   checked={upscaleDenoise}
@@ -953,7 +1042,7 @@ export default function AiToolbox({
               </label>
 
               <label className="flex items-center justify-between text-sm font-semibold cursor-pointer text-coconut-900 dark:text-darkbg-text">
-                <span>智能去雾与通透感拉伸</span>
+                <span>{lang === "en" ? "Auto De-haze & Contrast Stretch" : "智能去雾与通透感拉伸"}</span>
                 <input
                   type="checkbox"
                   checked={upscaleContrast}
@@ -976,12 +1065,16 @@ export default function AiToolbox({
               {upscaleLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>正在超清重采样 ({upscaleProgress}%)...</span>
+                  <span>
+                    {lang === "en"
+                      ? `Resampling in Ultra HD (${upscaleProgress}%)...`
+                      : `正在超清重采样 (${upscaleProgress}%)...`}
+                  </span>
                 </>
               ) : (
                 <>
                   <Maximize2 className="w-4 h-4 text-amber-200" />
-                  <span>立即执行 AI 高清修复增强</span>
+                  <span>{lang === "en" ? "Start AI HD Upscale & Enhance" : "立即执行 AI 高清修复增强"}</span>
                 </>
               )}
             </button>
@@ -1001,10 +1094,14 @@ export default function AiToolbox({
                   <UploadCloud className="w-7 h-7" />
                 </div>
                 <h4 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text mb-1">
-                  拖入模糊或低清晰度图片，或点击上传
+                  {lang === "en"
+                    ? "Drag blurry or low-res image here, or click to upload"
+                    : "拖入模糊或低清晰度图片，或点击上传"}
                 </h4>
                 <p className="text-xs text-coconut-500 dark:text-darkbg-muted max-w-sm mx-auto">
-                  支持老照片、低清头像、微信压缩糊图、游戏截图与图标锐化
+                  {lang === "en"
+                    ? "Supports old photos, low-res avatars, compressed blurry images, game screenshots, and icon sharpening"
+                    : "支持老照片、低清头像、微信压缩糊图、游戏截图与图标锐化"}
                 </p>
               </div>
             ) : (
@@ -1021,7 +1118,7 @@ export default function AiToolbox({
                   </div>
                   <div className="flex items-center gap-2">
                     <label className="text-coconut-600 dark:text-darkbg-muted hover:text-palm-600 cursor-pointer font-medium">
-                      更换图片
+                      {lang === "en" ? "Change Image" : "更换图片"}
                       <input
                         type="file"
                         accept="image/*"
@@ -1039,7 +1136,7 @@ export default function AiToolbox({
                       className="text-toast-500 hover:text-toast-600 flex items-center gap-1 font-medium"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>清空</span>
+                      <span>{lang === "en" ? "Clear" : "清空"}</span>
                     </button>
                   </div>
                 </div>
@@ -1050,7 +1147,10 @@ export default function AiToolbox({
                     <div className="flex justify-between text-xs text-coconut-700 dark:text-darkbg-muted">
                       <span className="font-medium flex items-center gap-1.5">
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-palm-600" />
-                        <span>{upscaleStage || "正在逐像素超分辨率渲染..."}</span>
+                        <span>
+                          {localizeAiStage(upscaleStage) ||
+                            (lang === "en" ? "Rendering ultra-resolution pixels..." : "正在逐像素超分辨率渲染...")}
+                        </span>
                       </span>
                       <span className="font-mono font-bold text-palm-600">{upscaleProgress}%</span>
                     </div>
@@ -1075,7 +1175,7 @@ export default function AiToolbox({
                   {!upscaleResultUrl && upscalePreviewUrl && (
                     <img
                       src={upscalePreviewUrl}
-                      alt="原图预览"
+                      alt={lang === "en" ? "Original Preview" : "原图预览"}
                       className="max-w-full max-h-[480px] object-contain shadow-md rounded-lg"
                     />
                   )}
@@ -1085,7 +1185,7 @@ export default function AiToolbox({
                       {/* 底层：原图 */}
                       <img
                         src={upscalePreviewUrl}
-                        alt="原图"
+                        alt={lang === "en" ? "Original" : "原图"}
                         className="absolute max-h-[440px] max-w-full object-contain"
                       />
 
@@ -1098,7 +1198,7 @@ export default function AiToolbox({
                       >
                         <img
                           src={upscaleResultUrl}
-                          alt="超清修复效果"
+                          alt={lang === "en" ? "Ultra HD Result" : "超清修复效果"}
                           className="max-h-[440px] max-w-full object-contain"
                         />
                       </div>
@@ -1114,10 +1214,14 @@ export default function AiToolbox({
                       </div>
 
                       <div className="absolute top-3 left-3 px-2.5 py-1 rounded-xl bg-palm-900/80 text-palm-200 text-[10px] font-mono backdrop-blur-sm z-20">
-                        修复后超清效果 ({upscaleResult?.newWidth}×{upscaleResult?.newHeight})
+                        {lang === "en"
+                          ? `Ultra HD Result (${upscaleResult?.newWidth}×${upscaleResult?.newHeight})`
+                          : `修复后超清效果 (${upscaleResult?.newWidth}×${upscaleResult?.newHeight})`}
                       </div>
                       <div className="absolute top-3 right-3 px-2.5 py-1 rounded-xl bg-black/60 text-white text-[10px] font-mono backdrop-blur-sm z-20">
-                        原始低清 ({upscaleResult?.originalWidth}×{upscaleResult?.originalHeight})
+                        {lang === "en"
+                          ? `Original Low-Res (${upscaleResult?.originalWidth}×${upscaleResult?.originalHeight})`
+                          : `原始低清 (${upscaleResult?.originalWidth}×${upscaleResult?.originalHeight})`}
                       </div>
                     </div>
                   )}
@@ -1127,7 +1231,7 @@ export default function AiToolbox({
                 {upscaleResultUrl && (
                   <div className="space-y-1.5 pt-1">
                     <div className="flex justify-between text-xs text-coconut-600 dark:text-darkbg-muted">
-                      <span>滑动分割线对比超清修复前后细节</span>
+                      <span>{lang === "en" ? "Slide to compare before and after details" : "滑动分割线对比超清修复前后细节"}</span>
                       <span className="font-mono">{upscaleSlider}%</span>
                     </div>
                     <input
@@ -1145,7 +1249,7 @@ export default function AiToolbox({
                 {upscaleResult && (
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-coconut-100 dark:border-darkbg-border">
                     <div className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                      <span>输出分辨率: </span>
+                      <span>{lang === "en" ? "Output Resolution: " : "输出分辨率: "}</span>
                       <span className="font-mono font-bold text-coconut-900 dark:text-darkbg-text">
                         {upscaleResult.newWidth} × {upscaleResult.newHeight} px
                       </span>
@@ -1159,7 +1263,11 @@ export default function AiToolbox({
                       className="btn-3d-sunset flex items-center gap-2 py-2.5 px-5 rounded-2xl text-white font-bold text-xs shadow-coconut-sm"
                     >
                       <Download className="w-4 h-4" />
-                      <span>下载无损超清图 ({upscaleResult.scaleFactor}x PNG)</span>
+                      <span>
+                        {lang === "en"
+                          ? `Download Lossless HD (${upscaleResult.scaleFactor}x PNG)`
+                          : `下载无损超清图 (${upscaleResult.scaleFactor}x PNG)`}
+                      </span>
                     </button>
                   </div>
                 )}

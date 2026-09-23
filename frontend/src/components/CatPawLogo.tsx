@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { CAT_PAW_PRESETS, getSavedCatPaw } from "@/lib/themeManager";
+import { useI18n } from "@/lib/i18n";
 
 interface CatPawLogoProps {
   className?: string;
@@ -19,6 +20,7 @@ export default function CatPawLogo({
   size = 38,
   pawId,
 }: CatPawLogoProps) {
+  const { lang } = useI18n();
   const [currentPawId, setCurrentPawId] = useState<string>(pawId || "3_calico_pink");
 
   useEffect(() => {
@@ -47,16 +49,19 @@ export default function CatPawLogo({
     CAT_PAW_PRESETS.find((p) => p.id === "3_calico_pink") ||
     CAT_PAW_PRESETS[0];
 
+  const pawName = lang === "en" ? paw.nameEn || paw.name : paw.name;
+  const pawDesc = lang === "en" ? paw.descEn || paw.desc : paw.desc;
+
   return (
     <img
       src={paw.src}
-      alt={paw.name}
+      alt={pawName}
       width={size}
       height={size}
       style={{ width: `${size}px`, height: `${size}px` }}
       className={`object-contain flex-shrink-0 select-none transition-transform duration-300 hover:scale-110 active:scale-95 cursor-pointer drop-shadow-sm ${className}`}
       draggable={false}
-      title={`${paw.name} - ${paw.desc}`}
+      title={`${pawName} - ${pawDesc}`}
     />
   );
 }

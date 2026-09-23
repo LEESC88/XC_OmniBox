@@ -17,6 +17,8 @@ export const viewport: Viewport = {
   ],
 };
 
+import { I18nProvider } from "@/lib/i18n";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -90,7 +92,7 @@ export default function RootLayout({
         />
       </head>
       <body className="subpixel-antialiased selection:bg-toast-500/30 selection:text-coconut-950 dark:selection:bg-toast-500/35 dark:selection:text-coconut-50">
-        {children}
+        <I18nProvider>{children}</I18nProvider>
       </body>
     </html>
   );

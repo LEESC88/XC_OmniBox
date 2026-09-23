@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { formatBytes } from "@/lib/imageProcessor";
 import { renderPdfPages, downloadBlob } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 interface PdfWatermarkStudioProps {
   file: File;
@@ -47,18 +48,27 @@ const PRESET_TEXTS = [
   "专属归档 仅供参考",
 ];
 
+const PRESET_TEXTS_EN = [
+  "CONFIDENTIAL",
+  "INTERNAL REVIEW ONLY",
+  "DRAFT DO NOT COPY",
+  "SAMPLE DRAFT",
+  "STRICTLY PRIVATE",
+  "FOR REFERENCE ONLY",
+];
+
 const PRESET_ANGLES = [
-  { label: "水平 (0°)", val: 0 },
-  { label: "轻斜 (30°)", val: 30 },
-  { label: "经典 (45°)", val: 45 },
-  { label: "垂直 (90°)", val: 90 },
+  { label: "水平 (0°)", labelEn: "Horizontal (0°)", val: 0 },
+  { label: "轻斜 (30°)", labelEn: "Subtle (30°)", val: 30 },
+  { label: "经典 (45°)", labelEn: "Classic (45°)", val: 45 },
+  { label: "垂直 (90°)", labelEn: "Vertical (90°)", val: 90 },
 ];
 
 const PRESET_OPACITIES = [
-  { label: "淡雅 15%", val: 0.15 },
-  { label: "标准 30%", val: 0.3 },
-  { label: "清晰 50%", val: 0.5 },
-  { label: "醒目 75%", val: 0.75 },
+  { label: "淡雅 15%", labelEn: "Light 15%", val: 0.15 },
+  { label: "标准 30%", labelEn: "Standard 30%", val: 0.3 },
+  { label: "清晰 50%", labelEn: "Crisp 50%", val: 0.5 },
+  { label: "醒目 75%", labelEn: "Bold 75%", val: 0.75 },
 ];
 
 export default function PdfWatermarkStudio({
@@ -71,7 +81,8 @@ export default function PdfWatermarkStudio({
   onReset,
   onClearFile,
 }: PdfWatermarkStudioProps) {
-  const [watermarkText, setWatermarkText] = useState<string>("内部机密 严禁外传");
+  const { lang } = useI18n();
+  const [watermarkText, setWatermarkText] = useState<string>(lang === "en" ? "CONFIDENTIAL" : "内部机密 严禁外传");
   const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.3);
   const [watermarkAngle, setWatermarkAngle] = useState<number>(45);
 
@@ -98,7 +109,7 @@ export default function PdfWatermarkStudio({
       })
       .catch((err) => {
         if (!isCancelled) {
-          setRenderError(err.message || "无法渲染 PDF 预览背景图");
+          setRenderError(err.message || (lang === "en" ? "Unable to render PDF preview background" : "无法渲染 PDF 预览背景图"));
           setRenderingPreview(false);
         }
       });
@@ -106,7 +117,7 @@ export default function PdfWatermarkStudio({
     return () => {
       isCancelled = true;
     };
-  }, [file]);
+  }, [file, lang]);
 
   const currentPage = pages[currentPageIndex];
 
@@ -119,7 +130,7 @@ export default function PdfWatermarkStudio({
   };
 
   const handleSubmit = () => {
-    onExecute(watermarkText.trim() || "内部机密", watermarkOpacity, watermarkAngle);
+    onExecute(watermarkText.trim() || (lang === "en" ? "CONFIDENTIAL" : "内部机密"), watermarkOpacity, watermarkAngle);
   };
 
   return (
@@ -140,7 +151,9 @@ export default function PdfWatermarkStudio({
               </span>
             </div>
             <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-0.5">
-              总计 {numPages} 页 · 调节左侧参数，右侧画布 1:1 动态实时预览呈现
+              {lang === "en"
+                ? `${numPages} pages in total · Adjust options on left, preview updates 1:1 on right`
+                : `总计 ${numPages} 页 · 调节左侧参数，右侧画布 1:1 动态实时预览呈现`}
             </p>
           </div>
         </div>
@@ -148,10 +161,10 @@ export default function PdfWatermarkStudio({
         <button
           onClick={onClearFile}
           className="p-2 rounded-xl text-coconut-500 hover:text-rose-600 hover:bg-rose-500/10 transition-colors flex items-center gap-1 text-xs font-semibold"
-          title="更换其他文件"
+          title={lang === "en" ? "Change File" : "更换其他文件"}
         >
           <X className="w-4 h-4" />
-          <span className="hidden sm:inline">更换文件</span>
+          <span className="hidden sm:inline">{lang === "en" ? "Change File" : "更换文件"}</span>
         </button>
       </div>
 
@@ -161,25 +174,25 @@ export default function PdfWatermarkStudio({
         <div className="lg:col-span-5 coconut-panel p-5 sm:p-6 space-y-5">
           <div className="flex items-center gap-2 pb-3 border-b border-coconut-200/80 dark:border-darkbg-border text-sm font-bold text-coconut-950 dark:text-darkbg-text">
             <Sliders className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-            <span>水印参数微调</span>
+            <span>{lang === "en" ? "Watermark Configuration" : "水印参数微调"}</span>
           </div>
 
           {/* 水印文字 */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-coconut-900 dark:text-darkbg-text">
-              水印文字内容
+              {lang === "en" ? "Watermark Text Content" : "水印文字内容"}
             </label>
             <input
               type="text"
               value={watermarkText}
               onChange={(e) => setWatermarkText(e.target.value)}
-              placeholder="请输入防伪/防盗水印文字"
+              placeholder={lang === "en" ? "Enter watermark text..." : "请输入防伪/防盗水印文字"}
               className="w-full text-sm p-3 bg-white/90 dark:bg-darkbg-subtle border border-[#CBB09C] dark:border-darkbg-border rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-coconut-950 dark:text-darkbg-text font-medium"
             />
 
             {/* 常用预设词快捷点击 */}
             <div className="flex items-center gap-1.5 flex-wrap pt-1">
-              {PRESET_TEXTS.map((t) => (
+              {(lang === "en" ? PRESET_TEXTS_EN : PRESET_TEXTS).map((t) => (
                 <button
                   key={t}
                   type="button"
@@ -199,7 +212,7 @@ export default function PdfWatermarkStudio({
           {/* 半透明度滑块 */}
           <div className="space-y-2">
             <div className="flex justify-between items-center text-xs font-bold text-coconut-900 dark:text-darkbg-text">
-              <span>半透明度 (Opacity)</span>
+              <span>{lang === "en" ? "Opacity" : "半透明度 (Opacity)"}</span>
               <span className="font-mono font-bold text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-lg bg-orange-500/10 border border-orange-500/20">
                 {Math.round(watermarkOpacity * 100)}%
               </span>
@@ -227,7 +240,7 @@ export default function PdfWatermarkStudio({
                       : "bg-white/60 dark:bg-darkbg-subtle border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:border-orange-400"
                   }`}
                 >
-                  {item.label}
+                  {lang === "en" ? item.labelEn : item.label}
                 </button>
               ))}
             </div>
@@ -236,7 +249,7 @@ export default function PdfWatermarkStudio({
           {/* 旋转角度 */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-coconut-900 dark:text-darkbg-text">
-              水印旋转倾斜角度
+              {lang === "en" ? "Rotation Angle" : "水印旋转倾斜角度"}
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {PRESET_ANGLES.map((ang) => (
@@ -250,7 +263,7 @@ export default function PdfWatermarkStudio({
                       : "bg-white/60 dark:bg-darkbg-subtle border-coconut-200 dark:border-darkbg-border text-coconut-800 dark:text-darkbg-muted hover:border-orange-400"
                   }`}
                 >
-                  {ang.label}
+                  {lang === "en" ? ang.labelEn : ang.label}
                 </button>
               ))}
             </div>
@@ -283,7 +296,8 @@ export default function PdfWatermarkStudio({
                     {executionResult.filename}
                   </h4>
                   <p className="text-[11px] text-orange-800 dark:text-amber-300 font-mono font-medium">
-                    {formatBytes(executionResult.size)} · 水印已成功注入
+                    {formatBytes(executionResult.size)} ·{" "}
+                    {lang === "en" ? "Watermark applied successfully" : "水印已成功注入"}
                   </p>
                 </div>
               </div>
@@ -294,7 +308,7 @@ export default function PdfWatermarkStudio({
                   className="flex-1 py-2.5 px-3 rounded-xl btn-3d-sunset text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-coconut-sm"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>立即下载该文件</span>
+                  <span>{lang === "en" ? "Download File Now" : "立即下载该文件"}</span>
                 </button>
 
                 <button
@@ -302,7 +316,7 @@ export default function PdfWatermarkStudio({
                   className="py-2.5 px-3 rounded-xl btn-3d-secondary font-bold text-xs flex items-center justify-center gap-1"
                 >
                   <RotateCcw className="w-3 h-3" />
-                  <span>处理新文件</span>
+                  <span>{lang === "en" ? "Process Another" : "处理新文件"}</span>
                 </button>
               </div>
             </div>
@@ -320,12 +334,12 @@ export default function PdfWatermarkStudio({
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>正在添加水印并导出，请稍候...</span>
+                  <span>{lang === "en" ? "Adding watermark & exporting, please wait..." : "正在添加水印并导出，请稍候..."}</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 text-amber-200" />
-                  <span>开始添加文字水印并导出</span>
+                  <span>{lang === "en" ? "Apply Watermark & Export" : "开始添加文字水印并导出"}</span>
                 </>
               )}
             </button>
@@ -338,7 +352,7 @@ export default function PdfWatermarkStudio({
             <div className="flex items-center gap-2">
               <Eye className="w-4 h-4 text-orange-600 dark:text-orange-400" />
               <span className="text-xs font-bold text-coconut-900 dark:text-darkbg-text">
-                真实页面实时渲染舞台 (所见即所得)
+                {lang === "en" ? "Live WYSIWYG Preview Stage" : "真实页面实时渲染舞台 (所见即所得)"}
               </span>
             </div>
 
@@ -354,7 +368,7 @@ export default function PdfWatermarkStudio({
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
                 <span className="text-[11px] font-mono font-bold text-coconut-800 dark:text-darkbg-text px-1">
-                  第 {currentPageIndex + 1} / {numPages} 页
+                  {lang === "en" ? `Page ${currentPageIndex + 1} / ${numPages}` : `第 ${currentPageIndex + 1} / ${numPages} 页`}
                 </span>
                 <button
                   type="button"
@@ -374,13 +388,13 @@ export default function PdfWatermarkStudio({
               <div className="text-center space-y-2">
                 <Loader2 className="w-7 h-7 mx-auto text-orange-500 animate-spin" />
                 <p className="text-xs text-coconut-600 dark:text-darkbg-muted font-medium">
-                  正在提取文档页面作为预览底图...
+                  {lang === "en" ? "Extracting document page for preview..." : "正在提取文档页面作为预览底图..."}
                 </p>
               </div>
             ) : renderError || !currentPage ? (
               <div className="p-4 text-center text-xs text-coconut-500">
                 <FileText className="w-8 h-8 mx-auto text-coconut-400 mb-2" />
-                <span>无法提取页面底图，将使用白底画布预览</span>
+                <span>{lang === "en" ? "Unable to extract page background, previewing on white canvas" : "无法提取页面底图，将使用白底画布预览"}</span>
               </div>
             ) : (
               /* 原版页面真实底图 */
@@ -405,14 +419,14 @@ export default function PdfWatermarkStudio({
                 className="text-center font-bold tracking-widest whitespace-nowrap select-none transition-transform duration-150 ease-out"
               >
                 <span className="text-xl sm:text-2xl md:text-3xl lg:text-4xl drop-shadow-2xs">
-                  {watermarkText.trim() || "内部机密"}
+                  {watermarkText.trim() || (lang === "en" ? "CONFIDENTIAL" : "内部机密")}
                 </span>
               </div>
             </div>
 
             {/* 右下角比例徽章 */}
             <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-[10px] text-white font-mono">
-              100% 矢量居中 · 实时渲染
+              {lang === "en" ? "100% Vector Centered · Real-time Render" : "100% 矢量居中 · 实时渲染"}
             </div>
           </div>
         </div>
