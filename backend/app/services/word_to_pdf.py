@@ -3,7 +3,6 @@ import sys
 import subprocess
 import shutil
 from pathlib import Path
-from typing import Optional
 from app.core.config import LIBREOFFICE_PATH
 from app.core.exceptions import FileProcessingException
 
@@ -54,7 +53,6 @@ class WordToPdfService:
             try:
                 converted = cls._convert_via_windows_com(docx_path, output_pdf_path, preset)
                 if converted and output_pdf_path.exists() and output_pdf_path.stat().st_size > 0:
-                    cls._post_process_pdf(output_pdf_path, preset.get("max_dpi"))
                     return output_pdf_path
             except Exception as e:
                 print(f"Notice: MS Word COM convert not available or failed ({e}), falling back...")
@@ -65,7 +63,6 @@ class WordToPdfService:
             try:
                 converted = cls._convert_via_libreoffice(libreoffice_bin, docx_path, output_pdf_path, preset)
                 if converted and output_pdf_path.exists() and output_pdf_path.stat().st_size > 0:
-                    cls._post_process_pdf(output_pdf_path, preset.get("max_dpi"))
                     return output_pdf_path
             except Exception as e:
                 print(f"Notice: LibreOffice convert failed ({e}), falling back...")
@@ -75,7 +72,6 @@ class WordToPdfService:
             from docx2pdf import convert as d2p_convert
             d2p_convert(str(docx_path), str(output_pdf_path))
             if output_pdf_path.exists() and output_pdf_path.stat().st_size > 0:
-                cls._post_process_pdf(output_pdf_path, preset.get("max_dpi"))
                 return output_pdf_path
         except Exception as e:
             print(f"Notice: docx2pdf failed ({e})")
@@ -170,74 +166,3 @@ class WordToPdfService:
             if os.path.exists(c):
                 return c
         return shutil.which("soffice") or shutil.which("libreoffice")
-
-    @classmethod
-    def _post_process_pdf(cls, pdf_path: Path, max_dpi: Optional[int] = None):
-        """
-        根据质量档位进行 PDF 后期流优化：
-        - max_dpi is None (高清): 保持原生打印级分辨率与矢量字形，仅开启标准无损压缩，体积合理不恶性膨胀
-        - max_dpi is not None (标准 150DPI / 轻量 96DPI): 智能按物理尺寸降采样图片并重压缩，显著降低文件体积
-        """
-        try:
-            import pymupdf as fitz
-        except ImportError:
-            try:
-                import fitz
-            except ImportError:
-                return
-
-        try:
-            doc = fitz.open(pdf_path)
-
-            if not max_dpi:
-                # 高清模式：保持 300DPI 打印级画质，应用紧凑无损压缩防虚高膨胀
-                temp_out = pdf_path.with_name(f"{pdf_path.stem}_opt.pdf")
-                doc.save(str(temp_out), deflate=True, garbage=3)
-                doc.close()
-                if temp_out.exists() and temp_out.stat().st_size > 0:
-                    temp_out.replace(pdf_path)
-                return
-
-            modified = False
-            for page in doc:
-                for img_info in page.get_images():
-                    xref = img_info[0]
-                    try:
-                        rects = page.get_image_rects(xref)
-                        if not rects:
-                            continue
-                        w_pt, h_pt = rects[0].width, rects[0].height
-                        w_inch, h_inch = w_pt / 72.0, h_pt / 72.0
-                        if w_inch <= 0 or h_inch <= 0:
-                            continue
-
-                        pix = fitz.Pixmap(doc, xref)
-                        cur_dpi = max(pix.width / w_inch, pix.height / h_inch)
-
-                        # 如果实际 DPI 显著高于目标档位，按需等比缩放
-                        if cur_dpi > max_dpi * 1.15:
-                            scale = max_dpi / cur_dpi
-                            target_w = max(1, int(pix.width * scale))
-                            target_h = max(1, int(pix.height * scale))
-                            pix_scaled = fitz.Pixmap(pix, target_w, target_h, 0)
-                            page.replace_image(
-                                xref,
-                                stream=pix_scaled.tobytes('jpg', jpg_quality=75 if max_dpi < 120 else 85)
-                            )
-                            modified = True
-                    except Exception:
-                        pass
-
-            temp_out = pdf_path.with_name(f"{pdf_path.stem}_opt.pdf")
-            if modified:
-                doc.save(str(temp_out), deflate=True, garbage=4, clean=True)
-            else:
-                doc.save(str(temp_out), deflate=True, garbage=3)
-            doc.close()
-
-            if temp_out.exists() and temp_out.stat().st_size > 0:
-                temp_out.replace(pdf_path)
-        except Exception as e:
-            print(f"Notice: PDF post-processing skipped: {e}")
-
-
