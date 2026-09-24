@@ -49,6 +49,9 @@ def build():
         "--hidden-import", "mammoth",
         "--hidden-import", "fastapi",
         "--hidden-import", "starlette",
+        "--hidden-import", "fontTools",
+        "--hidden-import", "fontTools.subset",
+        "--hidden-import", "fontTools.ttLib",
         str(run_server)
     ]
 

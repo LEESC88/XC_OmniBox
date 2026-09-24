@@ -54,6 +54,7 @@ class WordToPdfService:
             try:
                 converted = cls._convert_via_windows_com(docx_path, output_pdf_path, preset)
                 if converted and output_pdf_path.exists() and output_pdf_path.stat().st_size > 0:
+                    cls._optimize_pdf_fonts(output_pdf_path)
                     return output_pdf_path
             except Exception as e:
                 print(f"Notice: MS Word COM convert not available or failed ({e}), falling back...")
@@ -64,6 +65,7 @@ class WordToPdfService:
             try:
                 converted = cls._convert_via_libreoffice(libreoffice_bin, docx_path, output_pdf_path, preset)
                 if converted and output_pdf_path.exists() and output_pdf_path.stat().st_size > 0:
+                    cls._optimize_pdf_fonts(output_pdf_path)
                     return output_pdf_path
             except Exception as e:
                 print(f"Notice: LibreOffice convert failed ({e}), falling back...")
@@ -73,6 +75,7 @@ class WordToPdfService:
             from docx2pdf import convert as d2p_convert
             d2p_convert(str(docx_path), str(output_pdf_path))
             if output_pdf_path.exists() and output_pdf_path.stat().st_size > 0:
+                cls._optimize_pdf_fonts(output_pdf_path)
                 return output_pdf_path
         except Exception as e:
             print(f"Notice: docx2pdf failed ({e})")
@@ -167,3 +170,106 @@ class WordToPdfService:
             if os.path.exists(c):
                 return c
         return shutil.which("soffice") or shutil.which("libreoffice")
+
+    @classmethod
+    def _optimize_pdf_fonts(cls, pdf_path: Path):
+        """
+        智能子集化修剪超大内嵌字体：
+        Word 在导出含 Emoji（如 Segoe UI Emoji）或特殊符号的文档时，
+        不会对彩色 OpenType 字体进行子集化，而是将整套 8MB 字体全量打包进 PDF，
+        导致仅包含几个字符的文档体积异常膨胀至 4~5MB。
+        本方法检测 > 500KB 的超大内嵌字体，提取其实际使用的 Unicode 字符集，
+        并通过 fontTools 执行深度子集化修剪，将其压缩至数 KB，彻底消除无谓体积膨胀。
+        """
+        try:
+            import io
+            import re
+            import pymupdf as fitz
+            from fontTools.subset import Subsetter, Options
+            from fontTools.ttLib import TTFont
+        except ImportError:
+            return
+
+        try:
+            doc = fitz.open(str(pdf_path))
+            modified = False
+            seen_fxrefs = set()
+
+            for page in doc:
+                for f in page.get_fonts():
+                    fxref, ext, ftype, fname, falias, enc = f
+                    if fxref in seen_fxrefs:
+                        continue
+                    seen_fxrefs.add(fxref)
+
+                    try:
+                        info = doc.extract_font(fxref)
+                        # 仅处理解压体积 > 500KB 的超大字体（常规子集化字体通常仅几十KB）
+                        if not info or not info[3] or len(info[3]) < 500 * 1024:
+                            continue
+
+                        buffer = info[3]
+                        base_font = fname.split("+")[-1]
+
+                        # 检索全文中该字体实际使用的字符集
+                        unicodes = set()
+                        for p in doc:
+                            d = p.get_text("dict")
+                            for b in d.get("blocks", []):
+                                for l in b.get("lines", []):
+                                    for s in l.get("spans", []):
+                                        s_font = s.get("font", "")
+                                        if s_font == fname or s_font == base_font or base_font in s_font or s_font in base_font:
+                                            for ch in s.get("text", ""):
+                                                unicodes.add(ord(ch))
+
+                        if not unicodes:
+                            continue
+
+                        # 使用 fontTools 进行精确子集化
+                        options = Options()
+                        subsetter = Subsetter(options=options)
+                        subsetter.populate(unicodes=list(unicodes))
+                        tt = TTFont(io.BytesIO(buffer))
+                        subsetter.subset(tt)
+                        out_buf = io.BytesIO()
+                        tt.save(out_buf)
+                        subset_bytes = out_buf.getvalue()
+
+                        # 沿 PDF 对象关系网追溯字体的实际流对象 xref (FontFile2 / FontFile3)
+                        visited = set()
+                        queue = [fxref]
+                        stream_xref = None
+                        while queue:
+                            curr = queue.pop(0)
+                            if curr in visited:
+                                continue
+                            visited.add(curr)
+                            obj_str = doc.xref_object(curr)
+                            m = re.search(r'/FontFile[23]?\s+(\d+)\s+0\s+R', obj_str)
+                            if m:
+                                stream_xref = int(m.group(1))
+                                break
+                            refs = re.findall(r'(\d+)\s+0\s+R', obj_str)
+                            for r in refs:
+                                r_int = int(r)
+                                if r_int not in visited:
+                                    queue.append(r_int)
+
+                        if stream_xref and len(subset_bytes) < len(buffer):
+                            doc.update_stream(stream_xref, subset_bytes)
+                            doc.xref_set_key(stream_xref, "Length1", str(len(subset_bytes)))
+                            modified = True
+                    except Exception as fe:
+                        print(f"Notice: font optimization skipped for {fname}: {fe}")
+
+            if modified:
+                temp_out = pdf_path.with_name(f"{pdf_path.stem}_fontopt.pdf")
+                doc.save(str(temp_out), deflate=True, garbage=4, clean=True)
+                doc.close()
+                if temp_out.exists() and temp_out.stat().st_size > 0:
+                    temp_out.replace(pdf_path)
+            else:
+                doc.close()
+        except Exception as e:
+            print(f"Notice: _optimize_pdf_fonts skipped: {e}")
