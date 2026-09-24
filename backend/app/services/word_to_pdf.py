@@ -3,6 +3,7 @@ import sys
 import subprocess
 import shutil
 from pathlib import Path
+from typing import Optional
 from app.core.config import LIBREOFFICE_PATH
 from app.core.exceptions import FileProcessingException
 
