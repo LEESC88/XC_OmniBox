@@ -18,19 +18,19 @@ class WordToPdfService:
     # 质量预设参数映射
     QUALITY_PRESETS = {
         "light": {
-            "com_optimize": 1,   # wdExportOptimizeForOnScreen
+            "com_optimize": 1,   # wdExportOptimizeForOnScreen (屏幕优化，轻量小体积)
             "lo_quality": 50,
             "lo_max_res": 96,
             "lo_reduce": "true",
         },
         "standard": {
-            "com_optimize": 1,   # wdExportOptimizeForOnScreen
-            "lo_quality": 75,
+            "com_optimize": 0,   # wdExportOptimizeForPrint (标准打印排版，平衡体积)
+            "lo_quality": 85,
             "lo_max_res": 150,
             "lo_reduce": "true",
         },
         "high": {
-            "com_optimize": 0,   # wdExportOptimizeForPrint
+            "com_optimize": 0,   # wdExportOptimizeForPrint + 100% 原始超清无损图像增强
             "lo_quality": 100,
             "lo_max_res": 300,
             "lo_reduce": "false",
@@ -51,6 +51,8 @@ class WordToPdfService:
             try:
                 converted = cls._convert_via_windows_com(docx_path, output_pdf_path, preset)
                 if converted and output_pdf_path.exists() and output_pdf_path.stat().st_size > 0:
+                    if quality == "high":
+                        cls._restore_high_res_images(docx_path, output_pdf_path)
                     return output_pdf_path
             except Exception as e:
                 print(f"Notice: MS Word COM convert not available or failed ({e}), falling back...")
@@ -61,6 +63,8 @@ class WordToPdfService:
             try:
                 converted = cls._convert_via_libreoffice(libreoffice_bin, docx_path, output_pdf_path, preset)
                 if converted and output_pdf_path.exists() and output_pdf_path.stat().st_size > 0:
+                    if quality == "high":
+                        cls._restore_high_res_images(docx_path, output_pdf_path)
                     return output_pdf_path
             except Exception as e:
                 print(f"Notice: LibreOffice convert failed ({e}), falling back...")
@@ -70,6 +74,8 @@ class WordToPdfService:
             from docx2pdf import convert as d2p_convert
             d2p_convert(str(docx_path), str(output_pdf_path))
             if output_pdf_path.exists() and output_pdf_path.stat().st_size > 0:
+                if quality == "high":
+                    cls._restore_high_res_images(docx_path, output_pdf_path)
                 return output_pdf_path
         except Exception as e:
             print(f"Notice: docx2pdf failed ({e})")
@@ -164,3 +170,65 @@ class WordToPdfService:
             if os.path.exists(c):
                 return c
         return shutil.which("soffice") or shutil.which("libreoffice")
+
+    @classmethod
+    def _restore_high_res_images(cls, docx_path: Path, pdf_path: Path):
+        """
+        当用户选择高清模式时，Word 自带导出可能将嵌入图片降采样压缩。
+        此方法从 .docx 原包抽取 100% 原始超清无损图片，按顺序把 PDF 中的降采样图片替换为原始超清图像。
+        """
+        if docx_path.suffix.lower() != ".docx":
+            return
+        import zipfile
+        import re
+        try:
+            import pymupdf as fitz
+        except ImportError:
+            try:
+                import fitz
+            except ImportError:
+                return
+
+        try:
+            with zipfile.ZipFile(docx_path, 'r') as z:
+                # 寻找所有媒体图片并按内部序号 image1, image2... 排序
+                media_names = [f for f in z.namelist() if f.startswith('word/media/') and not f.endswith('/')]
+                if not media_names:
+                    return
+
+                def sort_key(name):
+                    nums = re.findall(r'\d+', name)
+                    return int(nums[-1]) if nums else 0
+
+                media_names.sort(key=sort_key)
+                docx_images = [z.read(m) for m in media_names]
+
+            doc = fitz.open(pdf_path)
+            # 统计并收集所有页面中的图片
+            pdf_images = []
+            for pno, page in enumerate(doc):
+                for img_info in page.get_images():
+                    xref = img_info[0]
+                    pdf_images.append((pno, xref))
+
+            if not pdf_images or not docx_images:
+                doc.close()
+                return
+
+            # 按顺序替换为超清原图
+            for idx in range(min(len(docx_images), len(pdf_images))):
+                pno, xref = pdf_images[idx]
+                try:
+                    doc[pno].replace_image(xref, stream=docx_images[idx])
+                except Exception as ex:
+                    print(f"Notice: Replace image {idx} failed: {ex}")
+
+            temp_out = pdf_path.with_name(f"{pdf_path.stem}_hires.pdf")
+            doc.save(str(temp_out), deflate=True)
+            doc.close()
+
+            if temp_out.exists() and temp_out.stat().st_size > 0:
+                temp_out.replace(pdf_path)
+        except Exception as e:
+            print(f"Notice: High-res image enhancement skipped: {e}")
+
