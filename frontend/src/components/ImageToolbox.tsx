@@ -21,6 +21,7 @@ import {
   Sliders,
   Sparkles,
   X,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   formatBytes,
@@ -35,6 +36,7 @@ import {
 import { downloadBlob } from "@/lib/api";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
 import { useI18n } from "@/lib/i18n";
+import ImageCompareModal, { ImageCompareItem } from "@/components/ImageCompareModal";
 
 type ImageToolTab = "heic" | "compress" | "convert" | "resize" | "exif" | "watermark";
 
@@ -46,6 +48,7 @@ interface ProcessedResult {
   newSize: number;
   blob: Blob;
   previewUrl: string;
+  originalUrl?: string;
   extraInfo?: string;
 }
 
@@ -71,6 +74,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
   const [progressText, setProgressText] = useState("");
   const [results, setResults] = useState<ProcessedResult[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [compareItem, setCompareItem] = useState<ImageCompareItem | null>(null);
 
   useEffect(() => {
     if (currentTab && currentTab !== activeTab) {
@@ -97,7 +101,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
   const [compressTargetSizeMB, setCompressTargetSizeMB] = useState(2);
 
   // --- 格式转换参数 ---
-  const [convertTarget, setConvertTarget] = useState<"jpg" | "png" | "webp" | "ico" | "bmp">("webp");
+  const [convertTarget, setConvertTarget] = useState<"webp" | "avif" | "png" | "jpg" | "ico" | "bmp">("webp");
   const [convertQuality, setConvertQuality] = useState(0.9);
   const [convertBgColor, setConvertBgColor] = useState("#FFFFFF");
 
@@ -182,6 +186,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
             id: `res_${Date.now()}_${i}`,
             originalName: file.name,
             originalSize: file.size,
+            originalUrl: URL.createObjectURL(file),
             newFilename: filename,
             newSize: blob.size,
             blob,
@@ -197,6 +202,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
             id: `res_${Date.now()}_${i}`,
             originalName: file.name,
             originalSize,
+            originalUrl: URL.createObjectURL(file),
             newFilename: filename,
             newSize: compressedSize,
             blob,
@@ -208,6 +214,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
             id: `res_${Date.now()}_${i}`,
             originalName: file.name,
             originalSize: file.size,
+            originalUrl: URL.createObjectURL(file),
             newFilename: filename,
             newSize: blob.size,
             blob,
@@ -236,6 +243,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
             id: `res_${Date.now()}_${i}`,
             originalName: file.name,
             originalSize: file.size,
+            originalUrl: URL.createObjectURL(file),
             newFilename: filename,
             newSize: blob.size,
             blob,
@@ -248,6 +256,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
             id: `res_${Date.now()}_${i}`,
             originalName: file.name,
             originalSize,
+            originalUrl: URL.createObjectURL(file),
             newFilename: filename,
             newSize,
             blob,
@@ -269,6 +278,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
             id: `res_${Date.now()}_${i}`,
             originalName: file.name,
             originalSize: file.size,
+            originalUrl: URL.createObjectURL(file),
             newFilename: filename,
             newSize: blob.size,
             blob,
@@ -542,7 +552,7 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                 {lang === "en" ? "Target Output Format" : "目标输出格式"}
               </span>
               <div className="grid grid-cols-3 gap-2">
-                {(["webp", "png", "jpg", "ico", "bmp"] as const).map((fmt) => (
+                {(["webp", "avif", "png", "jpg", "ico", "bmp"] as const).map((fmt) => (
                   <button
                     key={fmt}
                     onClick={() => setConvertTarget(fmt)}
@@ -565,10 +575,16 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                   (lang === "en"
                     ? "Next-gen web format, half the size of JPG"
                     : "下一代高压缩率网络图片格式，体积仅为 JPG 的一半")}
+                {convertTarget === "avif" &&
+                  (lang === "en"
+                    ? "Cutting-edge AV1 image format, 20-30% smaller than WebP"
+                    : "新一代 AV1 图像格式，同等画质下比 WebP 再小 20%-30%")}
                 {convertTarget === "png" &&
                   (lang === "en" ? "Lossless high-fidelity transparent image" : "无损高保真透明图")}
                 {convertTarget === "jpg" &&
                   (lang === "en" ? "Universal web & print format" : "通用网络与打印图片")}
+                {convertTarget === "bmp" &&
+                  (lang === "en" ? "Standard Windows uncompressed bitmap" : "标准 Windows 位图格式")}
               </p>
             </div>
 
@@ -1094,19 +1110,51 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                     {res.extraInfo && <div className="text-[10px] text-palm-600 dark:text-palm-400 font-medium">{res.extraInfo}</div>}
                   </div>
 
-                  <button
-                    onClick={() => downloadBlob(res.blob, res.newFilename)}
-                    className="p-2 rounded-xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-text hover:bg-coconut-800 hover:text-coconut-50 dark:hover:bg-white dark:hover:text-zinc-950 transition-all flex-shrink-0 active:scale-95"
-                    title={lang === "en" ? "Download image" : "下载单张"}
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center space-x-1.5 flex-shrink-0">
+                    {res.previewUrl && res.originalUrl && (
+                      <button
+                        onClick={() =>
+                          setCompareItem({
+                            id: res.id,
+                            originalName: res.originalName,
+                            originalSize: res.originalSize,
+                            originalUrl: res.originalUrl!,
+                            newFilename: res.newFilename,
+                            newSize: res.newSize,
+                            previewUrl: res.previewUrl,
+                            blob: res.blob,
+                            extraInfo: res.extraInfo,
+                          })
+                        }
+                        className="px-2.5 py-2 rounded-xl bg-palm-100/80 dark:bg-palm-950/60 text-palm-700 dark:text-palm-300 hover:bg-palm-600 hover:text-white dark:hover:bg-palm-500 dark:hover:text-zinc-950 transition-all flex items-center space-x-1 text-xs font-semibold active:scale-95 shadow-xs"
+                        title={lang === "en" ? "Compare Quality (Squoosh Mode)" : "画质微距对比 (Before / After)"}
+                      >
+                        <SlidersHorizontal className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">{lang === "en" ? "Compare" : "画质对比"}</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => downloadBlob(res.blob, res.newFilename)}
+                      className="p-2 rounded-xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-text hover:bg-coconut-800 hover:text-coconut-50 dark:hover:bg-white dark:hover:text-zinc-950 transition-all active:scale-95"
+                      title={lang === "en" ? "Download image" : "下载单张"}
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
           </div>
         </div>
       )}
+
+      {/* Squoosh 风格画质微距对比弹窗 */}
+      <ImageCompareModal
+        isOpen={!!compareItem}
+        onClose={() => setCompareItem(null)}
+        item={compareItem}
+      />
     </div>
   );
 }

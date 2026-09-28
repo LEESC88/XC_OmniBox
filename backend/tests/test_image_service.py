@@ -25,6 +25,15 @@ def test_image_service_convert_webp(sample_image: Path, tmp_path: Path):
         assert img.format == "WEBP"
         assert img.size == (200, 100)
 
+def test_image_service_convert_avif(sample_image: Path, tmp_path: Path):
+    output_path = tmp_path / "output.avif"
+    res = ImageService.convert_image(sample_image, output_path, target_format="AVIF", quality=80)
+    assert res.exists()
+    assert res.stat().st_size > 0
+    with Image.open(res) as img:
+        assert img.format == "AVIF"
+        assert img.size == (200, 100)
+
 def test_image_service_convert_jpeg_with_fill(sample_image: Path, tmp_path: Path):
     output_path = tmp_path / "output.jpg"
     res = ImageService.convert_image(sample_image, output_path, target_format="JPG", quality=90, fill_bg="#00FF00")
@@ -63,6 +72,17 @@ def test_api_convert_endpoint(sample_image: Path):
         )
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/webp"
+    assert len(response.content) > 0
+
+def test_api_convert_endpoint_avif(sample_image: Path):
+    with open(sample_image, "rb") as f:
+        response = client.post(
+            "/api/v1/image/convert",
+            files={"file": ("test_input.png", f, "image/png")},
+            data={"target_format": "avif", "quality": "80"}
+        )
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/avif"
     assert len(response.content) > 0
 
 def test_api_strip_exif_endpoint(sample_image: Path):

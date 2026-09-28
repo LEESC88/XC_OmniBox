@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { API_BASE } from "./api";
 
 // 格式化文件大小
 export function formatBytes(bytes: number, decimals: number = 1): string {
@@ -149,7 +150,7 @@ export async function compressImage(
  */
 export async function convertFormat(
   file: File,
-  targetFormat: "jpg" | "png" | "webp" | "ico" | "bmp",
+  targetFormat: "jpg" | "png" | "webp" | "avif" | "ico" | "bmp",
   quality: number = 0.92,
   fillBackground: string = "#FFFFFF"
 ): Promise<{ blob: Blob; filename: string }> {
@@ -177,6 +178,47 @@ export async function convertFormat(
     const icoBlob = await createIcoFromPng(pngBlob, canvas.width, canvas.height);
     const baseName = file.name.replace(/\.[^/.]+$/, "");
     return { blob: icoBlob, filename: `${baseName}.ico` };
+  }
+
+  // AVIF 前端 Canvas 优先 + 本地 Python Pillow 后端双重引擎
+  if (targetFormat === "avif") {
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    try {
+      const avifBlob: Blob | null = await new Promise((res) => {
+        canvas.toBlob((b) => res(b), "image/avif", quality);
+      });
+      if (avifBlob && avifBlob.type === "image/avif") {
+        const baseName = file.name.replace(/\.[^/.]+$/, "");
+        return { blob: avifBlob, filename: `${baseName}.avif` };
+      }
+    } catch {
+      // 浏览器若不支持 Canvas 直接写出 AVIF，静默回退到本地 Python 后端
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("target_format", "avif");
+      formData.append("quality", String(Math.round(quality * 100)));
+      formData.append("fill_bg", fillBackground);
+
+      const res = await fetch(`${API_BASE}/image/convert`, {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const baseName = file.name.replace(/\.[^/.]+$/, "");
+        return { blob, filename: `${baseName}.avif` };
+      }
+    } catch (e: any) {
+      console.warn("Backend AVIF conversion error:", e);
+    }
+
+    throw new Error("当前浏览器环境与后端未能完成 AVIF 编码，建议选择 WebP 格式");
   }
 
   // 如果目标格式不支持透明通道（如 JPG / BMP），先填充背景色

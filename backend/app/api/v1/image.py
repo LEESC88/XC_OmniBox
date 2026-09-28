@@ -10,11 +10,11 @@ from app.core.exceptions import FileFormatNotSupportedException
 
 router = APIRouter(prefix="/image", tags=["Image Suite - 图片处理工具箱"])
 
-@router.post("/convert", summary="图像格式转换 (支持 WebP, PNG, JPG, ICO, BMP)")
+@router.post("/convert", summary="图像格式转换 (支持 WebP, AVIF, PNG, JPG, ICO, BMP)")
 async def convert_image(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="上传待转换的图片"),
-    target_format: str = Form("webp", description="目标格式: webp, png, jpg, ico, bmp"),
+    target_format: str = Form("webp", description="目标格式: webp, avif, png, jpg, ico, bmp"),
     quality: int = Form(85, description="画质 (1-100)"),
     fill_bg: str = Form("#FFFFFF", description="透明通道转JPG时的填充底色")
 ):
@@ -39,6 +39,7 @@ async def convert_image(
 
         mime_map = {
             "webp": "image/webp",
+            "avif": "image/avif",
             "png": "image/png",
             "jpg": "image/jpeg",
             "jpeg": "image/jpeg",
