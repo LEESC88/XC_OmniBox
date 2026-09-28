@@ -180,7 +180,12 @@ function startBackendService() {
 
     if (backendProcess.stderr) {
       backendProcess.stderr.on('data', (chunk) => {
-        console.error(`[Backend Error] ${chunk.toString().trim()}`);
+        const text = chunk.toString().trim();
+        if (/^INFO:\s*/.test(text) || text.startsWith('INFO:')) {
+          console.log(`[Backend Log] ${text}`);
+        } else {
+          console.error(`[Backend Error] ${text}`);
+        }
       });
     }
 

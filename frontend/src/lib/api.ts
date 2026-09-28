@@ -375,7 +375,14 @@ export function downloadBlob(blob: Blob, filename: string) {
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  window.URL.revokeObjectURL(url);
-  document.body.removeChild(a);
+  // 保持 ObjectURL 存活几秒，确保浏览器/Electron 下载流已完全就绪，杜绝点击下载无反应
+  setTimeout(() => {
+    try {
+      window.URL.revokeObjectURL(url);
+      if (a.parentNode) {
+        document.body.removeChild(a);
+      }
+    } catch (_) {}
+  }, 10000);
 }
 

@@ -1190,11 +1190,11 @@ export default function Home() {
 
                   <button
                     onClick={handleStartEditor}
-                    disabled={parsingEditor || files.length === 0}
+                    disabled={parsingEditor}
                     className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
-                      parsingEditor || files.length === 0
+                      parsingEditor
                         ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
-                        : "btn-3d-sunset text-white"
+                        : "btn-3d-sunset text-white cursor-pointer"
                     }`}
                   >
                     {parsingEditor ? (
@@ -1585,11 +1585,11 @@ export default function Home() {
                     ) : (
                       <button
                         onClick={handleExecute}
-                        disabled={loading || files.length === 0 || !protectPassword}
+                        disabled={loading}
                         className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
-                          loading || files.length === 0 || !protectPassword
+                          loading
                             ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
-                            : "btn-3d-sunset text-white"
+                            : "btn-3d-sunset text-white cursor-pointer"
                         }`}
                       >
                         {loading ? (
@@ -1801,11 +1801,11 @@ export default function Home() {
                   ) : (
                     <button
                       onClick={handleExecute}
-                      disabled={loading || files.length === 0}
+                      disabled={loading}
                       className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
-                        loading || files.length === 0
+                        loading
                           ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
-                          : "btn-3d-sunset text-white"
+                          : "btn-3d-sunset text-white cursor-pointer"
                       }`}
                     >
                       {loading ? (
