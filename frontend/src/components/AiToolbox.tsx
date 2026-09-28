@@ -24,6 +24,7 @@ import {
   FileCheck,
   Zap,
   UserCheck,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   removeBackgroundAI,
@@ -38,6 +39,7 @@ import { downloadBlob } from "@/lib/api";
 import { formatBytes } from "@/lib/imageProcessor";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
 import { useI18n } from "@/lib/i18n";
+import ImageCompareModal, { ImageCompareItem } from "@/components/ImageCompareModal";
 
 export type AiTabType = "ai-bg-remove" | "ai-ocr" | "ai-upscale";
 
@@ -63,6 +65,7 @@ export default function AiToolbox({
 }: AiToolboxProps) {
   const { lang } = useI18n();
   const [activeTab, setActiveTab] = useState<AiTabType>(currentTab);
+  const [compareModalItem, setCompareModalItem] = useState<ImageCompareItem | null>(null);
 
   const localizeAiStage = (stage: string) => {
     if (lang !== "en" || !stage) return stage;
@@ -692,13 +695,35 @@ export default function AiToolbox({
                       <span>{lang === "en" ? "Jump to 6\" ID Photo Layout 🚀" : "转入 6 寸证件照排版 🚀"}</span>
                     </button>
 
-                    <button
-                      onClick={handleDownloadBgResult}
-                      className="flex items-center gap-2 py-2.5 px-5 rounded-2xl btn-3d-sunset text-white text-xs font-bold shadow-coconut-sm"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>{lang === "en" ? "Download Lossless Transparent PNG" : "下载无损透明 PNG"}</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          if (!bgFile || !bgPreviewUrl || !bgResultUrl) return;
+                          setCompareModalItem({
+                            originalName: bgFile.name,
+                            originalSize: bgFile.size,
+                            originalUrl: bgPreviewUrl,
+                            newFilename: `XC_Cutout_${bgFile.name.replace(/\.[^/.]+$/, "")}.png`,
+                            newSize: bgResultBlob?.size || 0,
+                            previewUrl: bgResultUrl,
+                            blob: bgResultBlob || undefined,
+                            extraInfo: lang === "en" ? "AI Smart Cutout" : "发丝级智能抠图",
+                          });
+                        }}
+                        className="flex items-center gap-1.5 py-2.5 px-3.5 rounded-2xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-800 dark:text-darkbg-text font-bold text-xs transition-all hover:bg-coconut-200 active:scale-95 shadow-sm"
+                      >
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-palm-600" />
+                        <span>{lang === "en" ? "Interactive Inspection" : "微距画质对比"}</span>
+                      </button>
+
+                      <button
+                        onClick={handleDownloadBgResult}
+                        className="flex items-center gap-2 py-2.5 px-5 rounded-2xl btn-3d-sunset text-white text-xs font-bold shadow-coconut-sm"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>{lang === "en" ? "Download Lossless Transparent PNG" : "下载无损透明 PNG"}</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1258,17 +1283,41 @@ export default function AiToolbox({
                       </span>
                     </div>
 
-                    <button
-                      onClick={handleDownloadUpscaleResult}
-                      className="btn-3d-sunset flex items-center gap-2 py-2.5 px-5 rounded-2xl text-white font-bold text-xs shadow-coconut-sm"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>
-                        {lang === "en"
-                          ? `Download Lossless HD (${upscaleResult.scaleFactor}x PNG)`
-                          : `下载无损超清图 (${upscaleResult.scaleFactor}x PNG)`}
-                      </span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {upscalePreviewUrl && upscaleResultUrl && (
+                        <button
+                          onClick={() => {
+                            if (!upscaleFile || !upscalePreviewUrl || !upscaleResultUrl || !upscaleResult) return;
+                            setCompareModalItem({
+                              originalName: upscaleFile.name,
+                              originalSize: upscaleFile.size,
+                              originalUrl: upscalePreviewUrl,
+                              newFilename: `XC_UltraClear_${upscaleResult.scaleFactor}x_${upscaleFile.name.replace(/\.[^/.]+$/, "")}.png`,
+                              newSize: upscaleResult.blob.size,
+                              previewUrl: upscaleResultUrl,
+                              blob: upscaleResult.blob,
+                              extraInfo: `${upscaleResult.originalWidth}×${upscaleResult.originalHeight} → ${upscaleResult.newWidth}×${upscaleResult.newHeight} (${upscaleResult.scaleFactor}x HD)`,
+                            });
+                          }}
+                          className="flex items-center gap-1.5 py-2.5 px-3.5 rounded-2xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-800 dark:text-darkbg-text font-bold text-xs transition-all hover:bg-coconut-200 active:scale-95 shadow-sm"
+                        >
+                          <SlidersHorizontal className="w-3.5 h-3.5 text-palm-600" />
+                          <span>{lang === "en" ? "Interactive Inspection" : "微距画质对比"}</span>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={handleDownloadUpscaleResult}
+                        className="btn-3d-sunset flex items-center gap-2 py-2.5 px-5 rounded-2xl text-white font-bold text-xs shadow-coconut-sm"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>
+                          {lang === "en"
+                            ? `Download Lossless HD (${upscaleResult.scaleFactor}x PNG)`
+                            : `下载无损超清图 (${upscaleResult.scaleFactor}x PNG)`}
+                        </span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1276,6 +1325,13 @@ export default function AiToolbox({
           </div>
         </div>
       )}
+
+      {/* Squoosh 风格画质微距对比弹窗 */}
+      <ImageCompareModal
+        isOpen={!!compareModalItem}
+        onClose={() => setCompareModalItem(null)}
+        item={compareModalItem}
+      />
     </div>
   );
 }

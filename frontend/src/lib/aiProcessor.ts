@@ -39,7 +39,7 @@ export async function removeBackgroundAI(
         );
         removeBackground = mod.removeBackground || mod.default;
       } catch (eCdn) {
-        console.warn("无法从 CDN 载入背景分割核心，直接进入极速色度算法模式:", eCdn);
+        console.warn("无法载入背景分割核心，直接进入极速色度算法模式:", eCdn);
         throw eCdn;
       }
 
@@ -106,43 +106,49 @@ async function removeBackgroundChromaFallback(
         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imgData.data;
 
-        // 采样四周角落像素作为背景基准色彩
-        const corners = [
-          [0, 0],
-          [canvas.width - 1, 0],
-          [0, canvas.height - 1],
-          [canvas.width - 1, canvas.height - 1],
-        ];
+        // 采样图像四周边缘点（角落与边缘等分点）作为背景基准色彩
+        const samplePoints: [number, number][] = [];
+        const w = canvas.width;
+        const h = canvas.height;
+        for (let step = 0; step <= 4; step++) {
+          samplePoints.push([Math.floor((w - 1) * (step / 4)), 0]);
+          samplePoints.push([Math.floor((w - 1) * (step / 4)), h - 1]);
+          samplePoints.push([0, Math.floor((h - 1) * (step / 4))]);
+          samplePoints.push([w - 1, Math.floor((h - 1) * (step / 4))]);
+        }
 
         let bgR = 0,
           bgG = 0,
           bgB = 0;
-        corners.forEach(([x, y]) => {
-          const idx = (y * canvas.width + x) * 4;
+        samplePoints.forEach(([x, y]) => {
+          const idx = (y * w + x) * 4;
           bgR += data[idx];
           bgG += data[idx + 1];
           bgB += data[idx + 2];
         });
-        bgR /= 4;
-        bgG /= 4;
-        bgB /= 4;
+        const sampleCount = samplePoints.length;
+        bgR /= sampleCount;
+        bgG /= sampleCount;
+        bgB /= sampleCount;
 
-        const tolerance = 45;
-        const feather = 25;
+        const tolerance = 42;
+        const feather = 26;
 
         for (let i = 0; i < data.length; i += 4) {
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
 
-          // 欧几里得色彩距离
-          const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+          // 人眼感官亮度与色度加权距离
+          const dist = Math.sqrt(
+            0.299 * (r - bgR) ** 2 + 0.587 * (g - bgG) ** 2 + 0.114 * (b - bgB) ** 2
+          );
 
           if (dist < tolerance) {
             data[i + 3] = 0; // 完全透明
           } else if (dist < tolerance + feather) {
             const factor = (dist - tolerance) / feather;
-            data[i + 3] = Math.round(data[i + 3] * factor); // 边缘羽化
+            data[i + 3] = Math.round(data[i + 3] * factor); // 边缘平滑羽化
           }
         }
 
@@ -262,40 +268,130 @@ export const OCR_LANGUAGES = [
   },
 ];
 
+// 常驻保持 OCR Worker 实例，避免重复创建 WASM 虚拟机导致的数秒级冷启动延迟
+let cachedWorker: any = null;
+let cachedWorkerLang: string | null = null;
+
+export async function terminateOcrWorker() {
+  if (cachedWorker) {
+    try {
+      await cachedWorker.terminate();
+    } catch {}
+    cachedWorker = null;
+    cachedWorkerLang = null;
+  }
+}
+
 /**
- * 使用 Tesseract.js 在浏览器端执行高保真离线 OCR
+ * 图像自适应灰度与对比度增强（前置预处理，显著提高发票、暗光文档及手写字符的识别准确度）
+ */
+async function preprocessImageForOcr(imageSource: File | Blob | string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = typeof imageSource === "string" ? imageSource : URL.createObjectURL(imageSource);
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(url);
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const d = imgData.data;
+
+        // 统计灰度极值以执行自适应对比度拉伸
+        let minLum = 255;
+        let maxLum = 0;
+        const totalPixels = d.length / 4;
+        const lumList = new Uint8Array(totalPixels);
+
+        for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+          const lum = Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
+          lumList[j] = lum;
+          if (lum < minLum) minLum = lum;
+          if (lum > maxLum) maxLum = lum;
+        }
+
+        const range = maxLum - minLum;
+        if (range > 15 && range < 240) {
+          for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+            const stretched = Math.min(255, Math.max(0, Math.round(((lumList[j] - minLum) / range) * 255)));
+            d[i] = stretched;
+            d[i + 1] = stretched;
+            d[i + 2] = stretched;
+          }
+          ctx.putImageData(imgData, 0, 0);
+          resolve(canvas.toDataURL("image/png"));
+        } else {
+          resolve(url);
+        }
+      } catch {
+        resolve(url);
+      } finally {
+        if (typeof imageSource !== "string") URL.revokeObjectURL(url);
+      }
+    };
+    img.onerror = () => resolve(url);
+    img.src = url;
+  });
+}
+
+/**
+ * 使用 Tesseract.js 在浏览器端执行高保真离线 OCR (带引擎常驻缓存与前置增强)
  */
 export async function recognizeTextOCR(
   imageSource: File | Blob | string,
   lang: string = "chi_sim+eng",
   onProgress?: AiProgressCallback
 ): Promise<OcrResult> {
-  if (onProgress) onProgress(5, "正在初始化 WebAssembly OCR 虚拟引擎...");
+  const isColdStart = !cachedWorker || cachedWorkerLang !== lang;
+  if (onProgress) {
+    onProgress(
+      isColdStart ? 10 : 30,
+      isColdStart ? "正在初始化 WebAssembly OCR 虚拟引擎..." : "复用常驻 OCR 引擎 (高速热启动)..."
+    );
+  }
 
-  const { createWorker } = await import("tesseract.js");
+  if (cachedWorker && cachedWorkerLang !== lang) {
+    try {
+      await cachedWorker.terminate();
+    } catch {}
+    cachedWorker = null;
+  }
 
-  const worker = await createWorker(lang, undefined, {
-    logger: (m) => {
-      if (onProgress && m.status) {
-        let label = "正在处理...";
-        if (m.status.includes("loading tesseract")) label = "正在载入 OCR 离线核心...";
-        else if (m.status.includes("loading language")) label = `正在加载 [${lang}] 语言字库字典...`;
-        else if (m.status.includes("initializing api")) label = "正在初始化光学识别模型...";
-        else if (m.status.includes("recognizing text")) label = "AI 正在逐行分析文字并提取排版...";
-        const pct = Math.min(99, Math.round((m.progress || 0) * 100));
-        onProgress(pct, `${label} (${pct}%)`);
-      }
-    },
-  });
+  if (!cachedWorker) {
+    const { createWorker } = await import("tesseract.js");
+    cachedWorker = await createWorker(lang, undefined, {
+      logger: (m) => {
+        if (onProgress && m.status) {
+          let label = "正在处理...";
+          if (m.status.includes("loading tesseract")) label = "正在载入 OCR 离线核心...";
+          else if (m.status.includes("loading language")) label = `正在加载 [${lang}] 语言字库字典...`;
+          else if (m.status.includes("initializing api")) label = "正在初始化光学识别模型...";
+          else if (m.status.includes("recognizing text")) label = "AI 正在逐行分析文字并提取排版...";
+          const pct = Math.min(99, Math.round((m.progress || 0) * 100));
+          onProgress(pct, `${label} (${pct}%)`);
+        }
+      },
+    });
+    cachedWorkerLang = lang;
+  }
 
   try {
-    if (onProgress) onProgress(50, "正在深度扫描图像与特征匹配...");
-    const ret = await worker.recognize(imageSource);
+    if (onProgress) onProgress(45, "正在进行图像文本自适应对比度增强...");
+    const preprocessedUrl = await preprocessImageForOcr(imageSource);
+
+    if (onProgress) onProgress(65, "正在深度扫描图像与特征匹配...");
+    const ret = await cachedWorker.recognize(preprocessedUrl);
     const rawText = ret.data.text || "";
 
     // 格式清洗与统计
     const cleanText = rawText.replace(/\r\n/g, "\n");
-    const lines = cleanText.split("\n").filter((l) => l.trim().length > 0);
+    const lines = cleanText.split("\n").filter((l: string) => l.trim().length > 0);
     const words = cleanText.trim().length > 0 ? cleanText.trim().split(/\s+/) : [];
     const charCount = cleanText.replace(/\s+/g, "").length;
 
@@ -308,8 +404,8 @@ export async function recognizeTextOCR(
       wordsCount: words.length,
       characterCount: charCount,
     };
-  } finally {
-    await worker.terminate();
+  } catch (err) {
+    throw err;
   }
 }
 
@@ -406,75 +502,96 @@ export async function enhanceAndUpscaleImage(
         // 创建副本用于卷积计算
         const output = new Uint8ClampedArray(data);
 
-        // 自适应 Unsharp Masking 锐化卷积核
-        // 动态计算中心强度
-        const k = Math.min(2.0, Math.max(0.1, sharpness * 0.45));
-        const edgeThreshold = 12; // 阈值过滤，防止对纯色平坦区域放大噪点
+        const processRowsAsync = async () => {
+          const k = Math.min(2.0, Math.max(0.1, sharpness * 0.45));
+          const edgeThreshold = 12; // 阈值过滤，防止对纯色平坦区域放大噪点
+          const chunkSize = Math.max(40, Math.floor(height / 20));
 
-        for (let y = 1; y < height - 1; y++) {
-          for (let x = 1; x < width - 1; x++) {
-            const idx = (y * width + x) * 4;
+          for (let startY = 1; startY < height - 1; startY += chunkSize) {
+            const endY = Math.min(height - 1, startY + chunkSize);
 
-            for (let c = 0; c < 3; c++) {
-              const current = data[idx + c];
-              const up = data[((y - 1) * width + x) * 4 + c];
-              const down = data[((y + 1) * width + x) * 4 + c];
-              const left = data[(y * width + (x - 1)) * 4 + c];
-              const right = data[(y * width + (x + 1)) * 4 + c];
+            for (let y = startY; y < endY; y++) {
+              const yWidth = y * width;
+              const yUpWidth = (y - 1) * width;
+              const yDownWidth = (y + 1) * width;
 
-              // 拉普拉斯高频微分
-              const laplacian = 4 * current - up - down - left - right;
+              for (let x = 1; x < width - 1; x++) {
+                const idx = (yWidth + x) * 4;
 
-              if (Math.abs(laplacian) > edgeThreshold) {
-                let newVal = current + laplacian * k;
+                for (let c = 0; c < 3; c++) {
+                  const current = data[idx + c];
+                  const up = data[(yUpWidth + x) * 4 + c];
+                  const down = data[(yDownWidth + x) * 4 + c];
+                  const left = data[(yWidth + (x - 1)) * 4 + c];
+                  const right = data[(yWidth + (x + 1)) * 4 + c];
 
-                // 去雾与对比度微调
-                if (enhanceContrast) {
-                  // 轻微 S 曲线拉伸
-                  const normalized = newVal / 255;
-                  const contrasted = normalized < 0.5
-                    ? 2 * normalized * normalized
-                    : 1 - 2 * (1 - normalized) * (1 - normalized);
-                  newVal = newVal * 0.8 + contrasted * 255 * 0.2;
-                }
+                  // 拉普拉斯高频微分
+                  const laplacian = 4 * current - up - down - left - right;
 
-                output[idx + c] = Math.min(255, Math.max(0, newVal));
-              } else {
-                // 平坦区域轻微降噪
-                if (denoise) {
-                  output[idx + c] = (current * 2 + up + down + left + right) / 6;
+                  if (Math.abs(laplacian) > edgeThreshold) {
+                    let newVal = current + laplacian * k;
+
+                    // 去雾与对比度微调
+                    if (enhanceContrast) {
+                      const normalized = newVal / 255;
+                      const contrasted = normalized < 0.5
+                        ? 2 * normalized * normalized
+                        : 1 - 2 * (1 - normalized) * (1 - normalized);
+                      newVal = newVal * 0.8 + contrasted * 255 * 0.2;
+                    }
+
+                    output[idx + c] = Math.min(255, Math.max(0, newVal));
+                  } else {
+                    // 平坦区域轻微降噪
+                    if (denoise) {
+                      output[idx + c] = (current * 2 + up + down + left + right) / 6;
+                    }
+                  }
                 }
               }
             }
+
+            if (onProgress) {
+              const pct = 60 + Math.round((endY / height) * 25);
+              onProgress(pct, `正在执行高频边缘重构与反卷积锐化 (${pct}%)...`);
+            }
+
+            // 让渡主线程微任务以保持界面流畅 60fps，杜绝千万像素计算时的浏览器卡死
+            await new Promise((r) => setTimeout(r, 0));
           }
-        }
 
-        if (onProgress) onProgress(85, "正在执行色彩增强与无损压制...");
+          if (onProgress) onProgress(88, "正在写入增强像素并无损压制...");
 
-        // 写回增强后像素
-        for (let i = 0; i < data.length; i++) {
-          data[i] = output[i];
-        }
-        currentCtx.putImageData(imgData, 0, 0);
+          // 写回增强后像素
+          for (let i = 0; i < data.length; i++) {
+            data[i] = output[i];
+          }
+          currentCtx.putImageData(imgData, 0, 0);
 
-        if (onProgress) onProgress(98, "生成超清无损 PNG...");
+          if (onProgress) onProgress(98, "生成超清无损 PNG...");
 
-        currentCanvas.toBlob((blob) => {
+          currentCanvas.toBlob((blob) => {
+            if (typeof imageSource !== "string") URL.revokeObjectURL(url);
+            if (blob) {
+              if (onProgress) onProgress(100, "修复完成！");
+              resolve({
+                blob,
+                originalWidth,
+                originalHeight,
+                newWidth: targetWidth,
+                newHeight: targetHeight,
+                scaleFactor: scale,
+              });
+            } else {
+              reject(new Error("超分辨率导出失败"));
+            }
+          }, "image/png");
+        };
+
+        processRowsAsync().catch((err) => {
           if (typeof imageSource !== "string") URL.revokeObjectURL(url);
-          if (blob) {
-            if (onProgress) onProgress(100, "修复完成！");
-            resolve({
-              blob,
-              originalWidth,
-              originalHeight,
-              newWidth: targetWidth,
-              newHeight: targetHeight,
-              scaleFactor: scale,
-            });
-          } else {
-            reject(new Error("超分辨率导出失败"));
-          }
-        }, "image/png");
+          reject(err);
+        });
       } catch (err) {
         if (typeof imageSource !== "string") URL.revokeObjectURL(url);
         reject(err);
