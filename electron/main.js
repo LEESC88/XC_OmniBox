@@ -151,17 +151,26 @@ function waitForBackend(url, maxRetries = 30, interval = 500) {
 
 // 启动 Python 后端服务
 function startBackendService() {
+  const venvPython = path.join(__dirname, '../backend/venv/Scripts/python.exe');
   const backendExecutable = isDev
     ? path.join(__dirname, '../backend/dist/omni-backend/omni-backend.exe')
     : path.join(process.resourcesPath, 'backend', 'omni-backend.exe');
 
-  console.log(`[Electron Main] Spawning backend from: ${backendExecutable}`);
-
   try {
-    backendProcess = spawn(backendExecutable, ['--port', String(BACKEND_PORT), '--host', '127.0.0.1'], {
-      windowsHide: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    if (isDev && fs.existsSync(venvPython)) {
+      console.log(`[Electron Main Dev] Spawning live backend with venv python: ${venvPython}`);
+      backendProcess = spawn(venvPython, ['-m', 'uvicorn', 'app.main:app', '--port', String(BACKEND_PORT), '--host', '127.0.0.1'], {
+        cwd: path.join(__dirname, '../backend'),
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } else {
+      console.log(`[Electron Main] Spawning backend from: ${backendExecutable}`);
+      backendProcess = spawn(backendExecutable, ['--port', String(BACKEND_PORT), '--host', '127.0.0.1'], {
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    }
 
     if (backendProcess.stdout) {
       backendProcess.stdout.on('data', (chunk) => {

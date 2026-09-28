@@ -41,6 +41,7 @@ import {
   Download,
   RotateCcw,
   FileCheck,
+  Minimize2,
 } from "lucide-react";
 import CoconutLogo from "@/components/CoconutLogo";
 import Dropzone from "@/components/Dropzone";
@@ -52,6 +53,8 @@ import AiToolbox, { AiTabType } from "@/components/AiToolbox";
 import PdfMergeStudio from "@/components/pdf/PdfMergeStudio";
 import PdfSplitStudio from "@/components/pdf/PdfSplitStudio";
 import PdfWatermarkStudio from "@/components/pdf/PdfWatermarkStudio";
+import PdfCompressStudio from "@/components/pdf/PdfCompressStudio";
+import ImagesToPdfStudio from "@/components/pdf/ImagesToPdfStudio";
 import UpdateModal from "@/components/UpdateModal";
 import SettingsModal from "@/components/SettingsModal";
 import CatPawLogo from "@/components/CatPawLogo";
@@ -72,6 +75,8 @@ import {
   splitPdf,
   addWatermark,
   protectPdf,
+  compressPdf,
+  convertImagesToPdf,
   renderPdfPages,
   downloadBlob,
   HealthStatus,
@@ -84,6 +89,8 @@ type DocTabType =
   | "pdf-merge"
   | "pdf-split"
   | "pdf-watermark"
+  | "pdf-compress"
+  | "images-to-pdf"
   | "pdf-protect";
 
 type ImageTabType = "compress" | "heic" | "convert" | "resize" | "exif" | "watermark";
@@ -113,6 +120,8 @@ const TOOLS_REGISTRY: { category: string; module: ModuleType; icon: any; tools: 
       { id: "pdf-merge", module: "document", name: "多 PDF 拼合合并", desc: "多文件按需排序混编整合", badge: "多选", icon: Combine, keywords: ["pdf", "合并", "拼接", "多文件"] },
       { id: "pdf-split", module: "document", name: "PDF 拆分与范围提取", desc: "按页码区间抽取指定页面", badge: "范围", icon: Scissors, keywords: ["pdf", "拆分", "提取", "截取", "分割"] },
       { id: "pdf-watermark", module: "document", name: "PDF 文字印章水印", desc: "倾斜半透明防伪防盗用标记", badge: "水印", icon: Stamp, keywords: ["pdf", "水印", "文字", "印章", "防伪"] },
+      { id: "pdf-compress", module: "document", name: "PDF 智能极限压缩", desc: "消除冗余流与高保真图像下采样，大幅瘦身体积", badge: "省80%", icon: Minimize2, keywords: ["pdf", "压缩", "瘦身", "减小", "体积", "优化"] },
+      { id: "images-to-pdf", module: "document", name: "多图一键合成 PDF", desc: "多张图片拖拽排序，自由合成单页或 A4 标准文档", badge: "高保真", icon: Combine, keywords: ["图片", "jpg", "png", "转pdf", "合成", "相册"] },
       { id: "pdf-protect", module: "document", name: "文档密码权限保护", desc: "AES 高强度加密限制阅读打印", badge: "安全", icon: Lock, keywords: ["pdf", "密码", "加密", "保护", "权限"] },
     ],
   },
@@ -190,6 +199,7 @@ export default function Home() {
     blob: Blob;
     filename: string;
     size: number;
+    originalSize?: number;
   } | null>(null);
 
   // 客户端自动更新弹窗状态
@@ -517,6 +527,67 @@ export default function Home() {
         lang === "en"
           ? `Watermark applied! Generated ${res.filename}, click below to download.`
           : `水印添加成功！已生成 ${res.filename}，请点击下方按钮下载保存`
+      );
+    } catch (err: any) {
+      setError(err.message || t.common.errorOccurred);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // PDF 智能压缩 Studio 专用执行函数
+  const handleCompressExecute = async (level: "low" | "medium" | "high") => {
+    if (files.length === 0) {
+      setError(lang === "en" ? "Please upload a PDF file to compress first" : "请先上传需要压缩的 PDF 文件");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+    setExecutionResult(null);
+
+    try {
+      const res = await compressPdf(files[0], level);
+      setExecutionResult({
+        blob: res.blob,
+        filename: res.filename,
+        size: res.compressedSize,
+        originalSize: res.originalSize,
+      });
+      setSuccessMsg(
+        lang === "en"
+          ? `Compression finished! Generated ${res.filename}, click below to download.`
+          : `压缩完成！已生成 ${res.filename}，请点击下方按钮下载保存`
+      );
+    } catch (err: any) {
+      setError(err.message || t.common.errorOccurred);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 多图合成 PDF Studio 专用执行函数
+  const handleImagesToPdfExecute = async (pageSize: "fit" | "a4") => {
+    if (files.length === 0) {
+      setError(lang === "en" ? "Please select at least one image to combine" : "请至少选择一张图片进行合成");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+    setExecutionResult(null);
+
+    try {
+      const res = await convertImagesToPdf(files, pageSize);
+      setExecutionResult({
+        blob: res.blob,
+        filename: res.filename,
+        size: res.blob.size,
+      });
+      setSuccessMsg(
+        lang === "en"
+          ? `Combined successfully! Generated ${res.filename}, click below to download.`
+          : `合成成功！已生成 ${res.filename}，请点击下方按钮下载保存`
       );
     } catch (err: any) {
       setError(err.message || t.common.errorOccurred);
@@ -1226,6 +1297,99 @@ export default function Home() {
                       onClear={() => setFiles([])}
                       title={t.pdfWatermark.dropzoneTitle}
                       hint={t.pdfWatermark.dropzoneHint}
+                    />
+                  </div>
+                )
+              ) : activeDocTab === "pdf-compress" ? (
+                /* PDF 智能压缩 Studio */
+                files.length > 0 ? (
+                  <div className="coconut-panel p-6 sm:p-8">
+                    <PdfCompressStudio
+                      file={files[0]}
+                      onCompress={handleCompressExecute}
+                      loading={loading}
+                      error={error}
+                      successMsg={successMsg}
+                      executionResult={executionResult}
+                      onReset={() => {
+                        setExecutionResult(null);
+                        setSuccessMsg(null);
+                        setError(null);
+                      }}
+                      onClearFile={() => {
+                        setFiles([]);
+                        setExecutionResult(null);
+                        setSuccessMsg(null);
+                        setError(null);
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="coconut-panel p-6 sm:p-8 space-y-6">
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                        {t.pdfCompress?.title || "PDF 智能极限体积瘦身"}
+                      </h3>
+                      <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
+                        {t.pdfCompress?.desc || "支持轻度、平衡、极限三档优化，清除孤立死对象并智能下采样高清大图，压缩比可达 50%~80%。"}
+                      </p>
+                    </div>
+
+                    <Dropzone
+                      accept=".pdf"
+                      multiple={false}
+                      selectedFiles={files}
+                      onFilesSelected={setFiles}
+                      onClear={() => setFiles([])}
+                      title={t.pdfCompress?.dropzoneTitle || "拖入待压缩瘦身的 PDF 文档 (.pdf)，或点击选择"}
+                      hint={t.pdfCompress?.dropzoneHint || "支持标准 PDF 文档，完全本地处理无隐私泄露"}
+                    />
+                  </div>
+                )
+              ) : activeDocTab === "images-to-pdf" ? (
+                /* 多图片合成 PDF Studio */
+                files.length > 0 ? (
+                  <div className="coconut-panel p-6 sm:p-8">
+                    <ImagesToPdfStudio
+                      files={files}
+                      onFilesChange={setFiles}
+                      onConvert={handleImagesToPdfExecute}
+                      loading={loading}
+                      error={error}
+                      successMsg={successMsg}
+                      executionResult={executionResult}
+                      onReset={() => {
+                        setExecutionResult(null);
+                        setSuccessMsg(null);
+                        setError(null);
+                      }}
+                      onClearFiles={() => {
+                        setFiles([]);
+                        setExecutionResult(null);
+                        setSuccessMsg(null);
+                        setError(null);
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="coconut-panel p-6 sm:p-8 space-y-6">
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                        {t.imagesToPdf?.title || "多图片一键拼合转高清 PDF"}
+                      </h3>
+                      <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
+                        {t.imagesToPdf?.desc || "支持选中多张照片或扫描件批量上传，自由上下拖拽调整排版顺序，支持原图自适应与标准 A4 规格导出。"}
+                      </p>
+                    </div>
+
+                    <Dropzone
+                      accept="image/*"
+                      multiple={true}
+                      selectedFiles={files}
+                      onFilesSelected={setFiles}
+                      onClear={() => setFiles([])}
+                      title={t.imagesToPdf?.dropzoneTitle || "拖入多张图片（按 Ctrl 多选），或点击选择"}
+                      hint={t.imagesToPdf?.dropzoneHint || "支持 JPG / PNG / WebP / BMP / TIFF 格式"}
                     />
                   </div>
                 )

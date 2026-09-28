@@ -260,6 +260,62 @@ export async function applyPdfModifications(
   return { blob, filename };
 }
 
+export async function compressPdf(
+  file: File,
+  level: "low" | "medium" | "high" = "medium"
+): Promise<{
+  blob: Blob;
+  filename: string;
+  originalSize: number;
+  compressedSize: number;
+}> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("level", level);
+
+  const res = await fetch(`${API_BASE}/pdf/compress`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "压缩失败" }));
+    throw new Error(err.detail || err.error || "PDF 压缩失败");
+  }
+
+  const blob = await res.blob();
+  const origSizeHeader = res.headers.get("X-Original-Size");
+  const compSizeHeader = res.headers.get("X-Compressed-Size");
+  const originalSize = origSizeHeader ? parseInt(origSizeHeader, 10) : file.size;
+  const compressedSize = compSizeHeader ? parseInt(compSizeHeader, 10) : blob.size;
+
+  const filename = parseFilenameFromHeader(res, `compressed_${file.name}`);
+  return { blob, filename, originalSize, compressedSize };
+}
+
+export async function convertImagesToPdf(
+  files: File[],
+  pageSize: "fit" | "a4" = "fit"
+): Promise<{ blob: Blob; filename: string }> {
+  const formData = new FormData();
+  files.forEach((f) => formData.append("files", f));
+  formData.append("page_size", pageSize);
+
+  const res = await fetch(`${API_BASE}/pdf/images-to-pdf`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "合成失败" }));
+    throw new Error(err.detail || err.error || "图片合成 PDF 失败");
+  }
+
+  const blob = await res.blob();
+  const filename = parseFilenameFromHeader(res, "images_combined.pdf");
+  return { blob, filename };
+}
+
 
 export function downloadBlob(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);

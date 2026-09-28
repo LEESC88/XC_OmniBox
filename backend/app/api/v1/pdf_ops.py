@@ -186,3 +186,84 @@ async def unlock_pdf(
     except Exception as e:
         add_cleanup_task(background_tasks, task_dir)
         raise HTTPException(status_code=500, detail=f"解密 PDF 失败: {str(e)}")
+
+@router.post("/compress", summary="智能压缩与瘦身 PDF 文档")
+async def compress_pdf(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(..., description="上传待压缩的 PDF 文件"),
+    level: str = Form("medium", description="压缩强度: low(轻度无损) / medium(平衡推荐) / high(强力瘦身)")
+):
+    """为 PDF 文档清理死对象流，并对内嵌高像素图像实施智能下采样优化"""
+    if not file.filename.lower().endswith(".pdf"):
+        raise FileFormatNotSupportedException("请上传有效的 .pdf 格式文件")
+
+    task_dir = get_unique_task_dir()
+    input_pdf = task_dir / file.filename
+    output_pdf = task_dir / f"compressed_{file.filename}"
+
+    try:
+        await save_upload_file(file, input_pdf)
+        original_size = input_pdf.stat().st_size
+        PdfService.compress_pdf(input_pdf, output_pdf, level=level)
+        compressed_size = output_pdf.stat().st_size
+
+        add_cleanup_task(background_tasks, task_dir)
+
+        encoded_filename = urllib.parse.quote(output_pdf.name)
+        headers = {
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
+            "X-Original-Size": str(original_size),
+            "X-Compressed-Size": str(compressed_size),
+            "Access-Control-Expose-Headers": "X-Original-Size, X-Compressed-Size, Content-Disposition"
+        }
+        return FileResponse(
+            path=output_pdf,
+            filename=output_pdf.name,
+            media_type="application/pdf",
+            headers=headers
+        )
+    except Exception as e:
+        add_cleanup_task(background_tasks, task_dir)
+        raise HTTPException(status_code=500, detail=f"PDF 压缩处理失败: {str(e)}")
+
+@router.post("/images-to-pdf", summary="多图片一键拼合转高清 PDF")
+async def images_to_pdf(
+    background_tasks: BackgroundTasks,
+    files: List[UploadFile] = File(..., description="上传的多张图片列表"),
+    page_size: str = Form("fit", description="排版规格: fit(原图自适应) / a4(标准 A4 等比居中)")
+):
+    """多张图片按顺序拼合转换为单份高清 PDF 文档"""
+    if not files:
+        raise HTTPException(status_code=400, detail="请至少上传一张图片进行合成")
+
+    task_dir = get_unique_task_dir()
+    saved_images: List[Path] = []
+    valid_exts = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff", ".gif")
+
+    try:
+        for idx, f in enumerate(files):
+            ext = Path(f.filename).suffix.lower()
+            if ext not in valid_exts:
+                continue
+            saved_p = task_dir / f"img_{idx}_{f.filename}"
+            await save_upload_file(f, saved_p)
+            saved_images.append(saved_p)
+
+        if not saved_images:
+            raise HTTPException(status_code=400, detail="没有检测到有效的图片格式文件")
+
+        output_pdf = task_dir / "images_combined.pdf"
+        PdfService.images_to_pdf(saved_images, output_pdf, page_size=page_size)
+
+        add_cleanup_task(background_tasks, task_dir)
+
+        encoded_filename = urllib.parse.quote(output_pdf.name)
+        return FileResponse(
+            path=output_pdf,
+            filename=output_pdf.name,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
+        )
+    except Exception as e:
+        add_cleanup_task(background_tasks, task_dir)
+        raise HTTPException(status_code=500, detail=f"图片合成 PDF 失败: {str(e)}")

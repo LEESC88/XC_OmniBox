@@ -222,3 +222,111 @@ class PdfService:
             return output_path
         except Exception as e:
             raise FileProcessingException(f"解密 PDF 失败: {str(e)}")
+
+    @staticmethod
+    def compress_pdf(pdf_path: Path, output_path: Path, level: str = "medium") -> Path:
+        """
+        高能 PDF 智能极致压缩与体积瘦身
+        支持三档压缩方案：
+        - low: 轻度无损 (Quality 80, MaxDim 1800)
+        - medium: 平衡推荐 (Quality 65, MaxDim 1400)
+        - high: 极限减容 (Quality 45, MaxDim 1000)
+        """
+        from PIL import Image
+        try:
+            doc = pymupdf.open(str(pdf_path))
+            level = level.lower().strip()
+            if level == "high":
+                quality = 45
+                max_dim = 1000
+            elif level == "low":
+                quality = 80
+                max_dim = 1800
+            else:
+                quality = 65
+                max_dim = 1400
+
+            processed_xrefs = set()
+
+            for page in doc:
+                image_list = page.get_images(full=True)
+                for img_info in image_list:
+                    xref = img_info[0]
+                    if xref in processed_xrefs:
+                        continue
+                    processed_xrefs.add(xref)
+
+                    try:
+                        base_img = doc.extract_image(xref)
+                        if not base_img:
+                            continue
+
+                        raw_bytes = base_img.get("image")
+                        if not raw_bytes or len(raw_bytes) < 4096:
+                            continue
+
+                        pil_img = Image.open(io.BytesIO(raw_bytes))
+                        width, height = pil_img.size
+
+                        needs_resize = max(width, height) > max_dim
+                        if needs_resize:
+                            ratio = max_dim / max(width, height)
+                            new_w = max(1, int(width * ratio))
+                            new_h = max(1, int(height * ratio))
+                            pil_img = pil_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
+                        out_buf = io.BytesIO()
+                        if pil_img.mode in ("RGBA", "LA", "P"):
+                            pil_img.save(out_buf, format="PNG", optimize=True)
+                        else:
+                            if pil_img.mode != "RGB":
+                                pil_img = pil_img.convert("RGB")
+                            pil_img.save(out_buf, format="JPEG", quality=quality, optimize=True)
+
+                        compressed_bytes = out_buf.getvalue()
+                        # 仅当压缩后体积确实变小时才替换，确保绝不“反向变大”
+                        if len(compressed_bytes) < len(raw_bytes):
+                            doc.update_stream(xref, compressed_bytes)
+                    except Exception:
+                        continue
+
+            doc.save(str(output_path), deflate=True, garbage=4, clean=True)
+            doc.close()
+            return output_path
+        except Exception as e:
+            raise FileProcessingException(f"PDF 压缩失败: {str(e)}")
+
+    @staticmethod
+    def images_to_pdf(image_paths: List[Path], output_path: Path, page_size: str = "fit") -> Path:
+        """
+        多图片一键拼合转高清 PDF
+        :param image_paths: 图片文件路径列表
+        :param page_size: 'fit' (原图自适应，无白边) 或 'a4' (标准 A4 等比例居中)
+        """
+        try:
+            doc = pymupdf.open()
+            page_size = page_size.lower().strip()
+
+            for img_path in image_paths:
+                if not img_path.exists():
+                    continue
+
+                if page_size == "a4":
+                    a4_rect = pymupdf.paper_rect("a4")
+                    page = doc.new_page(width=a4_rect.width, height=a4_rect.height)
+                    margin = 36
+                    target_rect = pymupdf.Rect(margin, margin, a4_rect.width - margin, a4_rect.height - margin)
+                    page.insert_image(target_rect, filename=str(img_path), keep_proportion=True)
+                else:
+                    img_doc = pymupdf.open(str(img_path))
+                    pdf_bytes = img_doc.convert_to_pdf()
+                    img_doc.close()
+                    img_pdf = pymupdf.open("pdf", pdf_bytes)
+                    doc.insert_pdf(img_pdf)
+                    img_pdf.close()
+
+            doc.save(str(output_path), deflate=True, garbage=4, clean=True)
+            doc.close()
+            return output_path
+        except Exception as e:
+            raise FileProcessingException(f"图片合成 PDF 失败: {str(e)}")

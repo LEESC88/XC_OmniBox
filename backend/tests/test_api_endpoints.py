@@ -1,3 +1,4 @@
+import io
 import sys
 from pathlib import Path
 from fastapi.testclient import TestClient
@@ -142,6 +143,58 @@ def test_pdf_split_all_zip_endpoint(tmp_path: Path):
         assert "test_split_all_page_4.pdf" in namelist
     print(f"[OK] POST /api/v1/pdf/split (全量拆分为 ZIP 压缩包) 验证成功: 包含 {len(namelist)} 个单页 PDF")
 
+def test_pdf_compress_endpoint(tmp_path: Path):
+    """测试 PDF 智能压缩瘦身接口"""
+    from PIL import Image
+    pdf_path = tmp_path / "test_compress.pdf"
+    doc = pymupdf.open()
+    page = doc.new_page()
+    img = Image.new("RGB", (600, 600), color="blue")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    page.insert_image(page.rect, stream=buf.getvalue())
+    doc.save(str(pdf_path))
+    doc.close()
+
+    with open(pdf_path, "rb") as f:
+        res = client.post(
+            "/api/v1/pdf/compress",
+            files={"file": ("test_compress.pdf", f, "application/pdf")},
+            data={"level": "medium"}
+        )
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "application/pdf"
+    assert "x-original-size" in res.headers
+    assert "x-compressed-size" in res.headers
+    assert int(res.headers["x-compressed-size"]) <= int(res.headers["x-original-size"])
+    print(f"[OK] POST /api/v1/pdf/compress 验证成功: 原体积 {res.headers['x-original-size']}B -> 压缩后 {res.headers['x-compressed-size']}B")
+
+def test_images_to_pdf_endpoint(tmp_path: Path):
+    """测试多图片一键拼合转 PDF 接口"""
+    from PIL import Image
+    img1_path = tmp_path / "photo1.jpg"
+    img2_path = tmp_path / "photo2.png"
+    Image.new("RGB", (300, 300), color="red").save(img1_path)
+    Image.new("RGB", (400, 400), color="green").save(img2_path)
+
+    with open(img1_path, "rb") as f1, open(img2_path, "rb") as f2:
+        res = client.post(
+            "/api/v1/pdf/images-to-pdf",
+            files=[
+                ("files", ("photo1.jpg", f1, "image/jpeg")),
+                ("files", ("photo2.png", f2, "image/png")),
+            ],
+            data={"page_size": "fit"}
+        )
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "application/pdf"
+    
+    # 验证生成的 PDF 为 2 页
+    doc = pymupdf.open(stream=res.content, filetype="pdf")
+    assert len(doc) == 2
+    doc.close()
+    print(f"[OK] POST /api/v1/pdf/images-to-pdf 验证成功: 成功拼合 2 页 PDF")
+
 if __name__ == "__main__":
     temp_dir = BASE_DIR / "tests" / "output"
     temp_dir.mkdir(parents=True, exist_ok=True)
@@ -152,4 +205,6 @@ if __name__ == "__main__":
     test_render_pages_thumbnail(temp_dir)
     test_pdf_split_endpoint(temp_dir)
     test_pdf_split_all_zip_endpoint(temp_dir)
+    test_pdf_compress_endpoint(temp_dir)
+    test_images_to_pdf_endpoint(temp_dir)
     print("=== 所有 API 路由测试全部通过！===")

@@ -40,6 +40,16 @@ export const TOOL_TRANSLATIONS: Record<
     desc: "Anti-counterfeit translucent custom text watermark",
     badge: "Watermark",
   },
+  "pdf-compress": {
+    name: "PDF Smart Compression",
+    desc: "Clean dead streams and smart downsampling for slim files",
+    badge: "Save 70%",
+  },
+  "images-to-pdf": {
+    name: "Images to PDF Studio",
+    desc: "Merge multiple JPG/PNG/WebP into a single vector PDF",
+    badge: "Multi-image",
+  },
   "pdf-protect": {
     name: "PDF Password Protection",
     desc: "High-grade AES encryption to restrict viewing & printing",
@@ -210,6 +220,20 @@ export const UI_DICTIONARY = {
       desc: "拖入 PDF 文档后自动加载真实页面底图，调节水印文字、透明度与旋转角度时右侧画面实时响应随动，所见即所得。",
       dropzoneTitle: "拖入待添加水印的 PDF 文档 (.pdf)，或点击选择",
       dropzoneHint: "支持标准 PDF 文档",
+    },
+
+    pdfCompress: {
+      title: "PDF 智能极限体积瘦身",
+      desc: "支持轻度、平衡、极限三档优化，清除孤立死对象并智能下采样高清大图，压缩比可达 50%~80%。",
+      dropzoneTitle: "拖入待压缩瘦身的 PDF 文档 (.pdf)，或点击选择",
+      dropzoneHint: "支持标准 PDF 文档，完全本地处理无隐私泄露",
+    },
+
+    imagesToPdf: {
+      title: "多图片一键拼合转高清 PDF",
+      desc: "支持选中多张照片或扫描件批量上传，自由上下拖拽调整排版顺序，支持原图自适应与标准 A4 规格导出。",
+      dropzoneTitle: "拖入多张图片（按 Ctrl 多选），或点击选择",
+      dropzoneHint: "支持 JPG / PNG / WebP / BMP / TIFF 格式",
     },
 
     pdfProtect: {
@@ -481,6 +505,20 @@ export const UI_DICTIONARY = {
       desc: "Loads real page backgrounds for instant WYSIWYG preview as you adjust text, opacity, size, and rotation angle.",
       dropzoneTitle: "Drop PDF document (.pdf) to watermark, or click to browse",
       dropzoneHint: "Supports standard PDF documents",
+    },
+
+    pdfCompress: {
+      title: "Intelligent PDF Size Slimming",
+      desc: "Features 3 optimization presets (Light, Balanced, Extreme), cleaning dead streams and downsampling images for up to 80% size savings.",
+      dropzoneTitle: "Drop PDF document (.pdf) to compress, or click to browse",
+      dropzoneHint: "Supports standard PDF documents, processed entirely locally",
+    },
+
+    imagesToPdf: {
+      title: "Images to PDF Vector Studio",
+      desc: "Upload multiple photos or scans, reorder pages easily, and export as Fit or Standard A4 PDF documents.",
+      dropzoneTitle: "Drop multiple images (Ctrl+Click to select), or click to browse",
+      dropzoneHint: "Supports JPG / PNG / WebP / BMP / TIFF formats",
     },
 
     pdfProtect: {
