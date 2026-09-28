@@ -28,155 +28,99 @@ export interface FontOption {
   fontFamily: string;
 }
 
-// 6 款高对比度、清晰透亮的精选预设配方 (WCAG AAA 级对比度优化)
+// 纯粹、高对比、现代专业的纯白 (White) 与极简深黑 (Dark) 主题
+export const DEFAULT_WHITE_THEME: CustomThemeConfig = {
+  id: "white",
+  name: "极简白 (White)",
+  nameEn: "Clean White",
+  background: "#F8FAFC",
+  foreground: "#FFFFFF",
+  accent: "#2563EB",
+  textMain: "#0F172A",
+  textMuted: "#64748B",
+  border: "#E2E8F0",
+  isDark: false,
+};
+
+export const DEFAULT_DARK_THEME: CustomThemeConfig = {
+  id: "dark",
+  name: "极简黑 (Dark)",
+  nameEn: "Minimal Dark",
+  background: "#0F172A",
+  foreground: "#1E293B",
+  accent: "#3B82F6",
+  textMain: "#F8FAFC",
+  textMuted: "#94A3B8",
+  border: "#334155",
+  isDark: true,
+};
+
 export const THEME_PRESETS: CustomThemeConfig[] = [
-  {
-    id: "coconut",
-    name: "暖椰润肤 (经典浅色)",
-    nameEn: "Warm Cream (Classic Light)",
-    background: "#F2E5D8",
-    foreground: "#FAF1E8",
-    accent: "#EA580C",
-    textMain: "#0F0703", // 浓郁深焙椰壳木质黑，对比度极高
-    textMuted: "#422818", // 调深辅助字色，杜绝发灰
-    border: "#C2A895",
-    isDark: false,
-  },
-  {
-    id: "obsidian",
-    name: "曜黑暗夜 (经典深色)",
-    nameEn: "Obsidian Night (Classic Dark)",
-    background: "#1A120E",
-    foreground: "#261D18",
-    accent: "#F97316",
-    textMain: "#FFFFFF", // 纯雪白，夜间刺目感已消除，高保真清晰
-    textMuted: "#EDE0D4", // 增亮辅助字色，夜间一目了然
-    border: "#564034",
-    isDark: true,
-  },
-  {
-    id: "sakura",
-    name: "樱花奶芙 (甜美轻粉)",
-    nameEn: "Sakura Souffle (Sweet Pink)",
-    background: "#FDF2F4",
-    foreground: "#FFFFFF",
-    accent: "#EC4899",
-    textMain: "#330219", // 深浓野莓红黑，在粉白底上极度清晰
-    textMuted: "#7A1C44",
-    border: "#F9A8D4",
-    isDark: false,
-  },
-  {
-    id: "mint",
-    name: "薄荷苏打 (清新青翠)",
-    nameEn: "Mint Soda (Fresh Green)",
-    background: "#ECFDF5",
-    foreground: "#FFFFFF",
-    accent: "#0D9488",
-    textMain: "#022C22", // 深浓冷杉墨绿，对比度超强
-    textMuted: "#065F46",
-    border: "#6EE7B7",
-    isDark: false,
-  },
-  {
-    id: "cyber",
-    name: "赛博霓紫 (深邃电幻)",
-    nameEn: "Cyber Neon (Deep Purple)",
-    background: "#0F0B1E",
-    foreground: "#1A1435",
-    accent: "#8B5CF6",
-    textMain: "#FFFFFF",
-    textMuted: "#E0D7FE",
-    border: "#58429B",
-    isDark: true,
-  },
-  {
-    id: "mocha",
-    name: "复古暖咖 (雅致皮革)",
-    nameEn: "Retro Mocha (Rich Leather)",
-    background: "#2B1D14",
-    foreground: "#3A291E",
-    accent: "#D97706",
-    textMain: "#FFF8F0",
-    textMuted: "#EAD5BE",
-    border: "#6E4E3B",
-    isDark: true,
-  },
+  DEFAULT_WHITE_THEME,
+  DEFAULT_DARK_THEME,
 ];
 
-// 6 款 Windows 原生预装且风格对比极度悬殊的经典高辨识度字体
+// 常用正规标准英文字体体系 (杜绝奇形怪状的毛笔与仿宋字体，统一规范屏显)
 export const FONT_PRESETS: FontOption[] = [
   {
     id: "system",
-    name: "现代黑体 (系统默认)",
-    nameEn: "Modern Sans (System Default)",
-    badge: "极简无衬线",
-    badgeEn: "Clean Sans",
-    desc: "点对点极清锐利，字形方正开阔，与 Windows Segoe UI / 微软雅黑完美融合",
-    descEn: "Crisp pixel-aligned glyphs, perfectly unified with Windows Segoe UI",
-    sample: "永和九年 岁在癸丑 · Modern UI 123",
-    sampleEn: "Sphinx of black quartz, judge my vow · Modern UI 123",
-    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", Roboto, sans-serif',
+    name: "System Default / 系统默认",
+    nameEn: "System Default",
+    badge: "Default",
+    badgeEn: "Default",
+    desc: "System UI native standard font",
+    descEn: "System UI native standard font",
+    sample: "The quick brown fox jumps over the lazy dog 1234567890",
+    sampleEn: "The quick brown fox jumps over the lazy dog 1234567890",
+    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   },
   {
-    id: "kaiti",
-    name: "行云楷体 (毛笔书法)",
-    nameEn: "Flowing KaiTi (Brush Script)",
-    badge: "古风书道",
-    badgeEn: "Calligraphy",
-    desc: "地道中华毛笔楷书，运笔行云流水，带有真实墨韵与转折顿挫",
-    descEn: "Traditional calligraphy with flowing strokes and ink charm",
-    sample: "落霞与孤鹜齐飞，秋水共长天一色 · Calligraphy",
-    sampleEn: "Pack my box with five dozen liquor jugs · Calligraphy",
-    fontFamily: 'KaiTi, "楷体", "STKaiti", "BiauKai", cursive, serif',
+    id: "inter",
+    name: "Inter / Modern Sans",
+    nameEn: "Inter / Modern Sans",
+    badge: "Modern",
+    badgeEn: "Modern",
+    desc: "Clean geometric sans-serif for UI clarity",
+    descEn: "Clean geometric sans-serif for UI clarity",
+    sample: "The quick brown fox jumps over the lazy dog 1234567890",
+    sampleEn: "The quick brown fox jumps over the lazy dog 1234567890",
+    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   },
   {
-    id: "serif",
-    name: "人文宋体 (典雅明体)",
-    nameEn: "Humanist SongTi (Classic Serif)",
-    badge: "文墨书卷",
-    badgeEn: "Bookish Serif",
-    desc: "横细竖粗，尖锐三角衬线，经典图书报纸高雅铅印质感",
-    descEn: "Thin horizontals and thick verticals with sharp triangular serifs",
-    sample: "白日依山尽，黄河入海流 · Literature 2026",
-    sampleEn: "The quick brown fox jumps over the lazy dog · Literature 2026",
-    fontFamily: 'SimSun, "宋体", "STSong", "Songti SC", serif',
+    id: "roboto",
+    name: "Roboto / Clean",
+    nameEn: "Roboto / Clean",
+    badge: "Readable",
+    badgeEn: "Readable",
+    desc: "High legibility grotesque sans-serif",
+    descEn: "High legibility grotesque sans-serif",
+    sample: "The quick brown fox jumps over the lazy dog 1234567890",
+    sampleEn: "The quick brown fox jumps over the lazy dog 1234567890",
+    fontFamily: '"Roboto", "Segoe UI", Arial, sans-serif',
   },
   {
-    id: "fangsong",
-    name: "经典仿宋 (政务公文)",
-    nameEn: "Classic FangSong (Formal Print)",
-    badge: "刚劲挺秀",
-    badgeEn: "Upright Script",
-    desc: "字身修长挺拔，笔画刚劲利落，经典公文报告典范用字",
-    descEn: "Slender, upright and crisp geometry, standard for official publications",
-    sample: "海内存知己，天涯若比邻 · Official Document",
-    sampleEn: "Jackdaws love my big sphinx of quartz · Official Document",
-    fontFamily: 'FangSong, "仿宋", "STFangsong", serif',
-  },
-  {
-    id: "heavy",
-    name: "重装粗黑 (工业特黑)",
-    nameEn: "Heavy Industrial (Extra Bold)",
-    badge: "厚重硬核",
-    badgeEn: "Impact Bold",
-    desc: "特粗工业方正笔画，视觉份量饱满沉稳，极具视觉冲击力",
-    descEn: "Ultra-thick industrial strokes with bold visual weight and impact",
-    sample: "大漠孤烟直，长河落日圆 · HEAVY BOLD",
-    sampleEn: "HOW RAZORBACK-JUMPING FROGS CAN LEVEL · HEAVY BOLD",
-    fontFamily: 'SimHei, "黑体", "Arial Black", Impact, sans-serif',
+    id: "segoe",
+    name: "Segoe UI / Windows",
+    nameEn: "Segoe UI / Windows",
+    badge: "Windows",
+    badgeEn: "Windows",
+    desc: "Windows official clear desktop font",
+    descEn: "Windows official clear desktop font",
+    sample: "The quick brown fox jumps over the lazy dog 1234567890",
+    sampleEn: "The quick brown fox jumps over the lazy dog 1234567890",
+    fontFamily: '"Segoe UI", -apple-system, Arial, sans-serif',
   },
   {
     id: "mono",
-    name: "极客等宽 (终端代码)",
-    nameEn: "Geek Monospace (Code Terminal)",
-    badge: "代码等宽",
+    name: "Monospace / Code",
+    nameEn: "Monospace / Code",
+    badge: "Monospace",
     badgeEn: "Monospace",
-    desc: "严格等宽定宽字符，字母与数字严谨对齐，浓厚黑客极客风",
-    descEn: "Strict fixed-width characters with precise letter & number alignment",
-    sample: 'const omni = new OmniBox(); // Code 0x88',
-    sampleEn: 'const omni = new OmniBox(); // Code 0x88',
-    fontFamily: '"Cascadia Code", Consolas, "Courier New", monospace',
+    desc: "Strict fixed-width characters for digits and data",
+    descEn: "Strict fixed-width characters for digits and data",
+    sample: "The quick brown fox jumps over the lazy dog 1234567890",
+    sampleEn: "The quick brown fox jumps over the lazy dog 1234567890",
+    fontFamily: '"Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace',
   },
 ];
 
@@ -219,9 +163,9 @@ export function hexToRgba(hex: string, alpha: number): string {
 }
 
 /**
- * 实时将主题调色注入全局 CSS Custom Properties
+ * 纯样式预览：将主题调色注入全局 CSS Custom Properties (不写入持久化存储)
  */
-export function applyCustomTheme(theme: CustomThemeConfig) {
+export function previewTheme(theme: CustomThemeConfig) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
 
@@ -257,15 +201,69 @@ export function applyCustomTheme(theme: CustomThemeConfig) {
   } else {
     root.classList.remove("dark");
   }
+}
 
-  // 5. 本地缓存当前生效主题配置
+/**
+ * 实时将主题调色注入全局 CSS Custom Properties 并持久化保存
+ */
+export function applyCustomTheme(theme: CustomThemeConfig) {
+  previewTheme(theme);
+
+  // 5. 本地缓存当前生效主题配置与深浅专属配置
   try {
     localStorage.setItem("xc_custom_theme", JSON.stringify(theme));
     localStorage.setItem("xc_theme", theme.isDark ? "dark" : "light");
+    if (theme.isDark) {
+      localStorage.setItem("xc_custom_dark_theme", JSON.stringify(theme));
+    } else {
+      localStorage.setItem("xc_custom_white_theme", JSON.stringify(theme));
+    }
   } catch (_) {}
 }
 
-export function applyCustomFont(fontId: string) {
+/**
+ * 获取浅色 (White) 模式已保存主题
+ */
+export function getSavedWhiteTheme(): CustomThemeConfig {
+  if (typeof window !== "undefined") {
+    try {
+      const saved = localStorage.getItem("xc_custom_white_theme");
+      if (saved) return JSON.parse(saved);
+    } catch (_) {}
+  }
+  return DEFAULT_WHITE_THEME;
+}
+
+/**
+ * 获取深色 (Dark) 模式已保存主题
+ */
+export function getSavedDarkTheme(): CustomThemeConfig {
+  if (typeof window !== "undefined") {
+    try {
+      const saved = localStorage.getItem("xc_custom_dark_theme");
+      if (saved) return JSON.parse(saved);
+    } catch (_) {}
+  }
+  return DEFAULT_DARK_THEME;
+}
+
+export function saveWhiteTheme(theme: CustomThemeConfig) {
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem("xc_custom_white_theme", JSON.stringify({ ...theme, isDark: false }));
+    } catch (_) {}
+  }
+}
+
+export function saveDarkTheme(theme: CustomThemeConfig) {
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem("xc_custom_dark_theme", JSON.stringify({ ...theme, isDark: true }));
+    } catch (_) {}
+  }
+}
+
+export function previewFont(fontId: string) {
   if (typeof document === "undefined") return;
   const font = FONT_PRESETS.find((f) => f.id === fontId) || FONT_PRESETS[0];
   const root = document.documentElement;
@@ -274,6 +272,10 @@ export function applyCustomFont(fontId: string) {
   if (document.body) {
     document.body.style.fontFamily = font.fontFamily;
   }
+}
+
+export function applyCustomFont(fontId: string) {
+  previewFont(fontId);
   try {
     localStorage.setItem("xc_custom_font", fontId);
   } catch (_) {}
@@ -285,15 +287,18 @@ export function applyCustomFont(fontId: string) {
 export function getSavedTheme(): CustomThemeConfig {
   if (typeof window !== "undefined") {
     try {
+      const isDark = document.documentElement.classList.contains("dark") || localStorage.getItem("xc_theme") === "dark";
       const saved = localStorage.getItem("xc_custom_theme");
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Boolean(parsed.isDark) === isDark) {
+          return parsed;
+        }
       }
-      const isDark = document.documentElement.classList.contains("dark");
-      return isDark ? THEME_PRESETS[1] : THEME_PRESETS[0];
+      return isDark ? getSavedDarkTheme() : getSavedWhiteTheme();
     } catch (_) {}
   }
-  return THEME_PRESETS[0];
+  return DEFAULT_WHITE_THEME;
 }
 
 /**

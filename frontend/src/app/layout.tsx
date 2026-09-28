@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "XC_OmniBox (XC 万象箱) - 椰林质感全能在线工坊",
-  description: "自然椰香美学 · 极简 · 高保真 · 300+ DPI 无损 · 零隐私泄漏的全能工坊",
+  title: "XC_OmniBox (XC 万象箱) - 极速本地多功能工具箱",
+  description: "极速 · 极简 · 高保真 · 300+ DPI 无损 · 零隐私泄漏的本地多功能工具箱",
 };
 
 export const viewport: Viewport = {
@@ -12,8 +12,8 @@ export const viewport: Viewport = {
   maximumScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#E8D5C4" },
-    { media: "(prefers-color-scheme: dark)", color: "#1E1612" },
+    { media: "(prefers-color-scheme: light)", color: "#F8FAFC" },
+    { media: "(prefers-color-scheme: dark)", color: "#0F172A" },
   ],
 };
 
@@ -74,12 +74,11 @@ export default function RootLayout({
                 const savedFont = localStorage.getItem('xc_custom_font');
                 if (savedFont) {
                   const fontMap = {
-                    'system': 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", Roboto, sans-serif',
-                    'kaiti': 'KaiTi, "楷体", "STKaiti", "BiauKai", cursive, serif',
-                    'serif': 'SimSun, "宋体", "STSong", "Songti SC", serif',
-                    'fangsong': 'FangSong, "仿宋", "STFangsong", serif',
-                    'heavy': 'SimHei, "黑体", "Arial Black", Impact, sans-serif',
-                    'mono': '"Cascadia Code", Consolas, "Courier New", monospace'
+                    'system': 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                    'inter': '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    'roboto': '"Roboto", "Segoe UI", Arial, sans-serif',
+                    'segoe': '"Segoe UI", -apple-system, Arial, sans-serif',
+                    'mono': '"Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace'
                   };
                   if (fontMap[savedFont]) {
                     document.documentElement.style.setProperty('--font-family', fontMap[savedFont]);

@@ -1,18 +1,19 @@
-# Active Architecture Context: AI Workshop Extensions
+# Active Architecture Context: UI & Settings Hardening
 
-## 1. Status: All 3 Extensions Implemented & Verified
-- Extension 1: AI Inpaint Brush (IOPaint C++ Telea/Navier-Stokes) + Interactive Canvas + Squoosh compare.
-- Extension 2: Dual-Layer Searchable PDF Maker (Umi-OCR / Tesseract PDF renderer) + Invisible Text Layer.
-- Extension 3: Audio/Video Subtitle Studio (Buzz Web Audio VAD) + Timestamp Alignment + SRT/VTT/TXT export.
+## 1. Status: Completed Settings & UI Simplification
+- Settings Modal: Draft state with live preview; commits only on "保存设置"; prompt on uncommitted exit.
+- Theme System: Strictly White & Dark; independent `saveWhiteTheme` / `saveDarkTheme` to avoid resets.
+- Diff Tool: Renamed to "文章与文本对比"; English article diff presets (`ARTICLE_EN`) + Chinese article diff (`ARTICLE_ZH`).
+- Typography: 5 English-first standard UI fonts (System, Inter, Roboto, Segoe UI, Mono); standard sample string.
+- Slogan Cleanup: Removed all marketing/floral slogans across `layout.tsx`, `i18n.tsx`, `SettingsModal.tsx`.
 
 ## 2. Contracts & APIs
-- `POST /api/v1/image/inpaint`: Multipart `file` + `mask` + `radius` + `method` -> Inpainted image.
-- `generateSearchablePdf(file, lang, onProgress)`: Returns `{ blob, filename, text }`.
-- `analyzeMediaSpeechSegments(file, onProgress)`: Returns `{ duration, items: SubtitleItem[] }`.
-- `exportToSrt(items)` / `exportToVtt(items)`: Formatted subtitle files.
+- `previewTheme(theme)` / `previewFont(fontId)`: In-memory live preview without writing to `localStorage`.
+- `saveWhiteTheme(theme)` / `saveDarkTheme(theme)`: Separate custom palettes per mode.
+- `getSavedWhiteTheme()` / `getSavedDarkTheme()`: Preserves custom styling on mode toggles.
 
 ## 3. Verification & Compliance
-- 100% offline local processing (zero cloud API keys, zero external data leakage).
-- Strictly NO auto-download: Explicit user clicks on card download buttons.
-- Next.js build: Static export compilation verified (0 errors).
-- Pytest test suite: 23/23 tests passing.
+- `tsc --noEmit`: 0 errors.
+- `next build`: 4/4 static pages generated successfully.
+- `pytest backend/tests/`: 23/23 tests passed.
+- 100% offline local processing, zero privacy leak.

@@ -142,9 +142,9 @@ export const TOOL_TRANSLATIONS: Record<
     badge: "Logo",
   },
   "diff": {
-    name: "Dual-Pane Text Diff",
-    desc: "Real-time diff highlighting and character-level comparison",
-    badge: "Dual Pane",
+    name: "Article & Text Diff",
+    desc: "Real-time side-by-side article revisions and text diff comparison",
+    badge: "Article Diff",
   },
   "dev": {
     name: "Developer Toolkit",
@@ -196,10 +196,10 @@ export const CATEGORY_TRANSLATIONS: Record<string, string> = {
 // UI 通用完整字典
 export const UI_DICTIONARY = {
   zh: {
-    windowTitle: "XC_OmniBox (XC 万象箱) - 椰林质感全能在线工坊",
+    windowTitle: "XC_OmniBox (XC 万象箱) - 极速本地多功能工具箱",
     workspace: "工作台",
     appName: "XC 万象箱",
-    appSubname: "轻量多媒体工作台",
+    appSubname: "本地极速多功能工具箱",
     searchPlaceholder: "输入关键字搜索工具或功能...",
     noResults: "未找到相关工具",
 
@@ -212,11 +212,11 @@ export const UI_DICTIONARY = {
     },
 
     sidebar: {
-      subTitle: "轻量多媒体工作台",
+      subTitle: "本地极速多功能工具箱",
       preferences: "偏好与系统设置",
       preferencesSub: "托盘 / 自启 / 存储 / 引擎",
-      darkAppearance: "曜黑暗夜模式",
-      lightAppearance: "暖椰润肤模式",
+      darkAppearance: "深色模式 (Dark)",
+      lightAppearance: "浅色模式 (White)",
       updateCenter: "软件更新中心",
       checkUpdate: "检查软件版本与更新",
       totalTools: "共 {n} 项工具",
@@ -425,7 +425,7 @@ export const UI_DICTIONARY = {
       autoCheckUpdateTitle: "启动时自动检查更新",
       autoCheckUpdateDesc: "每次启动应用时在后台静默检查 GitHub 官方版本，有新版时只在侧边栏亮起小红点",
       appVersionTitle: "XC OmniBox 桌面旗舰版",
-      versionLabel: "当前版本: v1.0.0 · 椰林质感轻奢架构",
+      versionLabel: "当前版本: v1.0.0 · 本地极速多功能架构",
       checkUpdateBtn: "检查最新版本",
     },
 
@@ -488,10 +488,10 @@ export const UI_DICTIONARY = {
     },
   },
   en: {
-    windowTitle: "XC_OmniBox Studio - All-in-One Creative Workshop",
+    windowTitle: "XC_OmniBox - Fast Local Offline Toolbox",
     workspace: "Workspace",
     appName: "XC OmniBox",
-    appSubname: "Creative Multimedia Studio",
+    appSubname: "Fast Local Offline Toolbox",
     searchPlaceholder: "Type keywords to search tools...",
     noResults: "No tools found",
 
@@ -504,11 +504,11 @@ export const UI_DICTIONARY = {
     },
 
     sidebar: {
-      subTitle: "Creative Multimedia Studio",
+      subTitle: "Fast Local Offline Toolbox",
       preferences: "Preferences & Settings",
       preferencesSub: "Tray / Startup / Storage / Engines",
-      darkAppearance: "Dark Appearance Mode",
-      lightAppearance: "Warm Light Appearance",
+      darkAppearance: "Dark Mode (Dark)",
+      lightAppearance: "White Mode (White)",
       updateCenter: "Software Update Center",
       checkUpdate: "Check for Updates",
       totalTools: "{n} tools in total",

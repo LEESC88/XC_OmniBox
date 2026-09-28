@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   X,
   Sliders,
@@ -11,11 +11,8 @@ import {
   Sparkles,
   CheckCircle2,
   ExternalLink,
-  Laptop,
   Sun,
   Moon,
-  Monitor,
-  FolderCheck,
   RotateCcw,
   Check,
   AlertCircle,
@@ -23,23 +20,24 @@ import {
 } from "lucide-react";
 
 import {
-  THEME_PRESETS,
+  DEFAULT_WHITE_THEME,
+  DEFAULT_DARK_THEME,
   CustomThemeConfig,
   applyCustomTheme,
-  getSavedTheme,
+  previewTheme,
+  previewFont,
+  applyCustomFont,
+  getSavedFont,
+  getSavedWhiteTheme,
+  getSavedDarkTheme,
+  saveWhiteTheme,
+  saveDarkTheme,
   adjustHex,
   hexToRgba,
   FONT_PRESETS,
-  FontOption,
-  applyCustomFont,
-  getSavedFont,
   CAT_PAW_PRESETS,
-  CatPawOption,
   getSavedCatPaw,
   saveCatPaw,
-  getUserSavedCustomTheme,
-  saveUserCustomTheme,
-  deleteUserCustomTheme,
 } from "@/lib/themeManager";
 import CatPawLogo from "@/components/CatPawLogo";
 import { useI18n, Language } from "@/lib/i18n";
@@ -75,7 +73,9 @@ export default function SettingsModal({
 }: SettingsModalProps) {
   const { lang, setLang, t } = useI18n();
   const [activeTab, setActiveTab] = useState<"general" | "files" | "appearance" | "engine" | "about">("general");
-  const [config, setConfig] = useState<DesktopConfig>({
+
+  // 草稿状态：在未点击“保存设置”前，仅作本地预览，不持久化
+  const [draftConfig, setDraftConfig] = useState<DesktopConfig>({
     minimizeToTray: true,
     closeToTray: false,
     openFolderAfterExport: false,
@@ -84,31 +84,106 @@ export default function SettingsModal({
     preferredEngine: "auto",
   });
 
+  const [draftThemeMode, setDraftThemeMode] = useState<"white" | "dark">("white");
+  const [draftWhiteTheme, setDraftWhiteTheme] = useState<CustomThemeConfig>(DEFAULT_WHITE_THEME);
+  const [draftDarkTheme, setDraftDarkTheme] = useState<CustomThemeConfig>(DEFAULT_DARK_THEME);
+  const [draftFont, setDraftFont] = useState<string>("system");
+  const [draftPaw, setDraftPaw] = useState<string>("3_calico_pink");
+  const [draftLang, setDraftLang] = useState<Language>(lang);
+  const [draftAutoStart, setDraftAutoStart] = useState<boolean>(false);
+
+  const [isDirty, setIsDirty] = useState<boolean>(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState<boolean>(false);
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+
   const [cacheSize, setCacheSize] = useState<string>(lang === "en" ? "Calculating..." : "计算中...");
   const [clearingCache, setClearingCache] = useState(false);
-  const [autoStart, setAutoStart] = useState(false);
   const [isElectron, setIsElectron] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
   const [defaultDownloadsPath, setDefaultDownloadsPath] = useState<string>("");
-  const [curTheme, setCurTheme] = useState<CustomThemeConfig>(THEME_PRESETS[0]);
-  const [curFont, setCurFont] = useState<string>("system");
-  const [curPaw, setCurPaw] = useState<string>("3_calico_pink");
-  const [userSavedTheme, setUserSavedTheme] = useState<CustomThemeConfig | null>(null);
-  const [savedThemeFeedback, setSavedThemeFeedback] = useState(false);
 
-  // 初始化加载配置与主题
+  // 快照：记录打开弹窗时的已持久化状态，用于判断 isDirty 以及取消时还原
+  const snapshotRef = useRef<{
+    config: DesktopConfig;
+    whiteTheme: CustomThemeConfig;
+    darkTheme: CustomThemeConfig;
+    themeMode: "white" | "dark";
+    font: string;
+    paw: string;
+    lang: Language;
+    autoStart: boolean;
+  }>({
+    config: {
+      minimizeToTray: true,
+      closeToTray: false,
+      openFolderAfterExport: false,
+      customExportPath: "",
+      autoCheckUpdate: true,
+      preferredEngine: "auto",
+    },
+    whiteTheme: DEFAULT_WHITE_THEME,
+    darkTheme: DEFAULT_DARK_THEME,
+    themeMode: "white",
+    font: "system",
+    paw: "3_calico_pink",
+    lang: "zh",
+    autoStart: false,
+  });
+
+  // 打开弹窗时初始化草稿与快照
   useEffect(() => {
-    const saved = getSavedTheme();
-    if (saved) setCurTheme(saved);
+    if (!isOpen) {
+      setIsDirty(false);
+      setShowDiscardConfirm(false);
+      return;
+    }
 
-    const savedFont = getSavedFont();
-    if (savedFont) setCurFont(savedFont);
+    const currentMode: "white" | "dark" = (
+      document.documentElement.classList.contains("dark") ||
+      (typeof localStorage !== "undefined" && localStorage.getItem("xc_theme") === "dark") ||
+      isDark
+    ) ? "dark" : "white";
 
-    const savedPaw = getSavedCatPaw();
-    if (savedPaw) setCurPaw(savedPaw);
+    const savedWhite = getSavedWhiteTheme();
+    const savedDark = getSavedDarkTheme();
+    const savedFont = getSavedFont() || "system";
+    const savedPaw = getSavedCatPaw() || "3_calico_pink";
+    const currentLang: Language = lang;
 
-    const mySaved = getUserSavedCustomTheme();
-    if (mySaved) setUserSavedTheme(mySaved);
+    let baseConfig: DesktopConfig = {
+      minimizeToTray: true,
+      closeToTray: false,
+      openFolderAfterExport: false,
+      customExportPath: "",
+      autoCheckUpdate: true,
+      preferredEngine: "auto",
+    };
+
+    try {
+      const localCfg = localStorage.getItem("xc_desktop_config");
+      if (localCfg) {
+        baseConfig = { ...baseConfig, ...JSON.parse(localCfg) };
+      }
+    } catch (_) {}
+
+    setDraftConfig(baseConfig);
+    setDraftThemeMode(currentMode);
+    setDraftWhiteTheme(savedWhite);
+    setDraftDarkTheme(savedDark);
+    setDraftFont(savedFont);
+    setDraftPaw(savedPaw);
+    setDraftLang(currentLang);
+    setIsDirty(false);
+
+    snapshotRef.current = {
+      config: baseConfig,
+      whiteTheme: savedWhite,
+      darkTheme: savedDark,
+      themeMode: currentMode,
+      font: savedFont,
+      paw: savedPaw,
+      lang: currentLang,
+      autoStart: false,
+    };
 
     if (typeof window !== "undefined" && (window as any).electronAPI) {
       setIsElectron(true);
@@ -117,24 +192,13 @@ export default function SettingsModal({
       if (api.getDesktopConfig) {
         api.getDesktopConfig().then((c: DesktopConfig) => {
           if (c) {
-            setConfig(c);
-            if (c.language) {
-              setLang(c.language);
-            }
+            setDraftConfig((prev) => {
+              const merged = { ...prev, ...c };
+              if (snapshotRef.current) snapshotRef.current.config = merged;
+              return merged;
+            });
             if (c.defaultDownloadsPath) {
               setDefaultDownloadsPath(c.defaultDownloadsPath);
-            }
-            if (c.customTheme) {
-              setCurTheme(c.customTheme);
-              applyCustomTheme(c.customTheme);
-            }
-            if (c.customFont) {
-              setCurFont(c.customFont);
-              applyCustomFont(c.customFont);
-            }
-            if (c.customPaw) {
-              setCurPaw(c.customPaw);
-              saveCatPaw(c.customPaw);
             }
           }
         });
@@ -142,9 +206,7 @@ export default function SettingsModal({
 
       if (api.getDefaultPath) {
         api.getDefaultPath().then((defPath: string) => {
-          if (defPath) {
-            setDefaultDownloadsPath(defPath);
-          }
+          if (defPath) setDefaultDownloadsPath(defPath);
         });
       }
 
@@ -156,121 +218,89 @@ export default function SettingsModal({
 
       if (api.getAutoStart) {
         api.getAutoStart().then((enabled: boolean) => {
-          setAutoStart(Boolean(enabled));
+          const val = Boolean(enabled);
+          setDraftAutoStart(val);
+          if (snapshotRef.current) snapshotRef.current.autoStart = val;
         });
       }
     } else {
-      // 网页端从 localStorage 加载
-      try {
-        const localCfg = localStorage.getItem("xc_desktop_config");
-        if (localCfg) {
-          const parsed = JSON.parse(localCfg);
-          setConfig(parsed);
-          if (parsed.language) {
-            setLang(parsed.language);
-          }
-          if (parsed.customTheme) {
-            setCurTheme(parsed.customTheme);
-            applyCustomTheme(parsed.customTheme);
-          }
-          if (parsed.customFont) {
-            setCurFont(parsed.customFont);
-            applyCustomFont(parsed.customFont);
-          }
-          if (parsed.customPaw) {
-            setCurPaw(parsed.customPaw);
-            saveCatPaw(parsed.customPaw);
-          }
-        }
-      } catch (_) {}
       setCacheSize(lang === "en" ? "0.00 MB (Local Browser)" : "0.00 MB (纯本地浏览器运算)");
     }
-  }, [isOpen, lang]);
+  }, [isOpen]);
 
-  // 保存用户专属自定义主题 (避免误触重置丢失)
-  const handleSaveCurrentAsCustomTheme = () => {
-    const themeToSave: CustomThemeConfig = {
-      ...curTheme,
-      id: "user_custom",
-      name: lang === "en" ? "★ My Custom Theme" : "★ 我的专属配色",
-    };
-    saveUserCustomTheme(themeToSave);
-    setUserSavedTheme(themeToSave);
-    setCurTheme(themeToSave);
-    applyCustomTheme(themeToSave);
-    updateConfig("customTheme", themeToSave);
-    setSavedThemeFeedback(true);
-    setTimeout(() => setSavedThemeFeedback(false), 2000);
+  const activeDraftTheme = draftThemeMode === "dark" ? draftDarkTheme : draftWhiteTheme;
+
+  // 模式切换 (White vs Dark)
+  const handleSelectMode = (mode: "white" | "dark") => {
+    setDraftThemeMode(mode);
+    const targetTheme = mode === "dark" ? draftDarkTheme : draftWhiteTheme;
+    previewTheme(targetTheme);
+    setIsDirty(true);
   };
 
-  // 删除用户专属自定义主题
-  const handleDeleteCustomTheme = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    deleteUserCustomTheme();
-    setUserSavedTheme(null);
-    if (curTheme.id === "user_custom") {
-      handleSelectPreset(THEME_PRESETS[0]);
-    }
-  };
-
-  // 猫肉球切换处理器
-  const handleSelectPaw = (pawId: string) => {
-    setCurPaw(pawId);
-    saveCatPaw(pawId);
-    updateConfig("customPaw", pawId);
-  };
-
-  // 字体切换处理器
-  const handleSelectFont = (fontId: string) => {
-    setCurFont(fontId);
-    applyCustomFont(fontId);
-    updateConfig("customFont", fontId);
-  };
-
-  // 调色系统与预设切换处理器
-  const handleSelectPreset = (preset: CustomThemeConfig) => {
-    setCurTheme(preset);
-    applyCustomTheme(preset);
-    updateConfig("customTheme", preset);
-  };
-
+  // 当前模式调色
   const handleUpdateColor = (key: keyof CustomThemeConfig, value: string) => {
-    const updated: CustomThemeConfig = {
-      ...curTheme,
-      id: "custom",
-      name: lang === "en" ? "Custom Color Recipe" : "自定义调色配方",
-      [key]: value,
-    };
-    setCurTheme(updated);
-    applyCustomTheme(updated);
-    updateConfig("customTheme", updated);
-  };
-
-  const handleResetTheme = () => {
-    handleSelectPreset(THEME_PRESETS[0]);
-  };
-
-  // 更新配置并持久化
-  const updateConfig = (key: keyof DesktopConfig, value: any) => {
-    const updated = { ...config, [key]: value };
-    setConfig(updated);
-
-    if (typeof window !== "undefined" && (window as any).electronAPI?.setDesktopConfig) {
-      (window as any).electronAPI.setDesktopConfig(updated);
+    if (draftThemeMode === "dark") {
+      const updated: CustomThemeConfig = { ...draftDarkTheme, isDark: true, [key]: value };
+      setDraftDarkTheme(updated);
+      previewTheme(updated);
     } else {
-      localStorage.setItem("xc_desktop_config", JSON.stringify(updated));
+      const updated: CustomThemeConfig = { ...draftWhiteTheme, isDark: false, [key]: value };
+      setDraftWhiteTheme(updated);
+      previewTheme(updated);
     }
-
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 1500);
+    setIsDirty(true);
   };
 
-  // 选择文件夹
+  // 恢复当前模式默认配色
+  const handleResetCurrentModeTheme = () => {
+    if (draftThemeMode === "dark") {
+      setDraftDarkTheme(DEFAULT_DARK_THEME);
+      previewTheme(DEFAULT_DARK_THEME);
+    } else {
+      setDraftWhiteTheme(DEFAULT_WHITE_THEME);
+      previewTheme(DEFAULT_WHITE_THEME);
+    }
+    setIsDirty(true);
+  };
+
+  // 字体切换 (实时预览，不持久化)
+  const handleSelectFont = (fontId: string) => {
+    setDraftFont(fontId);
+    previewFont(fontId);
+    setIsDirty(true);
+  };
+
+  // 猫肉球切换
+  const handleSelectPaw = (pawId: string) => {
+    setDraftPaw(pawId);
+    setIsDirty(true);
+  };
+
+  // 语言切换
+  const handleSelectLang = (newLang: Language) => {
+    setDraftLang(newLang);
+    setIsDirty(true);
+  };
+
+  // 桌面配置变更
+  const updateDraftConfig = (key: keyof DesktopConfig, value: any) => {
+    setDraftConfig((prev) => ({ ...prev, [key]: value }));
+    setIsDirty(true);
+  };
+
+  // 开机自启草稿切换
+  const handleToggleAutoStart = () => {
+    setDraftAutoStart((prev) => !prev);
+    setIsDirty(true);
+  };
+
+  // 文件夹选择 (Electron)
   const handleSelectFolder = async () => {
     if (typeof window !== "undefined" && (window as any).electronAPI?.selectFolder) {
       const folder = await (window as any).electronAPI.selectFolder();
       if (folder) {
-        updateConfig("customExportPath", folder);
+        updateDraftConfig("customExportPath", folder);
       }
     }
   };
@@ -278,7 +308,7 @@ export default function SettingsModal({
   // 在系统资源管理器中打开当前保存目录
   const handleOpenFolder = async (folderPath?: string) => {
     if (typeof window !== "undefined" && (window as any).electronAPI?.openPath) {
-      await (window as any).electronAPI.openPath(folderPath || config.customExportPath || defaultDownloadsPath);
+      await (window as any).electronAPI.openPath(folderPath || draftConfig.customExportPath || defaultDownloadsPath);
     }
   };
 
@@ -290,25 +320,119 @@ export default function SettingsModal({
       const res = await (window as any).electronAPI.getCacheSize();
       setCacheSize(res?.formatted || "0.00 MB");
     } else {
+      try {
+        const keys = ["xc_canvas_cache", "xc_temp_previews"];
+        keys.forEach((k) => localStorage.removeItem(k));
+      } catch (_) {}
       setCacheSize("0.00 MB");
     }
     setTimeout(() => setClearingCache(false), 500);
   };
 
-  // 切换开机自启
-  const handleToggleAutoStart = async () => {
-    const nextVal = !autoStart;
-    setAutoStart(nextVal);
-    if (typeof window !== "undefined" && (window as any).electronAPI?.setAutoStart) {
-      await (window as any).electronAPI.setAutoStart(nextVal);
+  // 保存设置 (显式提交保存)
+  const handleCommitSave = async () => {
+    // 1. 保存深色与浅色专属自定义配置
+    saveWhiteTheme(draftWhiteTheme);
+    saveDarkTheme(draftDarkTheme);
+
+    // 2. 根据选定的模式持久化并生效主题
+    const activeTheme = draftThemeMode === "dark" ? draftDarkTheme : draftWhiteTheme;
+    applyCustomTheme(activeTheme);
+
+    // 3. 应用并持久化字体与肉球
+    applyCustomFont(draftFont);
+    saveCatPaw(draftPaw);
+
+    // 4. 应用语言
+    if (draftLang !== lang) {
+      setLang(draftLang);
     }
+
+    // 5. 组合并持久化 DesktopConfig
+    const finalConfig: DesktopConfig = {
+      ...draftConfig,
+      language: draftLang,
+      customFont: draftFont,
+      customPaw: draftPaw,
+      customTheme: activeTheme,
+    };
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("xc_desktop_config", JSON.stringify(finalConfig));
+      } catch (_) {}
+
+      if ((window as any).electronAPI) {
+        const api = (window as any).electronAPI;
+        if (api.setDesktopConfig) {
+          await api.setDesktopConfig(finalConfig);
+        }
+        if (api.setAutoStart) {
+          await api.setAutoStart(draftAutoStart);
+        }
+      }
+    }
+
+    // 更新快照
+    snapshotRef.current = {
+      config: finalConfig,
+      whiteTheme: draftWhiteTheme,
+      darkTheme: draftDarkTheme,
+      themeMode: draftThemeMode,
+      font: draftFont,
+      paw: draftPaw,
+      lang: draftLang,
+      autoStart: draftAutoStart,
+    };
+
+    setIsDirty(false);
+    setSaveSuccess(true);
+    setTimeout(() => {
+      setSaveSuccess(false);
+      onClose();
+    }, 350);
+  };
+
+  // 请求关闭弹窗 (若有未保存改动则拦截并弹出提示)
+  const handleRequestClose = () => {
+    if (isDirty) {
+      setShowDiscardConfirm(true);
+    } else {
+      onClose();
+    }
+  };
+
+  // 确认放弃修改并退出 (回滚样式至快照)
+  const handleConfirmDiscard = () => {
+    if (snapshotRef.current) {
+      const snap = snapshotRef.current;
+      const initialTheme = snap.themeMode === "dark" ? snap.darkTheme : snap.whiteTheme;
+      previewTheme(initialTheme);
+      previewFont(snap.font);
+      if (snap.lang !== lang) {
+        setLang(snap.lang);
+      }
+    }
+    setShowDiscardConfirm(false);
+    setIsDirty(false);
+    onClose();
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in">
-      <div className="relative w-full max-w-4xl w-[94vw] md:w-[920px] bg-[#FDFBF7] dark:bg-[#1E1713] border border-[#CBB09C] dark:border-[#4D392E] rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[88vh] animate-scale-up text-coconut-950 dark:text-white">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          handleRequestClose();
+        }
+      }}
+    >
+      <div
+        className="relative w-full max-w-4xl w-[94vw] md:w-[920px] bg-[#FDFBF7] dark:bg-[#1E1713] border border-[#CBB09C] dark:border-[#4D392E] rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[88vh] animate-scale-up text-coconut-950 dark:text-white"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* 左侧导航栏 */}
         <div className="w-full md:w-60 bg-[#F5ECE2] dark:bg-[#18120F] border-b md:border-b-0 md:border-r border-[#D2BCAB] dark:border-[#3D2E26] p-4 sm:p-5 flex flex-col justify-between flex-shrink-0">
           <div>
@@ -320,13 +444,16 @@ export default function SettingsModal({
                 <h3 className="text-sm font-extrabold text-coconut-950 dark:text-white leading-tight truncate">
                   {t.settings.title}
                 </h3>
-                <span className="text-xs text-coconut-700 dark:text-neutral-300 font-mono font-medium">Settings</span>
+                <p className="text-[11px] text-coconut-700 dark:text-neutral-200 truncate mt-0.5 font-medium">
+                  {t.settings.subtitle}
+                </p>
               </div>
             </div>
 
-            <nav className="space-y-1.5">
+            {/* 标签列表 */}
+            <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
               {[
-                { id: "general", label: t.settings.generalTab, icon: Laptop },
+                { id: "general", label: t.settings.generalTab, icon: Sliders },
                 { id: "files", label: t.settings.filesTab, icon: FolderOpen },
                 { id: "appearance", label: t.settings.appearanceTab, icon: Palette },
                 { id: "engine", label: t.settings.engineTab, icon: Cpu },
@@ -338,7 +465,7 @@ export default function SettingsModal({
                   <button
                     key={item.id}
                     onClick={() => setActiveTab(item.id as any)}
-                    className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all text-left active:scale-95 ${
+                    className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all text-left active:scale-95 cursor-pointer ${
                       isCur
                         ? "bg-accent-gradient text-white shadow-xs"
                         : "text-coconut-900 dark:text-neutral-200 hover:bg-coconut-200/70 dark:hover:bg-[#2A201A] hover:text-coconut-950 dark:hover:text-white"
@@ -378,8 +505,8 @@ export default function SettingsModal({
               )}
             </div>
             <button
-              onClick={onClose}
-              className="p-1.5 rounded-full text-coconut-700 hover:text-coconut-950 dark:text-neutral-200 dark:hover:text-white hover:bg-coconut-200/60 dark:hover:bg-neutral-800 transition-colors flex-shrink-0"
+              onClick={handleRequestClose}
+              className="p-1.5 rounded-full text-coconut-700 hover:text-coconut-950 dark:text-neutral-200 dark:hover:text-white hover:bg-coconut-200/60 dark:hover:bg-neutral-800 transition-colors flex-shrink-0 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -403,12 +530,9 @@ export default function SettingsModal({
                     </div>
                     <div className="flex bg-coconut-200/90 dark:bg-[#18120F] border border-coconut-300/80 dark:border-neutral-700 p-1 rounded-xl text-xs font-bold flex-shrink-0">
                       <button
-                        onClick={() => {
-                          setLang("zh");
-                          updateConfig("language", "zh");
-                        }}
-                        className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
-                          lang === "zh"
+                        onClick={() => handleSelectLang("zh")}
+                        className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                          draftLang === "zh"
                             ? "bg-white dark:bg-[#2E241E] text-orange-600 dark:text-orange-400 shadow-xs font-bold"
                             : "text-coconut-800 dark:text-neutral-300 font-semibold hover:text-coconut-950 dark:hover:text-white"
                         }`}
@@ -417,57 +541,42 @@ export default function SettingsModal({
                         <span>{lang === "en" ? "Simplified Chinese" : "简体中文"}</span>
                       </button>
                       <button
-                        onClick={() => {
-                          setLang("en");
-                          updateConfig("language", "en");
-                        }}
-                        className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
-                          lang === "en"
+                        onClick={() => handleSelectLang("en")}
+                        className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                          draftLang === "en"
                             ? "bg-white dark:bg-[#2E241E] text-orange-600 dark:text-orange-400 shadow-xs font-bold"
                             : "text-coconut-800 dark:text-neutral-300 font-semibold hover:text-coconut-950 dark:hover:text-white"
                         }`}
                       >
                         <span>🇺🇸</span>
-                        <span>English</span>
+                        <span>{lang === "en" ? "English" : "English"}</span>
                       </button>
                     </div>
                   </div>
                 </div>
-                <div className="p-4 sm:p-5 rounded-2xl bg-coconut-100/70 dark:bg-[#251D18] border border-coconut-300/80 dark:border-[#4D392E] space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1 pr-2">
-                      <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white">
-                        {t.settings.minimizeTitle}
-                      </div>
-                      <div className="text-xs text-coconut-700 dark:text-neutral-200 mt-1">
-                        {config.minimizeToTray
-                          ? t.settings.minimizeDescTray
-                          : t.settings.minimizeDescTaskbar}
-                      </div>
+
+                <div className="p-4 sm:p-5 rounded-2xl bg-coconut-100/70 dark:bg-[#251D18] border border-coconut-300/80 dark:border-[#4D392E] flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1 pr-2">
+                    <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white">
+                      {t.settings.minimizeTitle}
                     </div>
-                    <div className="flex bg-coconut-200/90 dark:bg-[#18120F] border border-coconut-300/80 dark:border-neutral-700 p-1 rounded-xl text-xs font-bold flex-shrink-0">
-                      <button
-                        onClick={() => updateConfig("minimizeToTray", true)}
-                        className={`px-3 py-1 rounded-lg transition-all ${
-                          config.minimizeToTray
-                            ? "bg-white dark:bg-[#2E241E] text-orange-600 dark:text-orange-400 shadow-xs font-bold"
-                            : "text-coconut-800 dark:text-neutral-300 font-semibold"
-                        }`}
-                      >
-                        {t.settings.minimizeTray}
-                      </button>
-                      <button
-                        onClick={() => updateConfig("minimizeToTray", false)}
-                        className={`px-3 py-1 rounded-lg transition-all ${
-                          !config.minimizeToTray
-                            ? "bg-white dark:bg-[#2E241E] text-orange-600 dark:text-orange-400 shadow-xs font-bold"
-                            : "text-coconut-800 dark:text-neutral-300 font-semibold"
-                        }`}
-                      >
-                        {t.settings.minimizeTaskbar}
-                      </button>
+                    <div className="text-xs text-coconut-700 dark:text-neutral-200 mt-1">
+                      {draftConfig.minimizeToTray ? t.settings.minimizeDescTray : t.settings.minimizeDescTaskbar}
                     </div>
                   </div>
+                  <button
+                    disabled={!isElectron}
+                    onClick={() => updateDraftConfig("minimizeToTray", !draftConfig.minimizeToTray)}
+                    className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-300 flex items-center flex-shrink-0 cursor-pointer ${
+                      draftConfig.minimizeToTray ? "bg-accent-solid" : "bg-coconut-300 dark:bg-neutral-600"
+                    } ${!isElectron ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ${
+                        draftConfig.minimizeToTray ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
                 </div>
 
                 <div className="p-4 sm:p-5 rounded-2xl bg-coconut-100/70 dark:bg-[#251D18] border border-coconut-300/80 dark:border-[#4D392E] flex items-center justify-between gap-3">
@@ -480,14 +589,15 @@ export default function SettingsModal({
                     </div>
                   </div>
                   <button
-                    onClick={() => updateConfig("closeToTray", !config.closeToTray)}
-                    className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-300 flex items-center flex-shrink-0 ${
-                      config.closeToTray ? "bg-accent-solid" : "bg-coconut-300 dark:bg-neutral-600"
-                    }`}
+                    disabled={!isElectron}
+                    onClick={() => updateDraftConfig("closeToTray", !draftConfig.closeToTray)}
+                    className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-300 flex items-center flex-shrink-0 cursor-pointer ${
+                      draftConfig.closeToTray ? "bg-accent-solid" : "bg-coconut-300 dark:bg-neutral-600"
+                    } ${!isElectron ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <div
                       className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ${
-                        config.closeToTray ? "translate-x-5" : "translate-x-0"
+                        draftConfig.closeToTray ? "translate-x-5" : "translate-x-0"
                       }`}
                     />
                   </button>
@@ -503,14 +613,15 @@ export default function SettingsModal({
                     </div>
                   </div>
                   <button
+                    disabled={!isElectron}
                     onClick={handleToggleAutoStart}
-                    className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-300 flex items-center flex-shrink-0 ${
-                      autoStart ? "bg-accent-solid" : "bg-coconut-300 dark:bg-neutral-600"
-                    }`}
+                    className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-300 flex items-center flex-shrink-0 cursor-pointer ${
+                      draftAutoStart ? "bg-accent-solid" : "bg-coconut-300 dark:bg-neutral-600"
+                    } ${!isElectron ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <div
                       className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ${
-                        autoStart ? "translate-x-5" : "translate-x-0"
+                        draftAutoStart ? "translate-x-5" : "translate-x-0"
                       }`}
                     />
                   </button>
@@ -518,42 +629,30 @@ export default function SettingsModal({
               </div>
             )}
 
-            {/* 2. 文件与保存 */}
+            {/* 2. 文件与存储 */}
             {activeTab === "files" && (
               <div className="space-y-4">
                 <div className="p-4 sm:p-5 rounded-2xl bg-coconut-100/70 dark:bg-[#251D18] border border-coconut-300/80 dark:border-[#4D392E] space-y-3.5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white flex items-center gap-2">
-                        <span>{t.settings.savePathTitle}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                          config.customExportPath 
-                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                            : "bg-orange-500/15 text-orange-700 dark:text-orange-300"
-                        }`}>
-                          {config.customExportPath ? t.settings.savePathCustomBadge : t.settings.savePathSystemBadge}
-                        </span>
-                      </div>
-                      <div className="text-xs text-coconut-700 dark:text-neutral-200 mt-0.5">
-                        {config.customExportPath 
-                          ? t.settings.savePathCustomDesc 
-                          : t.settings.savePathSystemDesc}
-                      </div>
+                  <div>
+                    <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white">
+                      {t.settings.savePathTitle}
+                    </div>
+                    <div className="text-xs text-coconut-700 dark:text-neutral-200 mt-1">
+                      {draftConfig.customExportPath ? t.settings.savePathCustomDesc : t.settings.savePathSystemDesc}
                     </div>
                   </div>
 
-                  {/* 路径输入框与操作按钮组 */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <div className="relative flex-1 min-w-0">
                       <input
                         type="text"
                         readOnly
-                        value={config.customExportPath || defaultDownloadsPath || "C:\\Users\\...\\Downloads"}
-                        title={config.customExportPath || defaultDownloadsPath}
+                        value={draftConfig.customExportPath || defaultDownloadsPath || "C:\\Users\\...\\Downloads"}
+                        title={draftConfig.customExportPath || defaultDownloadsPath}
                         className="w-full pl-3 pr-20 py-2.5 text-xs bg-white dark:bg-[#1A1411] border border-coconut-300 dark:border-neutral-600 rounded-xl text-coconut-950 dark:text-white font-mono truncate shadow-inner focus:outline-none"
                       />
                       <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-coconut-100 dark:bg-neutral-800 text-coconut-700 dark:text-neutral-300">
-                        {config.customExportPath ? t.settings.badgeCustom : t.settings.badgeSystem}
+                        {draftConfig.customExportPath ? t.settings.badgeCustom : t.settings.badgeSystem}
                       </span>
                     </div>
 
@@ -570,16 +669,16 @@ export default function SettingsModal({
                       {isElectron && (
                         <button
                           onClick={() => handleOpenFolder()}
-                          className="px-3 py-2.5 rounded-xl border border-coconut-300 dark:border-neutral-600 bg-white dark:bg-[#2E241E] hover:border-orange-500 text-coconut-900 dark:text-neutral-100 text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all active:scale-95 flex-shrink-0 cursor-pointer"
+                          className="px-3 py-2.5 rounded-xl border border-coconut-300 dark:border-neutral-600 bg-white dark:bg-[#2E241E] hover:border-accent text-coconut-900 dark:text-neutral-100 text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all active:scale-95 flex-shrink-0 cursor-pointer"
                           title={t.settings.openFolder}
                         >
-                          <ExternalLink className="w-3.5 h-3.5 text-orange-500" /> {t.settings.openFolder}
+                          <ExternalLink className="w-3.5 h-3.5 text-accent" /> {t.settings.openFolder}
                         </button>
                       )}
 
-                      {config.customExportPath && (
+                      {draftConfig.customExportPath && (
                         <button
-                          onClick={() => updateConfig("customExportPath", "")}
+                          onClick={() => updateDraftConfig("customExportPath", "")}
                           className="px-2 py-2 text-xs text-rose-500 hover:text-rose-600 hover:underline flex-shrink-0 font-bold cursor-pointer"
                         >
                           {t.settings.restoreDefault}
@@ -588,11 +687,10 @@ export default function SettingsModal({
                     </div>
                   </div>
 
-                  {/* 详细模式说明提示条 */}
                   <div className="text-[11px] p-2.5 rounded-xl bg-coconut-50/90 dark:bg-[#140E0C] border border-coconut-200/90 dark:border-[#3D2E26] text-coconut-700 dark:text-neutral-300 flex items-start gap-2">
                     <AlertCircle className="w-3.5 h-3.5 text-orange-500 flex-shrink-0 mt-0.5" />
                     <span className="leading-relaxed">
-                      {config.customExportPath ? t.settings.alertCustom : t.settings.alertSystem}
+                      {draftConfig.customExportPath ? t.settings.alertCustom : t.settings.alertSystem}
                     </span>
                   </div>
                 </div>
@@ -607,14 +705,14 @@ export default function SettingsModal({
                     </div>
                   </div>
                   <button
-                    onClick={() => updateConfig("openFolderAfterExport", !config.openFolderAfterExport)}
-                    className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-300 flex items-center flex-shrink-0 ${
-                      config.openFolderAfterExport ? "bg-accent-solid" : "bg-coconut-300 dark:bg-neutral-600"
+                    onClick={() => updateDraftConfig("openFolderAfterExport", !draftConfig.openFolderAfterExport)}
+                    className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-300 flex items-center flex-shrink-0 cursor-pointer ${
+                      draftConfig.openFolderAfterExport ? "bg-accent-solid" : "bg-coconut-300 dark:bg-neutral-600"
                     }`}
                   >
                     <div
                       className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ${
-                        config.openFolderAfterExport ? "translate-x-5" : "translate-x-0"
+                        draftConfig.openFolderAfterExport ? "translate-x-5" : "translate-x-0"
                       }`}
                     />
                   </button>
@@ -626,13 +724,13 @@ export default function SettingsModal({
                       {t.settings.cacheTitle}
                     </div>
                     <div className="text-xs text-coconut-700 dark:text-neutral-200 mt-1">
-                      {t.settings.cacheDescPrefix}<span className="font-mono font-bold text-orange-600 dark:text-orange-400">{cacheSize}</span>
+                      {t.settings.cacheDescPrefix}<span className="font-mono font-bold text-accent">{cacheSize}</span>
                     </div>
                   </div>
                   <button
                     onClick={handleClearCache}
                     disabled={clearingCache}
-                    className="px-3.5 py-2 rounded-xl border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 flex-shrink-0"
+                    className="px-3.5 py-2 rounded-xl border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 flex-shrink-0 cursor-pointer"
                   >
                     {clearingCache ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                     {clearingCache ? t.settings.clearingCache : t.settings.clearCacheBtn}
@@ -641,20 +739,20 @@ export default function SettingsModal({
               </div>
             )}
 
-            {/* 3. 外观与个性化调色工坊 (Color Studio & Presets) */}
+            {/* 3. 外观与个性化 (White vs Dark & English Fonts) */}
             {activeTab === "appearance" && (
               <div className="space-y-5">
-                {/* A. 萌宠肉球形象切换 (Cat Paw Avatar - 4 种真实形象) */}
+                {/* A. 萌宠肉球形象切换 */}
                 <div className="p-4 sm:p-5 rounded-2xl bg-coconut-100/70 dark:bg-[#251D18] border border-coconut-300/80 dark:border-[#4D392E] space-y-3.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-darkbg-card flex items-center justify-center p-1 border border-orange-200/80 dark:border-darkbg-border flex-shrink-0">
-                        <CatPawLogo size={24} pawId={curPaw} className="pointer-events-none" />
+                        <CatPawLogo size={24} pawId={draftPaw} className="pointer-events-none" />
                       </div>
                       <div>
                         <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white flex items-center gap-2">
                           <span>{t.settings.pawSectionTitle}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-500/15 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 font-mono font-bold">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-subtle text-accent font-mono font-bold">
                             {t.settings.pawBadge}
                           </span>
                         </div>
@@ -663,14 +761,11 @@ export default function SettingsModal({
                         </div>
                       </div>
                     </div>
-                    <span className="text-xs font-semibold text-coconut-700 dark:text-neutral-200">
-                      {t.settings.instantNotice}
-                    </span>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {CAT_PAW_PRESETS.map((paw) => {
-                      const isSelected = curPaw === paw.id;
+                      const isSelected = draftPaw === paw.id;
                       const pawDisplayName = lang === "en"
                         ? (paw.id === "1_tabby_brown" ? "Brown Tabby" : paw.id === "2_ginger_orange" ? "Ginger Orange" : paw.id === "3_calico_pink" ? "Calico Pink" : "Tuxedo Black")
                         : paw.name;
@@ -683,8 +778,8 @@ export default function SettingsModal({
                           onClick={() => handleSelectPaw(paw.id)}
                           className={`p-3 rounded-2xl border text-center transition-all relative flex flex-col items-center group cursor-pointer ${
                             isSelected
-                              ? "border-orange-500 bg-white dark:bg-[#2E241E] ring-2 ring-orange-500/30 shadow-md scale-[1.02]"
-                              : "border-coconut-300/80 dark:border-[#4D392E] hover:border-orange-400 bg-white/80 dark:bg-[#1F1814] hover:dark:bg-[#261E19] hover:scale-[1.01]"
+                              ? "border-accent bg-white dark:bg-[#2E241E] ring-2 ring-accent/30 shadow-md scale-[1.02]"
+                              : "border-coconut-300/80 dark:border-[#4D392E] hover:border-accent bg-white/80 dark:bg-[#1F1814] hover:dark:bg-[#261E19] hover:scale-[1.01]"
                           }`}
                         >
                           {isSelected && (
@@ -693,7 +788,6 @@ export default function SettingsModal({
                             </span>
                           )}
 
-                          {/* 肉球透明大图展示 */}
                           <div className="w-16 h-16 rounded-2xl bg-coconut-100/60 dark:bg-[#150F0D] flex items-center justify-center mb-2 p-1.5 border border-coconut-200/80 dark:border-[#3D2E26] group-hover:scale-110 transition-transform duration-300 shadow-inner">
                             <img
                               src={paw.src}
@@ -714,192 +808,142 @@ export default function SettingsModal({
                   </div>
                 </div>
 
-                {/* B. 精选主题调色板预设 */}
+                {/* B. 主题模式切换 (纯白与深黑，各自独立保存自定义配色) */}
                 <div className="p-4 sm:p-5 rounded-2xl bg-coconut-100/70 dark:bg-[#251D18] border border-coconut-300/80 dark:border-[#4D392E] space-y-3.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Palette className="w-4 h-4 text-orange-500" />
+                      <Palette className="w-4 h-4 text-accent" />
                       <div>
                         <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white">
-                          {t.settings.themeSectionTitle}
+                          {lang === "en" ? "Theme Mode System" : "主题模式系统 (极简白与深黑)"}
                         </div>
                         <div className="text-xs text-coconut-700 dark:text-neutral-200 mt-0.5">
-                          {t.settings.themeSectionDesc}
+                          {lang === "en"
+                            ? "Independent custom color recipes for White and Dark modes"
+                            : "浅色与深色模式各自独立保存自定义配色，切换模式不丢失个性化设置"}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {/* 用户专属自定义主题预设插槽 */}
-                    {userSavedTheme && (
-                      <button
-                        onClick={() => handleSelectPreset(userSavedTheme)}
-                        className={`p-3 rounded-2xl border text-left transition-all relative group cursor-pointer ${
-                          curTheme.id === "user_custom"
-                            ? "border-orange-500 bg-white dark:bg-[#2E241E] ring-2 ring-orange-500/30 shadow-md scale-[1.02]"
-                            : "border-orange-300/80 dark:border-orange-500/40 hover:border-orange-400 bg-orange-50/40 dark:bg-[#261E19]"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs sm:text-sm font-extrabold text-orange-950 dark:text-orange-200 truncate flex items-center gap-1">
-                            <span>{t.settings.myCustomTheme}</span>
-                          </span>
-                          <div className="flex items-center gap-1">
-                            {curTheme.id === "user_custom" && (
-                              <span className="w-4 h-4 rounded-full bg-accent-solid text-white flex items-center justify-center shadow-xs">
-                                <Check className="w-2.5 h-2.5 stroke-[3]" />
-                              </span>
-                            )}
-                            <button
-                              onClick={handleDeleteCustomTheme}
-                              title={t.settings.deleteCustomThemeTip}
-                              className="w-4 h-4 rounded-full hover:bg-rose-100 dark:hover:bg-rose-950/80 text-neutral-400 hover:text-rose-500 flex items-center justify-center opacity-70 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X className="w-2.5 h-2.5" />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* 色彩预览 */}
-                        <div className="flex items-center gap-1.5 p-1.5 rounded-xl bg-coconut-100/80 dark:bg-[#140E0C] border border-orange-200/80 dark:border-orange-500/30">
-                          <span
-                            className="w-4 h-4 rounded-md shadow-xs flex-shrink-0 border border-black/15 dark:border-white/10"
-                            style={{ backgroundColor: userSavedTheme.background }}
-                          />
-                          <span
-                            className="w-4 h-4 rounded-md shadow-xs flex-shrink-0 border border-black/15 dark:border-white/10"
-                            style={{ backgroundColor: userSavedTheme.foreground }}
-                          />
-                          <span
-                            className="w-4 h-4 rounded-md shadow-xs flex-shrink-0 border border-black/15 dark:border-white/10"
-                            style={{ backgroundColor: userSavedTheme.accent }}
-                          />
-                          <span className="text-xs font-bold text-orange-900 dark:text-orange-300 ml-auto font-mono">
-                            {lang === "en" ? "Custom" : "专属"}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* 纯白/浅色模式 */}
+                    <button
+                      type="button"
+                      onClick={() => handleSelectMode("white")}
+                      className={`p-3.5 rounded-2xl border text-left transition-all relative cursor-pointer ${
+                        draftThemeMode === "white"
+                          ? "border-accent bg-white dark:bg-[#2E241E] ring-2 ring-accent/30 shadow-md scale-[1.01]"
+                          : "border-coconut-300/80 dark:border-[#4D392E] hover:border-accent/60 bg-white/80 dark:bg-[#1F1814]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Sun className="w-4 h-4 text-amber-500" />
+                          <span className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white">
+                            {lang === "en" ? "White / Light Mode" : "浅色模式 (White)"}
                           </span>
                         </div>
-                      </button>
-                    )}
+                        {draftThemeMode === "white" && (
+                          <span className="w-4 h-4 rounded-full bg-accent-solid text-white flex items-center justify-center shadow-xs">
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          </span>
+                        )}
+                      </div>
 
-                    {THEME_PRESETS.map((p) => {
-                      const isSelected = curTheme.id === p.id;
-                      const presetDisplayName = lang === "en"
-                        ? (p.nameEn || p.name)
-                        : p.name.split(" ")[0];
-                      return (
-                        <button
-                          key={p.id}
-                          onClick={() => handleSelectPreset(p)}
-                          className={`p-3 rounded-2xl border text-left transition-all relative cursor-pointer ${
-                            isSelected
-                              ? "border-orange-500 bg-white dark:bg-[#2E241E] ring-2 ring-orange-500/30 shadow-md scale-[1.02]"
-                              : "border-coconut-300/80 dark:border-[#4D392E] hover:border-orange-400 bg-white/80 dark:bg-[#1F1814] hover:dark:bg-[#261E19]"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white truncate">
-                              {presetDisplayName}
-                            </span>
-                            {isSelected && (
-                              <span className="w-4 h-4 rounded-full bg-accent-solid text-white flex items-center justify-center shadow-xs">
-                                <Check className="w-2.5 h-2.5 stroke-[3]" />
-                              </span>
-                            )}
-                          </div>
+                      <div className="flex items-center gap-1.5 p-1.5 rounded-xl bg-coconut-100/80 dark:bg-[#140E0C] border border-coconut-200 dark:border-[#382820]">
+                        <span className="w-4 h-4 rounded-md shadow-xs border border-black/15" style={{ backgroundColor: draftWhiteTheme.background }} />
+                        <span className="w-4 h-4 rounded-md shadow-xs border border-black/15" style={{ backgroundColor: draftWhiteTheme.foreground }} />
+                        <span className="w-4 h-4 rounded-md shadow-xs border border-black/15" style={{ backgroundColor: draftWhiteTheme.accent }} />
+                        <span className="text-xs font-bold text-coconut-800 dark:text-neutral-200 ml-auto font-mono">
+                          #F8FAFC
+                        </span>
+                      </div>
+                    </button>
 
-                          {/* 3色微缩色板预览条 */}
-                          <div className="flex items-center gap-1.5 p-1.5 rounded-xl bg-coconut-100/80 dark:bg-[#140E0C] border border-coconut-200 dark:border-[#382820]">
-                            <span
-                              className="w-4 h-4 rounded-md shadow-xs flex-shrink-0 border border-black/15 dark:border-white/10"
-                              style={{ backgroundColor: p.background }}
-                            />
-                            <span
-                              className="w-4 h-4 rounded-md shadow-xs flex-shrink-0 border border-black/15 dark:border-white/10"
-                              style={{ backgroundColor: p.foreground }}
-                            />
-                            <span
-                              className="w-4 h-4 rounded-md shadow-xs flex-shrink-0 border border-black/15 dark:border-white/10"
-                              style={{ backgroundColor: p.accent }}
-                            />
-                            <span className="text-xs font-bold text-coconut-800 dark:text-neutral-200 ml-auto font-mono">
-                              {p.isDark ? t.settings.themeDark : t.settings.themeLight}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
+                    {/* 极简深黑模式 */}
+                    <button
+                      type="button"
+                      onClick={() => handleSelectMode("dark")}
+                      className={`p-3.5 rounded-2xl border text-left transition-all relative cursor-pointer ${
+                        draftThemeMode === "dark"
+                          ? "border-accent bg-white dark:bg-[#2E241E] ring-2 ring-accent/30 shadow-md scale-[1.01]"
+                          : "border-coconut-300/80 dark:border-[#4D392E] hover:border-accent/60 bg-white/80 dark:bg-[#1F1814]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Moon className="w-4 h-4 text-blue-400" />
+                          <span className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white">
+                            {lang === "en" ? "Dark / Deep Mode" : "深色模式 (Dark)"}
+                          </span>
+                        </div>
+                        {draftThemeMode === "dark" && (
+                          <span className="w-4 h-4 rounded-full bg-accent-solid text-white flex items-center justify-center shadow-xs">
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 p-1.5 rounded-xl bg-coconut-100/80 dark:bg-[#140E0C] border border-coconut-200 dark:border-[#382820]">
+                        <span className="w-4 h-4 rounded-md shadow-xs border border-white/10" style={{ backgroundColor: draftDarkTheme.background }} />
+                        <span className="w-4 h-4 rounded-md shadow-xs border border-white/10" style={{ backgroundColor: draftDarkTheme.foreground }} />
+                        <span className="w-4 h-4 rounded-md shadow-xs border border-white/10" style={{ backgroundColor: draftDarkTheme.accent }} />
+                        <span className="text-xs font-bold text-coconut-800 dark:text-neutral-200 ml-auto font-mono">
+                          #0F172A
+                        </span>
+                      </div>
+                    </button>
                   </div>
                 </div>
 
-                {/* C. 高级调色区 */}
+                {/* C. 专属模式调色工坊 */}
                 <div className="p-4 sm:p-5 rounded-2xl bg-coconut-100/70 dark:bg-[#251D18] border border-coconut-300/80 dark:border-[#4D392E] space-y-4">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2">
                       <Sliders className="w-4 h-4 text-accent" />
                       <div>
                         <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white flex items-center gap-2">
-                          <span>{t.settings.colorStudioTitle}</span>
-                          {curTheme.id === "custom" && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent-solid text-white font-mono font-bold">
-                              {t.settings.tuningBadge}
-                            </span>
-                          )}
-                          {curTheme.id === "user_custom" && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent-solid text-white font-mono font-bold">
-                              {t.settings.customBadge}
-                            </span>
-                          )}
+                          <span>{lang === "en" ? "Fine-Tune Mode Colors" : "当前模式调色工坊"}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-solid text-white font-mono font-bold">
+                            {draftThemeMode === "dark"
+                              ? (lang === "en" ? "Dark Mode Recipe" : "深色专属配方")
+                              : (lang === "en" ? "White Mode Recipe" : "浅色专属配方")}
+                          </span>
                         </div>
                         <div className="text-xs text-coconut-700 dark:text-neutral-200 mt-0.5">
-                          {lang === "en" ? "Fine-tune background, foreground panels, accents, and borders" : "自由调校窗口背景、前景面板、核心强调色及文本与边框"}
+                          {lang === "en"
+                            ? "Real-time preview enabled. Click Save Settings below to apply permanently."
+                            : "调色实时预览生效，未点击底部“保存设置”前关闭将提示确认"}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleSaveCurrentAsCustomTheme}
-                        className="text-xs font-bold px-3 py-1.5 rounded-xl border border-white/20 bg-accent-gradient text-white flex items-center gap-1.5 shadow-xs hover:brightness-105 active:scale-95 transition-all cursor-pointer"
-                        title={t.settings.saveCustomThemeBtn}
-                      >
-                        {savedThemeFeedback ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 stroke-[3]" />
-                            <span>{t.settings.savedFeedback}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-3.5 h-3.5" />
-                            <span>{t.settings.saveCustomThemeBtn}</span>
-                          </>
-                        )}
-                      </button>
-
-                      <button
-                        onClick={handleResetTheme}
-                        className="text-xs font-bold px-3 py-1.5 rounded-xl border border-coconut-300 dark:border-neutral-600 bg-white dark:bg-[#2E241E] hover:border-orange-500 text-coconut-900 dark:text-neutral-100 flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
-                        title={t.settings.resetThemeBtn}
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" /> {t.settings.resetThemeBtn}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleResetCurrentModeTheme}
+                      className="text-xs font-bold px-3 py-1.5 rounded-xl border border-coconut-300 dark:border-neutral-600 bg-white dark:bg-[#2E241E] hover:border-accent text-coconut-900 dark:text-neutral-100 flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                      title={lang === "en" ? "Reset to Default for this mode" : "恢复当前模式默认配色"}
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>{lang === "en" ? "Reset Default" : "恢复模式默认"}</span>
+                    </button>
                   </div>
 
-                  {/* 调色输入控件 */}
+                  {/* 调色输入控件 5 项 */}
                   <div className="grid grid-cols-1 gap-2.5">
                     {[
-                      { key: "background", label: lang === "en" ? "Background" : "窗口背景", en: "Background", desc: lang === "en" ? "Base canvas and sidebar background color" : "大画布与侧边栏全局底色" },
-                      { key: "foreground", label: lang === "en" ? "Card Surface" : "面板卡片", en: "Foreground", desc: lang === "en" ? "Core functional cards and surface color" : "核心功能卡片与容器表面色" },
+                      { key: "background", label: lang === "en" ? "Window Canvas" : "窗口背景", en: "Canvas", desc: lang === "en" ? "Base canvas and sidebar background color" : "大画布与侧边栏全局底色" },
+                      { key: "foreground", label: lang === "en" ? "Card Surface" : "面板卡片", en: "Surface", desc: lang === "en" ? "Core functional cards and container surface" : "核心功能卡片与容器表面色" },
                       { key: "accent", label: lang === "en" ? "Accent Brand" : "强调色彩", en: "Accent", desc: lang === "en" ? "Action buttons and highlight state" : "主操作按钮与高光状态色" },
-                      { key: "textMain", label: lang === "en" ? "Primary Text" : "主要文字", en: "Text", desc: lang === "en" ? "High-contrast headings and body text (WCAG AAA)" : "标题正文高清晰字色 (WCAG AAA)" },
-                      { key: "border", label: lang === "en" ? "Border Outline" : "边框轮廓", en: "Border", desc: lang === "en" ? "Pixel-crisp divider and container borders" : "面板与分割线清晰轮廓边框色" },
+                      { key: "textMain", label: lang === "en" ? "Primary Text" : "主要文字", en: "Text", desc: lang === "en" ? "High-contrast headings and body text" : "标题与主要正文字体色" },
+                      { key: "border", label: lang === "en" ? "Border Outline" : "边框轮廓", en: "Border", desc: lang === "en" ? "Dividers and panel outline borders" : "容器边框与分割线轮廓色" },
                     ].map((item) => {
-                      const colorVal = (curTheme as any)[item.key];
+                      const colorVal = (activeDraftTheme as any)[item.key];
                       return (
                         <div
                           key={item.key}
-                          className="p-3 px-4 rounded-2xl bg-white dark:bg-[#1F1814] border border-coconut-300/90 dark:border-[#4D392E] flex items-center justify-between gap-3 shadow-2xs transition-all hover:border-orange-400 dark:hover:border-orange-500"
+                          className="p-3 px-4 rounded-2xl bg-white dark:bg-[#1F1814] border border-coconut-300/90 dark:border-[#4D392E] flex items-center justify-between gap-3 shadow-2xs transition-all hover:border-accent"
                         >
                           <div className="flex items-center gap-3.5 min-w-0">
                             <div className="relative flex-shrink-0 flex items-center justify-center">
@@ -916,7 +960,7 @@ export default function SettingsModal({
                                 <span className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white whitespace-nowrap">
                                   {item.label}
                                 </span>
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-500/15 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 font-mono font-bold whitespace-nowrap">
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-subtle text-accent font-mono font-bold whitespace-nowrap">
                                   {item.en}
                                 </span>
                               </div>
@@ -935,7 +979,7 @@ export default function SettingsModal({
                               value={colorVal}
                               maxLength={7}
                               onChange={(e) => handleUpdateColor(item.key as any, e.target.value)}
-                              className="w-24 px-2.5 py-1.5 text-xs font-mono font-bold rounded-xl border border-coconut-300 dark:border-neutral-600 bg-coconut-50/80 dark:bg-[#140E0C] text-center text-coconut-950 dark:text-white uppercase shadow-inner focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 outline-none"
+                              className="w-24 px-2.5 py-1.5 text-xs font-mono font-bold rounded-xl border border-coconut-300 dark:border-neutral-600 bg-coconut-50/80 dark:bg-[#140E0C] text-center text-coconut-950 dark:text-white uppercase shadow-inner focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
                             />
                           </div>
                         </div>
@@ -943,44 +987,44 @@ export default function SettingsModal({
                     })}
                   </div>
 
-                  {/* C. 实时微缩联动效果卡片 */}
+                  {/* 实时微缩联动效果卡片 */}
                   <div className="p-3.5 rounded-2xl border border-dashed border-coconut-300 dark:border-[#4D392E] space-y-2 bg-coconut-50/60 dark:bg-[#140E0C]">
                     <div className="text-xs font-bold text-coconut-800 dark:text-neutral-200 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-orange-500" />
+                      <Sparkles className="w-3.5 h-3.5 text-accent" />
                       <span>{t.settings.livePreviewTitle}</span>
                     </div>
 
                     <div
                       className="p-3.5 rounded-2xl border transition-all duration-300 shadow-sm flex items-center justify-between gap-3"
                       style={{
-                        backgroundColor: curTheme.foreground,
-                        borderColor: curTheme.border,
-                        color: curTheme.textMain,
+                        backgroundColor: activeDraftTheme.foreground,
+                        borderColor: activeDraftTheme.border,
+                        color: activeDraftTheme.textMain,
                       }}
                     >
                       <div className="space-y-1 truncate">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs sm:text-sm font-extrabold truncate" style={{ color: curTheme.textMain }}>
+                          <span className="text-xs sm:text-sm font-extrabold truncate" style={{ color: activeDraftTheme.textMain }}>
                             {t.settings.previewCardTitle}
                           </span>
                           <span
                             className="text-[10px] px-2 py-0.5 rounded-full font-bold text-white shadow-2xs flex-shrink-0"
-                            style={{ backgroundColor: curTheme.accent }}
+                            style={{ backgroundColor: activeDraftTheme.accent }}
                           >
                             Accent
                           </span>
                         </div>
-                        <p className="text-xs truncate font-medium" style={{ color: curTheme.textMuted }}>
+                        <p className="text-xs truncate font-medium" style={{ color: activeDraftTheme.textMuted }}>
                           {t.settings.previewCardDesc}
                         </p>
                       </div>
 
                       <button
                         type="button"
-                        className="px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md active:scale-95 transition-all flex-shrink-0"
+                        className="px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md active:scale-95 transition-all flex-shrink-0 cursor-pointer"
                         style={{
-                          background: `linear-gradient(135deg, ${adjustHex(curTheme.accent, 22)} 0%, ${curTheme.accent} 50%, ${adjustHex(curTheme.accent, -20)} 100%)`,
-                          boxShadow: `0 4px 10px -2px ${hexToRgba(curTheme.accent, 0.45)}`,
+                          background: `linear-gradient(135deg, ${adjustHex(activeDraftTheme.accent, 22)} 0%, ${activeDraftTheme.accent} 50%, ${adjustHex(activeDraftTheme.accent, -20)} 100%)`,
+                          boxShadow: `0 4px 10px -2px ${hexToRgba(activeDraftTheme.accent, 0.45)}`,
                         }}
                       >
                         {t.settings.testBtn}
@@ -989,20 +1033,20 @@ export default function SettingsModal({
                   </div>
                 </div>
 
-                {/* D. 界面字体选择 */}
+                {/* D. 界面英文标准字体选择 */}
                 <div className="p-4 sm:p-5 rounded-2xl bg-coconut-100/70 dark:bg-[#251D18] border border-coconut-300/80 dark:border-[#4D392E] space-y-3.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Cpu className="w-4 h-4 text-orange-500" />
+                      <Cpu className="w-4 h-4 text-accent" />
                       <div>
                         <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white flex items-center gap-2">
                           <span>{t.settings.fontSectionTitle}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-500/15 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 font-mono font-bold">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-subtle text-accent font-mono font-bold">
                             {t.settings.fontBadge}
                           </span>
                         </div>
                         <div className="text-xs text-coconut-700 dark:text-neutral-200 mt-0.5">
-                          {t.settings.fontDesc}
+                          {lang === "en" ? "Standard UI fonts with live English rendering preview" : "标准清晰界面英文字体，实时预览与排版渲染"}
                         </div>
                       </div>
                     </div>
@@ -1010,19 +1054,19 @@ export default function SettingsModal({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {FONT_PRESETS.map((f) => {
-                      const isCur = curFont === f.id;
+                      const isCur = draftFont === f.id;
                       return (
                         <button
                           key={f.id}
+                          type="button"
                           onClick={() => handleSelectFont(f.id)}
                           className={`p-3.5 rounded-2xl border text-left transition-all relative flex flex-col justify-between cursor-pointer ${
                             isCur
-                              ? "border-orange-500 bg-white dark:bg-[#2E241E] ring-2 ring-orange-500/30 shadow-md"
-                              : "border-coconut-300/80 dark:border-[#4D392E] hover:border-orange-400 bg-white/80 dark:bg-[#1F1814] hover:dark:bg-[#261E19] shadow-2xs"
+                              ? "border-accent bg-white dark:bg-[#2E241E] ring-2 ring-accent/30 shadow-md"
+                              : "border-coconut-300/80 dark:border-[#4D392E] hover:border-accent bg-white/80 dark:bg-[#1F1814] hover:dark:bg-[#261E19] shadow-2xs"
                           }`}
                         >
                           <div>
-                            {/* 标题 + 徽章 + 选中状态 */}
                             <div className="flex items-center justify-between gap-1.5 mb-1.5">
                               <div className="flex items-center gap-1.5 min-w-0">
                                 <span
@@ -1031,7 +1075,7 @@ export default function SettingsModal({
                                 >
                                   {lang === "en" ? (f.nameEn || f.name) : f.name}
                                 </span>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-700 dark:text-orange-300 font-bold whitespace-nowrap flex-shrink-0">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent-subtle text-accent font-bold whitespace-nowrap flex-shrink-0">
                                   {lang === "en" ? (f.badgeEn || f.badge) : f.badge}
                                 </span>
                               </div>
@@ -1042,12 +1086,11 @@ export default function SettingsModal({
                               )}
                             </div>
 
-                            {/* 实时超清字样横幅 (Live Typography Banner) */}
                             <div
-                              className="my-2 p-2.5 rounded-xl border border-coconut-200 dark:border-[#3D2E26] bg-coconut-50/70 dark:bg-[#140E0C] text-coconut-900 dark:text-neutral-100 text-xs sm:text-sm font-semibold truncate shadow-inner select-none"
+                              className="my-2 p-2.5 rounded-xl border border-coconut-200 dark:border-[#3D2E26] bg-coconut-50/70 dark:bg-[#140E0C] text-coconut-900 dark:text-neutral-100 text-xs sm:text-sm font-semibold truncate shadow-inner select-none font-mono"
                               style={{ fontFamily: f.fontFamily }}
                             >
-                              {lang === "en" ? (f.sampleEn || f.sample) : f.sample}
+                              {f.sample}
                             </div>
                           </div>
 
@@ -1077,10 +1120,10 @@ export default function SettingsModal({
                     ].map((eng) => (
                       <div
                         key={eng.id}
-                        onClick={() => updateConfig("preferredEngine", eng.id)}
+                        onClick={() => updateDraftConfig("preferredEngine", eng.id)}
                         className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between ${
-                          config.preferredEngine === eng.id
-                            ? "border-orange-500 bg-white dark:bg-[#2E241E] ring-1 ring-orange-500/30 shadow-xs"
+                          draftConfig.preferredEngine === eng.id
+                            ? "border-accent bg-white dark:bg-[#2E241E] ring-1 ring-accent/30 shadow-xs"
                             : "border-coconut-300 dark:border-[#4D392E] bg-white/70 dark:bg-[#1F1814] hover:dark:bg-[#261E19]"
                         }`}
                       >
@@ -1088,8 +1131,8 @@ export default function SettingsModal({
                           <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white">{eng.title}</div>
                           <div className="text-xs text-coconut-700 dark:text-neutral-200 mt-1">{eng.desc}</div>
                         </div>
-                        {config.preferredEngine === eng.id && (
-                          <CheckCircle2 className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                        {draftConfig.preferredEngine === eng.id && (
+                          <CheckCircle2 className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
                         )}
                       </div>
                     ))}
@@ -1125,14 +1168,14 @@ export default function SettingsModal({
                     </div>
                   </div>
                   <button
-                    onClick={() => updateConfig("autoCheckUpdate", !config.autoCheckUpdate)}
-                    className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-300 flex items-center flex-shrink-0 ${
-                      config.autoCheckUpdate ? "bg-accent-solid" : "bg-coconut-300 dark:bg-neutral-600"
+                    onClick={() => updateDraftConfig("autoCheckUpdate", !draftConfig.autoCheckUpdate)}
+                    className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-300 flex items-center flex-shrink-0 cursor-pointer ${
+                      draftConfig.autoCheckUpdate ? "bg-accent-solid" : "bg-coconut-300 dark:bg-neutral-600"
                     }`}
                   >
                     <div
                       className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ${
-                        config.autoCheckUpdate ? "translate-x-5" : "translate-x-0"
+                        draftConfig.autoCheckUpdate ? "translate-x-5" : "translate-x-0"
                       }`}
                     />
                   </button>
@@ -1152,7 +1195,7 @@ export default function SettingsModal({
                       onClose();
                       onOpenUpdateModal();
                     }}
-                    className="px-4 py-2 bg-accent-gradient hover:opacity-95 text-white rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95"
+                    className="px-4 py-2 bg-accent-gradient hover:opacity-95 text-white rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
                   >
                     {t.settings.checkUpdateBtn}
                   </button>
@@ -1160,19 +1203,19 @@ export default function SettingsModal({
 
                 <div className="p-4 sm:p-5 rounded-2xl bg-coconut-100/70 dark:bg-[#251D18] border border-coconut-300/80 dark:border-[#4D392E] text-xs text-coconut-800 dark:text-neutral-200 space-y-2.5">
                   <div className="font-extrabold text-sm text-coconut-950 dark:text-white">
-                    {lang === "en" ? "XC OmniBox Studio" : "XC_OmniBox (XC 万象箱)"}
+                    {lang === "en" ? "XC OmniBox Desktop" : "XC_OmniBox (XC 万象箱)"}
                   </div>
                   <p className="text-xs text-coconut-700 dark:text-neutral-200 leading-relaxed font-medium">
                     {lang === "en"
-                      ? "Natural coconut aesthetic · Minimal · High-fidelity · 300+ DPI lossless · Zero privacy leak multimedia creative workshop."
-                      : "自然椰香美学 · 极简 · 高保真 · 300+ DPI 无损 · 零隐私泄漏的全能多媒体工作台。"}
+                      ? "Fast · Minimal · High-fidelity · 300+ DPI lossless · Zero privacy leak offline multimedia & dev toolbox."
+                      : "极速 · 极简 · 300+ DPI 无损 · 零隐私泄漏的本地多功能工具箱，100% 本地运算与高保真处理。"}
                   </p>
                   <div className="pt-1 flex items-center gap-3">
                     <a
                       href="https://github.com/LEESC88/XC_OmniBox"
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-bold text-orange-600 dark:text-orange-400 hover:underline"
+                      className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline"
                     >
                       {lang === "en" ? "GitHub Repository" : "GitHub 开源仓库"} <ExternalLink className="w-3.5 h-3.5" />
                     </a>
@@ -1182,16 +1225,76 @@ export default function SettingsModal({
             )}
           </div>
 
-          {/* 底部按钮栏 */}
-          <div className="p-3.5 px-6 border-t border-[#D2BCAB]/60 dark:border-[#3D2E26] flex justify-end bg-coconut-50/70 dark:bg-[#18120F]">
-            <button
-              onClick={onClose}
-              className="px-6 py-2.5 bg-accent-gradient hover:opacity-95 text-white rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95"
-            >
-              {lang === "en" ? "Done" : "完成设置"}
-            </button>
+          {/* 底部操作按钮栏 */}
+          <div className="p-3.5 px-6 border-t border-[#D2BCAB]/60 dark:border-[#3D2E26] flex items-center justify-between bg-coconut-50/70 dark:bg-[#18120F]">
+            <div className="flex items-center gap-2">
+              {isDirty ? (
+                <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 animate-pulse">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                  {lang === "en" ? "Unsaved changes" : "有未保存的修改"}
+                </span>
+              ) : (
+                <span className="text-xs text-coconut-600 dark:text-neutral-400">
+                  {lang === "en" ? "Settings up to date" : "设置已保存同步"}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleRequestClose}
+                className="px-4 py-2 rounded-xl border border-coconut-300 dark:border-neutral-600 hover:bg-coconut-100 dark:hover:bg-neutral-800 text-coconut-800 dark:text-neutral-200 text-xs sm:text-sm font-semibold transition-all cursor-pointer"
+              >
+                {lang === "en" ? "Cancel" : "取消"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCommitSave}
+                className="px-6 py-2 bg-accent-gradient hover:opacity-95 text-white rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Check className="w-4 h-4 stroke-[2.5]" />
+                <span>{lang === "en" ? "Save Settings" : "保存设置"}</span>
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* 放弃修改确认对话框 */}
+        {showDiscardConfirm && (
+          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="bg-white dark:bg-[#1E293B] border border-neutral-200 dark:border-neutral-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+              <div className="flex items-center gap-3 text-amber-500">
+                <AlertCircle className="w-6 h-6 flex-shrink-0" />
+                <h3 className="text-base font-bold text-neutral-900 dark:text-white">
+                  {lang === "en" ? "Discard Unsaved Changes?" : "是否取消修改？"}
+                </h3>
+              </div>
+              <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                {lang === "en"
+                  ? "You have unsaved changes. Exiting now will discard all modifications and restore previous settings."
+                  : "检测到未保存的设置变更。未保存的设置将不会生效，是否确定放弃修改并退出？"}
+              </p>
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDiscardConfirm(false)}
+                  className="px-4 py-2 rounded-xl border border-neutral-300 dark:border-neutral-600 text-xs sm:text-sm font-semibold text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
+                >
+                  {lang === "en" ? "Keep Editing" : "继续编辑"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDiscard}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors cursor-pointer"
+                >
+                  {lang === "en" ? "Discard & Exit" : "放弃修改并退出"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

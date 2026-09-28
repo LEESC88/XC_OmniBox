@@ -67,6 +67,8 @@ import CatPawLogo from "@/components/CatPawLogo";
 import { useI18n, getLocalizedTools } from "@/lib/i18n";
 import {
   getSavedTheme,
+  getSavedWhiteTheme,
+  getSavedDarkTheme,
   applyCustomTheme,
   THEME_PRESETS,
   applyCustomFont,
@@ -168,7 +170,7 @@ const TOOLS_REGISTRY: { category: string; module: ModuleType; icon: any; tools: 
     tools: [
       { id: "idphoto", module: "utilities", name: "证件照换底排版", desc: "红白蓝灰智能换底与 6 寸打印排版", badge: "6寸打印", icon: UserCheck, keywords: ["证件照", "换底", "排版", "冲印", "相纸"] },
       { id: "qrcode", module: "utilities", name: "个性化艺术二维码", desc: "炫彩渐变色与中心嵌入 Logo", badge: "Logo", icon: QrCode, keywords: ["二维码", "qr", "扫码", "生成", "渐变"] },
-      { id: "diff", module: "utilities", name: "文本代码双栏 Diff", desc: "增删变动实时高亮与字符精细对比", badge: "双栏", icon: GitCompare, keywords: ["diff", "对比", "文本", "代码", "差异"] },
+      { id: "diff", module: "utilities", name: "文章与文本对比", desc: "文章段落与文本增删变动实时高亮与精细对比", badge: "文章对比", icon: GitCompare, keywords: ["diff", "对比", "文章", "文本", "差异"] },
       { id: "dev", module: "utilities", name: "开发与编码利器", desc: "JSON 校验、Base64、Hash、时间戳", badge: "神器", icon: Code2, keywords: ["json", "base64", "hash", "时间戳", "开发"] },
     ],
   },
@@ -271,7 +273,7 @@ export default function Home() {
   const toggleTheme = () => {
     const nextDark = !isDark;
     setIsDark(nextDark);
-    const targetPreset = nextDark ? THEME_PRESETS[1] : THEME_PRESETS[0];
+    const targetPreset = nextDark ? getSavedDarkTheme() : getSavedWhiteTheme();
     applyCustomTheme(targetPreset);
   };
 

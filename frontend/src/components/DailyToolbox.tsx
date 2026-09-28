@@ -291,35 +291,54 @@ export default function DailyToolbox({
   };
 
   // =======================================================
-  // 3. 文本 Diff 状态 (合同、文章与协议对比)
+  // 3. 文本 Diff 状态 (文章与文本对比)
   // =======================================================
-  const RENTAL_OLD_PRESET = `房屋租赁合同协议
+  const ARTICLE_ZH_OLD = `人工智能在现代软件开发中的实践
 
-一、出租方（甲方）：张先生
-二、承租方（乙方）：王女士
-三、租赁房屋坐落：北京市海淀区中关村南大街1号院2号楼501室。
-四、租赁期限：自2026年10月01日起至2027年09月30日止，共计12个月。
-五、租金标准：每月租金为人民币 4500 元整（大写：肆仟伍佰元整）。
-六、押金条款：押一付三，押金为人民币 4500 元整。合同期满无违约原额退还。
-七、水电燃气：租赁期间产生的水电费、燃气费由乙方按月据实自行缴纳。
-八、违约责任：任何一方提前解除合同，应提前30天书面通知对方，并支付违约金 4500 元。`;
+人工智能技术正在深刻改变现代软件工程的开发模式。过去，工程师需要花费大量时间编写样板代码、排查基础语法错误并手动编写单元测试。
 
-  const RENTAL_NEW_PRESET = `房屋租赁合同协议（房东增补修改版）
+随着大语言模型和智能代码助手的出现，自动化代码补全和实时重构已经成为日常开发的标准配置。据统计，采用智能辅助后，核心模块的交付周期缩短了约 30%，同时开发人员可以将更多精力投入到系统架构设计与业务逻辑的创新上。
 
-一、出租方（甲方）：张先生
-二、承租方（乙方）：王女士
-三、租赁房屋坐落：北京市海淀区中关村南大街1号院2号楼501室。
-四、租赁期限：自2026年10月01日起至2028年09月30日止，共计24个月。
-五、租金标准：每月租金为人民币 4800 元整（大写：肆仟捌佰元整，含物业费）。
-六、押金条款：押二付三，押金为人民币 9600 元整。合同期满且验房无损后退还。
-七、水电燃气及暖气：租赁期间产生的水电费、燃气费、冬季取暖费由乙方按月据实自行缴纳。
-八、违约责任：任何一方提前解除合同，应提前60天书面通知对方，并支付违约金 9600 元。
-九、转租限制：未经甲方书面许可，乙方严禁将房屋私自转租、分租给任何第三方。`;
+然而，过度依赖自动化生成也带来了代码可维护性和安全漏洞的新挑战。团队仍需坚持严格的人工审查与自动化集成测试。`;
 
-  const [diffOriginal, setDiffOriginal] = useState(RENTAL_OLD_PRESET);
-  const [diffModified, setDiffModified] = useState(RENTAL_NEW_PRESET);
+  const ARTICLE_ZH_NEW = `人工智能在现代软件开发中的深度实践与未来演进
+
+人工智能与大语言模型正在全方位重构现代软件工程的生命周期。过去，工程师需要耗费数倍时间编写冗余样板代码、排查底层类型错误并手动设计单元测试用例。
+
+随着自主代码智能体（Coding Agents）与深层语义理解工具的普及，自动化代码生成、全库架构重构与端到端测试已成为工业级开发的全新基准。最新行业实践表明，工程交付效率整体提升了 45% 以上，促使软件工程师加速转型为系统架构设计师与产品思考者。
+
+然而，生成式代码也伴随着逻辑幻觉、架构一致性衰减以及供应链安全的新隐患。因此，建立完善的自动化回归校验、代码审计规范与人机协同防御体系，是企业规模化落地的核心前提。`;
+
+  const ARTICLE_EN_OLD = `The Evolution of Modern Software Engineering
+
+Artificial intelligence is rapidly transforming the landscape of modern software engineering. In previous decades, developers dedicated substantial effort to writing repetitive boilerplate code, fixing minor syntax errors, and manually authoring unit tests.
+
+With the advent of intelligent code completion and automated refactoring, developer velocity has increased significantly. Studies indicate that engineering teams deliver features up to 30% faster, freeing engineers to focus on architectural design and business innovation.
+
+Nevertheless, relying solely on automated generation introduces challenges regarding long-term maintainability and potential security vulnerabilities. Rigorous peer review remains essential.`;
+
+  const ARTICLE_EN_NEW = `The Evolution of Modern Software Engineering: From Tools to Autonomous Agents
+
+Artificial intelligence and autonomous agents are fundamentally redefining every phase of the software engineering lifecycle. In previous decades, developers dedicated immense manual effort to writing repetitive boilerplate code, debugging subtle type mismatches, and crafting basic test fixtures.
+
+With the mainstream adoption of autonomous coding agents and deep semantic codebase understanding, full-repository refactoring and self-healing test pipelines have established a new industry standard. Recent empirical reports show delivery velocity improvements exceeding 45%, shifting the engineer's primary role toward architectural governance and strategic product decisions.
+
+Nevertheless, synthetic code introduces critical risks around logical hallucinations, subtle regressions, and software supply chain integrity. Consequently, establishing multi-stage automated verification, strict architectural contracts, and resilient human-in-the-loop oversight is paramount.`;
+
+  const [diffOriginal, setDiffOriginal] = useState(() => lang === "en" ? ARTICLE_EN_OLD : ARTICLE_ZH_OLD);
+  const [diffModified, setDiffModified] = useState(() => lang === "en" ? ARTICLE_EN_NEW : ARTICLE_ZH_NEW);
   const [diffMode, setDiffMode] = useState<"lines" | "words">("lines");
   const [diffChangesOnly, setDiffChangesOnly] = useState(false);
+
+  const handleLoadArticleExample = () => {
+    if (lang === "en") {
+      setDiffOriginal(ARTICLE_EN_OLD);
+      setDiffModified(ARTICLE_EN_NEW);
+    } else {
+      setDiffOriginal(ARTICLE_ZH_OLD);
+      setDiffModified(ARTICLE_ZH_NEW);
+    }
+  };
 
   const diffResult = computeTextDiff(diffOriginal, diffModified, diffMode);
 
@@ -399,9 +418,9 @@ export default function DailyToolbox({
           },
           {
             id: "diff",
-            label: lang === "en" ? "Contract & Text Diff" : "合同协议差异对比",
+            label: lang === "en" ? "Article & Text Diff" : "文章与文本对比",
             icon: GitCompare,
-            badge: lang === "en" ? "Contract Check" : "合同核对/精细高亮",
+            badge: lang === "en" ? "Article Diff" : "文章对比/精细高亮",
           },
           {
             id: "dev",
@@ -1330,8 +1349,8 @@ export default function DailyToolbox({
                     }`}
                   >
                     {m === "lines"
-                      ? lang === "en" ? "By Lines (Contract)" : "按行对比 (合同推荐)"
-                      : lang === "en" ? "By Words (Fine)" : "按词精细高亮"}
+                      ? lang === "en" ? "By Lines (Paragraphs)" : "按行对比 (段落推荐)"
+                      : lang === "en" ? "By Words (Fine Highlight)" : "按词精细高亮"}
                   </button>
                 ))}
               </div>
@@ -1360,19 +1379,16 @@ export default function DailyToolbox({
                   setDiffOriginal(diffModified);
                   setDiffModified(t);
                 }}
-                className="flex items-center space-x-1 text-coconut-600 hover:text-palm-600 dark:text-darkbg-muted dark:hover:text-palm-400 transition-colors font-semibold"
+                className="flex items-center space-x-1 text-coconut-600 hover:text-palm-600 dark:text-darkbg-muted dark:hover:text-palm-400 transition-colors font-semibold cursor-pointer"
               >
                 <ArrowRightLeft className="w-4 h-4" />
                 <span>{lang === "en" ? "Swap" : "左右互换"}</span>
               </button>
               <button
-                onClick={() => {
-                  setDiffOriginal(RENTAL_OLD_PRESET);
-                  setDiffModified(RENTAL_NEW_PRESET);
-                }}
-                className="px-2.5 py-1 rounded-xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-muted hover:text-coconut-900 text-xs font-semibold"
+                onClick={handleLoadArticleExample}
+                className="px-2.5 py-1 rounded-xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-muted hover:text-coconut-900 text-xs font-semibold cursor-pointer"
               >
-                {lang === "en" ? "Load Rental Contract Example" : "载入租房合同示例"}
+                {lang === "en" ? "Load Article Example" : "载入文章对比示例"}
               </button>
             </div>
           </div>
@@ -1381,38 +1397,38 @@ export default function DailyToolbox({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text font-mono">
-                <span>{lang === "en" ? "Original Version (Contract A)" : "原始版本 (合同原件 / 甲版)"}</span>
+                <span>{lang === "en" ? "Original Version (Draft A)" : "原始版本 (文章初稿 / 初版)"}</span>
                 <button
                   onClick={() => setDiffOriginal("")}
-                  className="text-xs text-coconut-400 hover:text-toast-500 font-sans"
+                  className="text-xs text-coconut-400 hover:text-toast-500 font-sans cursor-pointer"
                 >
-                  清空
+                  {lang === "en" ? "Clear" : "清空"}
                 </button>
               </div>
               <textarea
                 rows={7}
                 value={diffOriginal}
                 onChange={(e) => setDiffOriginal(e.target.value)}
-                placeholder="粘贴原始合同或第一版文本..."
+                placeholder={lang === "en" ? "Paste original article or draft..." : "粘贴原始文章或初稿文本..."}
                 className="w-full p-3.5 text-xs sm:text-sm bg-white/70 dark:bg-darkbg-subtle/80 border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono leading-relaxed text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
               />
             </div>
 
             <div className="space-y-1.5">
               <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text font-mono">
-                <span>{lang === "en" ? "Modified Version (Contract B)" : "修改后版本 (房东/对方增补后版本)"}</span>
+                <span>{lang === "en" ? "Revised Version (Draft B)" : "修改后版本 (文章修订稿 / 终稿)"}</span>
                 <button
                   onClick={() => setDiffModified("")}
-                  className="text-xs text-coconut-400 hover:text-toast-500 font-sans"
+                  className="text-xs text-coconut-400 hover:text-toast-500 font-sans cursor-pointer"
                 >
-                  清空
+                  {lang === "en" ? "Clear" : "清空"}
                 </button>
               </div>
               <textarea
                 rows={7}
                 value={diffModified}
                 onChange={(e) => setDiffModified(e.target.value)}
-                placeholder="粘贴修改后合同或第二版文本..."
+                placeholder={lang === "en" ? "Paste revised article or draft..." : "粘贴修改后文章或修订版文本..."}
                 className="w-full p-3.5 text-xs sm:text-sm bg-white/70 dark:bg-darkbg-subtle/80 border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono leading-relaxed text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
               />
             </div>
