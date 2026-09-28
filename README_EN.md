@@ -1,0 +1,137 @@
+# XC_OmniBox
+
+<p align="center">
+  <strong>Fast Local Offline Multimedia & Dev Toolbox</strong>
+</p>
+
+<p align="center">
+  <strong>English</strong> | <a href="README.md">简体中文</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/LEESC88/XC_OmniBox/releases/latest">
+    <img src="https://img.shields.io/github/v/release/LEESC88/XC_OmniBox?style=flat-square&color=2563EB" alt="Release" />
+  </a>
+  <a href="https://github.com/LEESC88/XC_OmniBox/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License" />
+  </a>
+  <img src="https://img.shields.io/badge/platform-Windows%20x64-lightgrey?style=flat-square" alt="Platform" />
+  <img src="https://img.shields.io/badge/privacy-100%25%20Offline-success?style=flat-square" alt="100% Offline" />
+</p>
+
+---
+
+## 📖 Introduction
+
+**XC_OmniBox** is a modern, high-performance desktop productivity and multimedia toolbox built with Electron, Next.js (React), and FastAPI (Python hybrid engine). Designed from the ground up for privacy-conscious developers, content creators, and office professionals, XC_OmniBox guarantees **100% local offline processing, zero cloud data transfer, zero vendor lock-in, and instant latency-free responsiveness**.
+
+---
+
+## 🌟 What's New in v1.1.0
+
+- 🤖 **All-New AI Magic Studio Extensions**:
+  - **AI Inpaint Brush**: Powered by IOPaint C++ Telea and Navier-Stokes dual algorithms. Interactively brush over watermarks, scratches, and unwanted elements with real-time sliding comparison (Squoosh-style).
+  - **Dual-Layer Searchable PDF Maker**: Integrates Umi-OCR and Tesseract to transform scanned images into dual-layer PDFs that preserve high-fidelity visual layouts while embedding invisible selectable/searchable text layers.
+  - **Audio & Video Subtitle Studio**: Built-in Buzz Web Audio Voice Activity Detection (VAD) for speech segmentation and millisecond-accurate timestamp alignment. Export subtitles in industry-standard SRT, VTT, and plain TXT formats.
+- 📝 **Article & Text Diff Tool**: Dual-pane text revision comparison with paragraph and character-level diff highlighting, bilingual English/Chinese presets, fold-unchanged view, and addition/deletion statistics.
+- 🎨 **Independent Dual-Theme Architecture (White & Dark)**: Streamlined into pure **White (Light)** and **Dark (Deep Slate)** modes. Custom color recipes (Canvas, Surface, Accent, Text, Border) are stored independently per mode, ensuring mode toggles never wipe personalized styling.
+- 🔤 **High-Clarity English Typography**: 5 standard system UI fonts (System Default, Inter, Roboto, Segoe UI, Monospace) with standardized live English typography preview banners.
+- 🛡️ **Defensive Settings Workflow (Draft/Commit)**: Live preview without unintended persistence; prompt warning dialog if attempting to exit with unsaved modifications.
+- 📴 **100% Offline Privacy Guarantee**: Entire workflow runs locally without external network requests or third-party telemetry.
+
+---
+
+## ✨ Features Matrix
+
+### 📄 1. Document & PDF Studio
+- **1:1 In-Place PDF Editor**: In-situ text editing, paragraph modifications, masking, and annotations while strictly locking original page layout.
+- **Word to PDF Converter**: Light (96 DPI), Standard (150 DPI), and Print-grade (300 DPI) presets with font subset stream-pruning to eliminate file bloat.
+- **PDF to Word Conversion**: High-fidelity reconstruction of layouts, tables, and typography.
+- **PDF Utilities**: Drag-and-drop merging, page-range extraction, semi-transparent watermark injection, and AES password protection.
+
+### 🖼️ 2. Image & Visual Studio
+- **Lossless Image Compression**: Perceptual lossless compression reducing file size by up to 90% without visible degradation.
+- **Apple HEIC/Live Photo Transcoder**: Fast conversion of iPhone HEIC photos into standard JPG, PNG, or WebP.
+- **Universal Format Transcoding**: Batch processing across WebP, PNG, JPG, BMP, TIFF, and AVIF.
+- **EXIF Privacy Stripper**: Remove GPS coordinates, camera serials, and device metadata with one click.
+
+### 🎵 3. Audio & Acoustic Studio
+- **Lossless Audio Transcoder**: High-throughput conversion between MP3, WAV, FLAC, AAC, OGG, and M4A.
+- **Mastering-Grade Resampling**: Configurable sample rates (44.1 kHz to 96 kHz), bit depths (16-bit, 24-bit, 32-bit float), and channel modes.
+- **Speed & Pitch Shifting**: Adjust playback tempo and frequency pitch independently.
+- **Acoustic Waveform Generator**: Generate calibrated sine, square, pink noise, and white noise with real-time waveform visualizers.
+
+### 🤖 4. AI Magic Studio
+- **AI Inpaint Brush**: Local C++ restoration for removing photo defects, watermarks, and bystanders.
+- **Searchable PDF Maker**: Convert image-only scans into searchable, selectable text PDFs.
+- **Subtitle Alignment Studio**: Local Voice Activity Detection (VAD) generating SRT / VTT subtitle files.
+- **Hair-Level Portrait Cutout**: Fast background removal for portraits and product photos.
+- **AI Super-Resolution**: Texture upscaling and detail restoration.
+
+### 🛠️ 5. Everyday & Developer Utilities
+- **Article & Text Diff**: Side-by-side article revision diffing with bilingual samples.
+- **ID Photo Layout**: Standard 1-inch and 2-inch background replacements (Red/White/Blue/Gray) with 6-inch photo print tiling.
+- **Artistic QR Code Generator**: Gradient palettes, embedded center logo, WiFi/vCard generation, and offline scanning.
+- **Finance & Dev Tools**: Chinese RMB financial uppercase conversion, word/character counter, JSON validator, and Base64/Hash encoders.
+
+---
+
+## 🚀 Download & Installation
+
+### Windows Installer (x64)
+Download the latest Windows installer directly from [GitHub Releases](https://github.com/LEESC88/XC_OmniBox/releases/latest):
+- **`XC_OmniBox-Setup-1.1.0.exe`**
+
+---
+
+## 🛠️ Local Development Setup
+
+### Prerequisites
+- Node.js 18+ & npm
+- Python 3.11+
+- Windows 10 / 11
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/LEESC88/XC_OmniBox.git
+cd XC_OmniBox
+```
+
+### 2. Install Dependencies
+```bash
+npm install
+npm --prefix frontend install
+```
+
+### 3. Setup Python Backend Environment
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+cd ..
+```
+
+### 4. Run Development Server
+```bash
+# Full desktop application (Frontend + Backend + Electron host)
+npm run dev:electron
+
+# Browser-only development (http://localhost:3000)
+npm run dev
+```
+
+### 5. Build Distribution
+```bash
+# Compile frontend static export
+npm run build:frontend
+
+# Package standalone Windows NSIS installer
+npm run dist
+```
+
+---
+
+## 📜 License
+
+This project is licensed under the [MIT License](LICENSE).

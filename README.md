@@ -5,6 +5,10 @@
 </p>
 
 <p align="center">
+  <a href="README_EN.md">English</a> | <strong>简体中文</strong>
+</p>
+
+<p align="center">
   <a href="https://github.com/LEESC88/XC_OmniBox/releases/latest">
     <img src="https://img.shields.io/github/v/release/LEESC88/XC_OmniBox?style=flat-square&color=2563EB" alt="Release" />
   </a>
