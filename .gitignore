@@ -55,3 +55,4 @@ Thumbs.db
 *.swo
 .idea/
 .vscode/
+*.tsbuildinfo

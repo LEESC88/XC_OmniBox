@@ -23,6 +23,13 @@ import {
   AlertCircle,
   Eye,
   Loader2,
+  Banknote,
+  Wifi,
+  Contact,
+  ExternalLink,
+  ShieldCheck,
+  ScanLine,
+  AlignLeft,
 } from "lucide-react";
 import {
   ID_SPECS,
@@ -38,6 +45,13 @@ import {
   decodeBase64,
   formatJson,
   QrDotStyle,
+  decodeQrCodeFromImage,
+  buildWifiQrString,
+  buildVCardQrString,
+  convertNumberToChineseRMB,
+  analyzeTextStatistics,
+  cleanTextFormatting,
+  validateAndParseChineseId,
 } from "@/lib/utilityProcessor";
 import { downloadBlob } from "@/lib/api";
 import { formatBytes } from "@/lib/imageProcessor";
@@ -45,7 +59,7 @@ import ScrollableTabNav from "@/components/ScrollableTabNav";
 import { useI18n } from "@/lib/i18n";
 
 type ToolTab = "idphoto" | "qrcode" | "diff" | "dev";
-type DevSubTab = "json" | "base64" | "hash" | "timestamp";
+type DevSubTab = "rmb" | "stats" | "idcard" | "json" | "base64" | "hash" | "timestamp";
 
 export interface DailyToolboxProps {
   currentTab?: ToolTab;
@@ -97,24 +111,38 @@ export default function DailyToolbox({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [selectedBg, setSelectedBg] = useState(BG_COLORS[0].hex);
   const [selectedSpec, setSelectedSpec] = useState<IdPhotoSpec>(ID_SPECS.ONE_INCH);
+  const [targetKb, setTargetKb] = useState<number>(0); // 0 = 不限
   const [tolerance, setTolerance] = useState(32);
   const [feather, setFeather] = useState(16);
   const [processedPhotoBlob, setProcessedPhotoBlob] = useState<Blob | null>(null);
   const [processedPhotoUrl, setProcessedPhotoUrl] = useState<string | null>(null);
+  const [processedPhotoSize, setProcessedPhotoSize] = useState<number>(0);
+  const [processedPhotoDims, setProcessedPhotoDims] = useState<{ width: number; height: number }>({ width: 295, height: 413 });
+  const [sheetResult, setSheetResult] = useState<{ blob: Blob; url: string; filename: string } | null>(null);
 
   const handlePhotoUpload = async (file: File) => {
     setPhotoFile(file);
     setPhotoPreview(URL.createObjectURL(file));
     setError(null);
-    await processPhotoBg(file, selectedBg, tolerance, feather);
+    await processPhotoBg(file, selectedBg, tolerance, feather, selectedSpec, targetKb);
   };
 
-  const processPhotoBg = async (file: File, bgHex: string, tol: number, fea: number) => {
+  const processPhotoBg = async (
+    file: File,
+    bgHex: string,
+    tol: number,
+    fea: number,
+    spec: IdPhotoSpec = selectedSpec,
+    kb: number = targetKb
+  ) => {
     setIsProcessing(true);
     try {
-      const blob = await replacePhotoBackground(file, bgHex, tol, fea);
-      setProcessedPhotoBlob(blob);
-      setProcessedPhotoUrl(URL.createObjectURL(blob));
+      const res = await replacePhotoBackground(file, bgHex, tol, fea, spec, kb);
+      setProcessedPhotoBlob(res.blob);
+      setProcessedPhotoSize(res.size);
+      setProcessedPhotoDims({ width: res.width, height: res.height });
+      setProcessedPhotoUrl(URL.createObjectURL(res.blob));
+      setSheetResult(null);
     } catch (err: any) {
       setError((lang === "en" ? "Background replacement failed: " : "换底色处理失败: ") + err.message);
     } finally {
@@ -122,21 +150,39 @@ export default function DailyToolbox({
     }
   };
 
-  // 重新换底
+  // 重新换底与规格
   const handleBgChange = async (hex: string) => {
     setSelectedBg(hex);
     if (photoFile) {
-      await processPhotoBg(photoFile, hex, tolerance, feather);
+      await processPhotoBg(photoFile, hex, tolerance, feather, selectedSpec, targetKb);
     }
   };
 
-  // 下载 6 寸相纸排版大图
-  const handleDownloadSheet = async () => {
+  const handleSpecChange = async (spec: IdPhotoSpec) => {
+    setSelectedSpec(spec);
+    if (photoFile) {
+      await processPhotoBg(photoFile, selectedBg, tolerance, feather, spec, targetKb);
+    }
+  };
+
+  const handleTargetKbChange = async (kb: number) => {
+    setTargetKb(kb);
+    if (photoFile) {
+      await processPhotoBg(photoFile, selectedBg, tolerance, feather, selectedSpec, kb);
+    }
+  };
+
+  // 生成 6 寸相纸排版大图预览
+  const handleGenerateSheet = async () => {
     if (!processedPhotoBlob) return;
     setIsProcessing(true);
     try {
       const { blob, filename } = await generatePrintSheet(processedPhotoBlob, selectedSpec);
-      downloadBlob(blob, filename);
+      setSheetResult({
+        blob,
+        filename,
+        url: URL.createObjectURL(blob),
+      });
     } catch (err: any) {
       setError((lang === "en" ? "Failed to generate print sheet: " : "生成相纸排版失败: ") + err.message);
     } finally {
@@ -145,8 +191,24 @@ export default function DailyToolbox({
   };
 
   // =======================================================
-  // 2. 二维码工坊状态
+  // 2. 二维码工坊状态 (生成 + 本地离线解码)
   // =======================================================
+  const [qrMode, setQrMode] = useState<"create" | "scan">("create");
+  const [qrTemplate, setQrTemplate] = useState<"url" | "wifi" | "vcard" | "text">("url");
+
+  // WiFi 专属字段
+  const [wifiSsid, setWifiSsid] = useState("MyHome_WiFi_5G");
+  const [wifiPassword, setWifiPassword] = useState("88888888");
+  const [wifiEncryption, setWifiEncryption] = useState<"WPA" | "WEP" | "nopass">("WPA");
+  const [wifiHidden, setWifiHidden] = useState(false);
+
+  // vCard 电子名片专属字段
+  const [vcardName, setVcardName] = useState("张经理");
+  const [vcardPhone, setVcardPhone] = useState("13800138000");
+  const [vcardCompany, setVcardCompany] = useState("科技创新发展有限公司");
+  const [vcardTitle, setVcardTitle] = useState("业务总监");
+  const [vcardEmail, setVcardEmail] = useState("contact@example.com");
+
   const [qrText, setQrText] = useState("https://github.com/LEESC88/XC_OmniBox");
   const [qrFgColor, setQrFgColor] = useState("#2b1e16");
   const [qrBgColor, setQrBgColor] = useState("#FAF1E8");
@@ -163,9 +225,30 @@ export default function DailyToolbox({
   const [qrBorderRadius, setQrBorderRadius] = useState(0);
   const [qrErrorLevel, setQrErrorLevel] = useState<"L" | "M" | "Q" | "H">("M");
 
-  // 实时更新二维码
+  // 扫码解码状态
+  const [scanFile, setScanFile] = useState<File | null>(null);
+  const [scanPreviewUrl, setScanPreviewUrl] = useState<string>("");
+  const [scanResult, setScanResult] = useState<{ text: string; format: string } | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+
+  // WiFi / vCard 模板变动自动同步生成文本
   useEffect(() => {
-    if (activeTab !== "qrcode" || !qrText.trim()) return;
+    if (qrTemplate === "wifi") {
+      setQrText(buildWifiQrString(wifiSsid, wifiPassword, wifiEncryption, wifiHidden));
+    } else if (qrTemplate === "vcard") {
+      setQrText(buildVCardQrString({
+        name: vcardName,
+        phone: vcardPhone,
+        company: vcardCompany,
+        title: vcardTitle,
+        email: vcardEmail,
+      }));
+    }
+  }, [qrTemplate, wifiSsid, wifiPassword, wifiEncryption, wifiHidden, vcardName, vcardPhone, vcardCompany, vcardTitle, vcardEmail]);
+
+  // 实时生成自定义二维码
+  useEffect(() => {
+    if (activeTab !== "qrcode" || qrMode !== "create" || !qrText.trim()) return;
     generateCustomQrCode({
       text: qrText,
       size: qrSize,
@@ -184,50 +267,99 @@ export default function DailyToolbox({
       setQrResultUrl(dataUrl);
       setQrResultBlob(blob);
     });
-  }, [activeTab, qrText, qrFgColor, qrBgColor, qrGradient, qrGradColor, qrLogoFile, qrSize, qrDotStyle, qrMargin, qrBorderWidth, qrBorderColor, qrBorderRadius, qrErrorLevel]);
+  }, [activeTab, qrMode, qrText, qrFgColor, qrBgColor, qrGradient, qrGradColor, qrLogoFile, qrSize, qrDotStyle, qrMargin, qrBorderWidth, qrBorderColor, qrBorderRadius, qrErrorLevel]);
+
+  // 处理图片二维码本地解码
+  const handleScanQrFile = async (file: File) => {
+    setScanFile(file);
+    setScanPreviewUrl(URL.createObjectURL(file));
+    setScanResult(null);
+    setIsScanning(true);
+    setError(null);
+    try {
+      const decoded = await decodeQrCodeFromImage(file);
+      if (decoded) {
+        setScanResult(decoded);
+      } else {
+        setError(lang === "en" ? "No QR code detected in image" : "未能在此图片中识别到清晰的二维码，请换一张清晰图片");
+      }
+    } catch (err: any) {
+      setError((lang === "en" ? "QR decode error: " : "二维码识别出错: ") + err.message);
+    } finally {
+      setIsScanning(false);
+    }
+  };
 
   // =======================================================
-  // 3. 文本 Diff 状态
+  // 3. 文本 Diff 状态 (合同、文章与协议对比)
   // =======================================================
-  const [diffOriginal, setDiffOriginal] = useState(
-    "const name = 'XC_OmniBox';\nconsole.log('Hello, ' + name);\nfunction calculate() {\n  return 10 * 20;\n}"
-  );
-  const [diffModified, setDiffModified] = useState(
-    "const name = 'XC_OmniBox (Universal)';\nconsole.log(`Hello, ${name}!`);\nfunction calculate(factor = 1) {\n  return 10 * 20 * factor;\n}"
-  );
+  const RENTAL_OLD_PRESET = `房屋租赁合同协议
+
+一、出租方（甲方）：张先生
+二、承租方（乙方）：王女士
+三、租赁房屋坐落：北京市海淀区中关村南大街1号院2号楼501室。
+四、租赁期限：自2026年10月01日起至2027年09月30日止，共计12个月。
+五、租金标准：每月租金为人民币 4500 元整（大写：肆仟伍佰元整）。
+六、押金条款：押一付三，押金为人民币 4500 元整。合同期满无违约原额退还。
+七、水电燃气：租赁期间产生的水电费、燃气费由乙方按月据实自行缴纳。
+八、违约责任：任何一方提前解除合同，应提前30天书面通知对方，并支付违约金 4500 元。`;
+
+  const RENTAL_NEW_PRESET = `房屋租赁合同协议（房东增补修改版）
+
+一、出租方（甲方）：张先生
+二、承租方（乙方）：王女士
+三、租赁房屋坐落：北京市海淀区中关村南大街1号院2号楼501室。
+四、租赁期限：自2026年10月01日起至2028年09月30日止，共计24个月。
+五、租金标准：每月租金为人民币 4800 元整（大写：肆仟捌佰元整，含物业费）。
+六、押金条款：押二付三，押金为人民币 9600 元整。合同期满且验房无损后退还。
+七、水电燃气及暖气：租赁期间产生的水电费、燃气费、冬季取暖费由乙方按月据实自行缴纳。
+八、违约责任：任何一方提前解除合同，应提前60天书面通知对方，并支付违约金 9600 元。
+九、转租限制：未经甲方书面许可，乙方严禁将房屋私自转租、分租给任何第三方。`;
+
+  const [diffOriginal, setDiffOriginal] = useState(RENTAL_OLD_PRESET);
+  const [diffModified, setDiffModified] = useState(RENTAL_NEW_PRESET);
   const [diffMode, setDiffMode] = useState<"lines" | "words">("lines");
-  const [diffViewMode, setDiffViewMode] = useState<"split" | "unified">("split");
+  const [diffChangesOnly, setDiffChangesOnly] = useState(false);
 
   const diffResult = computeTextDiff(diffOriginal, diffModified, diffMode);
 
   // =======================================================
-  // 4. 开发者利器状态 (JSON / Base64 / Hash / 时间戳)
+  // 4. 生活与财务实用工具 (中文金融大写 / 字数统计 / 身份证校验 / 常用开发)
   // =======================================================
-  const [devTab, setDevTab] = useState<DevSubTab>("json");
+  const [devTab, setDevTab] = useState<DevSubTab>("rmb");
 
-  // JSON
-  const [jsonInput, setJsonInput] = useState(
-    '{\n  "project": "XC_OmniBox",\n  "version": "1.0.0",\n  "author": "souchen",\n  "features": ["PDF", "Image", "Audio", "Utilities"]\n}'
+  // 4.1 人民币财务大写
+  const [rmbInput, setRmbInput] = useState("128500.68");
+  const [rmbResult, setRmbResult] = useState(() => convertNumberToChineseRMB("128500.68"));
+
+  useEffect(() => {
+    setRmbResult(convertNumberToChineseRMB(rmbInput));
+  }, [rmbInput]);
+
+  // 4.2 字数统计与标点清洗
+  const [statsText, setStatsText] = useState(
+    "XC 万象箱（XC_OmniBox）是一个专为大众打造的全能效率工具箱。支持纯本地运行，保护用户隐私，杜绝任何云端泄漏。\n\n无论你是处理日常合同、换底证件照、连接WiFi，还是核对财务报销金额，都能在这里一键搞定！"
   );
-  const [jsonOutput, setJsonOutput] = useState("");
+  const statsMetrics = analyzeTextStatistics(statsText);
+
+  // 4.3 居民身份证离线校验
+  const [idCardInput, setIdCardInput] = useState("110101199003072379");
+  const idCardAnalysis = validateAndParseChineseId(idCardInput);
+
+  // 4.4 常用技术工具 (JSON / Base64 / Hash / 时间戳)
+  const [jsonInput, setJsonInput] = useState('{\n  "name": "XC_OmniBox",\n  "status": "active"\n}');
   const [jsonErr, setJsonErr] = useState<string | null>(null);
 
-  // Base64
-  const [b64Text, setB64Text] = useState(
-    lang === "en" ? "XC OmniBox - High-Speed All-in-One Local Toolbox" : "XC 万象箱 - 极速全能本地工具箱"
-  );
+  const [b64Text, setB64Text] = useState("XC 万象箱 - 极速全能本地工具箱");
   const [b64Result, setB64Result] = useState("");
 
-  // Hash
   const [hashInput, setHashInput] = useState("XC_OmniBox_Secure_Hash_2026");
   const [hashes, setHashes] = useState({ md5: "", sha1: "", sha256: "", sha512: "" });
 
-  // Timestamp
   const [currentTimestamp, setCurrentTimestamp] = useState(Math.floor(Date.now() / 1000));
   const [tsInput, setTsInput] = useState(Math.floor(Date.now() / 1000).toString());
   const [tsDateResult, setTsDateResult] = useState("");
 
-  // 时钟跳动
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTimestamp(Math.floor(Date.now() / 1000));
@@ -235,7 +367,6 @@ export default function DailyToolbox({
     return () => clearInterval(timer);
   }, []);
 
-  // 哈希计算响应
   useEffect(() => {
     if (activeTab === "dev" && devTab === "hash") {
       const runHashes = async () => {
@@ -258,25 +389,25 @@ export default function DailyToolbox({
             id: "idphoto",
             label: lang === "en" ? "ID Photo Studio" : "证件照换底与相纸排版",
             icon: UserCheck,
-            badge: lang === "en" ? "6-Inch Print" : "6寸打印级",
+            badge: lang === "en" ? "6-Inch Print / KB Limit" : "6寸排版/KB限容",
           },
           {
             id: "qrcode",
-            label: lang === "en" ? "Artistic QR Code" : "个性化艺术二维码",
+            label: lang === "en" ? "Artistic QR Code" : "艺术二维码与扫码识别",
             icon: QrCode,
-            badge: lang === "en" ? "Color / Logo" : "彩色/Logo",
+            badge: lang === "en" ? "WiFi / vCard / Scan" : "WiFi/名片/离线识码",
           },
           {
             id: "diff",
-            label: lang === "en" ? "Text & Code Diff" : "文本代码差异对比",
+            label: lang === "en" ? "Contract & Text Diff" : "合同协议差异对比",
             icon: GitCompare,
-            badge: lang === "en" ? "Dual-Pane Diff" : "双栏Diff",
+            badge: lang === "en" ? "Contract Check" : "合同核对/精细高亮",
           },
           {
             id: "dev",
-            label: lang === "en" ? "Dev & Efficiency Toolkit" : "开发与效率神器集",
-            icon: Code2,
-            badge: "JSON/Base64/Hash",
+            label: lang === "en" ? "Finance & Everyday Utils" : "财务大写与日常实用",
+            icon: Banknote,
+            badge: lang === "en" ? "RMB / Stats / ID" : "财务大写/字数统计",
           },
         ]}
         activeTab={activeTab}
@@ -372,32 +503,65 @@ export default function DailyToolbox({
 
                   {/* 2. 冲印排版规格选择 */}
                   <div className="space-y-2">
-                    <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                      {lang === "en" ? "Print Sheet Specs & Dimensions" : "冲印相纸规格与尺寸"}
-                    </span>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                      <span>{lang === "en" ? "Print Sheet Specs & Dimensions" : "全国考试与通用规格选择"}</span>
+                      <span className="text-xs text-palm-600 dark:text-palm-400 font-mono font-bold">
+                        {selectedSpec.width}×{selectedSpec.height} px
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {Object.values(ID_SPECS).map((sp) => (
                         <button
                           key={sp.name}
-                          onClick={() => setSelectedSpec(sp)}
-                          className={`py-2 px-1.5 rounded-2xl border text-center transition-all active:scale-95 ${
+                          onClick={() => handleSpecChange(sp)}
+                          className={`py-2 px-2 rounded-2xl border text-left transition-all active:scale-95 ${
                             selectedSpec.name === sp.name
                               ? "border-coconut-800 bg-coconut-800 dark:bg-white text-coconut-50 dark:text-zinc-950 shadow-coconut-sm font-bold"
-                              : "border-coconut-200/80 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/50 dark:hover:bg-darkbg-elevated"
+                              : "bg-coconut-50/60 dark:bg-darkbg-subtle border-coconut-200/80 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/50 dark:hover:bg-darkbg-elevated"
                           }`}
                         >
-                          <div className="text-xs truncate font-bold" title={lang === "en" ? sp.nameEn || sp.name : sp.name}>
-                            {lang === "en" ? sp.nameEn || sp.name : sp.name}
+                          <div className="text-xs truncate font-bold" title={sp.name}>
+                            {sp.name}
                           </div>
-                          <div className="text-[11px] opacity-80 mt-0.5 font-mono whitespace-nowrap">
-                            {sp.mmWidth}×{sp.mmHeight} mm
+                          <div className="text-[10px] opacity-75 mt-0.5 font-mono whitespace-nowrap">
+                            {sp.mmWidth}×{sp.mmHeight} mm · {sp.width}×{sp.height}px
                           </div>
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* 3. 容差与边缘羽化微调 */}
+                  {/* 3. 报名网站文件体积严格限制 (KB Limiter) */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                      <span>{lang === "en" ? "File Size Limit (KB)" : "报名网站体积严格限制 (KB 限容)"}</span>
+                      <span className="text-xs text-toast-500 font-mono font-bold">
+                        {targetKb === 0 ? (lang === "en" ? "Unlimited (HD)" : "不限 (原画高清)") : `严格限制在 ${targetKb} KB 内`}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[
+                        { kb: 0, label: lang === "en" ? "Unlimited" : "不限 (高清)" },
+                        { kb: 50, label: lang === "en" ? "< 50 KB" : "极小 (<50KB)" },
+                        { kb: 100, label: lang === "en" ? "30~100 KB" : "国考/社保 (<100KB)" },
+                        { kb: 200, label: lang === "en" ? "< 200 KB" : "教资/考研 (<200KB)" },
+                      ].map((item) => (
+                        <button
+                          key={item.kb}
+                          onClick={() => handleTargetKbChange(item.kb)}
+                          className={`py-2 px-1 rounded-xl border text-center text-xs font-semibold transition-all active:scale-95 ${
+                            targetKb === item.kb
+                              ? "bg-palm-600 text-white border-palm-600 shadow-sm font-bold"
+                              : "bg-coconut-50/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted border-coconut-200 dark:border-darkbg-border hover:bg-coconut-100"
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 4. 容差与边缘羽化微调 */}
                   <div className="p-4 bg-coconut-100/40 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border space-y-3 text-xs sm:text-sm">
                     <div className="flex justify-between items-center text-coconut-900 dark:text-darkbg-text font-semibold">
                       <span>{lang === "en" ? "Tolerance Threshold" : "抠图容差阈值 (Tolerance)"}</span>
@@ -426,10 +590,10 @@ export default function DailyToolbox({
                     />
                   </div>
 
-                  {/* 4. 立即重新处理按钮 */}
+                  {/* 5. 立即重新处理按钮 */}
                   <button
                     onClick={() => {
-                      if (photoFile) processPhotoBg(photoFile, selectedBg, tolerance, feather);
+                      if (photoFile) processPhotoBg(photoFile, selectedBg, tolerance, feather, selectedSpec, targetKb);
                     }}
                     disabled={isProcessing}
                     className="w-full py-3.5 btn-3d-sunset text-white rounded-2xl text-sm font-bold flex items-center justify-center space-x-2"
@@ -437,7 +601,7 @@ export default function DailyToolbox({
                     {isProcessing ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>{lang === "en" ? "Processing background..." : "正在处理换底..."}</span>
+                        <span>{lang === "en" ? "Processing background..." : "正在处理换底与尺寸..."}</span>
                       </>
                     ) : (
                       <>
@@ -450,13 +614,20 @@ export default function DailyToolbox({
 
                 {/* 右侧渲染与预览区 */}
                 <div className="md:col-span-5 space-y-4">
-                  <div className="p-4 bg-coconut-100/30 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border flex flex-col items-center justify-center min-h-[300px]">
+                  <div className="p-4 bg-coconut-100/30 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border flex flex-col items-center justify-center min-h-[300px] relative">
                     {processedPhotoBlob ? (
-                      <img
-                        src={URL.createObjectURL(processedPhotoBlob)}
-                        alt={lang === "en" ? "ID photo preview" : "证件照效果"}
-                        className="max-h-64 object-contain rounded-xl shadow-md border border-coconut-200 dark:border-darkbg-border"
-                      />
+                      <div className="space-y-3 flex flex-col items-center">
+                        <img
+                          src={processedPhotoUrl || URL.createObjectURL(processedPhotoBlob)}
+                          alt={lang === "en" ? "ID photo preview" : "证件照效果"}
+                          className="max-h-64 object-contain rounded-xl shadow-md border border-coconut-200 dark:border-darkbg-border"
+                        />
+                        <div className="px-3 py-1 bg-white/80 dark:bg-darkbg-card rounded-full border border-coconut-200 dark:border-darkbg-border text-xs font-mono text-coconut-700 dark:text-darkbg-muted flex items-center space-x-2">
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">✓ {selectedSpec.width}×{selectedSpec.height} px</span>
+                          <span>·</span>
+                          <span className="font-bold text-toast-500">{formatBytes(processedPhotoSize)}</span>
+                        </div>
+                      </div>
                     ) : photoPreview ? (
                       <img
                         src={photoPreview}
@@ -471,23 +642,45 @@ export default function DailyToolbox({
                       <button
                         onClick={() => {
                           if (processedPhotoBlob) {
-                            downloadBlob(processedPhotoBlob, `id_photo_${selectedSpec.name}_clean.jpg`);
+                            downloadBlob(processedPhotoBlob, `id_photo_${selectedSpec.width}x${selectedSpec.height}_clean.jpg`);
                           }
                         }}
                         className="w-full py-3 btn-3d-sunset text-white rounded-2xl text-sm font-bold flex items-center justify-center space-x-2"
                       >
                         <Download className="w-4 h-4" />
-                        <span>{lang === "en" ? "Download Single HD Photo" : "下载单张高清证件照"}</span>
+                        <span>{lang === "en" ? "Download Single Photo" : "立即下载单张证件照"}</span>
                       </button>
 
                       <button
-                        onClick={handleDownloadSheet}
+                        onClick={handleGenerateSheet}
                         disabled={isProcessing}
                         className="w-full py-3 btn-3d-secondary rounded-2xl text-sm font-bold flex items-center justify-center space-x-2"
                       >
                         <Printer className="w-4 h-4" />
-                        <span>{lang === "en" ? "🖨️ Generate 6-Inch Print Sheet (with crop lines)" : "🖨️ 生成 6寸相纸排版大图 (带裁切虚线)"}</span>
+                        <span>{lang === "en" ? "Generate 6-Inch Print Sheet" : "生成 6 寸相纸排版大图"}</span>
                       </button>
+
+                      {sheetResult && (
+                        <div className="p-4 bg-coconut-50 dark:bg-darkbg-card rounded-2xl border border-coconut-200 dark:border-darkbg-border space-y-3 animate-fade-in">
+                          <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center space-x-1.5">
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>{lang === "en" ? "6-Inch Print Sheet Ready!" : "6寸相纸 9 宫格排版生成成功！"}</span>
+                          </div>
+                          <img
+                            src={sheetResult.url}
+                            alt="Print Sheet"
+                            className="w-full max-h-48 object-contain rounded-xl border border-coconut-200 dark:border-darkbg-border bg-white"
+                          />
+                          <button
+                            onClick={() => downloadBlob(sheetResult.blob, sheetResult.filename)}
+                            className="w-full py-2.5 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>{lang === "en" ? "Download Print Sheet Image" : "下载 6 寸相纸冲印图"}</span>
+                          </button>
+                        </div>
+                      )}
+
                       <p className="text-xs text-coconut-600 dark:text-darkbg-muted text-center leading-relaxed">
                         {lang === "en"
                           ? "💡 Standard 6-inch photo paper can be directly sent to print shops; cut along dashed lines for standard photos"
@@ -502,29 +695,282 @@ export default function DailyToolbox({
         </div>
       )}
 
-      {/* ================= 2. 个性化二维码工坊面板 ================= */}
+      {/* ================= 2. 个性化二维码与扫码识别面板 ================= */}
       {activeTab === "qrcode" && (
         <div className="space-y-6">
-          <div className="coconut-panel p-5 sm:p-6">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-              {/* 左侧参数调节 */}
-              <div className="md:col-span-7 space-y-4">
-                <div className="space-y-1.5">
-                  <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                    {lang === "en" ? "QR Code Content (URL / Text / Wi-Fi)" : "二维码内容 (网址 / 文本 / Wi-Fi)"}
-                  </span>
-                  <textarea
-                    rows={3}
-                    value={qrText}
-                    onChange={(e) => setQrText(e.target.value)}
-                    placeholder={
-                      lang === "en"
-                        ? "Enter URL, text, or any content to encode..."
-                        : "输入需要生成二维码的网页链接或任意文字..."
+          {/* 二维码模式切换 */}
+          <div className="flex space-x-2 border-b border-coconut-200/60 dark:border-darkbg-border pb-3">
+            <button
+              onClick={() => setQrMode("create")}
+              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center space-x-1.5 transition-all ${
+                qrMode === "create"
+                  ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 shadow-sm"
+                  : "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted"
+              }`}
+            >
+              <QrCode className="w-4 h-4" />
+              <span>{lang === "en" ? "Create Custom QR" : "制作艺术二维码"}</span>
+            </button>
+            <button
+              onClick={() => setQrMode("scan")}
+              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center space-x-1.5 transition-all ${
+                qrMode === "scan"
+                  ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 shadow-sm"
+                  : "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted"
+              }`}
+            >
+              <ScanLine className="w-4 h-4" />
+              <span>{lang === "en" ? "Scan / Decode Image" : "离线识码/解码图片"}</span>
+            </button>
+          </div>
+
+          {qrMode === "scan" ? (
+            <div className="coconut-panel p-5 sm:p-6 space-y-5">
+              <div>
+                <h3 className="text-base font-bold text-coconut-900 dark:text-darkbg-text flex items-center space-x-2">
+                  <ScanLine className="w-5 h-5 text-palm-600 dark:text-palm-400" />
+                  <span>{lang === "en" ? "Offline QR Code Scanner & Decoder" : "二维码离线智能识别与解码"}</span>
+                </h3>
+                <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1 leading-relaxed">
+                  {lang === "en"
+                    ? "Drag or paste any QR code image. 100% offline local parsing with jsQR, zero data upload."
+                    : "直接上传或拖拽电脑上的二维码截图、微信名片码、WiFi码等，100% 浏览器本地离线解析，无需掏出手机扫屏幕。"}
+                </p>
+              </div>
+
+              {!scanFile ? (
+                <div
+                  onClick={() => document.getElementById("qr-scan-upload")?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      handleScanQrFile(e.dataTransfer.files[0]);
                     }
-                    className="w-full p-3.5 text-sm bg-white/70 dark:bg-darkbg-subtle border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
+                  }}
+                  className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center cursor-pointer transition-all bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85"
+                >
+                  <input
+                    id="qr-scan-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleScanQrFile(e.target.files[0]);
+                      }
+                    }}
+                    className="hidden"
                   />
+                  <ScanLine className="w-10 h-10 text-toast-500 mx-auto mb-2" />
+                  <div className="text-sm sm:text-base font-bold text-coconut-900 dark:text-darkbg-text">
+                    {lang === "en" ? "Click or drag QR code image here" : "点击或拖拽二维码图片至此处解码"}
+                  </div>
+                  <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
+                    {lang === "en" ? "Supports PNG, JPG, WebP screenshots" : "支持常见截图、照片、PNG、JPG 与 WebP 格式"}
+                  </div>
                 </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-3 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/70 dark:border-darkbg-border flex items-center justify-between">
+                    <span className="text-xs font-semibold text-coconut-900 dark:text-darkbg-text truncate">
+                      {scanFile.name}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setScanFile(null);
+                        setScanPreviewUrl("");
+                        setScanResult(null);
+                      }}
+                      className="text-xs text-coconut-600 hover:text-coconut-900 dark:text-darkbg-muted dark:hover:text-darkbg-text"
+                    >
+                      {lang === "en" ? "Change Image" : "更换图片"}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                    <div className="md:col-span-4 flex justify-center p-3 bg-coconut-100/30 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border">
+                      <img src={scanPreviewUrl} alt="Scan QR" className="max-h-56 object-contain rounded-xl" />
+                    </div>
+
+                    <div className="md:col-span-8 space-y-3">
+                      {isScanning ? (
+                        <div className="p-6 text-center text-xs text-coconut-600 dark:text-darkbg-muted flex items-center justify-center space-x-2">
+                          <Loader2 className="w-4 h-4 animate-spin text-palm-500" />
+                          <span>{lang === "en" ? "Recognizing QR code in image..." : "正在极速识别图像中的二维码..."}</span>
+                        </div>
+                      ) : scanResult ? (
+                        <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 space-y-3">
+                          <div className="flex justify-between items-center text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                            <span className="flex items-center space-x-1.5">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                              <span>{lang === "en" ? "QR Code Successfully Decoded!" : "二维码识别成功！"}</span>
+                            </span>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => copyToClipboard(scanResult.text)}
+                                className="px-3 py-1 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center space-x-1 active:scale-95 transition-all shadow-sm"
+                              >
+                                {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                <span>{copied ? "已复制" : "复制文本"}</span>
+                              </button>
+                              {/^https?:\/\//i.test(scanResult.text) && (
+                                <a
+                                  href={scanResult.text}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-3 py-1 bg-palm-600 text-white rounded-xl text-xs font-bold flex items-center space-x-1 active:scale-95 transition-all shadow-sm"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  <span>{lang === "en" ? "Open URL" : "直接打开链接"}</span>
+                                </a>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="p-3 bg-white dark:bg-darkbg-card rounded-xl border border-emerald-100 dark:border-emerald-900/30 font-mono text-xs text-coconut-900 dark:text-darkbg-text break-all select-all leading-relaxed max-h-48 overflow-y-auto">
+                            {scanResult.text}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="coconut-panel p-5 sm:p-6">
+              {/* 模板选择 */}
+              <div className="flex items-center space-x-2 mb-4 pb-3 border-b border-coconut-100 dark:border-darkbg-border flex-wrap gap-y-2">
+                <span className="text-xs font-semibold text-coconut-700 dark:text-darkbg-muted">{lang === "en" ? "Template:" : "快捷模板:"}</span>
+                {[
+                  { id: "url", label: lang === "en" ? "URL / Text" : "常用网址/文本", icon: ExternalLink },
+                  { id: "wifi", label: lang === "en" ? "WiFi Quick Connect" : "WiFi 扫码一键连", icon: Wifi },
+                  { id: "vcard", label: lang === "en" ? "Contact vCard" : "电子名片 (vCard)", icon: Contact },
+                ].map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    onClick={() => setQrTemplate(tpl.id as any)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all active:scale-95 ${
+                      qrTemplate === tpl.id
+                        ? "bg-palm-600 text-white shadow-sm font-bold"
+                        : "bg-coconut-100/80 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-200/80"
+                    }`}
+                  >
+                    <tpl.icon className="w-3.5 h-3.5" />
+                    <span>{tpl.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+                {/* 左侧参数调节 */}
+                <div className="md:col-span-7 space-y-4">
+                  {/* 根据模板展示输入字段 */}
+                  {qrTemplate === "wifi" ? (
+                    <div className="p-4 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/70 dark:border-darkbg-border space-y-3">
+                      <div className="text-xs font-bold text-coconut-900 dark:text-darkbg-text flex items-center space-x-1.5">
+                        <Wifi className="w-4 h-4 text-toast-500" />
+                        <span>{lang === "en" ? "WiFi Network Details (Scan to connect directly)" : "WiFi 局域网参数 (扫码直接连入，免手动输密码)"}</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">
+                            {lang === "en" ? "WiFi Name (SSID)" : "WiFi 名称 (SSID)"}
+                          </label>
+                          <input
+                            type="text"
+                            value={wifiSsid}
+                            onChange={(e) => setWifiSsid(e.target.value)}
+                            className="w-full px-3 py-2 bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border rounded-xl text-xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">
+                            {lang === "en" ? "WiFi Password" : "WiFi 密码"}
+                          </label>
+                          <input
+                            type="text"
+                            value={wifiPassword}
+                            onChange={(e) => setWifiPassword(e.target.value)}
+                            className="w-full px-3 py-2 bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border rounded-xl text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3 text-xs pt-1">
+                        <label className="text-coconut-600 dark:text-darkbg-muted">{lang === "en" ? "Encryption:" : "加密方式:"}</label>
+                        {(["WPA", "WEP", "nopass"] as const).map((enc) => (
+                          <label key={enc} className="flex items-center space-x-1 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="wifiEnc"
+                              checked={wifiEncryption === enc}
+                              onChange={() => setWifiEncryption(enc)}
+                              className="accent-palm-600"
+                            />
+                            <span>{enc === "nopass" ? (lang === "en" ? "Open (None)" : "无密码") : enc}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ) : qrTemplate === "vcard" ? (
+                    <div className="p-4 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/70 dark:border-darkbg-border space-y-3">
+                      <div className="text-xs font-bold text-coconut-900 dark:text-darkbg-text flex items-center space-x-1.5">
+                        <Contact className="w-4 h-4 text-toast-500" />
+                        <span>{lang === "en" ? "vCard Contact Details (Scan to save to phone)" : "电子名片参数 (扫码一键存入手机通讯录)"}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">姓名</label>
+                          <input
+                            type="text"
+                            value={vcardName}
+                            onChange={(e) => setVcardName(e.target.value)}
+                            className="w-full px-3 py-2 bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border rounded-xl text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">手机号码</label>
+                          <input
+                            type="text"
+                            value={vcardPhone}
+                            onChange={(e) => setVcardPhone(e.target.value)}
+                            className="w-full px-3 py-2 bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border rounded-xl text-xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">公司/机构</label>
+                          <input
+                            type="text"
+                            value={vcardCompany}
+                            onChange={(e) => setVcardCompany(e.target.value)}
+                            className="w-full px-3 py-2 bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border rounded-xl text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">电子邮箱</label>
+                          <input
+                            type="text"
+                            value={vcardEmail}
+                            onChange={(e) => setVcardEmail(e.target.value)}
+                            className="w-full px-3 py-2 bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border rounded-xl text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                        {lang === "en" ? "QR Code Content (URL / Text)" : "二维码内容 (网页链接或任意文字)"}
+                      </span>
+                      <textarea
+                        rows={3}
+                        value={qrText}
+                        onChange={(e) => setQrText(e.target.value)}
+                        placeholder="输入需要生成二维码的网页链接或任意文字..."
+                        className="w-full p-3.5 text-sm bg-white/70 dark:bg-darkbg-subtle border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
+                      />
+                    </div>
+                  )}
 
                 {/* 颜色 + 输出尺寸 */}
                 <div className="grid grid-cols-2 gap-4">
@@ -860,14 +1306,15 @@ export default function DailyToolbox({
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    )}
 
       {/* ================= 3. 文本与代码 Diff 对比面板 ================= */}
       {activeTab === "diff" && (
         <div className="coconut-panel p-5 sm:p-6 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-coconut-200/60 dark:border-darkbg-border">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 flex-wrap gap-y-2">
               <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
                 {lang === "en" ? "Diff Mode:" : "对比模式:"}
               </span>
@@ -876,21 +1323,31 @@ export default function DailyToolbox({
                   <button
                     key={m}
                     onClick={() => setDiffMode(m)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all active:scale-95 ${
+                    className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all active:scale-95 ${
                       diffMode === m
                         ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 shadow-coconut-sm font-bold"
                         : "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-200/60 dark:hover:text-darkbg-text"
                     }`}
                   >
                     {m === "lines"
-                      ? lang === "en" ? "By Lines (Recommended)" : "按行对比 (推荐)"
-                      : lang === "en" ? "By Words" : "按词精细对比"}
+                      ? lang === "en" ? "By Lines (Contract)" : "按行对比 (合同推荐)"
+                      : lang === "en" ? "By Words (Fine)" : "按词精细高亮"}
                   </button>
                 ))}
               </div>
+
+              <label className="flex items-center space-x-1.5 text-xs text-coconut-700 dark:text-darkbg-muted cursor-pointer select-none ml-2">
+                <input
+                  type="checkbox"
+                  checked={diffChangesOnly}
+                  onChange={(e) => setDiffChangesOnly(e.target.checked)}
+                  className="rounded accent-palm-600"
+                />
+                <span>{lang === "en" ? "Changes Only (Fold Unchanged)" : "仅看修改段落 (折叠未改动)"}</span>
+              </label>
             </div>
 
-            <div className="flex items-center space-x-3 text-xs sm:text-sm">
+            <div className="flex items-center space-x-3 text-xs sm:text-sm flex-wrap gap-y-1.5">
               <span className="px-3 py-1 rounded-xl bg-palm-100/80 dark:bg-palm-950/60 text-palm-700 dark:text-palm-300 font-mono font-bold border border-palm-200/50 dark:border-palm-900/40">
                 +{diffResult.addedCount} {lang === "en" ? "Added" : "新增"}
               </span>
@@ -906,7 +1363,16 @@ export default function DailyToolbox({
                 className="flex items-center space-x-1 text-coconut-600 hover:text-palm-600 dark:text-darkbg-muted dark:hover:text-palm-400 transition-colors font-semibold"
               >
                 <ArrowRightLeft className="w-4 h-4" />
-                <span>{lang === "en" ? "Swap Sides" : "左右交换"}</span>
+                <span>{lang === "en" ? "Swap" : "左右互换"}</span>
+              </button>
+              <button
+                onClick={() => {
+                  setDiffOriginal(RENTAL_OLD_PRESET);
+                  setDiffModified(RENTAL_NEW_PRESET);
+                }}
+                className="px-2.5 py-1 rounded-xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-muted hover:text-coconut-900 text-xs font-semibold"
+              >
+                {lang === "en" ? "Load Rental Contract Example" : "载入租房合同示例"}
               </button>
             </div>
           </div>
@@ -914,43 +1380,68 @@ export default function DailyToolbox({
           {/* 输入框双栏 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text font-mono">
-                {lang === "en" ? "Original Version" : "原始版本 (Original)"}
-              </span>
+              <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text font-mono">
+                <span>{lang === "en" ? "Original Version (Contract A)" : "原始版本 (合同原件 / 甲版)"}</span>
+                <button
+                  onClick={() => setDiffOriginal("")}
+                  className="text-xs text-coconut-400 hover:text-toast-500 font-sans"
+                >
+                  清空
+                </button>
+              </div>
               <textarea
-                rows={6}
+                rows={7}
                 value={diffOriginal}
                 onChange={(e) => setDiffOriginal(e.target.value)}
-                className="w-full p-3.5 text-sm bg-white/70 dark:bg-darkbg-subtle/80 border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono leading-relaxed text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
+                placeholder="粘贴原始合同或第一版文本..."
+                className="w-full p-3.5 text-xs sm:text-sm bg-white/70 dark:bg-darkbg-subtle/80 border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono leading-relaxed text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
               />
             </div>
 
             <div className="space-y-1.5">
-              <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text font-mono">
-                {lang === "en" ? "Modified Version" : "修改后版本 (Modified)"}
-              </span>
+              <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text font-mono">
+                <span>{lang === "en" ? "Modified Version (Contract B)" : "修改后版本 (房东/对方增补后版本)"}</span>
+                <button
+                  onClick={() => setDiffModified("")}
+                  className="text-xs text-coconut-400 hover:text-toast-500 font-sans"
+                >
+                  清空
+                </button>
+              </div>
               <textarea
-                rows={6}
+                rows={7}
                 value={diffModified}
                 onChange={(e) => setDiffModified(e.target.value)}
-                className="w-full p-3.5 text-sm bg-white/70 dark:bg-darkbg-subtle/80 border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono leading-relaxed text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
+                placeholder="粘贴修改后合同或第二版文本..."
+                className="w-full p-3.5 text-xs sm:text-sm bg-white/70 dark:bg-darkbg-subtle/80 border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono leading-relaxed text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
               />
             </div>
           </div>
 
           {/* 差异可视化高亮输出 */}
           <div className="space-y-1.5">
-            <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-              {lang === "en"
-                ? "Diff Visualizer (with additions & deletions highlighted)"
-                : "Diff 差异高亮视图 (带增删标记)"}
-            </span>
+            <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+              <span>{lang === "en" ? "Diff Highlight Visualizer" : "差异精准比对视图 (绿色代表新增/红色代表删除)"}</span>
+              <span className="text-xs text-coconut-500 dark:text-darkbg-muted font-mono">
+                {diffResult.changes.filter((c) => c.added || c.removed).length} 处修改差异
+              </span>
+            </div>
             <div className="p-4 bg-darkbg-canvas rounded-2xl border border-darkbg-border font-mono text-xs sm:text-sm leading-relaxed max-h-80 overflow-y-auto no-scrollbar">
               {diffResult.changes.map((part, index) => {
+                if (diffChangesOnly && !part.added && !part.removed) {
+                  const linesCount = (part.value.match(/\n/g) || []).length;
+                  if (linesCount > 2) {
+                    return (
+                      <div key={index} className="py-1 px-3 bg-zinc-800/60 text-zinc-500 rounded my-1 text-center select-none text-[11px]">
+                        ··· 此处跳过 {linesCount} 行未变动条款 ···
+                      </div>
+                    );
+                  }
+                }
                 const color = part.added
-                  ? "bg-palm-950/80 text-palm-300 border-l-2 border-palm-500 pl-2 block my-0.5"
+                  ? "bg-emerald-950/80 text-emerald-300 border-l-2 border-emerald-500 pl-2 block my-0.5"
                   : part.removed
-                  ? "bg-toast-950/80 text-toast-300 border-l-2 border-toast-500 pl-2 line-through opacity-80 block my-0.5"
+                  ? "bg-rose-950/80 text-rose-300 border-l-2 border-rose-500 pl-2 line-through opacity-80 block my-0.5"
                   : "text-coconut-300 dark:text-darkbg-muted block my-0.5";
                 return (
                   <span key={index} className={color}>
@@ -976,6 +1467,9 @@ export default function DailyToolbox({
             className="flex space-x-2 border-b border-coconut-200/60 dark:border-darkbg-border pb-3 overflow-x-auto tab-scrollbar snap-x touch-pan-x"
           >
             {[
+              { id: "rmb", label: lang === "en" ? "RMB Capitalization" : "人民币财务大写", icon: Banknote },
+              { id: "stats", label: lang === "en" ? "Word Stats & Clean" : "字数统计与清洗", icon: AlignLeft },
+              { id: "idcard", label: lang === "en" ? "ID Card Validator" : "身份证离线校验", icon: ShieldCheck },
               { id: "json", label: lang === "en" ? "JSON Formatter" : "JSON 格式化校验", icon: FileCode },
               { id: "base64", label: lang === "en" ? "Base64 Codec" : "Base64 编解码", icon: KeyRound },
               { id: "hash", label: lang === "en" ? "Hash Generator" : "哈希计算 (SHA/MD5)", icon: Sparkles },
@@ -1000,7 +1494,322 @@ export default function DailyToolbox({
             })}
           </div>
 
-          {/* 4.1 JSON 格式化与语法校验 */}
+          {/* 4.1 人民币财务大写转换 */}
+          {devTab === "rmb" && (
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                  <span>{lang === "en" ? "Input Amount (Arabian Digits)" : "输入阿拉伯数字金额 (元)"}</span>
+                  <div className="flex items-center space-x-1.5">
+                    {[
+                      { label: "1万", val: "10000" },
+                      { label: "12.85万", val: "128500.68" },
+                      { label: "100万", val: "1000000" },
+                      { label: "1000万", val: "10000000.5" },
+                      { label: "888.88", val: "888.88" },
+                    ].map((preset) => (
+                      <button
+                        key={preset.label}
+                        onClick={() => setRmbInput(preset.val)}
+                        className="px-2 py-0.5 rounded-lg bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-muted hover:text-coconut-900 text-xs font-mono font-medium transition-colors"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setRmbInput("")}
+                      className="text-xs text-coconut-400 hover:text-toast-500 font-sans ml-1"
+                    >
+                      清空
+                    </button>
+                  </div>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-coconut-400 font-mono text-base font-bold">
+                    ¥
+                  </span>
+                  <input
+                    type="text"
+                    value={rmbInput}
+                    onChange={(e) => setRmbInput(e.target.value)}
+                    placeholder="例如：128500.68"
+                    className="w-full pl-8 pr-4 py-3 text-base sm:text-lg bg-white/70 dark:bg-darkbg-subtle/80 border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono font-semibold text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
+                  />
+                </div>
+              </div>
+
+              {/* 转换结果卡片 */}
+              <div className="p-5 sm:p-6 rounded-2xl bg-palm-50/70 dark:bg-palm-950/30 border border-palm-200/60 dark:border-palm-900/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-palm-700 dark:text-palm-400">
+                      {lang === "en" ? "Official PBOC Financial Standard" : "中国人民银行支付凭证规范大写"}
+                    </span>
+                    <span className="px-2 py-0.5 text-2xs rounded-full bg-palm-100 dark:bg-palm-900/60 text-palm-800 dark:text-palm-300 font-medium">
+                      标准大写
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(rmbResult.capitalized)}
+                    className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-palm-600 hover:bg-palm-700 text-white text-xs font-semibold shadow-2xs active:scale-95 transition-all"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copied ? (lang === "en" ? "Copied" : "已复制") : (lang === "en" ? "Copy Capitalized" : "复制大写")}</span>
+                  </button>
+                </div>
+
+                <div className="p-4 bg-white/90 dark:bg-darkbg-card rounded-xl border border-palm-200/50 dark:border-darkbg-border font-serif text-lg sm:text-2xl font-bold text-coconut-900 dark:text-darkbg-text select-all tracking-wide break-all">
+                  {rmbResult.capitalized || "零元整"}
+                </div>
+
+                {rmbResult.error && (
+                  <p className="text-xs text-toast-600 dark:text-toast-400 font-mono">
+                    ⚠️ {rmbResult.error}
+                  </p>
+                )}
+              </div>
+
+              {/* 规范对照科普与防错指南 */}
+              <div className="p-4 rounded-2xl bg-coconut-50 dark:bg-darkbg-subtle/40 border border-coconut-200/60 dark:border-darkbg-border space-y-2 text-xs text-coconut-600 dark:text-darkbg-muted">
+                <div className="font-semibold text-coconut-800 dark:text-darkbg-text flex items-center space-x-1.5">
+                  <Sparkles className="w-4 h-4 text-palm-500" />
+                  <span>银行票据规范速查</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-2xs">
+                  <div>0: 零 / 1: 壹 / 2: 贰</div>
+                  <div>3: 叁 / 4: 肆 / 5: 伍</div>
+                  <div>6: 陆 / 7: 柒 / 8: 捌</div>
+                  <div>9: 玖 / 10: 拾 / 百: 佰 / 千: 仟</div>
+                </div>
+                <p className="text-2xs leading-relaxed text-coconut-500 dark:text-darkbg-muted">
+                  * 遵循《正确填写票据和结算凭证的基本规定》：分之后不写“整”；元末尾有角无分可写可不写“整”；元位或整角位为0时严格遵守零字递进规则。
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* 4.2 字数统计与标点排版清洗 */}
+          {devTab === "stats" && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                    {lang === "en" ? "Input or Paste Article / Manuscript" : "输入或粘贴待统计/排版稿件"}
+                  </span>
+                  <div className="flex items-center space-x-1.5 flex-wrap">
+                    <button
+                      onClick={() => setStatsText(cleanTextFormatting(statsText, { removeEmptyLines: true }))}
+                      className="px-2.5 py-1 rounded-xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-muted hover:text-coconut-900 text-xs font-semibold"
+                      title="清除多余的连续空白行"
+                    >
+                      清除空行
+                    </button>
+                    <button
+                      onClick={() => setStatsText(cleanTextFormatting(statsText, { trimLines: true }))}
+                      className="px-2.5 py-1 rounded-xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-muted hover:text-coconut-900 text-xs font-semibold"
+                      title="清除每行前后的空格"
+                    >
+                      首尾去空
+                    </button>
+                    <button
+                      onClick={() => setStatsText(cleanTextFormatting(statsText, { panguSpacing: true }))}
+                      className="px-2.5 py-1 rounded-xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-muted hover:text-coconut-900 text-xs font-semibold"
+                      title="在中英文、中文数字之间优雅插入盘古空格"
+                    >
+                      中英文排版空格
+                    </button>
+                    <button
+                      onClick={() =>
+                        setStatsText(
+                          cleanTextFormatting(statsText, {
+                            removeEmptyLines: true,
+                            trimLines: true,
+                            panguSpacing: true,
+                          })
+                        )
+                      }
+                      className="px-3 py-1 rounded-xl bg-palm-600 hover:bg-palm-700 text-white text-xs font-semibold shadow-2xs active:scale-95 transition-all"
+                    >
+                      一键全自动清洗
+                    </button>
+                    <button
+                      onClick={() => setStatsText("")}
+                      className="text-xs text-coconut-400 hover:text-toast-500 font-sans ml-1"
+                    >
+                      清空
+                    </button>
+                  </div>
+                </div>
+
+                <textarea
+                  rows={8}
+                  value={statsText}
+                  onChange={(e) => setStatsText(e.target.value)}
+                  placeholder="在此输入需要统计字数或排版清洗的文本..."
+                  className="w-full p-4 text-xs sm:text-sm bg-white/70 dark:bg-darkbg-subtle/80 border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono leading-relaxed text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
+                />
+              </div>
+
+              {/* 统计指标网格 */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3.5 rounded-2xl bg-coconut-100/50 dark:bg-darkbg-subtle/60 border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="text-2xs text-coconut-500 dark:text-darkbg-muted">总字符数 (含空格)</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-coconut-900 dark:text-darkbg-text mt-1">
+                    {statsMetrics.totalChars}
+                  </div>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-coconut-100/50 dark:bg-darkbg-subtle/60 border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="text-2xs text-coconut-500 dark:text-darkbg-muted">有效字符 (不含空格)</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-palm-700 dark:text-palm-400 mt-1">
+                    {statsMetrics.nonSpaceChars}
+                  </div>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-coconut-100/50 dark:bg-darkbg-subtle/60 border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="text-2xs text-coconut-500 dark:text-darkbg-muted">中文字数 (汉字)</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-coconut-900 dark:text-darkbg-text mt-1">
+                    {statsMetrics.chineseChars}
+                  </div>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-coconut-100/50 dark:bg-darkbg-subtle/60 border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="text-2xs text-coconut-500 dark:text-darkbg-muted">英文单词数</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-coconut-900 dark:text-darkbg-text mt-1">
+                    {statsMetrics.englishWords}
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-coconut-100/50 dark:bg-darkbg-subtle/60 border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="text-2xs text-coconut-500 dark:text-darkbg-muted">数字个数</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-coconut-900 dark:text-darkbg-text mt-1">
+                    {statsMetrics.numbers}
+                  </div>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-coconut-100/50 dark:bg-darkbg-subtle/60 border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="text-2xs text-coconut-500 dark:text-darkbg-muted">标点符号</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-coconut-900 dark:text-darkbg-text mt-1">
+                    {statsMetrics.punctuation}
+                  </div>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-coconut-100/50 dark:bg-darkbg-subtle/60 border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="text-2xs text-coconut-500 dark:text-darkbg-muted">预估朗读时间</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-coconut-900 dark:text-darkbg-text mt-1">
+                    {statsMetrics.speechMinutes} <span className="text-xs font-normal">分钟</span>
+                  </div>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-coconut-100/50 dark:bg-darkbg-subtle/60 border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="text-2xs text-coconut-500 dark:text-darkbg-muted">预估默读时间</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-coconut-900 dark:text-darkbg-text mt-1">
+                    {statsMetrics.readingMinutes} <span className="text-xs font-normal">分钟</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center text-xs text-coconut-500 dark:text-darkbg-muted font-mono px-1">
+                <span>{statsMetrics.lines} 行 · {statsMetrics.paragraphs} 个段落</span>
+                <button
+                  onClick={() => copyToClipboard(statsText)}
+                  className="flex items-center space-x-1 hover:text-palm-600 transition-colors"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-palm-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copied ? "已复制清洗后文本" : "复制当前文本"}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 4.3 居民身份证离线校验 */}
+          {devTab === "idcard" && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                  <span>{lang === "en" ? "18-Digit Resident ID Number" : "输入 18 位居民身份证号码"}</span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setIdCardInput("110101199003072379")}
+                      className="px-2.5 py-1 rounded-xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-muted hover:text-coconut-900 text-xs font-semibold"
+                    >
+                      载入示例号 (北京市)
+                    </button>
+                    <button
+                      onClick={() => setIdCardInput("")}
+                      className="text-xs text-coconut-400 hover:text-toast-500 font-sans"
+                    >
+                      清空
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  maxLength={18}
+                  value={idCardInput}
+                  onChange={(e) => setIdCardInput(e.target.value.trim().toUpperCase())}
+                  placeholder="请输入18位二代居民身份证号码 (末位支持 X)"
+                  className="w-full p-3.5 text-base sm:text-lg bg-white/70 dark:bg-darkbg-subtle/80 border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono font-semibold tracking-wider text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
+                />
+              </div>
+
+              {/* 校验与解析卡片 */}
+              <div className="p-5 sm:p-6 rounded-2xl bg-coconut-50/70 dark:bg-darkbg-card border border-coconut-200/60 dark:border-darkbg-border space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center space-x-2">
+                    {idCardAnalysis.valid ? (
+                      <span className="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-palm-100 text-palm-800 dark:bg-palm-950/80 dark:text-palm-300 text-xs sm:text-sm font-bold">
+                        <CheckCircle2 className="w-4 h-4 text-palm-600 dark:text-palm-400" />
+                        <span>校验有效 (符合 GB 11643-1999 国家标准)</span>
+                      </span>
+                    ) : (
+                      <span className="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-toast-100 text-toast-800 dark:bg-toast-950/80 dark:text-toast-300 text-xs sm:text-sm font-bold">
+                        <AlertCircle className="w-4 h-4 text-toast-600 dark:text-toast-400" />
+                        <span>{idCardAnalysis.message}</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-1 text-2xs text-coconut-500 dark:text-darkbg-muted">
+                    <ShieldCheck className="w-3.5 h-3.5 text-palm-600" />
+                    <span>纯浏览器离线计算 · 绝不上云 · 保护隐私</span>
+                  </div>
+                </div>
+
+                {idCardAnalysis.valid && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                    <div className="p-3.5 rounded-xl bg-white dark:bg-darkbg-subtle/70 border border-coconut-200/40 dark:border-darkbg-border">
+                      <div className="text-2xs text-coconut-500 dark:text-darkbg-muted">发证行政省市</div>
+                      <div className="text-base font-bold text-coconut-900 dark:text-darkbg-text mt-1">
+                        {idCardAnalysis.province || "未知"}
+                      </div>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-white dark:bg-darkbg-subtle/70 border border-coconut-200/40 dark:border-darkbg-border">
+                      <div className="text-2xs text-coconut-500 dark:text-darkbg-muted">出生日期</div>
+                      <div className="text-base font-bold font-mono text-coconut-900 dark:text-darkbg-text mt-1">
+                        {idCardAnalysis.birthday || "-"}
+                      </div>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-white dark:bg-darkbg-subtle/70 border border-coconut-200/40 dark:border-darkbg-border">
+                      <div className="text-2xs text-coconut-500 dark:text-darkbg-muted">法定性别</div>
+                      <div className="text-base font-bold text-coconut-900 dark:text-darkbg-text mt-1">
+                        {idCardAnalysis.gender || "-"}
+                      </div>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-white dark:bg-darkbg-subtle/70 border border-coconut-200/40 dark:border-darkbg-border">
+                      <div className="text-2xs text-coconut-500 dark:text-darkbg-muted">当前周岁</div>
+                      <div className="text-base font-bold font-mono text-coconut-900 dark:text-darkbg-text mt-1">
+                        {idCardAnalysis.age !== undefined ? `${idCardAnalysis.age} 岁` : "-"}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 算法科普 */}
+              <div className="p-4 rounded-2xl bg-coconut-100/40 dark:bg-darkbg-subtle/40 border border-coconut-200/60 dark:border-darkbg-border text-2xs text-coconut-500 dark:text-darkbg-muted leading-relaxed space-y-1">
+                <div className="font-semibold text-coconut-700 dark:text-darkbg-text">校验原理说明：</div>
+                <p>
+                  第二代居民身份证遵循国家 GB 11643-1999 标准。前 6 位为行政区划代码，第 7-14 位为公历出生年月日，第 15-17 位为顺序码（其中第 17 位奇数为男，偶数为女），第 18 位为根据 ISO 7064:1983.MOD 11-2 权重（7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2）模 11 计算生成的校验码。
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* 4.4 JSON 格式化与语法校验 */}
           {devTab === "json" && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
