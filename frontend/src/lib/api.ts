@@ -340,6 +340,33 @@ export async function organizePdfPages(
 }
 
 
+export async function inpaintImage(
+  file: File | Blob,
+  maskBlob: Blob,
+  radius: number = 4,
+  method: "telea" | "ns" = "telea"
+): Promise<{ blob: Blob; filename: string }> {
+  const formData = new FormData();
+  formData.append("file", file, file instanceof File ? file.name : "image.png");
+  formData.append("mask", maskBlob, "mask.png");
+  formData.append("radius", String(radius));
+  formData.append("method", method);
+
+  const res = await fetch(`${API_BASE}/image/inpaint`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "消除修补失败" }));
+    throw new Error(err.detail || err.error || "消除笔修补失败");
+  }
+
+  const blob = await res.blob();
+  const filename = parseFilenameFromHeader(res, "inpainted.png");
+  return { blob, filename };
+}
+
 export function downloadBlob(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement("a");

@@ -87,3 +87,37 @@ async def strip_exif_metadata(
     except Exception as e:
         add_cleanup_task(background_tasks, task_dir)
         raise HTTPException(status_code=500, detail=f"清除 EXIF 失败: {str(e)}")
+
+@router.post("/inpaint", summary="图像智能消除笔 / 去水印修补 (基于 IOPaint 工业级算法)")
+async def inpaint_image(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(..., description="待修补的原始图片"),
+    mask: UploadFile = File(..., description="涂抹的笔刷蒙版图片"),
+    radius: int = Form(4, description="修复半径 (1-20)"),
+    method: str = Form("telea", description="算法模式: telea 或 ns")
+):
+    task_dir = get_unique_task_dir()
+    input_path = task_dir / file.filename
+    mask_path = task_dir / mask.filename
+
+    stem = Path(file.filename).stem
+    output_filename = f"{stem}_inpainted.png"
+    output_path = task_dir / output_filename
+
+    try:
+        await save_upload_file(file, input_path)
+        await save_upload_file(mask, mask_path)
+
+        ImageService.inpaint_image(input_path, mask_path, output_path, radius=radius, method=method)
+        add_cleanup_task(background_tasks, task_dir)
+
+        encoded_filename = urllib.parse.quote(output_filename)
+        return FileResponse(
+            path=output_path,
+            filename=output_filename,
+            media_type="image/png",
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
+        )
+    except Exception as e:
+        add_cleanup_task(background_tasks, task_dir)
+        raise HTTPException(status_code=500, detail=f"消除修补失败: {str(e)}")

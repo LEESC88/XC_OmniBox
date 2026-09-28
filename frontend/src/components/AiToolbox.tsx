@@ -25,23 +25,38 @@ import {
   Zap,
   UserCheck,
   SlidersHorizontal,
+  Eraser,
+  FileSearch,
+  Captions,
+  Undo2,
+  Play,
+  Pause,
+  Volume2,
+  Plus,
+  RotateCcw,
 } from "lucide-react";
 import {
   removeBackgroundAI,
   recognizeTextOCR,
   enhanceAndUpscaleImage,
+  generateSearchablePdf,
+  analyzeMediaSpeechSegments,
+  exportToSrt,
+  exportToVtt,
+  formatSrtTimestamp,
+  SubtitleItem,
   OCR_LANGUAGES,
   OcrResult,
   BgRemovalEngine,
   EnhanceResult,
 } from "@/lib/aiProcessor";
-import { downloadBlob } from "@/lib/api";
+import { downloadBlob, inpaintImage } from "@/lib/api";
 import { formatBytes } from "@/lib/imageProcessor";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
 import { useI18n } from "@/lib/i18n";
 import ImageCompareModal, { ImageCompareItem } from "@/components/ImageCompareModal";
 
-export type AiTabType = "ai-bg-remove" | "ai-ocr" | "ai-upscale";
+export type AiTabType = "ai-bg-remove" | "ai-inpaint" | "ai-searchable-pdf" | "ai-subtitle" | "ai-ocr" | "ai-upscale";
 
 export interface AiToolboxProps {
   currentTab?: AiTabType;
@@ -87,6 +102,11 @@ export default function AiToolbox({
     if (stage.includes("锐化") || stage.includes("高频")) return "Extracting edge features and adaptive sharpening...";
     if (stage.includes("色彩增强")) return "Executing color enhancement...";
     if (stage.includes("生成超清") || stage.includes("修复完成") || stage.includes("修复增强完成")) return "Enhancement complete!";
+    if (stage.includes("消除") || stage.includes("修补") || stage.includes("杂物") || stage.includes("去水印")) return "Inpainting objects & blemishes...";
+    if (stage.includes("字形拓扑") || stage.includes("双层") || stage.includes("可搜索 PDF")) return "Generating dual-layer searchable PDF...";
+    if (stage.includes("音频流") || stage.includes("PCM") || stage.includes("解密")) return "Decoding audio PCM stream...";
+    if (stage.includes("能量包络") || stage.includes("VAD") || stage.includes("断句")) return "Computing acoustic energy envelope (VAD)...";
+    if (stage.includes("字幕轴") || stage.includes("时间轴")) return "Generating millisecond subtitle timestamps...";
     if (stage.includes("处理中") || stage.includes("正在")) return "Processing...";
     return stage;
   };
@@ -345,9 +365,442 @@ export default function AiToolbox({
     downloadBlob(upscaleResult.blob, `XC_UltraClear_${upscaleResult.scaleFactor}x_${Date.now()}.png`);
   };
 
+  // =========================================================================
+  // 4. AI 消除笔 / 智能去水印 / 杂物擦除 (参考 IOPaint C++ Telea/Navier-Stokes)
+  // =========================================================================
+  const [inpaintFile, setInpaintFile] = useState<File | null>(null);
+  const [inpaintPreviewUrl, setInpaintPreviewUrl] = useState<string | null>(null);
+  const [inpaintResultBlob, setInpaintResultBlob] = useState<Blob | null>(null);
+  const [inpaintResultUrl, setInpaintResultUrl] = useState<string | null>(null);
+  const [brushSize, setBrushSize] = useState<number>(28);
+  const [inpaintMethod, setInpaintMethod] = useState<"telea" | "ns">("telea");
+  const [inpaintRadius, setInpaintRadius] = useState<number>(4);
+  const [inpaintLoading, setInpaintLoading] = useState(false);
+  const [inpaintProgress, setInpaintProgress] = useState(0);
+  const [inpaintStage, setInpaintStage] = useState("");
+  const [inpaintError, setInpaintError] = useState<string | null>(null);
+  const [inpaintCompareSlider, setInpaintCompareSlider] = useState(50);
+  const [maskUndoAvailable, setMaskUndoAvailable] = useState(false);
+  const [hasDrawnMask, setHasDrawnMask] = useState(false);
+
+  const inpaintImageCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const inpaintMaskCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const inpaintMaskHistory = useRef<ImageData[]>([]);
+  const isDrawingRef = useRef(false);
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleInpaintFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setInpaintFile(file);
+    setInpaintPreviewUrl(URL.createObjectURL(file));
+    setInpaintResultBlob(null);
+    setInpaintResultUrl(null);
+    setInpaintError(null);
+    setInpaintProgress(0);
+    setHasDrawnMask(false);
+    setMaskUndoAvailable(false);
+    inpaintMaskHistory.current = [];
+  };
+
+  useEffect(() => {
+    if (!inpaintPreviewUrl) return;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const imgCanvas = inpaintImageCanvasRef.current;
+      const maskCanvas = inpaintMaskCanvasRef.current;
+      if (!imgCanvas || !maskCanvas) return;
+      imgCanvas.width = img.naturalWidth;
+      imgCanvas.height = img.naturalHeight;
+      maskCanvas.width = img.naturalWidth;
+      maskCanvas.height = img.naturalHeight;
+
+      const imgCtx = imgCanvas.getContext("2d");
+      if (imgCtx) {
+        imgCtx.drawImage(img, 0, 0);
+      }
+      const maskCtx = maskCanvas.getContext("2d");
+      if (maskCtx) {
+        maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+      }
+      inpaintMaskHistory.current = [];
+      setMaskUndoAvailable(false);
+      setHasDrawnMask(false);
+    };
+    img.src = inpaintPreviewUrl;
+  }, [inpaintPreviewUrl]);
+
+  const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = inpaintMaskCanvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
+  };
+
+  const startInpaintDrawing = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const maskCanvas = inpaintMaskCanvasRef.current;
+    if (!maskCanvas) return;
+    const maskCtx = maskCanvas.getContext("2d");
+    if (!maskCtx) return;
+
+    const currentState = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+    if (inpaintMaskHistory.current.length >= 10) {
+      inpaintMaskHistory.current.shift();
+    }
+    inpaintMaskHistory.current.push(currentState);
+    setMaskUndoAvailable(true);
+
+    isDrawingRef.current = true;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
+    const pt = getCanvasCoords(e);
+    lastPointRef.current = pt;
+
+    const rect = maskCanvas.getBoundingClientRect();
+    const scale = maskCanvas.width / rect.width;
+    const actualBrush = brushSize * scale;
+
+    maskCtx.beginPath();
+    maskCtx.arc(pt.x, pt.y, actualBrush / 2, 0, Math.PI * 2);
+    maskCtx.fillStyle = "rgba(239, 68, 68, 0.72)";
+    maskCtx.fill();
+    setHasDrawnMask(true);
+  };
+
+  const drawInpaint = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isDrawingRef.current) return;
+    const maskCanvas = inpaintMaskCanvasRef.current;
+    if (!maskCanvas) return;
+    const maskCtx = maskCanvas.getContext("2d");
+    if (!maskCtx || !lastPointRef.current) return;
+
+    const pt = getCanvasCoords(e);
+    const rect = maskCanvas.getBoundingClientRect();
+    const scale = maskCanvas.width / rect.width;
+    const actualBrush = brushSize * scale;
+
+    maskCtx.lineWidth = actualBrush;
+    maskCtx.lineCap = "round";
+    maskCtx.lineJoin = "round";
+    maskCtx.strokeStyle = "rgba(239, 68, 68, 0.72)";
+
+    maskCtx.beginPath();
+    maskCtx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+    maskCtx.lineTo(pt.x, pt.y);
+    maskCtx.stroke();
+
+    lastPointRef.current = pt;
+    setHasDrawnMask(true);
+  };
+
+  const stopInpaintDrawing = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isDrawingRef.current) return;
+    isDrawingRef.current = false;
+    lastPointRef.current = null;
+    try {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const handleInpaintUndo = () => {
+    const maskCanvas = inpaintMaskCanvasRef.current;
+    if (!maskCanvas || inpaintMaskHistory.current.length === 0) return;
+    const maskCtx = maskCanvas.getContext("2d");
+    if (!maskCtx) return;
+    const prevState = inpaintMaskHistory.current.pop();
+    if (prevState) {
+      maskCtx.putImageData(prevState, 0, 0);
+    }
+    setMaskUndoAvailable(inpaintMaskHistory.current.length > 0);
+  };
+
+  const handleInpaintClearMask = () => {
+    const maskCanvas = inpaintMaskCanvasRef.current;
+    if (!maskCanvas) return;
+    const maskCtx = maskCanvas.getContext("2d");
+    if (maskCtx) {
+      maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+    }
+    inpaintMaskHistory.current = [];
+    setMaskUndoAvailable(false);
+    setHasDrawnMask(false);
+  };
+
+  const handleExecuteInpaint = async () => {
+    if (!inpaintFile || !hasDrawnMask) return;
+    const maskCanvas = inpaintMaskCanvasRef.current;
+    if (!maskCanvas) return;
+
+    setInpaintLoading(true);
+    setInpaintError(null);
+    setInpaintProgress(15);
+    setInpaintStage(lang === "en" ? "Extracting mask coordinates..." : "提取涂抹蒙版拓扑坐标...");
+
+    try {
+      const offscreen = document.createElement("canvas");
+      offscreen.width = maskCanvas.width;
+      offscreen.height = maskCanvas.height;
+      const offCtx = offscreen.getContext("2d");
+      if (!offCtx) throw new Error("无法初始化离屏蒙版画布");
+
+      offCtx.fillStyle = "#000000";
+      offCtx.fillRect(0, 0, offscreen.width, offscreen.height);
+
+      const maskCtx = maskCanvas.getContext("2d");
+      if (!maskCtx) throw new Error("无法读取蒙版图层");
+
+      const maskData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+      const outData = offCtx.createImageData(offscreen.width, offscreen.height);
+      const src = maskData.data;
+      const dst = outData.data;
+
+      let whiteCount = 0;
+      for (let i = 0; i < src.length; i += 4) {
+        if (src[i + 3] > 15) {
+          dst[i] = 255;
+          dst[i + 1] = 255;
+          dst[i + 2] = 255;
+          dst[i + 3] = 255;
+          whiteCount++;
+        } else {
+          dst[i] = 0;
+          dst[i + 1] = 0;
+          dst[i + 2] = 0;
+          dst[i + 3] = 255;
+        }
+      }
+
+      if (whiteCount === 0) {
+        throw new Error(
+          lang === "en" ? "Please paint over the area you want to erase first" : "请先在图片上涂抹想要消除的区域"
+        );
+      }
+
+      offCtx.putImageData(outData, 0, 0);
+
+      setInpaintProgress(40);
+      setInpaintStage(lang === "en" ? "Executing IOPaint inpainting algorithm..." : "启动 IOPaint 高性能纹理平滑修补...");
+
+      const maskBlob = await new Promise<Blob>((resolve) => offscreen.toBlob((b) => resolve(b!), "image/png"));
+
+      const res = await inpaintImage(inpaintFile, maskBlob, inpaintRadius, inpaintMethod);
+
+      setInpaintResultBlob(res.blob);
+      setInpaintResultUrl(URL.createObjectURL(res.blob));
+      setInpaintProgress(100);
+      setInpaintStage(lang === "en" ? "Inpaint blemish removal complete!" : "消除与纹理修补完成！");
+    } catch (err: any) {
+      setInpaintError(err.message || (lang === "en" ? "Inpainting failed, please try again" : "消除处理失败，请重试"));
+    } finally {
+      setInpaintLoading(false);
+    }
+  };
+
+  const handleContinueWithInpaintResult = () => {
+    if (!inpaintResultBlob || !inpaintFile) return;
+    const baseName = inpaintFile.name.replace(/\.[^/.]+$/, "");
+    const newFile = new File([inpaintResultBlob], `${baseName}_inpainted.png`, { type: "image/png" });
+    setInpaintFile(newFile);
+    setInpaintPreviewUrl(URL.createObjectURL(newFile));
+    setInpaintResultBlob(null);
+    setInpaintResultUrl(null);
+    setInpaintProgress(0);
+    handleInpaintClearMask();
+  };
+
+  const handleDownloadInpaintResult = () => {
+    if (!inpaintResultBlob || !inpaintFile) return;
+    const baseName = inpaintFile.name.replace(/\.[^/.]+$/, "");
+    downloadBlob(inpaintResultBlob, `${baseName}_inpainted.png`);
+  };
+
+  // =========================================================================
+  // 5. 双层可搜索 PDF 制作 (参考 Umi-OCR / Tesseract PDF 渲染引擎)
+  // =========================================================================
+  const [searchablePdfFile, setSearchablePdfFile] = useState<File | null>(null);
+  const [searchablePdfPreviewUrl, setSearchablePdfPreviewUrl] = useState<string | null>(null);
+  const [searchablePdfLang, setSearchablePdfLang] = useState<string>("chi_sim");
+  const [searchablePdfLoading, setSearchablePdfLoading] = useState(false);
+  const [searchablePdfProgress, setSearchablePdfProgress] = useState(0);
+  const [searchablePdfStage, setSearchablePdfStage] = useState("");
+  const [searchablePdfError, setSearchablePdfError] = useState<string | null>(null);
+  const [searchablePdfResult, setSearchablePdfResult] = useState<{
+    blob: Blob;
+    filename: string;
+    text: string;
+  } | null>(null);
+  const [searchablePdfCopied, setSearchablePdfCopied] = useState(false);
+
+  const handleSearchablePdfFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSearchablePdfFile(file);
+    setSearchablePdfPreviewUrl(URL.createObjectURL(file));
+    setSearchablePdfResult(null);
+    setSearchablePdfError(null);
+    setSearchablePdfProgress(0);
+  };
+
+  const handleExecuteSearchablePdf = async () => {
+    if (!searchablePdfFile) return;
+    setSearchablePdfLoading(true);
+    setSearchablePdfError(null);
+    setSearchablePdfProgress(5);
+    setSearchablePdfStage(lang === "en" ? "Initializing OCR & PDF layout engine..." : "初始化 OCR 与 PDF 排版合成引擎...");
+
+    try {
+      const res = await generateSearchablePdf(searchablePdfFile, searchablePdfLang, (pct, stage) => {
+        setSearchablePdfProgress(pct);
+        setSearchablePdfStage(stage);
+      });
+      setSearchablePdfResult(res);
+      setSearchablePdfProgress(100);
+      setSearchablePdfStage(lang === "en" ? "Dual-layer searchable PDF created!" : "双层可搜索 PDF 制作完成！");
+    } catch (err: any) {
+      setSearchablePdfError(err.message || (lang === "en" ? "Failed to create searchable PDF" : "双层可搜索 PDF 生成失败"));
+    } finally {
+      setSearchablePdfLoading(false);
+    }
+  };
+
+  const handleDownloadSearchablePdf = () => {
+    if (!searchablePdfResult) return;
+    downloadBlob(searchablePdfResult.blob, searchablePdfResult.filename);
+  };
+
+  const handleCopySearchablePdfText = () => {
+    if (!searchablePdfResult?.text) return;
+    navigator.clipboard.writeText(searchablePdfResult.text);
+    setSearchablePdfCopied(true);
+    setTimeout(() => setSearchablePdfCopied(false), 2000);
+  };
+
+  // =========================================================================
+  // 6. 音视频智能断句与字幕提取生成器 (参考 Buzz 离线硬件级 VAD 能量切片)
+  // =========================================================================
+  const [subtitleFile, setSubtitleFile] = useState<File | null>(null);
+  const [subtitleMediaUrl, setSubtitleMediaUrl] = useState<string | null>(null);
+  const [subtitleLoading, setSubtitleLoading] = useState(false);
+  const [subtitleProgress, setSubtitleProgress] = useState(0);
+  const [subtitleStage, setSubtitleStage] = useState("");
+  const [subtitleError, setSubtitleError] = useState<string | null>(null);
+  const [subtitleDuration, setSubtitleDuration] = useState(0);
+  const [subtitleItems, setSubtitleItems] = useState<SubtitleItem[]>([]);
+  const [subtitleCopied, setSubtitleCopied] = useState(false);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+
+  const handleSubtitleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSubtitleFile(file);
+    setSubtitleMediaUrl(URL.createObjectURL(file));
+    setSubtitleItems([]);
+    setSubtitleDuration(0);
+    setSubtitleError(null);
+    setSubtitleProgress(0);
+  };
+
+  const handleExecuteSubtitle = async () => {
+    if (!subtitleFile) return;
+    setSubtitleLoading(true);
+    setSubtitleError(null);
+    setSubtitleProgress(5);
+    setSubtitleStage(lang === "en" ? "Analyzing audio signal PCM..." : "正在解析音视频高保真 PCM 信号...");
+
+    try {
+      const res = await analyzeMediaSpeechSegments(subtitleFile, (pct, stage) => {
+        setSubtitleProgress(pct);
+        setSubtitleStage(stage);
+      });
+      setSubtitleDuration(res.duration);
+      setSubtitleItems(res.items);
+      setSubtitleProgress(100);
+      setSubtitleStage(
+        lang === "en"
+          ? `Segmented ${res.items.length} speech lines!`
+          : `智能切分 ${res.items.length} 段对话时间轴！`
+      );
+    } catch (err: any) {
+      setSubtitleError(err.message || (lang === "en" ? "Audio VAD segmentation failed" : "音频智能断句切片失败"));
+    } finally {
+      setSubtitleLoading(false);
+    }
+  };
+
+  const handleUpdateSubtitleText = (id: number, text: string) => {
+    setSubtitleItems((prev) => prev.map((item) => (item.id === id ? { ...item, text } : item)));
+  };
+
+  const handleDeleteSubtitleItem = (id: number) => {
+    setSubtitleItems((prev) =>
+      prev
+        .filter((item) => item.id !== id)
+        .map((item, idx) => ({ ...item, id: idx + 1 }))
+    );
+  };
+
+  const handleAddSubtitleItem = () => {
+    const lastItem = subtitleItems[subtitleItems.length - 1];
+    const newStart = lastItem ? lastItem.end + 0.5 : 0;
+    const newEnd = newStart + 3.0;
+    const newItem: SubtitleItem = {
+      id: subtitleItems.length + 1,
+      start: +newStart.toFixed(2),
+      end: +newEnd.toFixed(2),
+      startFormatted: formatSrtTimestamp(newStart),
+      endFormatted: formatSrtTimestamp(newEnd),
+      text: "",
+    };
+    setSubtitleItems((prev) => [...prev, newItem]);
+  };
+
+  const handlePlaySubtitleSegment = (start: number) => {
+    if (!audioPlayerRef.current) return;
+    audioPlayerRef.current.currentTime = start;
+    audioPlayerRef.current.play().catch(() => {});
+  };
+
+  const handleExportSrt = () => {
+    if (subtitleItems.length === 0 || !subtitleFile) return;
+    const srtContent = exportToSrt(subtitleItems);
+    const blob = new Blob([srtContent], { type: "text/plain;charset=utf-8" });
+    const baseName = subtitleFile.name.replace(/\.[^/.]+$/, "");
+    downloadBlob(blob, `${baseName}.srt`);
+  };
+
+  const handleExportVtt = () => {
+    if (subtitleItems.length === 0 || !subtitleFile) return;
+    const vttContent = exportToVtt(subtitleItems);
+    const blob = new Blob([vttContent], { type: "text/vtt;charset=utf-8" });
+    const baseName = subtitleFile.name.replace(/\.[^/.]+$/, "");
+    downloadBlob(blob, `${baseName}.vtt`);
+  };
+
+  const handleExportTxt = () => {
+    if (subtitleItems.length === 0 || !subtitleFile) return;
+    const txtContent = subtitleItems.map((item) => item.text || "").join("\n");
+    const blob = new Blob([txtContent], { type: "text/plain;charset=utf-8" });
+    const baseName = subtitleFile.name.replace(/\.[^/.]+$/, "");
+    downloadBlob(blob, `${baseName}_transcript.txt`);
+  };
+
+  const handleCopySubtitles = () => {
+    if (subtitleItems.length === 0) return;
+    const srtContent = exportToSrt(subtitleItems);
+    navigator.clipboard.writeText(srtContent);
+    setSubtitleCopied(true);
+    setTimeout(() => setSubtitleCopied(false), 2000);
+  };
+
   return (
     <div className="space-y-6">
-      {/* 顶部三栏切换 Tab (支持滚轮横移、鼠标拖拽与左右翻页箭头) */}
+      {/* 顶部六栏切换 Tab (支持滚轮横移、鼠标拖拽与左右翻页箭头) */}
       <ScrollableTabNav
         tabs={[
           {
@@ -355,6 +808,24 @@ export default function AiToolbox({
             label: lang === "en" ? "AI Smart Cutout" : "AI 发丝级智能抠图",
             icon: Sparkles,
             badge: lang === "en" ? "Transparent" : "无痕透底",
+          },
+          {
+            id: "ai-inpaint",
+            label: lang === "en" ? "AI Magic Eraser" : "AI 消除笔 / 去水印",
+            icon: Eraser,
+            badge: lang === "en" ? "Inpaint" : "智能涂抹",
+          },
+          {
+            id: "ai-searchable-pdf",
+            label: lang === "en" ? "Searchable PDF" : "双层可搜索 PDF 制作",
+            icon: FileSearch,
+            badge: lang === "en" ? "Dual-Layer" : "双层PDF",
+          },
+          {
+            id: "ai-subtitle",
+            label: lang === "en" ? "Subtitle Studio" : "音视频智能断句字幕",
+            icon: Captions,
+            badge: lang === "en" ? "VAD Timestamps" : "语音切片",
           },
           {
             id: "ai-ocr",
@@ -733,7 +1204,846 @@ export default function AiToolbox({
       )}
 
       {/* ========================================================================= */}
-      {/* 模块 2: AI 离线 OCR 文字提取                                                */}
+      {/* 模块 2: AI 消除笔 / 智能去水印 / 杂物擦除 (IOPaint C++ Telea/Navier-Stokes)  */}
+      {/* ========================================================================= */}
+      {activeTab === "ai-inpaint" && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* 左侧控制台 */}
+          <div className="lg:col-span-5 coconut-panel p-5 sm:p-6 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-coconut-200/80 dark:border-darkbg-border">
+              <div className="flex items-center gap-2 text-sm font-bold text-coconut-950 dark:text-darkbg-text">
+                <Eraser className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                <span>{lang === "en" ? "Inpaint & Brush Settings" : "消除涂抹参数配置"}</span>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 font-bold">
+                IOPaint Fast C++
+              </span>
+            </div>
+
+            {/* 笔刷粗细调节 */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                <span>{lang === "en" ? "Brush Size" : "涂抹笔刷粗细"}</span>
+                <span className="font-mono text-xs text-orange-600 dark:text-orange-400 font-bold">{brushSize} px</span>
+              </div>
+              <input
+                type="range"
+                min="6"
+                max="80"
+                value={brushSize}
+                onChange={(e) => setBrushSize(parseInt(e.target.value))}
+                className="w-full accent-orange-600 cursor-pointer"
+              />
+              <div className="flex items-center justify-center py-2 bg-coconut-50 dark:bg-darkbg-subtle rounded-xl border border-coconut-100 dark:border-darkbg-border">
+                <div
+                  className="rounded-full bg-red-500/70 border border-red-600 shadow-sm transition-all"
+                  style={{ width: `${brushSize}px`, height: `${brushSize}px` }}
+                />
+              </div>
+            </div>
+
+            {/* 修复算法选择 */}
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                {lang === "en" ? "Inpainting Algorithm" : "修补算法核心"}
+              </label>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setInpaintMethod("telea")}
+                  className={`p-3 rounded-2xl border text-left transition-all ${
+                    inpaintMethod === "telea"
+                      ? "border-orange-500 bg-orange-50/50 dark:bg-orange-950/30 ring-2 ring-orange-500/20 shadow-sm"
+                      : "border-coconut-200 dark:border-darkbg-border hover:bg-coconut-50 dark:hover:bg-darkbg-subtle"
+                  }`}
+                >
+                  <div className="font-bold text-xs text-coconut-900 dark:text-darkbg-text">
+                    {lang === "en" ? "Telea (Fast)" : "Telea 快速行进法"}
+                  </div>
+                  <div className="text-[11px] text-coconut-600 dark:text-darkbg-muted mt-1">
+                    {lang === "en" ? "Best for text, lines, small blemishes" : "适合文字、水印与细小杂物"}
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInpaintMethod("ns")}
+                  className={`p-3 rounded-2xl border text-left transition-all ${
+                    inpaintMethod === "ns"
+                      ? "border-orange-500 bg-orange-50/50 dark:bg-orange-950/30 ring-2 ring-orange-500/20 shadow-sm"
+                      : "border-coconut-200 dark:border-darkbg-border hover:bg-coconut-50 dark:hover:bg-darkbg-subtle"
+                  }`}
+                >
+                  <div className="font-bold text-xs text-coconut-900 dark:text-darkbg-text">
+                    {lang === "en" ? "Navier-Stokes" : "Navier-Stokes 流体"}
+                  </div>
+                  <div className="text-[11px] text-coconut-600 dark:text-darkbg-muted mt-1">
+                    {lang === "en" ? "Best for textures and larger areas" : "适合平滑渐变与较大范围擦除"}
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* 采样半径调节 */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center text-xs font-semibold text-coconut-800 dark:text-darkbg-muted">
+                <span>{lang === "en" ? "Inpaint Edge Radius" : "边缘纹理采样半径"}</span>
+                <span className="font-mono text-coconut-900 dark:text-darkbg-text font-bold">{inpaintRadius} px</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="15"
+                value={inpaintRadius}
+                onChange={(e) => setInpaintRadius(parseInt(e.target.value))}
+                className="w-full accent-orange-600 cursor-pointer"
+              />
+            </div>
+
+            {/* 画板撤销与清空工具栏 */}
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleInpaintUndo}
+                disabled={!maskUndoAvailable || inpaintLoading}
+                className="flex-1 py-2 px-3 rounded-xl border border-coconut-200 dark:border-darkbg-border bg-white dark:bg-darkbg-elevated text-xs font-bold text-coconut-800 dark:text-darkbg-text flex items-center justify-center gap-1.5 transition-all hover:bg-coconut-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Undo2 className="w-3.5 h-3.5" />
+                <span>{lang === "en" ? "Undo Stroke" : "撤销涂抹"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleInpaintClearMask}
+                disabled={!hasDrawnMask || inpaintLoading}
+                className="flex-1 py-2 px-3 rounded-xl border border-coconut-200 dark:border-darkbg-border bg-white dark:bg-darkbg-elevated text-xs font-bold text-coconut-800 dark:text-darkbg-text flex items-center justify-center gap-1.5 transition-all hover:bg-coconut-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>{lang === "en" ? "Clear Mask" : "清空重绘"}</span>
+              </button>
+            </div>
+
+            {/* 执行消除按钮 */}
+            <button
+              onClick={handleExecuteInpaint}
+              disabled={inpaintLoading || !inpaintFile || !hasDrawnMask}
+              className={`w-full py-3.5 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                inpaintLoading || !inpaintFile || !hasDrawnMask
+                  ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
+                  : "btn-3d-sunset text-white active:scale-95"
+              }`}
+            >
+              {inpaintLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>{lang === "en" ? "Inpainting in progress..." : "AI 正在消除与修补纹理..."}</span>
+                </>
+              ) : (
+                <>
+                  <Eraser className="w-4 h-4" />
+                  <span>{lang === "en" ? "Erase Marked Objects" : "开始智能消除修补"}</span>
+                </>
+              )}
+            </button>
+
+            {/* 进度条 */}
+            {(inpaintLoading || inpaintProgress > 0) && (
+              <div className="space-y-2 pt-2">
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-coconut-700 dark:text-darkbg-muted flex items-center gap-1.5">
+                    {inpaintLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-600" />}
+                    {localizeAiStage(inpaintStage)}
+                  </span>
+                  <span className="font-mono text-orange-600 dark:text-orange-400 font-bold">{inpaintProgress}%</span>
+                </div>
+                <div className="w-full h-2.5 bg-coconut-200/80 dark:bg-darkbg-border rounded-full overflow-hidden p-0.5">
+                  <div
+                    className="h-full bg-gradient-to-r from-orange-500 via-amber-500 to-palm-500 rounded-full transition-all duration-300 shadow-sm"
+                    style={{ width: `${inpaintProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 错误警告 */}
+            {inpaintError && (
+              <div className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-400 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{inpaintError}</span>
+              </div>
+            )}
+          </div>
+
+          {/* 右侧工作台 */}
+          <div className="lg:col-span-7 coconut-panel p-5 sm:p-6 space-y-4">
+            {!inpaintFile ? (
+              <div className="border-2 border-dashed border-coconut-300/80 dark:border-darkbg-border rounded-3xl p-10 flex flex-col items-center justify-center text-center hover:border-orange-500 transition-colors bg-coconut-50/50 dark:bg-darkbg-subtle relative min-h-[380px]">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleInpaintFileSelect}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div className="w-16 h-16 rounded-3xl bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 flex items-center justify-center mb-4 shadow-sm">
+                  <Eraser className="w-8 h-8" />
+                </div>
+                <h3 className="font-bold text-base text-coconut-900 dark:text-darkbg-text mb-1">
+                  {lang === "en" ? "Upload Image to Erase Objects" : "上传需要消除杂物/去水印的图片"}
+                </h3>
+                <p className="text-xs text-coconut-600 dark:text-darkbg-muted max-w-sm mb-4">
+                  {lang === "en"
+                    ? "Supports PNG, JPG, WEBP. Paint over unwanted areas to seamlessly inpaint with surrounding textures."
+                    : "支持常见图片格式。直接在画面上涂抹红罩，AI 算法将依据周边纹理毫秒级无缝填补。"}
+                </p>
+                <span className="btn-3d-sunset text-xs py-2 px-5 rounded-2xl text-white font-bold pointer-events-none">
+                  {lang === "en" ? "Select Local Image" : "选择本地图片"}
+                </span>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* 图片信息栏 */}
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-coconut-50 dark:bg-darkbg-subtle border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold text-xs shrink-0">
+                      IMG
+                    </div>
+                    <div className="truncate">
+                      <div className="text-xs font-bold text-coconut-900 dark:text-darkbg-text truncate">
+                        {inpaintFile.name}
+                      </div>
+                      <div className="text-[11px] text-coconut-500 font-mono">{formatBytes(inpaintFile.size)}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer text-xs font-bold text-orange-600 dark:text-orange-400 hover:underline px-2.5 py-1 rounded-xl bg-orange-50 dark:bg-orange-950/40">
+                      {lang === "en" ? "Change Image" : "更换图片"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleInpaintFileSelect}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* 涂抹画布区或对比区 */}
+                {!inpaintResultUrl ? (
+                  <div className="space-y-2">
+                    <div className="text-[11px] text-coconut-600 dark:text-darkbg-muted flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-orange-500" />
+                      <span>{lang === "en" ? "Click & drag on the image to paint the red mask over objects to erase" : "🖱️ 提示：按住鼠标或触控在画面上涂抹红色半透明遮罩，标定需要擦除的物体或水印"}</span>
+                    </div>
+
+                    <div className="relative w-full rounded-2xl overflow-hidden border border-coconut-200 dark:border-darkbg-border bg-checkerboard flex items-center justify-center min-h-[380px] max-h-[520px]">
+                      {/* 底层原始图画板 */}
+                      <canvas
+                        ref={inpaintImageCanvasRef}
+                        className="max-h-[500px] max-w-full object-contain pointer-events-none block"
+                      />
+                      {/* 顶层交互涂抹蒙版画板 */}
+                      <canvas
+                        ref={inpaintMaskCanvasRef}
+                        onPointerDown={startInpaintDrawing}
+                        onPointerMove={drawInpaint}
+                        onPointerUp={stopInpaintDrawing}
+                        onPointerLeave={stopInpaintDrawing}
+                        className="absolute inset-0 w-full h-full object-contain cursor-crosshair touch-none"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* 对比视窗 */}
+                    <div className="relative w-full rounded-2xl overflow-hidden border border-coconut-200 dark:border-darkbg-border bg-checkerboard flex items-center justify-center min-h-[380px] max-h-[500px] select-none">
+                      {/* 底层原图 */}
+                      <img
+                        src={inpaintPreviewUrl!}
+                        alt={lang === "en" ? "Original" : "原图"}
+                        className="absolute max-h-[480px] max-w-full object-contain"
+                      />
+
+                      {/* 顶层消除修补结果图 (滑动对比) */}
+                      <div
+                        className="absolute inset-0 flex items-center justify-center overflow-hidden"
+                        style={{
+                          clipPath: `polygon(0 0, ${inpaintCompareSlider}% 0, ${inpaintCompareSlider}% 100%, 0 100%)`,
+                        }}
+                      >
+                        <img
+                          src={inpaintResultUrl}
+                          alt={lang === "en" ? "Inpainted Result" : "消除修补效果"}
+                          className="max-h-[480px] max-w-full object-contain"
+                        />
+                      </div>
+
+                      {/* 分割线 */}
+                      <div
+                        className="absolute top-0 bottom-0 w-0.5 bg-white shadow-md z-20 pointer-events-none"
+                        style={{ left: `${inpaintCompareSlider}%` }}
+                      >
+                        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 bg-white dark:bg-coconut-900 border border-coconut-300 rounded-full flex items-center justify-center shadow-lg text-[10px] text-coconut-700 dark:text-darkbg-text font-bold">
+                          <SplitSquareHorizontal className="w-3.5 h-3.5" />
+                        </div>
+                      </div>
+
+                      {/* 角标 */}
+                      <div className="absolute top-3 left-3 px-2.5 py-1 rounded-xl bg-black/60 text-white text-[10px] font-mono backdrop-blur-sm z-20">
+                        {lang === "en" ? `Inpainted (${inpaintCompareSlider}%)` : `消除效果 (${inpaintCompareSlider}%)`}
+                      </div>
+                      <div className="absolute top-3 right-3 px-2.5 py-1 rounded-xl bg-black/60 text-white text-[10px] font-mono backdrop-blur-sm z-20">
+                        {lang === "en" ? "Original" : "原始图片"}
+                      </div>
+                    </div>
+
+                    {/* 对比滑块 */}
+                    <div className="space-y-1 pt-1">
+                      <div className="flex justify-between text-xs text-coconut-600 dark:text-darkbg-muted">
+                        <span>{lang === "en" ? "Slide to compare before & after inpainting" : "滑动分割线对比消除修补前后效果"}</span>
+                        <span className="font-mono">{inpaintCompareSlider}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={inpaintCompareSlider}
+                        onChange={(e) => setInpaintCompareSlider(parseInt(e.target.value))}
+                        className="w-full accent-orange-600 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* 底部操作与下载栏 */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-coconut-100 dark:border-darkbg-border">
+                      <button
+                        onClick={handleContinueWithInpaintResult}
+                        className="flex items-center gap-1.5 py-2.5 px-3.5 rounded-2xl bg-orange-50 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 font-bold text-xs transition-all hover:bg-orange-100 active:scale-95 shadow-sm"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>{lang === "en" ? "Continue Erasing on Result" : "在此结果上继续涂抹消除"}</span>
+                      </button>
+
+                      <div className="flex items-center gap-2">
+                        {inpaintPreviewUrl && inpaintResultUrl && (
+                          <button
+                            onClick={() => {
+                              if (!inpaintFile || !inpaintPreviewUrl || !inpaintResultUrl || !inpaintResultBlob) return;
+                              setCompareModalItem({
+                                originalName: inpaintFile.name,
+                                originalSize: inpaintFile.size,
+                                originalUrl: inpaintPreviewUrl,
+                                newFilename: `${inpaintFile.name.replace(/\.[^/.]+$/, "")}_inpainted.png`,
+                                newSize: inpaintResultBlob.size,
+                                previewUrl: inpaintResultUrl,
+                                blob: inpaintResultBlob,
+                                extraInfo: lang === "en" ? "AI IOPaint Object Removal" : "AI 智能杂物擦除与纹理平滑",
+                              });
+                            }}
+                            className="flex items-center gap-1.5 py-2.5 px-3.5 rounded-2xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-800 dark:text-darkbg-text font-bold text-xs transition-all hover:bg-coconut-200 active:scale-95 shadow-sm"
+                          >
+                            <SlidersHorizontal className="w-3.5 h-3.5 text-palm-600" />
+                            <span>{lang === "en" ? "Micro Inspection" : "微距画质对比"}</span>
+                          </button>
+                        )}
+
+                        <button
+                          onClick={handleDownloadInpaintResult}
+                          className="btn-3d-sunset flex items-center gap-2 py-2.5 px-5 rounded-2xl text-white font-bold text-xs shadow-coconut-sm"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>{lang === "en" ? "Download Inpainted Image" : "下载消除后图片"}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 模块 3: 双层可搜索可复制 PDF 制作 (Umi-OCR / Tesseract PDF 渲染引擎)         */}
+      {/* ========================================================================= */}
+      {activeTab === "ai-searchable-pdf" && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* 左侧控制台 */}
+          <div className="lg:col-span-5 coconut-panel p-5 sm:p-6 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-coconut-200/80 dark:border-darkbg-border">
+              <div className="flex items-center gap-2 text-sm font-bold text-coconut-950 dark:text-darkbg-text">
+                <FileSearch className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                <span>{lang === "en" ? "Dual-Layer PDF Settings" : "双层可搜索 PDF 配置"}</span>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold">
+                Umi-OCR Layering
+              </span>
+            </div>
+
+            {/* 识别语言 */}
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                {lang === "en" ? "Document Recognition Language" : "排版对齐识别语言"}
+              </label>
+              <select
+                value={searchablePdfLang}
+                onChange={(e) => setSearchablePdfLang(e.target.value)}
+                className="w-full coconut-input text-xs font-semibold py-2.5 px-3 rounded-xl bg-white dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border"
+              >
+                {OCR_LANGUAGES.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {lang === "en" ? item.labelEn : item.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 功能原理介绍提示卡 */}
+            <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 space-y-2">
+              <div className="flex items-center gap-2 font-bold text-xs text-amber-900 dark:text-amber-200">
+                <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>{lang === "en" ? "How Dual-Layer PDF Works" : "双层 PDF 核心优势"}</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300/90">
+                {lang === "en"
+                  ? "Maintains 100% of the original scanned document's appearance on the visual layer, while injecting an invisible, pixel-aligned vector text layer underneath. Enables full-text search (Ctrl+F) and precise cursor selection & copying."
+                  : "在图像表面保持 100% 原始扫描件或证件外观，同时在其底层精准注入字形像素对齐的透明文字排版层。生成的标准 PDF 支持浏览器与 Adobe Reader 划词复制、关键词极速搜索 (Ctrl+F)。"}
+              </p>
+            </div>
+
+            {/* 执行制作按钮 */}
+            <button
+              onClick={handleExecuteSearchablePdf}
+              disabled={searchablePdfLoading || !searchablePdfFile}
+              className={`w-full py-3.5 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                searchablePdfLoading || !searchablePdfFile
+                  ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
+                  : "btn-3d-sunset text-white active:scale-95"
+              }`}
+            >
+              {searchablePdfLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>{lang === "en" ? "Synthesizing PDF layout..." : "正在排版合成双层 PDF..."}</span>
+                </>
+              ) : (
+                <>
+                  <FileSearch className="w-4 h-4" />
+                  <span>{lang === "en" ? "Generate Searchable PDF" : "制作双层可搜索 PDF"}</span>
+                </>
+              )}
+            </button>
+
+            {/* 进度指示 */}
+            {(searchablePdfLoading || searchablePdfProgress > 0) && (
+              <div className="space-y-2 pt-2">
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-coconut-700 dark:text-darkbg-muted flex items-center gap-1.5">
+                    {searchablePdfLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-600" />}
+                    {localizeAiStage(searchablePdfStage)}
+                  </span>
+                  <span className="font-mono text-orange-600 dark:text-orange-400 font-bold">{searchablePdfProgress}%</span>
+                </div>
+                <div className="w-full h-2.5 bg-coconut-200/80 dark:bg-darkbg-border rounded-full overflow-hidden p-0.5">
+                  <div
+                    className="h-full bg-gradient-to-r from-orange-500 via-amber-500 to-palm-500 rounded-full transition-all duration-300 shadow-sm"
+                    style={{ width: `${searchablePdfProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 错误提示 */}
+            {searchablePdfError && (
+              <div className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-400 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{searchablePdfError}</span>
+              </div>
+            )}
+          </div>
+
+          {/* 右侧工作台 */}
+          <div className="lg:col-span-7 coconut-panel p-5 sm:p-6 space-y-4">
+            {!searchablePdfFile ? (
+              <div className="border-2 border-dashed border-coconut-300/80 dark:border-darkbg-border rounded-3xl p-10 flex flex-col items-center justify-center text-center hover:border-orange-500 transition-colors bg-coconut-50/50 dark:bg-darkbg-subtle relative min-h-[380px]">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleSearchablePdfFileSelect}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div className="w-16 h-16 rounded-3xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 shadow-sm">
+                  <FileSearch className="w-8 h-8" />
+                </div>
+                <h3 className="font-bold text-base text-coconut-900 dark:text-darkbg-text mb-1">
+                  {lang === "en" ? "Upload Scanned Document or Image" : "上传扫描件、纸质文档照片或图书页面"}
+                </h3>
+                <p className="text-xs text-coconut-600 dark:text-darkbg-muted max-w-sm mb-4">
+                  {lang === "en"
+                    ? "Supports PNG, JPG, WEBP. The engine will extract all text geometry and produce a dual-layer PDF."
+                    : "支持常见图片。引擎将智能分析字形拓扑并注入底层透明文字，输出支持划词搜索的双层 PDF。"}
+                </p>
+                <span className="btn-3d-sunset text-xs py-2 px-5 rounded-2xl text-white font-bold pointer-events-none">
+                  {lang === "en" ? "Select Scanned Document" : "选择扫描件图片"}
+                </span>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* 文件信息 */}
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-coconut-50 dark:bg-darkbg-subtle border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">
+                      SCAN
+                    </div>
+                    <div className="truncate">
+                      <div className="text-xs font-bold text-coconut-900 dark:text-darkbg-text truncate">
+                        {searchablePdfFile.name}
+                      </div>
+                      <div className="text-[11px] text-coconut-500 font-mono">{formatBytes(searchablePdfFile.size)}</div>
+                    </div>
+                  </div>
+                  <label className="cursor-pointer text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/40">
+                    {lang === "en" ? "Replace" : "更换文件"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleSearchablePdfFileSelect}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {/* 预览与结果输出 */}
+                {!searchablePdfResult ? (
+                  <div className="relative w-full rounded-2xl overflow-hidden border border-coconut-200 dark:border-darkbg-border bg-coconut-100/50 dark:bg-darkbg-subtle flex items-center justify-center min-h-[360px] max-h-[500px]">
+                    <img
+                      src={searchablePdfPreviewUrl!}
+                      alt={lang === "en" ? "Preview" : "预览"}
+                      className="max-h-[480px] max-w-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* 制作成功信息卡 */}
+                    <div className="p-4 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                        <div>
+                          <div className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                            {lang === "en" ? "Searchable Dual-Layer PDF Ready!" : "双层可搜索 PDF 制作完成！"}
+                          </div>
+                          <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-mono">
+                            {searchablePdfResult.filename} ({formatBytes(searchablePdfResult.blob.size)})
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-200 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-bold">
+                        {lang === "en" ? "Selectable Text" : "可划词复制"}
+                      </span>
+                    </div>
+
+                    {/* 底层提取文本预览框 */}
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center text-xs font-semibold text-coconut-800 dark:text-darkbg-muted">
+                        <span>{lang === "en" ? "Injected Invisible Text Layer (Preview)" : "注入的底层透明文字层 (文本预览)"}</span>
+                        <button
+                          onClick={handleCopySearchablePdfText}
+                          className="flex items-center gap-1 text-[11px] text-orange-600 hover:text-orange-700 font-bold"
+                        >
+                          {searchablePdfCopied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                          <span>{searchablePdfCopied ? (lang === "en" ? "Copied!" : "已复制！") : (lang === "en" ? "Copy Text" : "复制全部文本")}</span>
+                        </button>
+                      </div>
+                      <textarea
+                        readOnly
+                        rows={8}
+                        value={searchablePdfResult.text}
+                        className="w-full coconut-input font-mono text-xs p-3 rounded-2xl bg-white dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border resize-none"
+                      />
+                    </div>
+
+                    {/* 底部下载按钮 */}
+                    <div className="flex items-center justify-end gap-3 pt-3 border-t border-coconut-100 dark:border-darkbg-border">
+                      <button
+                        onClick={handleDownloadSearchablePdf}
+                        className="btn-3d-sunset flex items-center gap-2 py-2.5 px-6 rounded-2xl text-white font-bold text-xs shadow-coconut-sm"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>{lang === "en" ? "Download Searchable PDF" : "下载双层可搜索 PDF"}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 模块 4: 音视频智能断句与字幕提取生成器 (Buzz 离线硬件级 VAD 能量切片)        */}
+      {/* ========================================================================= */}
+      {activeTab === "ai-subtitle" && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* 左侧控制台 */}
+          <div className="lg:col-span-5 coconut-panel p-5 sm:p-6 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-coconut-200/80 dark:border-darkbg-border">
+              <div className="flex items-center gap-2 text-sm font-bold text-coconut-950 dark:text-darkbg-text">
+                <Captions className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                <span>{lang === "en" ? "Subtitle Studio & VAD" : "智能字幕与声学断句"}</span>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-bold">
+                Buzz WebAudio VAD
+              </span>
+            </div>
+
+            {/* 音频播放预览 */}
+            {subtitleMediaUrl && (
+              <div className="space-y-2 p-3.5 rounded-2xl bg-coconut-50 dark:bg-darkbg-subtle border border-coconut-200/60 dark:border-darkbg-border">
+                <div className="flex items-center gap-2 text-xs font-bold text-coconut-900 dark:text-darkbg-text">
+                  <Volume2 className="w-4 h-4 text-orange-600" />
+                  <span>{lang === "en" ? "Audio Playback & Calibration" : "音频原声播放校对"}</span>
+                </div>
+                <audio
+                  ref={audioPlayerRef}
+                  controls
+                  src={subtitleMediaUrl}
+                  className="w-full h-8 accent-orange-600"
+                />
+              </div>
+            )}
+
+            {/* 原理提示 */}
+            <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800/60 space-y-2">
+              <div className="flex items-center gap-2 font-bold text-xs text-sky-900 dark:text-sky-200">
+                <ShieldCheck className="w-4 h-4 text-sky-600 shrink-0" />
+                <span>{lang === "en" ? "Offline PCM Signal Processing" : "离线音频信号处理"}</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-sky-800 dark:text-sky-300/90">
+                {lang === "en"
+                  ? "Uses Web Audio API to decode media directly in browser memory without uploading to any cloud. RMS energy envelope algorithm detects voice activity, speech bursts, and breath pauses with millisecond precision."
+                  : "通过 Web Audio API 本地硬件级离线解码音频流，零数据上传。自适应 RMS 能量包络算法毫秒级捕捉语音起止与停顿，自动划分句段并生成 SRT/VTT 标准时间轴。"}
+              </p>
+            </div>
+
+            {/* 执行断句按钮 */}
+            <button
+              onClick={handleExecuteSubtitle}
+              disabled={subtitleLoading || !subtitleFile}
+              className={`w-full py-3.5 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                subtitleLoading || !subtitleFile
+                  ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
+                  : "btn-3d-sunset text-white active:scale-95"
+              }`}
+            >
+              {subtitleLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>{lang === "en" ? "Segmenting audio VAD..." : "正在计算能量包络与断句..."}</span>
+                </>
+              ) : (
+                <>
+                  <Captions className="w-4 h-4" />
+                  <span>{lang === "en" ? "Extract Speech Timeline (VAD)" : "智能声学断句切片"}</span>
+                </>
+              )}
+            </button>
+
+            {/* 进度指示 */}
+            {(subtitleLoading || subtitleProgress > 0) && (
+              <div className="space-y-2 pt-2">
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-coconut-700 dark:text-darkbg-muted flex items-center gap-1.5">
+                    {subtitleLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-600" />}
+                    {localizeAiStage(subtitleStage)}
+                  </span>
+                  <span className="font-mono text-orange-600 dark:text-orange-400 font-bold">{subtitleProgress}%</span>
+                </div>
+                <div className="w-full h-2.5 bg-coconut-200/80 dark:bg-darkbg-border rounded-full overflow-hidden p-0.5">
+                  <div
+                    className="h-full bg-gradient-to-r from-orange-500 via-amber-500 to-palm-500 rounded-full transition-all duration-300 shadow-sm"
+                    style={{ width: `${subtitleProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 错误提示 */}
+            {subtitleError && (
+              <div className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-400 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{subtitleError}</span>
+              </div>
+            )}
+          </div>
+
+          {/* 右侧工作台 */}
+          <div className="lg:col-span-7 coconut-panel p-5 sm:p-6 space-y-4">
+            {!subtitleFile ? (
+              <div className="border-2 border-dashed border-coconut-300/80 dark:border-darkbg-border rounded-3xl p-10 flex flex-col items-center justify-center text-center hover:border-orange-500 transition-colors bg-coconut-50/50 dark:bg-darkbg-subtle relative min-h-[380px]">
+                <input
+                  type="file"
+                  accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.mp4,.webm,.mkv"
+                  onChange={handleSubtitleFileSelect}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div className="w-16 h-16 rounded-3xl bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center mb-4 shadow-sm">
+                  <Captions className="w-8 h-8" />
+                </div>
+                <h3 className="font-bold text-base text-coconut-900 dark:text-darkbg-text mb-1">
+                  {lang === "en" ? "Upload Audio or Video Media" : "上传音频或视频文件"}
+                </h3>
+                <p className="text-xs text-coconut-600 dark:text-darkbg-muted max-w-sm mb-4">
+                  {lang === "en"
+                    ? "Supports MP3, WAV, AAC, M4A, FLAC, MP4, WEBM. Fast offline speech timestamp segmentation."
+                    : "支持常见音视频。纯前端离线提取语音停顿与时间戳，导出标准 SRT / VTT 字幕文件。"}
+                </p>
+                <span className="btn-3d-sunset text-xs py-2 px-5 rounded-2xl text-white font-bold pointer-events-none">
+                  {lang === "en" ? "Select Audio / Video" : "选择音视频文件"}
+                </span>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* 文件信息 */}
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-coconut-50 dark:bg-darkbg-subtle border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold text-xs shrink-0">
+                      MEDIA
+                    </div>
+                    <div className="truncate">
+                      <div className="text-xs font-bold text-coconut-900 dark:text-darkbg-text truncate">
+                        {subtitleFile.name}
+                      </div>
+                      <div className="text-[11px] text-coconut-500 font-mono">{formatBytes(subtitleFile.size)}</div>
+                    </div>
+                  </div>
+                  <label className="cursor-pointer text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline px-2.5 py-1 rounded-xl bg-sky-50 dark:bg-sky-950/40">
+                    {lang === "en" ? "Change Media" : "更换媒体"}
+                    <input
+                      type="file"
+                      accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.mp4,.webm,.mkv"
+                      onChange={handleSubtitleFileSelect}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {/* 句段列表与导出 */}
+                {subtitleItems.length === 0 ? (
+                  <div className="p-10 rounded-2xl bg-coconut-50/50 dark:bg-darkbg-subtle border border-coconut-200/60 dark:border-darkbg-border text-center flex flex-col items-center justify-center space-y-3 min-h-[320px]">
+                    <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/60 text-orange-600 flex items-center justify-center">
+                      <Volume2 className="w-6 h-6" />
+                    </div>
+                    <p className="text-xs font-bold text-coconut-800 dark:text-darkbg-text">
+                      {lang === "en"
+                        ? "Click 'Extract Speech Timeline' on the left to begin VAD segmentation"
+                        : "点击左侧“智能声学断句切片”，AI 算法将根据语音能量自动划分字幕轴"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* 句段统计与控制 */}
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-bold text-coconut-900 dark:text-darkbg-text">
+                        <span>{lang === "en" ? "Detected Segments: " : "已定位语音句段: "}</span>
+                        <span className="font-mono text-orange-600 font-bold">{subtitleItems.length}</span>
+                        <span className="text-coconut-500 ml-1">
+                          ({lang === "en" ? "Total " : "总时长 "}{subtitleDuration.toFixed(1)}s)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleAddSubtitleItem}
+                          className="flex items-center gap-1 py-1.5 px-3 rounded-xl bg-white dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border text-xs font-bold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-50"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-palm-600" />
+                          <span>{lang === "en" ? "Add Row" : "添加句段"}</span>
+                        </button>
+                        <button
+                          onClick={handleCopySubtitles}
+                          className="flex items-center gap-1 py-1.5 px-3 rounded-xl bg-white dark:bg-darkbg-elevated border border-coconut-200 dark:border-darkbg-border text-xs font-bold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-50"
+                        >
+                          {subtitleCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span>{subtitleCopied ? (lang === "en" ? "Copied!" : "已复制！") : (lang === "en" ? "Copy SRT" : "复制SRT")}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 字幕轴列表 */}
+                    <div className="max-h-[360px] overflow-y-auto space-y-2 pr-1 rounded-2xl border border-coconut-200/80 dark:border-darkbg-border p-2 bg-coconut-50/30 dark:bg-darkbg-subtle">
+                      {subtitleItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="p-3 rounded-xl bg-white dark:bg-darkbg-elevated border border-coconut-100 dark:border-darkbg-border shadow-2xs space-y-2"
+                        >
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-full bg-coconut-100 dark:bg-darkbg-border text-coconut-700 dark:text-darkbg-text flex items-center justify-center font-mono font-bold text-[10px]">
+                                {item.id}
+                              </span>
+                              <span className="font-mono text-[11px] text-orange-600 dark:text-orange-400 font-semibold">
+                                {item.startFormatted} → {item.endFormatted}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handlePlaySubtitleSegment(item.start)}
+                                title={lang === "en" ? "Play this segment" : "试听此片段"}
+                                className="p-1 rounded-lg hover:bg-coconut-100 dark:hover:bg-darkbg-border text-coconut-600 dark:text-darkbg-muted"
+                              >
+                                <Play className="w-3.5 h-3.5 text-palm-600" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSubtitleItem(item.id)}
+                                title={lang === "en" ? "Delete segment" : "删除此片段"}
+                                className="p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-coconut-400 hover:text-red-600"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          <input
+                            type="text"
+                            value={item.text}
+                            onChange={(e) => handleUpdateSubtitleText(item.id, e.target.value)}
+                            placeholder={lang === "en" ? "Type subtitle transcript here (optional)..." : "在此输入或校对本句台词文本 (选填)..."}
+                            className="w-full coconut-input text-xs py-1.5 px-2.5 rounded-lg bg-coconut-50/50 dark:bg-darkbg-subtle border border-coconut-200/80 dark:border-darkbg-border"
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 底部导出按钮栏 */}
+                    <div className="flex flex-wrap items-center justify-end gap-2.5 pt-3 border-t border-coconut-100 dark:border-darkbg-border">
+                      <button
+                        onClick={handleExportTxt}
+                        className="py-2.5 px-3.5 rounded-2xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-800 dark:text-darkbg-text font-bold text-xs hover:bg-coconut-200"
+                      >
+                        <span>{lang === "en" ? "Export TXT" : "导出纯文本 (.txt)"}</span>
+                      </button>
+                      <button
+                        onClick={handleExportVtt}
+                        className="py-2.5 px-3.5 rounded-2xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-800 dark:text-darkbg-text font-bold text-xs hover:bg-coconut-200"
+                      >
+                        <span>{lang === "en" ? "Export WebVTT" : "导出 WebVTT (.vtt)"}</span>
+                      </button>
+                      <button
+                        onClick={handleExportSrt}
+                        className="btn-3d-sunset flex items-center gap-1.5 py-2.5 px-5 rounded-2xl text-white font-bold text-xs shadow-coconut-sm"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>{lang === "en" ? "Export Subtitles (.srt)" : "导出标准字幕 (.srt)"}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 模块 5: AI 离线 OCR 文字提取                                                */}
       {/* ========================================================================= */}
       {activeTab === "ai-ocr" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

@@ -148,6 +148,21 @@ export const TOOL_TRANSLATIONS: Record<
     desc: "Pixel-perfect portrait cutout with complex backgrounds",
     badge: "AI Cutout",
   },
+  "ai-inpaint": {
+    name: "AI Magic Eraser / Inpaint",
+    desc: "Erase unwanted objects, passersby, watermarks & blemishes with smart inpainting",
+    badge: "Inpaint",
+  },
+  "ai-searchable-pdf": {
+    name: "Searchable PDF Maker",
+    desc: "Inject invisible searchable text layer into scanned images/PDFs for instant text search & copy",
+    badge: "Dual-Layer PDF",
+  },
+  "ai-subtitle": {
+    name: "Audio/Video Subtitle Studio",
+    desc: "Offline audio energy VAD segmentation, millisecond timestamp alignment, 1-click SRT/VTT export",
+    badge: "Subtitles",
+  },
   "ai-ocr": {
     name: "AI Text Extraction (OCR)",
     desc: "High-accuracy text recognition for documents, books, and receipts",

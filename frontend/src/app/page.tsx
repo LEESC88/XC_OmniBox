@@ -42,6 +42,9 @@ import {
   RotateCcw,
   FileCheck,
   Minimize2,
+  Eraser,
+  FileSearch,
+  Captions,
 } from "lucide-react";
 import CoconutLogo from "@/components/CoconutLogo";
 import Dropzone from "@/components/Dropzone";
@@ -171,6 +174,9 @@ const TOOLS_REGISTRY: { category: string; module: ModuleType; icon: any; tools: 
     icon: Sparkles,
     tools: [
       { id: "ai-bg-remove", module: "ai", name: "AI 发丝级智能抠图", desc: "逐像素分离人像与复杂背景，支持一键证件照换底排版", badge: "AI抠图", icon: Sparkles, keywords: ["抠图", "去除背景", "透明底", "人像", "发丝", "ai"] },
+      { id: "ai-inpaint", module: "ai", name: "AI 消除笔 / 去水印", desc: "智能涂抹消除画面杂物、路人、水印与瑕疵，边缘平滑修补", badge: "智能涂抹", icon: Eraser, keywords: ["消除", "去水印", "橡皮擦", "涂抹", "擦除", "inpaint", "ai"] },
+      { id: "ai-searchable-pdf", module: "ai", name: "双层可搜索 PDF 制作", desc: "将扫描件/图像注入底层透明文字排版层，实现极速检索与精准划词复制", badge: "双层PDF", icon: FileSearch, keywords: ["可搜索pdf", "双层pdf", "扫描件", "ocr", "复制文字", "pdf", "ai"] },
+      { id: "ai-subtitle", module: "ai", name: "音视频智能断句字幕", desc: "离线硬件级音频能量切片，毫秒对齐语音时间轴，一键导出 SRT/VTT 字幕", badge: "字幕提取", icon: Captions, keywords: ["字幕", "断句", "vad", "srt", "vtt", "音频", "视频", "ai"] },
       { id: "ai-ocr", module: "ai", name: "AI 文字提取 (OCR)", desc: "高精提取中英文、书籍、发票及表格字形，支持一键复制与 TXT 导出", badge: "多语言", icon: FileText, keywords: ["ocr", "文字提取", "识别", "扫描", "文字识别", "ai"] },
       { id: "ai-upscale", module: "ai", name: "AI 模糊图片高清修复", desc: "2x / 4x 超分辨率重建与边缘锐化，让低清模糊图焕发新生", badge: "超分辨率", icon: Maximize2, keywords: ["超清", "修复", "高清", "放大", "清晰度", "降噪", "ai"] },
     ],

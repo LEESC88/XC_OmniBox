@@ -93,3 +93,40 @@ def test_api_strip_exif_endpoint(sample_image: Path):
         )
     assert response.status_code == 200
     assert len(response.content) > 0
+
+def test_image_service_inpaint(sample_image: Path, tmp_path: Path):
+    mask_path = tmp_path / "mask.png"
+    mask_img = Image.new("L", (200, 100), 0)
+    # Paint a white rectangle in the middle
+    from PIL import ImageDraw
+    draw = ImageDraw.Draw(mask_img)
+    draw.rectangle([50, 20, 100, 60], fill=255)
+    mask_img.save(mask_path, format="PNG")
+
+    output_path = tmp_path / "inpainted.png"
+    res = ImageService.inpaint_image(sample_image, mask_path, output_path, radius=3, method="telea")
+    assert res.exists()
+    assert res.stat().st_size > 0
+    with Image.open(res) as img:
+        assert img.size == (200, 100)
+
+def test_api_inpaint_endpoint(sample_image: Path, tmp_path: Path):
+    mask_path = tmp_path / "mask_api.png"
+    mask_img = Image.new("RGBA", (200, 100), (0, 0, 0, 0))
+    from PIL import ImageDraw
+    draw = ImageDraw.Draw(mask_img)
+    draw.rectangle([30, 20, 80, 50], fill=(255, 0, 0, 255))
+    mask_img.save(mask_path, format="PNG")
+
+    with open(sample_image, "rb") as f_img, open(mask_path, "rb") as f_mask:
+        response = client.post(
+            "/api/v1/image/inpaint",
+            files={
+                "file": ("sample.png", f_img, "image/png"),
+                "mask": ("mask.png", f_mask, "image/png"),
+            },
+            data={"radius": "4", "method": "telea"}
+        )
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert len(response.content) > 0

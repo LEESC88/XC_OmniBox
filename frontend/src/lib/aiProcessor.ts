@@ -606,3 +606,270 @@ export async function enhanceAndUpscaleImage(
     img.src = url;
   });
 }
+
+// =========================================================================
+// 4. 双层可搜索可复制 PDF 制作 (参考 Umi-OCR 扫描件版面文字层注入)
+// =========================================================================
+
+export async function generateSearchablePdf(
+  imageSource: File | Blob | string,
+  lang: string = "chi_sim+eng",
+  onProgress?: AiProgressCallback
+): Promise<{ blob: Blob; filename: string; text: string }> {
+  const isColdStart = !cachedWorker || cachedWorkerLang !== lang;
+  if (onProgress) {
+    onProgress(
+      isColdStart ? 10 : 30,
+      isColdStart ? "正在初始化 OCR 渲染引擎..." : "复用常驻 OCR 引擎 (高速热启动)..."
+    );
+  }
+
+  if (cachedWorker && cachedWorkerLang !== lang) {
+    try {
+      await cachedWorker.terminate();
+    } catch {}
+    cachedWorker = null;
+  }
+
+  if (!cachedWorker) {
+    const { createWorker } = await import("tesseract.js");
+    cachedWorker = await createWorker(lang, undefined, {
+      logger: (m) => {
+        if (onProgress && m.status) {
+          const pct = Math.min(95, Math.round((m.progress || 0) * 100));
+          onProgress(pct, `双层 PDF 正在计算坐标并注入透明文字层 (${pct}%)...`);
+        }
+      },
+    });
+    cachedWorkerLang = lang;
+  }
+
+  try {
+    if (onProgress) onProgress(45, "正在进行图像文本自适应对比度预处理...");
+    const preprocessedUrl = await preprocessImageForOcr(imageSource);
+
+    if (onProgress) onProgress(65, "AI 正在识别字形拓扑并计算像素坐标对齐...");
+    const ret = await cachedWorker.recognize(preprocessedUrl, {}, { pdf: true });
+
+    const rawText = ret.data.text || "";
+    const pdfData = ret.data.pdf;
+
+    if (!pdfData) {
+      throw new Error("双层可搜索 PDF 生成失败：未返回 PDF 数据流");
+    }
+
+    const uint8 = new Uint8Array(pdfData);
+    const pdfBlob = new Blob([uint8], { type: "application/pdf" });
+
+    let baseName = "scanned_document";
+    if (imageSource instanceof File) {
+      baseName = imageSource.name.replace(/\.[^/.]+$/, "");
+    }
+
+    if (onProgress) onProgress(100, "双层可搜索 PDF 制作完成！");
+
+    return {
+      blob: pdfBlob,
+      filename: `${baseName}_searchable.pdf`,
+      text: rawText,
+    };
+  } catch (err) {
+    throw err;
+  }
+}
+
+// =========================================================================
+// 5. 音视频智能断句与字幕提取生成器 (参考 Buzz / Faster-Whisper VAD 能量切片)
+// =========================================================================
+
+export interface SubtitleItem {
+  id: number;
+  start: number; // 秒数
+  end: number;
+  startFormatted: string; // 00:00:01,200
+  endFormatted: string; // 00:00:04,500
+  text: string;
+}
+
+/**
+ * 格式化为标准 SRT 时间戳 (HH:MM:SS,mmm)
+ */
+export function formatSrtTimestamp(seconds: number): string {
+  const totalMs = Math.max(0, Math.floor(seconds * 1000));
+  const ms = totalMs % 1000;
+  const totalSec = Math.floor(totalMs / 1000);
+  const s = totalSec % 60;
+  const totalMin = Math.floor(totalSec / 60);
+  const m = totalMin % 60;
+  const h = Math.floor(totalMin / 60);
+
+  const pad = (n: number, z = 2) => String(n).padStart(z, "0");
+  return `${pad(h)}:${pad(m)}:${pad(s)},${pad(ms, 3)}`;
+}
+
+/**
+ * 格式化为标准 WebVTT 时间戳 (HH:MM:SS.mmm)
+ */
+export function formatVttTimestamp(seconds: number): string {
+  return formatSrtTimestamp(seconds).replace(",", ".");
+}
+
+/**
+ * 将字幕数组转换为标准 SRT 字符串
+ */
+export function exportToSrt(items: SubtitleItem[]): string {
+  return items
+    .map((item, idx) => {
+      return `${idx + 1}\n${item.startFormatted} --> ${item.endFormatted}\n${item.text || "(未输入台词)"}\n`;
+    })
+    .join("\n");
+}
+
+/**
+ * 将字幕数组转换为标准 WebVTT 字符串
+ */
+export function exportToVtt(items: SubtitleItem[]): string {
+  const header = "WEBVTT\n\n";
+  const body = items
+    .map((item, idx) => {
+      const start = formatVttTimestamp(item.start);
+      const end = formatVttTimestamp(item.end);
+      return `${idx + 1}\n${start} --> ${end}\n${item.text || "(未输入台词)"}\n`;
+    })
+    .join("\n");
+  return header + body;
+}
+
+/**
+ * 基于浏览器 AudioContext 离线解码音频流并执行能量包络 VAD 智能语音断句
+ */
+export async function analyzeMediaSpeechSegments(
+  file: File,
+  onProgress?: (pct: number, stage: string) => void
+): Promise<{ duration: number; items: SubtitleItem[] }> {
+  if (onProgress) onProgress(10, "正在加载并解密音视频媒体流...");
+
+  const arrayBuffer = await file.arrayBuffer();
+  if (onProgress) onProgress(30, "正在进行高保真音频硬件级采样解码 (PCM)...");
+
+  const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+  if (!AudioCtx) throw new Error("当前浏览器环境不支持 Web Audio API");
+
+  const audioCtx = new AudioCtx();
+  let audioBuffer: AudioBuffer;
+  try {
+    audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+  } finally {
+    audioCtx.close();
+  }
+
+  const duration = audioBuffer.duration;
+  const sampleRate = audioBuffer.sampleRate;
+  const channelData = audioBuffer.getChannelData(0); // 取主声道
+
+  if (onProgress) onProgress(50, "AI / 算法正在计算音频能量包络与语音间隙 (VAD)...");
+
+  // 窗口步长 (50ms 采样窗)
+  const windowSize = Math.floor(sampleRate * 0.05);
+  const totalWindows = Math.floor(channelData.length / windowSize);
+  const energy = new Float32Array(totalWindows);
+
+  let sumEnergy = 0;
+  for (let w = 0; w < totalWindows; w++) {
+    const offset = w * windowSize;
+    let sumSquares = 0;
+    for (let i = 0; i < windowSize; i++) {
+      const v = channelData[offset + i];
+      sumSquares += v * v;
+    }
+    const rms = Math.sqrt(sumSquares / windowSize);
+    energy[w] = rms;
+    sumEnergy += rms;
+  }
+
+  // 动态自适应静音阈值 (Adaptive Noise Floor)
+  const avgEnergy = sumEnergy / Math.max(1, totalWindows);
+  const speechThreshold = Math.max(0.015, avgEnergy * 0.45);
+
+  const minSpeechDuration = 0.5; // 最短单句 0.5 秒
+  const minSilenceDuration = 0.4; // 判定断句停顿时间 0.4 秒
+  const windowsPerSec = 1 / 0.05;
+
+  const minSpeechWindows = Math.floor(minSpeechDuration * windowsPerSec);
+  const minSilenceWindows = Math.floor(minSilenceDuration * windowsPerSec);
+
+  const segments: Array<{ startSec: number; endSec: number }> = [];
+  let inSpeech = false;
+  let speechStartWindow = 0;
+  let silenceCount = 0;
+
+  for (let w = 0; w < totalWindows; w++) {
+    const isVoice = energy[w] >= speechThreshold;
+
+    if (!inSpeech) {
+      if (isVoice) {
+        inSpeech = true;
+        speechStartWindow = w;
+        silenceCount = 0;
+      }
+    } else {
+      if (!isVoice) {
+        silenceCount++;
+        if (silenceCount >= minSilenceWindows) {
+          // 断句成立
+          const speechEndWindow = w - silenceCount;
+          if (speechEndWindow - speechStartWindow >= minSpeechWindows) {
+            segments.push({
+              startSec: +(speechStartWindow * 0.05).toFixed(2),
+              endSec: +(speechEndWindow * 0.05).toFixed(2),
+            });
+          }
+          inSpeech = false;
+          silenceCount = 0;
+        }
+      } else {
+        silenceCount = 0;
+      }
+    }
+  }
+
+  // 收尾闭合
+  if (inSpeech) {
+    const endWindow = totalWindows - 1;
+    if (endWindow - speechStartWindow >= minSpeechWindows) {
+      segments.push({
+        startSec: +(speechStartWindow * 0.05).toFixed(2),
+        endSec: +(endWindow * 0.05).toFixed(2),
+      });
+    }
+  }
+
+  // 如果音频极其平稳未检出断句，则兜底按每 4 秒分段
+  if (segments.length === 0) {
+    const chunkSec = 4.0;
+    for (let t = 0; t < duration; t += chunkSec) {
+      segments.push({
+        startSec: +t.toFixed(2),
+        endSec: +Math.min(duration, t + chunkSec).toFixed(2),
+      });
+    }
+  }
+
+  if (onProgress) onProgress(90, "正在生成毫秒对齐字幕轴与时间轨...");
+
+  const items: SubtitleItem[] = segments.map((seg, idx) => ({
+    id: idx + 1,
+    start: seg.startSec,
+    end: seg.endSec,
+    startFormatted: formatSrtTimestamp(seg.startSec),
+    endFormatted: formatSrtTimestamp(seg.endSec),
+    text: "",
+  }));
+
+  if (onProgress) onProgress(100, `解析完成，已智能定位 ${items.length} 处语音对话时间轴！`);
+
+  return {
+    duration,
+    items,
+  };
+}
