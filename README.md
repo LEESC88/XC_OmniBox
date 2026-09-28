@@ -1,57 +1,82 @@
 # XC_OmniBox (XC 万象箱)
 
 <p align="center">
-  <strong>全能多媒体创作效率桌面客户端 / All-in-One Multimedia & Productivity Desktop Toolbox</strong>
+  <strong>极速本地离线多功能工具箱 / Fast Local Offline Multimedia & Dev Toolbox</strong>
 </p>
 
 <p align="center">
   <a href="https://github.com/LEESC88/XC_OmniBox/releases/latest">
-    <img src="https://img.shields.io/github/v/release/LEESC88/XC_OmniBox?style=flat-square&color=ff6b00" alt="Release" />
+    <img src="https://img.shields.io/github/v/release/LEESC88/XC_OmniBox?style=flat-square&color=2563EB" alt="Release" />
   </a>
   <a href="https://github.com/LEESC88/XC_OmniBox/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License" />
   </a>
   <img src="https://img.shields.io/badge/platform-Windows%20x64-lightgrey?style=flat-square" alt="Platform" />
+  <img src="https://img.shields.io/badge/privacy-100%25%20Offline-success?style=flat-square" alt="100% Offline" />
 </p>
 
 ---
 
 ## 📖 简介 / Introduction
 
-**XC_OmniBox** 是一款基于 Electron + Next.js (React) + FastAPI (Python 引擎) 构建的现代化全能桌面工具箱。致力于提供**纯本地运行、隐私安全、无云端上传限制、极速轻量**的一站式多媒体与文档处理体验。
+**XC_OmniBox (XC 万象箱)** 是一款基于 Electron + Next.js (React) + FastAPI (Python 混合引擎) 构建的现代化本地多功能工具箱。致力于为创作者、工程师、办公人士提供**100% 纯本地离线运算、零隐私泄漏、零云端限制、秒级响应**的一站式多媒体与日常效率工具。
 
 ---
 
-## ✨ 核心功能模块 / Features
+## 🌟 v1.1.0 重大更新亮点 / What's New in v1.1.0
 
-### 📄 1. PDF 与文档处理 (Document Tools)
-- **Word 转 PDF (超清/多档位)**：支持轻量 (96 DPI)、标准 (150 DPI)、超清打印级 (300 DPI) 三档导出；独创**智能字体流裁剪**算法，彻底杜绝包含 Emoji / 特殊字形时的无谓体积膨胀。
+- 🤖 **全新 AI 创新工坊三合一**：
+  - **智能图像修复画笔 (AI Inpaint Brush)**：基于 IOPaint C++ 双算法（Telea / Navier-Stokes），交互式自由涂抹选区，精准消除照片瑕疵、杂物与水印，附带 Squoosh 交互式滑动对比。
+  - **双层可搜索 PDF 制作 (Searchable PDF Maker)**：深度融合 Umi-OCR 与 Tesseract 引擎，将纯图片扫描件转换为保留原始高保真版面、底层覆盖透明文字图层的双层 PDF，支持全文复制与检索。
+  - **音视频字幕工坊 (Audio & Video Subtitle Studio)**：基于 Buzz Web Audio VAD 语音断句对齐，自动切分音视频语音区间，生成毫秒级时间轴并导出标准 SRT、VTT 与 TXT 字幕。
+- 📝 **文章与文本对比 (Article & Text Diff)**：全新双栏文章修订对比工具，支持段落与字符级精细对比、中英双语范文一键载入、折叠未修改内容与统计增删变动。
+- 🎨 **主题系统重构 (White & Dark 独立调色)**：仅保留高雅**纯白 (White)**与极简**深黑 (Dark)**模式，底层分离存储自定义调色方案（窗口背景、卡片容器、强调色、文本、边框轮廓），切换模式永不丢失个人配方。
+- 🔤 **标准英文高清晰度字体**：全面支持 5 款清晰 UI 字体（System Default、Inter、Roboto、Segoe UI、Monospace），配备标准化英文字样排版实时预览。
+- 🛡️ **安全设置草稿流 (Draft/Commit)**：修改设置项即时预览生效；未点击“保存设置”前退出将弹出确认提示，杜绝误触丢弃修改。
+- 📴 **纯本地离线保护**：全功能支持无网单机运行，零 API Key 依赖，绝不向第三方上传任何用户隐私与文件内容。
+
+---
+
+## ✨ 核心功能全景 / Features Matrix
+
+### 📄 1. PDF 与文档工坊 (Document & PDF)
+- **PDF 1:1 原版排版在线工作台**：原位文字就地改字、段落增删、遮盖涂抹，锁定原始排版完全不跑偏。
+- **Word 转 PDF (超清/多档位)**：轻量 (96 DPI)、标准 (150 DPI)、打印级 (300 DPI) 三档导出；独创**智能字体流裁剪**算法，解决特殊字形体积膨胀。
 - **PDF 转 Word (高保真还原)**：深度解析排版布局、表格结构与公式。
-- **PDF 合并与拆分**：多文档拖拽排序快速合并，按页码范围自定义提取。
-- **PDF 页面编辑与加解密**：支持原位图层编辑、半透明防伪水印添加、AES 高强度密码保护。
+- **PDF 页面管理**：拖拽多文档合并、页码区间拆分、半透明防伪水印添加与 AES 高强度加密保护。
 
-### 🖼️ 2. 图像处理与智能工具 (Image Tools)
-- **智能图片无损压缩**：媲美 TinyPNG 的视觉无损压缩算法，最高节省 90% 存储。
-- **Apple HEIC 转码**：一键将 iPhone 实况照片/HEIC 转换为通用 JPG/PNG。
-- **全格式图片互转**：支持 WebP、PNG、JPG、BMP、TIFF 等主流格式互相转换。
-- **证件照智能排版**：标准一寸、二寸证件照自动背景生成与打印排版。
+### 🖼️ 2. 图片与视觉工坊 (Image & Visual)
+- **智能图片无损压缩**：视觉无损压缩算法，在保留极致画质前提下最高节省 90% 存储。
+- **Apple HEIC 转码**：一键将 iPhone 实况照片/HEIC 转换为通用 JPG/PNG/WebP。
+- **全格式图片互转**：WebP、PNG、JPG、BMP、TIFF、AVIF 多格式批量无损转换。
+- **元数据抹除 (EXIF Stripper)**：一键抹除照片拍摄 GPS 定位、设备型号等隐私信息。
 
-### 🎬 3. 音视频工作流 (Audio & Video Tools)
-- **视频转 GIF**：截取任意视频片段，自定义帧率与分辨率生成高质量动图。
-- **视频提取音频 / 格式转换**：极速无损分离背景音乐与人声音轨。
+### 🎵 3. 音频与声学工坊 (Audio & Sound)
+- **全格式音频互转**：MP3、WAV、FLAC、AAC、OGG、M4A 批量极速转换。
+- **母带级音质调校**：自由重采样率 (44.1kHz ~ 96kHz)、位深 (16-bit / 24-bit / 32-bit float) 与声道切换。
+- **音频变速变调**：独立调节播放速率与音高频移。
+- **可视化声波发生器**：生成标准正弦波、方波、粉红噪声与白噪声，实时可视化渲染音频波形。
 
-### 🌐 4. 国际化与用户体验 (UI & Experience)
-- **完整双语支持**：内置中文与英文一键无缝热切换（包含所有设置、提示、错误信息）。
-- **完全本地化处理**：所有文件计算均在本地运行，数据不出本机，保障隐私。
-- **深色沉浸式设计**：流畅动画与现代磨砂玻璃质感 UI。
+### 🤖 4. AI 智能创新工坊 (AI Magic Studio)
+- **AI 智能消除笔 (Inpaint Brush)**：涂抹抹除水印、路人、瑕疵，实时双算法修复。
+- **双层可搜索 PDF 制作**：扫描件一键生成可划词检索的 PDF。
+- **音视频字幕提取工坊**：本地语音活性检测 (VAD)，生成标准 SRT/VTT 字幕。
+- **AI 发丝级人像抠图**：复杂背景秒级透明化抠图。
+- **AI 4K/8K 超分辨率重构**：老照片与低清图像纹理超清增强放大。
+
+### 🛠️ 5. 日常生活与实用工具 (Utility & Dev)
+- **文章与文本对比 (Article Diff)**：双栏排版、字符精细对比、中英双语范文。
+- **证件照换底与 6 寸排版**：标准一寸/二寸换底（红白蓝灰）及 6 寸相纸自动拼版。
+- **个性化艺术二维码**：炫彩渐变色、中心嵌入 Logo、名片/WiFi 一键生成与离线识码。
+- **财务与开发利器**：人民币财务大写换算、字数中英文统计、JSON 校验与常用编码转换。
 
 ---
 
-## 🚀 快速开始 / Download & Install
+## 🚀 下载与安装 / Download & Install
 
-### 下载预编译安装包 (推荐)
-直接前往 [GitHub Releases](https://github.com/LEESC88/XC_OmniBox/releases/latest) 下载最新的 Windows 64 位安装程序：
-- `XC_OmniBox-Setup-1.0.0.exe`
+### 下载预编译安装包 (Windows)
+前往 [GitHub Releases](https://github.com/LEESC88/XC_OmniBox/releases/latest) 下载最新的 Windows 64 位安装程序：
+- **`XC_OmniBox-Setup-1.1.0.exe`**
 
 ---
 
@@ -83,22 +108,26 @@ pip install -r requirements.txt
 cd ..
 ```
 
-### 4. 运行开发环境
+### 4. 运行本地开发
 ```bash
+# 桌面客户端全量运行 (前端 + 后端服务 + Electron 宿主)
 npm run dev:electron
+
+# 仅前端与后端运行 (浏览器访问 http://localhost:3000)
+npm run dev
 ```
 
 ### 5. 打包构建
 ```bash
-# 完整全量打包 (构建前端 + 编译 Python 二进制 + 打包 NSIS 安装包)
-npm run dist
+# 前端静态生产打包
+npm run build:frontend
 
-# 仅前端与 Electron 快速更新打包
-npm run dist:fast
+# 完整打包发布安装包
+npm run dist
 ```
 
 ---
 
 ## 📜 开源协议 / License
 
-本项目基于 [MIT License](LICENSE) 开源。
+本项目基于 [MIT License](LICENSE) 开源。欢迎提交 Issue 与 Pull Request 共同完善！

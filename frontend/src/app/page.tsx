@@ -1029,7 +1029,7 @@ export default function Home() {
                       {lang === "en" ? "NEW" : "发现新版"}
                     </span>
                   ) : (
-                    <span className="text-xs font-mono font-bold text-coconut-600 dark:text-darkbg-muted">v1.0.0</span>
+                    <span className="text-xs font-mono font-bold text-coconut-600 dark:text-darkbg-muted">v1.1.0</span>
                   )}
                 </div>
               </button>

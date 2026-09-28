@@ -50,7 +50,7 @@ def root():
         "project": "OmniToolbox Backend",
         "status": "online",
         "swagger_docs": "/docs",
-        "version": "1.0.0"
+        "version": "1.1.0"
     }
 
 if __name__ == "__main__":

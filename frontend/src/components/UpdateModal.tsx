@@ -32,7 +32,7 @@ export default function UpdateModal({
 }) {
   const { t, lang } = useI18n();
   const [updateState, setUpdateState] = useState<UpdateInfo>({ status: "idle" });
-  const [currentVersion, setCurrentVersion] = useState<string>("1.0.0");
+  const [currentVersion, setCurrentVersion] = useState<string>("1.1.0");
   const [isElectron, setIsElectron] = useState(false);
 
   useEffect(() => {
@@ -42,7 +42,7 @@ export default function UpdateModal({
 
       // 获取当前版本号
       if (api.getAppVersion) {
-        api.getAppVersion().then((v: string) => setCurrentVersion(v || "1.0.0"));
+        api.getAppVersion().then((v: string) => setCurrentVersion(v || "1.1.0"));
       }
 
       // 监听主进程发出的更新状态
