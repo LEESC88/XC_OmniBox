@@ -24,6 +24,10 @@ import {
   AlertCircle,
   Clock,
   Music,
+  Mic,
+  VolumeX,
+  Plus,
+  Minus,
 } from "lucide-react";
 import {
   decodeAudioFile,
@@ -34,6 +38,10 @@ import {
   exportAudioBuffer,
   formatDuration,
   getAudioContext,
+  enhanceVoiceClarity,
+  changeAudioSpeed,
+  reverseAudioBuffer,
+  extractKaraokeAccompaniment,
 } from "@/lib/audioProcessor";
 import { formatBytes } from "@/lib/imageProcessor";
 import { createZipBundle } from "@/lib/imageProcessor";
@@ -41,7 +49,7 @@ import { downloadBlob } from "@/lib/api";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
 import { useI18n } from "@/lib/i18n";
 
-type AudioToolTab = "trim" | "convert" | "merge" | "extract" | "volume";
+export type AudioToolTab = "trim" | "convert" | "merge" | "extract" | "volume" | "speed" | "karaoke";
 
 interface MergeTrack {
   id: string;
@@ -97,6 +105,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
   const [fadeOut, setFadeOut] = useState(0);
   const [trimFormat, setTrimFormat] = useState<"mp3" | "wav">("mp3");
   const [trimKbps, setTrimKbps] = useState(320);
+  const [trimResult, setTrimResult] = useState<{ blob: Blob; filename: string; duration: number; url: string } | null>(null);
 
   // 播放状态
   const [isPlaying, setIsPlaying] = useState(false);
@@ -120,17 +129,46 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
   const [mergeTracks, setMergeTracks] = useState<MergeTrack[]>([]);
   const [mergeFormat, setMergeFormat] = useState<"mp3" | "wav">("mp3");
   const [mergeKbps, setMergeKbps] = useState(320);
+  const [mergeResult, setMergeResult] = useState<{ blob: Blob; filename: string; duration: number; url: string } | null>(null);
 
   // ================= 4. 视频提取音频状态 =================
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [extractRangeMode, setExtractRangeMode] = useState<"full" | "clip">("full");
+  const [extractStartTime, setExtractStartTime] = useState(0);
+  const [extractEndTime, setExtractEndTime] = useState(0);
   const [extractFormat, setExtractFormat] = useState<"mp3" | "wav">("mp3");
   const [extractKbps, setExtractKbps] = useState(320);
+  const [extractResult, setExtractResult] = useState<{ blob: Blob; filename: string; duration: number; url: string } | null>(null);
+  const videoPlayerRef = useRef<HTMLVideoElement | null>(null);
 
-  // ================= 5. 音量调节状态 =================
+  // ================= 5. 音量调节与清晰度状态 =================
   const [volumeFile, setVolumeFile] = useState<File | null>(null);
   const [volumeBuffer, setVolumeBuffer] = useState<AudioBuffer | null>(null);
   const [volumeMode, setVolumeMode] = useState<"normalize" | "gain">("normalize");
-  const [gainPercent, setGainPercent] = useState(150); // 150%
+  const [gainPercent, setGainPercent] = useState(150);
+  const [filterRumble, setFilterRumble] = useState(true);
+  const [boostPresence, setBoostPresence] = useState(true);
+  const [compressDynamics, setCompressDynamics] = useState(true);
+  const [volumeResult, setVolumeResult] = useState<{ blob: Blob; filename: string; duration: number; url: string } | null>(null);
+
+  // ================= 6. 音频倍速与倒放状态 =================
+  const [speedFile, setSpeedFile] = useState<File | null>(null);
+  const [speedBuffer, setSpeedBuffer] = useState<AudioBuffer | null>(null);
+  const [speedPlaybackRate, setSpeedPlaybackRate] = useState<number>(1.25);
+  const [speedIsReversed, setSpeedIsReversed] = useState<boolean>(false);
+  const [speedFormat, setSpeedFormat] = useState<"mp3" | "wav">("mp3");
+  const [speedKbps, setSpeedKbps] = useState(320);
+  const [speedResult, setSpeedResult] = useState<{ blob: Blob; filename: string; duration: number; url: string } | null>(null);
+
+  // ================= 7. 卡拉OK伴奏提取状态 =================
+  const [karaokeFile, setKaraokeFile] = useState<File | null>(null);
+  const [karaokeBuffer, setKaraokeBuffer] = useState<AudioBuffer | null>(null);
+  const [karaokeBassHz, setKaraokeBassHz] = useState<number>(180);
+  const [karaokeFormat, setKaraokeFormat] = useState<"mp3" | "wav">("mp3");
+  const [karaokeKbps, setKaraokeKbps] = useState(320);
+  const [karaokeResult, setKaraokeResult] = useState<{ blob: Blob; filename: string; duration: number; url: string } | null>(null);
 
   // 停止播放辅助
   const stopPlayback = () => {
@@ -348,7 +386,12 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
       const outputFilename = `${baseName}_cut_${formatDuration(startTime).replace(":", "m")}-${formatDuration(
         endTime
       ).replace(":", "m")}.${ext}`;
-      downloadBlob(blob, outputFilename);
+      setTrimResult({
+        blob,
+        filename: outputFilename,
+        duration: Math.max(0.1, +(endTime - startTime).toFixed(1)),
+        url: URL.createObjectURL(blob),
+      });
     } catch (err: any) {
       setError((lang === "en" ? "Trim export failed: " : "裁剪导出失败: ") + err.message);
     } finally {
@@ -433,7 +476,12 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
       const merged = concatAudioBuffers(buffers);
       const { blob, ext } = await exportAudioBuffer(merged, mergeFormat, mergeKbps);
       const outputFilename = `XC_Merged_Audio_${Date.now()}.${ext}`;
-      downloadBlob(blob, outputFilename);
+      setMergeResult({
+        blob,
+        filename: outputFilename,
+        duration: merged.duration,
+        url: URL.createObjectURL(blob),
+      });
     } catch (err: any) {
       setError((lang === "en" ? "Audio merge failed: " : "音频合并失败: ") + err.message);
     } finally {
@@ -443,6 +491,25 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
   };
 
   // ================= 4. 视频提取纯音频 =================
+  const handleVideoFileSelected = async (file: File) => {
+    setVideoFile(file);
+    setVideoPreviewUrl(URL.createObjectURL(file));
+    setExtractResult(null);
+    setIsProcessing(true);
+    setProgressMsg(lang === "en" ? "Analyzing video soundtrack..." : "正在分析视频音频流与时长...");
+    try {
+      const buf = await decodeAudioFile(file);
+      setVideoDuration(buf.duration);
+      setExtractStartTime(0);
+      setExtractEndTime(+buf.duration.toFixed(1));
+    } catch (err: any) {
+      console.warn("Could not pre-decode video audio", err);
+    } finally {
+      setIsProcessing(false);
+      setProgressMsg("");
+    }
+  };
+
   const handleExecuteExtract = async () => {
     if (!videoFile) return;
     setIsProcessing(true);
@@ -450,10 +517,21 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
     setError(null);
 
     try {
-      const buffer = await decodeAudioFile(videoFile);
+      let buffer = await decodeAudioFile(videoFile);
+      if (extractRangeMode === "clip" && extractEndTime > extractStartTime) {
+        buffer = trimAudioBuffer(buffer, extractStartTime, extractEndTime);
+      }
       const { blob, ext } = await exportAudioBuffer(buffer, extractFormat, extractKbps);
       const baseName = videoFile.name.replace(/\.[^/.]+$/, "");
-      downloadBlob(blob, `${baseName}_audio.${ext}`);
+      const outputFilename = extractRangeMode === "clip"
+        ? `${baseName}_clip_${formatDuration(extractStartTime).replace(":", "m")}-${formatDuration(extractEndTime).replace(":", "m")}.${ext}`
+        : `${baseName}_audio.${ext}`;
+      setExtractResult({
+        blob,
+        filename: outputFilename,
+        duration: buffer.duration,
+        url: URL.createObjectURL(blob),
+      });
     } catch (err: any) {
       setError((lang === "en" ? "Video audio extraction failed: " : "视频提取音频失败，请确认视频包含有效声轨: ") + err.message);
     } finally {
@@ -462,9 +540,10 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
     }
   };
 
-  // ================= 5. 音量调节与标准化 =================
+  // ================= 5. 音量调节与清晰度 =================
   const handleVolumeFileSelected = async (file: File) => {
     setVolumeFile(file);
+    setVolumeResult(null);
     setIsProcessing(true);
     setProgressMsg(lang === "en" ? "Analyzing audio levels..." : "正在分析音频电平...");
     try {
@@ -481,17 +560,31 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
   const handleExecuteVolume = async () => {
     if (!volumeBuffer || !volumeFile) return;
     setIsProcessing(true);
-    setProgressMsg(lang === "en" ? "Recalculating gain levels and peak normalization..." : "正在重构增益电平与防失真计算...");
+    setProgressMsg(lang === "en" ? "Processing gain levels, noise filtering & normalization..." : "正在计算增益、人声降噪与防破音处理...");
     setError(null);
 
     try {
       const factor = volumeMode === "gain" ? gainPercent / 100 : 1.0;
       const isNorm = volumeMode === "normalize";
-      const adjusted = adjustVolumeAndNormalize(volumeBuffer, factor, isNorm);
+      let adjusted = adjustVolumeAndNormalize(volumeBuffer, factor, isNorm);
+
+      if (filterRumble || boostPresence || compressDynamics) {
+        adjusted = await enhanceVoiceClarity(adjusted, {
+          filterRumble,
+          boostPresence,
+          compressDynamics,
+        });
+      }
+
       const { blob, ext } = await exportAudioBuffer(adjusted, "mp3", 320);
       const baseName = volumeFile.name.replace(/\.[^/.]+$/, "");
       const tag = isNorm ? "normalized" : `gain_${gainPercent}pct`;
-      downloadBlob(blob, `${baseName}_${tag}.${ext}`);
+      setVolumeResult({
+        blob,
+        filename: `${baseName}_${tag}_clear.${ext}`,
+        duration: adjusted.duration,
+        url: URL.createObjectURL(blob),
+      });
     } catch (err: any) {
       setError((lang === "en" ? "Volume adjustment failed: " : "音量处理失败: ") + err.message);
     } finally {
@@ -500,9 +593,97 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
     }
   };
 
+  // ================= 6. 音频倍速与倒放处理 =================
+  const handleSpeedFileSelected = async (file: File) => {
+    setSpeedFile(file);
+    setSpeedResult(null);
+    setIsProcessing(true);
+    setProgressMsg(lang === "en" ? "Loading audio for tempo/speed..." : "正在载入音频波形...");
+    try {
+      const buf = await decodeAudioFile(file);
+      setSpeedBuffer(buf);
+    } catch (err: any) {
+      setError((lang === "en" ? "Failed to load audio: " : "加载音频失败: ") + err.message);
+    } finally {
+      setIsProcessing(false);
+      setProgressMsg("");
+    }
+  };
+
+  const handleExecuteSpeed = async () => {
+    if (!speedBuffer || !speedFile) return;
+    setIsProcessing(true);
+    setProgressMsg(lang === "en" ? "Applying speed adjustment & rendering..." : "正在进行离线硬件级音频倍速与倒放渲染...");
+    setError(null);
+
+    try {
+      let processed = await changeAudioSpeed(speedBuffer, speedPlaybackRate);
+      if (speedIsReversed) {
+        processed = reverseAudioBuffer(processed);
+      }
+      const { blob, ext } = await exportAudioBuffer(processed, speedFormat, speedKbps);
+      const baseName = speedFile.name.replace(/\.[^/.]+$/, "");
+      const tag = `${speedPlaybackRate}x${speedIsReversed ? "_reversed" : ""}`;
+      const outputFilename = `${baseName}_${tag}.${ext}`;
+      setSpeedResult({
+        blob,
+        filename: outputFilename,
+        duration: processed.duration,
+        url: URL.createObjectURL(blob),
+      });
+    } catch (err: any) {
+      setError((lang === "en" ? "Speed change failed: " : "音频变速/倒放失败: ") + err.message);
+    } finally {
+      setIsProcessing(false);
+      setProgressMsg("");
+    }
+  };
+
+  // ================= 7. 卡拉OK伴奏提取处理 =================
+  const handleKaraokeFileSelected = async (file: File) => {
+    setKaraokeFile(file);
+    setKaraokeResult(null);
+    setIsProcessing(true);
+    setProgressMsg(lang === "en" ? "Analyzing audio stereo phase..." : "正在解析立体声声场与中央声道...");
+    try {
+      const buf = await decodeAudioFile(file);
+      setKaraokeBuffer(buf);
+    } catch (err: any) {
+      setError((lang === "en" ? "Failed to load song: " : "加载歌曲失败: ") + err.message);
+    } finally {
+      setIsProcessing(false);
+      setProgressMsg("");
+    }
+  };
+
+  const handleExecuteKaraoke = async () => {
+    if (!karaokeBuffer || !karaokeFile) return;
+    setIsProcessing(true);
+    setProgressMsg(lang === "en" ? "Isolating accompaniment & suppressing vocals..." : "正在消除正中央人声并保留低频鼓点与贝斯...");
+    setError(null);
+
+    try {
+      const accompaniment = extractKaraokeAccompaniment(karaokeBuffer, karaokeBassHz);
+      const { blob, ext } = await exportAudioBuffer(accompaniment, karaokeFormat, karaokeKbps);
+      const baseName = karaokeFile.name.replace(/\.[^/.]+$/, "");
+      const outputFilename = `${baseName}_karaoke_bgm.${ext}`;
+      setKaraokeResult({
+        blob,
+        filename: outputFilename,
+        duration: accompaniment.duration,
+        url: URL.createObjectURL(blob),
+      });
+    } catch (err: any) {
+      setError((lang === "en" ? "Karaoke vocal removal failed: " : "伴奏提取/消人声失败: ") + err.message);
+    } finally {
+      setIsProcessing(false);
+      setProgressMsg("");
+    }
+  };
+
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in">
-      {/* 5 大功能 Tab 切换 (支持鼠标滚轮横移、鼠标拖拽滑动、专属微滑轨与左右翻页箭头) */}
+      {/* 7 大功能 Tab 切换 (支持鼠标滚轮横移、鼠标拖拽滑动、专属微滑轨与左右翻页箭头) */}
       <ScrollableTabNav
         tabs={[
           {
@@ -531,9 +712,21 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
           },
           {
             id: "volume",
-            label: lang === "en" ? "Volume & Normalizer" : "音量放大与标准化",
+            label: lang === "en" ? "Volume & Voice Clarity" : "音量放大与人声增强",
             icon: Volume2,
-            badge: lang === "en" ? "Anti-clipping" : "自动防破音",
+            badge: lang === "en" ? "Anti-clipping & Clear" : "防破音&清晰化",
+          },
+          {
+            id: "speed",
+            label: lang === "en" ? "Speed & Reverse" : "变速变调与倒放",
+            icon: Clock,
+            badge: "0.5x-2.0x / Reverse",
+          },
+          {
+            id: "karaoke",
+            label: lang === "en" ? "Vocal Cut (Karaoke)" : "伴奏提取与消人声",
+            icon: Mic,
+            badge: lang === "en" ? "Stereo Cut" : "立体声消人声",
           },
         ]}
         activeTab={activeTab}
@@ -610,14 +803,84 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
 
               {/* 交互式波形画布 */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted font-mono">
-                  <span>{lang === "en" ? `Start: ${formatDuration(startTime)}` : `起点: ${formatDuration(startTime)}`}</span>
-                  <span className="text-coconut-900 dark:text-toast-400 font-bold">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted font-mono bg-coconut-100/50 dark:bg-darkbg-subtle/50 p-2.5 rounded-xl border border-coconut-200/50 dark:border-darkbg-border">
+                  <div className="flex items-center space-x-1.5 flex-wrap gap-1">
+                    <span className="font-semibold text-coconut-900 dark:text-darkbg-text">
+                      {lang === "en" ? `Start: ${formatDuration(startTime)}` : `起点: ${formatDuration(startTime)}`}
+                    </span>
+                    <div className="inline-flex rounded-lg border border-coconut-200 dark:border-darkbg-border overflow-hidden">
+                      <button
+                        onClick={() => setStartTime(Math.max(0, +(startTime - 0.5).toFixed(2)))}
+                        className="px-1.5 py-0.5 hover:bg-coconut-200 dark:hover:bg-darkbg-hover text-[10px]"
+                        title="-0.5s"
+                      >
+                        -0.5s
+                      </button>
+                      <button
+                        onClick={() => setStartTime(Math.max(0, +(startTime - 0.1).toFixed(2)))}
+                        className="px-1.5 py-0.5 hover:bg-coconut-200 dark:hover:bg-darkbg-hover text-[10px] border-l border-coconut-200 dark:border-darkbg-border"
+                        title="-0.1s"
+                      >
+                        -0.1s
+                      </button>
+                      <button
+                        onClick={() => setStartTime(Math.min(endTime - 0.1, +(startTime + 0.1).toFixed(2)))}
+                        className="px-1.5 py-0.5 hover:bg-coconut-200 dark:hover:bg-darkbg-hover text-[10px] border-l border-coconut-200 dark:border-darkbg-border"
+                        title="+0.1s"
+                      >
+                        +0.1s
+                      </button>
+                      <button
+                        onClick={() => setStartTime(Math.min(endTime - 0.5, +(startTime + 0.5).toFixed(2)))}
+                        className="px-1.5 py-0.5 hover:bg-coconut-200 dark:hover:bg-darkbg-hover text-[10px] border-l border-coconut-200 dark:border-darkbg-border"
+                        title="+0.5s"
+                      >
+                        +0.5s
+                      </button>
+                    </div>
+                  </div>
+
+                  <span className="text-coconut-900 dark:text-toast-400 font-bold self-center">
                     {lang === "en"
                       ? `Selection: ${formatDuration(endTime - startTime)}`
                       : `截取时长: ${formatDuration(endTime - startTime)}`}
                   </span>
-                  <span>{lang === "en" ? `End: ${formatDuration(endTime)}` : `终点: ${formatDuration(endTime)}`}</span>
+
+                  <div className="flex items-center space-x-1.5 justify-end flex-wrap gap-1">
+                    <span className="font-semibold text-coconut-900 dark:text-darkbg-text">
+                      {lang === "en" ? `End: ${formatDuration(endTime)}` : `终点: ${formatDuration(endTime)}`}
+                    </span>
+                    <div className="inline-flex rounded-lg border border-coconut-200 dark:border-darkbg-border overflow-hidden">
+                      <button
+                        onClick={() => setEndTime(Math.max(startTime + 0.5, +(endTime - 0.5).toFixed(2)))}
+                        className="px-1.5 py-0.5 hover:bg-coconut-200 dark:hover:bg-darkbg-hover text-[10px]"
+                        title="-0.5s"
+                      >
+                        -0.5s
+                      </button>
+                      <button
+                        onClick={() => setEndTime(Math.max(startTime + 0.1, +(endTime - 0.1).toFixed(2)))}
+                        className="px-1.5 py-0.5 hover:bg-coconut-200 dark:hover:bg-darkbg-hover text-[10px] border-l border-coconut-200 dark:border-darkbg-border"
+                        title="-0.1s"
+                      >
+                        -0.1s
+                      </button>
+                      <button
+                        onClick={() => setEndTime(Math.min(trimBuffer.duration, +(endTime + 0.1).toFixed(2)))}
+                        className="px-1.5 py-0.5 hover:bg-coconut-200 dark:hover:bg-darkbg-hover text-[10px] border-l border-coconut-200 dark:border-darkbg-border"
+                        title="+0.1s"
+                      >
+                        +0.1s
+                      </button>
+                      <button
+                        onClick={() => setEndTime(Math.min(trimBuffer.duration, +(endTime + 0.5).toFixed(2)))}
+                        className="px-1.5 py-0.5 hover:bg-coconut-200 dark:hover:bg-darkbg-hover text-[10px] border-l border-coconut-200 dark:border-darkbg-border"
+                        title="+0.5s"
+                      >
+                        +0.5s
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="relative w-full h-36 bg-[#0E0C0A] rounded-2xl overflow-hidden cursor-crosshair border border-coconut-900/60 dark:border-darkbg-border shadow-inner">
@@ -806,6 +1069,32 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                     </>
                   )}
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* 截取试听与下载卡片 */}
+          {trimResult && (
+            <div className="coconut-panel p-5 space-y-4 animate-fade-in">
+              <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
+                <div className="flex items-center space-x-2 text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{lang === "en" ? "Trimming Complete!" : "音频截取成功！"}</span>
+                </div>
+                <button
+                  onClick={() => downloadBlob(trimResult.blob, trimResult.filename)}
+                  className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{lang === "en" ? "Download Trimmed Audio" : "立即下载截取音频"}</span>
+                </button>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs text-coconut-700 dark:text-darkbg-text font-mono">
+                  <span className="truncate max-w-[280px] sm:max-w-md font-semibold">{trimResult.filename}</span>
+                  <span>{formatDuration(trimResult.duration)} · {formatBytes(trimResult.blob.size)}</span>
+                </div>
+                <audio controls src={trimResult.url} className="w-full h-10 rounded-lg" />
               </div>
             </div>
           )}
@@ -1161,7 +1450,7 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                       ) : (
                         <>
                           <Combine className="w-4 h-4" />
-                          <span>{lang === "en" ? "Merge & Download" : "一键合并并下载"}</span>
+                          <span>{lang === "en" ? "Start Merge" : "开始无损合并"}</span>
                         </>
                       )}
                     </button>
@@ -1170,6 +1459,32 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
               </div>
             )}
           </div>
+
+          {/* 合并试听与下载卡片 */}
+          {mergeResult && (
+            <div className="coconut-panel p-5 space-y-4 animate-fade-in">
+              <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
+                <div className="flex items-center space-x-2 text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{lang === "en" ? "Audio Merging Complete!" : "音频拼接合并成功！"}</span>
+                </div>
+                <button
+                  onClick={() => downloadBlob(mergeResult.blob, mergeResult.filename)}
+                  className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{lang === "en" ? "Download Merged Audio" : "立即下载合并音频"}</span>
+                </button>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs text-coconut-700 dark:text-darkbg-text font-mono">
+                  <span className="truncate max-w-[280px] sm:max-w-md font-semibold">{mergeResult.filename}</span>
+                  <span>{formatDuration(mergeResult.duration)} · {formatBytes(mergeResult.blob.size)}</span>
+                </div>
+                <audio controls src={mergeResult.url} className="w-full h-10 rounded-lg" />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1188,90 +1503,216 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
               </p>
             </div>
 
-            <div
-              onClick={() => document.getElementById("video-extract-upload")?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                  setVideoFile(e.dataTransfer.files[0]);
-                }
-              }}
-              className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center cursor-pointer transition-all bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85"
-            >
-              <input
-                id="video-extract-upload"
-                type="file"
-                accept="video/*"
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    setVideoFile(e.target.files[0]);
+            {!videoFile ? (
+              <div
+                onClick={() => document.getElementById("video-extract-upload")?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    handleVideoFileSelected(e.dataTransfer.files[0]);
                   }
                 }}
-                className="hidden"
-              />
-              <Film className="w-10 h-10 text-toast-500 mx-auto mb-2" />
-              <div className="text-sm sm:text-base font-bold text-coconut-900 dark:text-darkbg-text">
-                {videoFile
-                  ? lang === "en"
-                    ? `Selected Video: ${videoFile.name} (${formatBytes(videoFile.size)})`
-                    : `已选视频: ${videoFile.name} (${formatBytes(videoFile.size)})`
-                  : lang === "en"
-                  ? "Click or drag video file here"
-                  : "点击或拖拽视频文件至此处"}
+                className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center cursor-pointer transition-all bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85"
+              >
+                <input
+                  id="video-extract-upload"
+                  type="file"
+                  accept="video/*"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleVideoFileSelected(e.target.files[0]);
+                    }
+                  }}
+                  className="hidden"
+                />
+                <Film className="w-10 h-10 text-toast-500 mx-auto mb-2" />
+                <div className="text-sm sm:text-base font-bold text-coconut-900 dark:text-darkbg-text">
+                  {lang === "en" ? "Click or drag video file here" : "点击或拖拽视频文件至此处"}
+                </div>
+                <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
+                  {lang === "en"
+                    ? "Supports MP4, MOV, WebM, MKV and other common video formats"
+                    : "支持 MP4, MOV, WebM, MKV 等常见视频格式"}
+                </div>
               </div>
-              <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
-                {lang === "en"
-                  ? "Supports MP4, MOV, WebM, MKV and other common video formats"
-                  : "支持 MP4, MOV, WebM, MKV 等常见视频格式"}
-              </div>
-            </div>
-
-            {videoFile && (
-              <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center space-x-3 text-sm">
-                  <span className="text-coconut-900 dark:text-darkbg-text font-bold">
-                    {lang === "en" ? "Export Audio Format:" : "导出音频格式:"}
-                  </span>
-                  {(["mp3", "wav"] as const).map((fmt) => (
-                    <button
-                      key={fmt}
-                      onClick={() => setExtractFormat(fmt)}
-                      className={`px-3.5 py-1.5 rounded-xl font-bold uppercase transition-all active:scale-95 text-xs sm:text-sm ${
-                        extractFormat === fmt
-                          ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 font-bold shadow-sm"
-                          : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:dark:text-darkbg-text border border-transparent dark:border-darkbg-border"
-                      }`}
-                    >
-                      {fmt}
-                    </button>
-                  ))}
+            ) : (
+              <div className="space-y-4">
+                <div className="p-3 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/70 dark:border-darkbg-border flex items-center justify-between">
+                  <div className="truncate pr-2">
+                    <span className="text-xs font-semibold text-coconut-900 dark:text-darkbg-text truncate block">
+                      {videoFile.name}
+                    </span>
+                    <span className="text-[10px] text-coconut-600 dark:text-darkbg-muted font-mono">
+                      {formatBytes(videoFile.size)}
+                      {videoDuration > 0 && ` · ${formatDuration(videoDuration)}`}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setVideoFile(null);
+                      setVideoPreviewUrl("");
+                      setVideoDuration(0);
+                      setExtractResult(null);
+                    }}
+                    className="text-xs text-coconut-600 hover:text-coconut-900 dark:text-darkbg-muted dark:hover:text-darkbg-text flex-shrink-0"
+                  >
+                    {lang === "en" ? "Change Video" : "更换视频"}
+                  </button>
                 </div>
 
-                <button
-                  onClick={handleExecuteExtract}
-                  disabled={isProcessing}
-                  className={`px-6 py-3 rounded-2xl text-xs font-bold flex items-center space-x-2 transition-all ${
-                    isProcessing
-                      ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
-                      : "btn-3d-sunset text-white"
-                  }`}
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>{lang === "en" ? "Extracting audio track..." : "正在极速剥离提取中..."}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4" />
-                      <span>{lang === "en" ? "Extract & Download Audio" : "提取并下载纯音频"}</span>
-                    </>
+                {videoPreviewUrl && (
+                  <div className="rounded-2xl overflow-hidden bg-black/90 max-h-64 flex items-center justify-center border border-coconut-200 dark:border-darkbg-border">
+                    <video
+                      src={videoPreviewUrl}
+                      controls
+                      className="w-full max-h-64 object-contain"
+                    />
+                  </div>
+                )}
+
+                {/* 提取范围选择 */}
+                <div className="space-y-3 p-4 bg-coconut-50/60 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="flex items-center justify-between text-xs sm:text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                    <span>{lang === "en" ? "Extraction Range:" : "音频提取范围:"}</span>
+                    <div className="flex space-x-1.5">
+                      <button
+                        onClick={() => setExtractRangeMode("full")}
+                        className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                          extractRangeMode === "full"
+                            ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 shadow-sm"
+                            : "bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-muted"
+                        }`}
+                      >
+                        {lang === "en" ? "Full Video" : "完整音轨"}
+                      </button>
+                      <button
+                        onClick={() => setExtractRangeMode("clip")}
+                        className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                          extractRangeMode === "clip"
+                            ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 shadow-sm"
+                            : "bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-muted"
+                        }`}
+                      >
+                        {lang === "en" ? "Custom Clip" : "截取片段"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {extractRangeMode === "clip" && videoDuration > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-coconut-100 dark:border-darkbg-border">
+                      <div className="flex justify-between text-xs text-coconut-700 dark:text-darkbg-muted font-mono">
+                        <span>{lang === "en" ? "Start: " : "起点: "}{formatDuration(extractStartTime)}</span>
+                        <span className="text-toast-500 font-bold">
+                          {lang === "en" ? "Clip Length: " : "截取时长: "}{formatDuration(Math.max(0, extractEndTime - extractStartTime))}
+                        </span>
+                        <span>{lang === "en" ? "End: " : "终点: "}{formatDuration(extractEndTime)}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">
+                            {lang === "en" ? "Start (seconds)" : "开始秒数"}
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max={videoDuration}
+                            step="0.5"
+                            value={extractStartTime}
+                            onChange={(e) => setExtractStartTime(Math.max(0, Math.min(parseFloat(e.target.value) || 0, extractEndTime - 0.5)))}
+                            className="w-full px-3 py-1.5 bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border rounded-xl text-xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">
+                            {lang === "en" ? "End (seconds)" : "结束秒数"}
+                          </label>
+                          <input
+                            type="number"
+                            min={extractStartTime + 0.5}
+                            max={videoDuration}
+                            step="0.5"
+                            value={extractEndTime}
+                            onChange={(e) => setExtractEndTime(Math.min(videoDuration, Math.max(extractStartTime + 0.5, parseFloat(e.target.value) || videoDuration)))}
+                            className="w-full px-3 py-1.5 bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border rounded-xl text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   )}
-                </button>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center space-x-3 text-sm">
+                    <span className="text-coconut-900 dark:text-darkbg-text font-bold">
+                      {lang === "en" ? "Export Audio Format:" : "导出音频格式:"}
+                    </span>
+                    {(["mp3", "wav"] as const).map((fmt) => (
+                      <button
+                        key={fmt}
+                        onClick={() => setExtractFormat(fmt)}
+                        className={`px-3.5 py-1.5 rounded-xl font-bold uppercase transition-all active:scale-95 text-xs sm:text-sm ${
+                          extractFormat === fmt
+                            ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 font-bold shadow-sm"
+                            : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:dark:text-darkbg-text border border-transparent dark:border-darkbg-border"
+                        }`}
+                      >
+                        {fmt}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={handleExecuteExtract}
+                    disabled={isProcessing}
+                    className={`px-6 py-3 rounded-2xl text-xs font-bold flex items-center space-x-2 transition-all ${
+                      isProcessing
+                        ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
+                        : "btn-3d-sunset text-white"
+                    }`}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>{lang === "en" ? "Extracting audio track..." : "正在极速剥离提取中..."}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Film className="w-4 h-4" />
+                        <span>{lang === "en" ? "Extract Audio Track" : "提取纯音频音轨"}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             )}
           </div>
+
+          {/* 视频提取试听与下载卡片 */}
+          {extractResult && (
+            <div className="coconut-panel p-5 space-y-4 animate-fade-in">
+              <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
+                <div className="flex items-center space-x-2 text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{lang === "en" ? "Audio Extraction Complete!" : "视频音频剥离成功！"}</span>
+                </div>
+                <button
+                  onClick={() => downloadBlob(extractResult.blob, extractResult.filename)}
+                  className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{lang === "en" ? "Download Audio" : "立即下载音频"}</span>
+                </button>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs text-coconut-700 dark:text-darkbg-text font-mono">
+                  <span className="truncate max-w-[280px] sm:max-w-md font-semibold">{extractResult.filename}</span>
+                  <span>{formatDuration(extractResult.duration)} · {formatBytes(extractResult.blob.size)}</span>
+                </div>
+                <audio controls src={extractResult.url} className="w-full h-10 rounded-lg" />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1372,6 +1813,66 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   </label>
                 </div>
 
+                {/* 播客/会议人声清晰度增强与杂音过滤 */}
+                <div className="space-y-3 p-4 bg-coconut-50/60 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="text-xs sm:text-sm font-semibold text-coconut-900 dark:text-darkbg-text flex items-center space-x-1.5">
+                    <Sparkles className="w-4 h-4 text-toast-500" />
+                    <span>{lang === "en" ? "Voice Clarity & Acoustic Polish" : "人声清晰度与声学降噪增强"}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <label className="flex items-start space-x-2.5 p-3 rounded-xl bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={filterRumble}
+                        onChange={(e) => setFilterRumble(e.target.checked)}
+                        className="mt-0.5 rounded accent-palm-600 dark:accent-palm-400"
+                      />
+                      <div className="space-y-0.5">
+                        <div className="text-xs font-bold text-coconut-900 dark:text-darkbg-text">
+                          {lang === "en" ? "De-Rumble (<100Hz)" : "低频滤除 (<100Hz)"}
+                        </div>
+                        <div className="text-[10px] text-coconut-600 dark:text-darkbg-muted leading-tight">
+                          {lang === "en" ? "Cuts AC hum and mic wind rumble" : "滤除空调嗡鸣、桌台碰撞与风噪"}
+                        </div>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start space-x-2.5 p-3 rounded-xl bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={boostPresence}
+                        onChange={(e) => setBoostPresence(e.target.checked)}
+                        className="mt-0.5 rounded accent-palm-600 dark:accent-palm-400"
+                      />
+                      <div className="space-y-0.5">
+                        <div className="text-xs font-bold text-coconut-900 dark:text-darkbg-text">
+                          {lang === "en" ? "Presence Boost (+3.5dB)" : "人声清脆 (+3.5dB)"}
+                        </div>
+                        <div className="text-[10px] text-coconut-600 dark:text-darkbg-muted leading-tight">
+                          {lang === "en" ? "Highlights 3kHz speech clarity" : "提亮3000Hz人声泛音，发音更清晰"}
+                        </div>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start space-x-2.5 p-3 rounded-xl bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={compressDynamics}
+                        onChange={(e) => setCompressDynamics(e.target.checked)}
+                        className="mt-0.5 rounded accent-palm-600 dark:accent-palm-400"
+                      />
+                      <div className="space-y-0.5">
+                        <div className="text-xs font-bold text-coconut-900 dark:text-darkbg-text">
+                          {lang === "en" ? "Dynamic Compressor" : "广播动态压缩"}
+                        </div>
+                        <div className="text-[10px] text-coconut-600 dark:text-darkbg-muted leading-tight">
+                          {lang === "en" ? "Balances quiet and loud spoken parts" : "自动压低大声、提升细语，音量均衡"}
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
                 <div className="flex justify-end pt-2">
                   <button
                     onClick={handleExecuteVolume}
@@ -1385,12 +1886,12 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                     {isProcessing ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>{lang === "en" ? "Applying gain..." : "正在增益处理..."}</span>
+                        <span>{lang === "en" ? "Applying enhancement..." : "正在处理增强..."}</span>
                       </>
                     ) : (
                       <>
-                        <Download className="w-4 h-4" />
-                        <span>{lang === "en" ? "Apply & Download Audio" : "应用并下载增强音频"}</span>
+                        <Volume2 className="w-4 h-4" />
+                        <span>{lang === "en" ? "Enhance Audio" : "开始增强处理"}</span>
                       </>
                     )}
                   </button>
@@ -1398,6 +1899,389 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
               </div>
             )}
           </div>
+
+          {/* 音量与清晰度处理结果卡片 */}
+          {volumeResult && (
+            <div className="coconut-panel p-5 space-y-4 animate-fade-in">
+              <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
+                <div className="flex items-center space-x-2 text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{lang === "en" ? "Audio Enhancement Complete!" : "音量与人声增强完成！"}</span>
+                </div>
+                <button
+                  onClick={() => downloadBlob(volumeResult.blob, volumeResult.filename)}
+                  className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{lang === "en" ? "Download Enhanced Audio" : "立即下载增强音频"}</span>
+                </button>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs text-coconut-700 dark:text-darkbg-text font-mono">
+                  <span className="truncate max-w-[280px] sm:max-w-md font-semibold">{volumeResult.filename}</span>
+                  <span>{formatDuration(volumeResult.duration)} · {formatBytes(volumeResult.blob.size)}</span>
+                </div>
+                <audio controls src={volumeResult.url} className="w-full h-10 rounded-lg" />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ================= 6. 音频倍速与倒放处理面板 ================= */}
+      {activeTab === "speed" && (
+        <div className="space-y-5">
+          <div className="coconut-panel p-5 sm:p-6 space-y-5">
+            <div>
+              <h3 className="text-base font-bold text-coconut-900 dark:text-darkbg-text">
+                {lang === "en" ? "Audio Speed & Reverse Playback" : "音频变速变调与倒放处理"}
+              </h3>
+              <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
+                {lang === "en"
+                  ? "Change tempo/playback speed (0.5x to 2.0x) or reverse the entire audio for creative sound design and meme effects."
+                  : "支持 0.5x 到 2.0x 任意倍速调节，或将整首歌曲/人声从尾到头逆向倒放，制作趣味反向音效。"}
+              </p>
+            </div>
+
+            {!speedBuffer ? (
+              <div
+                onClick={() => document.getElementById("speed-upload-input")?.click()}
+                className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center cursor-pointer transition-all bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85"
+              >
+                <input
+                  id="speed-upload-input"
+                  type="file"
+                  accept="audio/*"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleSpeedFileSelected(e.target.files[0]);
+                    }
+                  }}
+                  className="hidden"
+                />
+                <Clock className="w-10 h-10 text-toast-500 mx-auto mb-2" />
+                <div className="text-sm sm:text-base font-bold text-coconut-900 dark:text-darkbg-text">
+                  {lang === "en" ? "Click or drag audio file here for speed/reverse" : "点击或拖拽上传音频调节倍速/倒放"}
+                </div>
+                <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
+                  {lang === "en" ? "Supports MP3, WAV, AAC, OGG, FLAC and more" : "支持 MP3, WAV, AAC, OGG, FLAC 等主流音频格式"}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                <div className="p-3 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/70 dark:border-darkbg-border flex items-center justify-between">
+                  <div className="truncate pr-2">
+                    <span className="text-xs font-semibold text-coconut-900 dark:text-darkbg-text truncate block">
+                      {speedFile?.name}
+                    </span>
+                    <span className="text-[10px] text-coconut-600 dark:text-darkbg-muted font-mono">
+                      {speedFile && formatBytes(speedFile.size)} · {formatDuration(speedBuffer.duration)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSpeedBuffer(null);
+                      setSpeedFile(null);
+                      setSpeedResult(null);
+                    }}
+                    className="text-xs text-coconut-600 hover:text-coconut-900 dark:text-darkbg-muted dark:hover:text-darkbg-text flex-shrink-0"
+                  >
+                    {lang === "en" ? "Change File" : "更换文件"}
+                  </button>
+                </div>
+
+                {/* 速度调节 */}
+                <div className="space-y-3 p-4 bg-coconut-50/60 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="flex justify-between items-center text-xs sm:text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                    <span>{lang === "en" ? "Playback Speed / Tempo:" : "播放倍速调节:"}</span>
+                    <span className="font-mono text-sm font-bold text-toast-500">{speedPlaybackRate.toFixed(2)}x</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {[0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((rate) => (
+                      <button
+                        key={rate}
+                        onClick={() => setSpeedPlaybackRate(rate)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                          speedPlaybackRate === rate
+                            ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 shadow-sm"
+                            : "bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border text-coconut-700 dark:text-darkbg-muted"
+                        }`}
+                      >
+                        {rate}x
+                      </button>
+                    ))}
+                  </div>
+
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="2.0"
+                    step="0.05"
+                    value={speedPlaybackRate}
+                    onChange={(e) => setSpeedPlaybackRate(parseFloat(e.target.value))}
+                    className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-palm-400"
+                  />
+                  <div className="flex justify-between text-[10px] text-coconut-600 dark:text-darkbg-muted font-mono">
+                    <span>0.5x ({lang === "en" ? "Slow" : "慢速"})</span>
+                    <span>1.0x ({lang === "en" ? "Original" : "原速"})</span>
+                    <span>2.0x ({lang === "en" ? "Fast" : "快速"})</span>
+                  </div>
+                </div>
+
+                {/* 倒放选项 */}
+                <label className="flex items-center space-x-3 p-4 rounded-2xl bg-coconut-50/60 dark:bg-darkbg-subtle border border-coconut-200/60 dark:border-darkbg-border cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={speedIsReversed}
+                    onChange={(e) => setSpeedIsReversed(e.target.checked)}
+                    className="rounded accent-palm-600 dark:accent-palm-400 w-4 h-4"
+                  />
+                  <div>
+                    <div className="text-xs sm:text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                      {lang === "en" ? "Reverse Audio (Play Backwards)" : "音频完全倒放 (Reverse Audio)"}
+                    </div>
+                    <div className="text-[11px] text-coconut-600 dark:text-darkbg-muted mt-0.5">
+                      {lang === "en"
+                        ? "Inverts the entire audio timeline from end to beginning. Can be combined with speed changes."
+                        : "将整段音频时间轴从结尾逆向颠倒至开头，适合趣味搞怪、解密音效或反转倒放效果制作。"}
+                    </div>
+                  </div>
+                </label>
+
+                {/* 导出配置与按钮 */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                  <div className="flex items-center space-x-3 text-sm">
+                    <span className="text-coconut-900 dark:text-darkbg-text font-bold">
+                      {lang === "en" ? "Export Format:" : "导出格式:"}
+                    </span>
+                    {(["mp3", "wav"] as const).map((fmt) => (
+                      <button
+                        key={fmt}
+                        onClick={() => setSpeedFormat(fmt)}
+                        className={`px-3.5 py-1.5 rounded-xl font-bold uppercase transition-all active:scale-95 text-xs sm:text-sm ${
+                          speedFormat === fmt
+                            ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 font-bold shadow-sm"
+                            : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:dark:text-darkbg-text border border-transparent dark:border-darkbg-border"
+                        }`}
+                      >
+                        {fmt}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={handleExecuteSpeed}
+                    disabled={isProcessing}
+                    className={`w-full sm:w-auto px-7 py-3 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition-all ${
+                      isProcessing
+                        ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
+                        : "btn-3d-sunset text-white"
+                    }`}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>{lang === "en" ? "Rendering audio..." : "正在高速渲染中..."}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="w-4 h-4" />
+                        <span>{lang === "en" ? "Render Speed / Reverse" : "开始倍速/倒放处理"}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 倍速/倒放结果卡片 */}
+          {speedResult && (
+            <div className="coconut-panel p-5 space-y-4 animate-fade-in">
+              <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
+                <div className="flex items-center space-x-2 text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{lang === "en" ? "Speed / Reverse Processing Complete!" : "倍速/倒放音频生成完成！"}</span>
+                </div>
+                <button
+                  onClick={() => downloadBlob(speedResult.blob, speedResult.filename)}
+                  className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{lang === "en" ? "Download Audio" : "立即下载音频"}</span>
+                </button>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs text-coconut-700 dark:text-darkbg-text font-mono">
+                  <span className="truncate max-w-[280px] sm:max-w-md font-semibold">{speedResult.filename}</span>
+                  <span>{formatDuration(speedResult.duration)} · {formatBytes(speedResult.blob.size)}</span>
+                </div>
+                <audio controls src={speedResult.url} className="w-full h-10 rounded-lg" />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ================= 7. 卡拉OK伴奏提取面板 ================= */}
+      {activeTab === "karaoke" && (
+        <div className="space-y-5">
+          <div className="coconut-panel p-5 sm:p-6 space-y-5">
+            <div>
+              <h3 className="text-base font-bold text-coconut-900 dark:text-darkbg-text">
+                {lang === "en" ? "Vocal Cut & Accompaniment Extractor" : "伴奏提取与立体声消人声"}
+              </h3>
+              <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1 leading-relaxed">
+                {lang === "en"
+                  ? "Uses stereo center-channel phase cancellation to eliminate centered lead vocals while preserving stereo instruments and adding back low-frequency drums and bass."
+                  : "基于专业立体声中心相位抵消技术（Center Channel Cancellation），精准消除位于正中央的主唱人声，同时保留左右声道的乐器和声，并通过低通滤波器保护低频底鼓与贝斯。"}
+              </p>
+            </div>
+
+            {!karaokeBuffer ? (
+              <div
+                onClick={() => document.getElementById("karaoke-upload-input")?.click()}
+                className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center cursor-pointer transition-all bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85"
+              >
+                <input
+                  id="karaoke-upload-input"
+                  type="file"
+                  accept="audio/*"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleKaraokeFileSelected(e.target.files[0]);
+                    }
+                  }}
+                  className="hidden"
+                />
+                <Mic className="w-10 h-10 text-toast-500 mx-auto mb-2" />
+                <div className="text-sm sm:text-base font-bold text-coconut-900 dark:text-darkbg-text">
+                  {lang === "en" ? "Click or drag stereo song here for vocal removal" : "点击或拖拽立体声歌曲至此处消人声"}
+                </div>
+                <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
+                  {lang === "en"
+                    ? "Best for standard stereo mixed songs with lead vocals mixed in the center"
+                    : "适用于立体声混音歌曲（主唱位于中央，伴奏分布于左右声道的歌曲效果最佳）"}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                <div className="p-3 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/70 dark:border-darkbg-border flex items-center justify-between">
+                  <div className="truncate pr-2">
+                    <span className="text-xs font-semibold text-coconut-900 dark:text-darkbg-text truncate block">
+                      {karaokeFile?.name}
+                    </span>
+                    <span className="text-[10px] text-coconut-600 dark:text-darkbg-muted font-mono">
+                      {karaokeFile && formatBytes(karaokeFile.size)} · {formatDuration(karaokeBuffer.duration)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setKaraokeBuffer(null);
+                      setKaraokeFile(null);
+                      setKaraokeResult(null);
+                    }}
+                    className="text-xs text-coconut-600 hover:text-coconut-900 dark:text-darkbg-muted dark:hover:text-darkbg-text flex-shrink-0"
+                  >
+                    {lang === "en" ? "Change Song" : "更换歌曲"}
+                  </button>
+                </div>
+
+                {/* 低频保真调节 */}
+                <div className="space-y-3 p-4 bg-coconut-50/60 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="flex justify-between items-center text-xs sm:text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
+                    <span>{lang === "en" ? "Bass & Drum Preservation Frequency:" : "底鼓与贝斯低频保护阈值:"}</span>
+                    <span className="font-mono text-sm font-bold text-toast-500">{karaokeBassHz} Hz</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="80"
+                    max="300"
+                    step="10"
+                    value={karaokeBassHz}
+                    onChange={(e) => setKaraokeBassHz(parseInt(e.target.value))}
+                    className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-palm-400"
+                  />
+                  <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted leading-relaxed">
+                    {lang === "en"
+                      ? "💡 Preserves lower frequencies (<180Hz) to keep the rhythm section and bassline punchy, avoiding a hollow or tinny backing track."
+                      : "💡 避免单纯相消导致伴奏发空变薄。系统会自动提取此频率以下的低频低音并混合回伴奏，保留强劲节拍感。"}
+                  </p>
+                </div>
+
+                {/* 导出配置与按钮 */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                  <div className="flex items-center space-x-3 text-sm">
+                    <span className="text-coconut-900 dark:text-darkbg-text font-bold">
+                      {lang === "en" ? "Export Format:" : "导出格式:"}
+                    </span>
+                    {(["mp3", "wav"] as const).map((fmt) => (
+                      <button
+                        key={fmt}
+                        onClick={() => setKaraokeFormat(fmt)}
+                        className={`px-3.5 py-1.5 rounded-xl font-bold uppercase transition-all active:scale-95 text-xs sm:text-sm ${
+                          karaokeFormat === fmt
+                            ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 font-bold shadow-sm"
+                            : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:dark:text-darkbg-text border border-transparent dark:border-darkbg-border"
+                        }`}
+                      >
+                        {fmt}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={handleExecuteKaraoke}
+                    disabled={isProcessing}
+                    className={`w-full sm:w-auto px-7 py-3 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition-all ${
+                      isProcessing
+                        ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
+                        : "btn-3d-sunset text-white"
+                    }`}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>{lang === "en" ? "Isolating accompaniment..." : "正在消除人声分离伴奏..."}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="w-4 h-4" />
+                        <span>{lang === "en" ? "Extract Accompaniment" : "开始提取伴奏"}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 卡拉OK伴奏结果卡片 */}
+          {karaokeResult && (
+            <div className="coconut-panel p-5 space-y-4 animate-fade-in">
+              <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
+                <div className="flex items-center space-x-2 text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{lang === "en" ? "Accompaniment Extracted Successfully!" : "伴奏提取消人声完成！"}</span>
+                </div>
+                <button
+                  onClick={() => downloadBlob(karaokeResult.blob, karaokeResult.filename)}
+                  className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{lang === "en" ? "Download Accompaniment" : "立即下载纯伴奏"}</span>
+                </button>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs text-coconut-700 dark:text-darkbg-text font-mono">
+                  <span className="truncate max-w-[280px] sm:max-w-md font-semibold">{karaokeResult.filename}</span>
+                  <span>{formatDuration(karaokeResult.duration)} · {formatBytes(karaokeResult.blob.size)}</span>
+                </div>
+                <audio controls src={karaokeResult.url} className="w-full h-10 rounded-lg" />
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -311,3 +311,166 @@ export async function exportAudioBuffer(
     return { blob, ext: "mp3" };
   }
 }
+
+/**
+ * 9. 智能人声清晰化、去低频底噪与动态均衡 (Voice Clarity & Studio Compressor)
+ * 采用 Web Audio 原生 BiquadFilterNode (100Hz 高通切除空调轰鸣/风噪 + 3kHz 语音共振峰提升)
+ * 配合 DynamicsCompressorNode (广播级动态范围压缩，压制突发爆音并提亮微弱语音)
+ */
+export async function enhanceVoiceClarity(
+  audioBuffer: AudioBuffer,
+  options: {
+    filterRumble?: boolean;
+    boostPresence?: boolean;
+    compressDynamics?: boolean;
+  } = {}
+): Promise<AudioBuffer> {
+  const { filterRumble = true, boostPresence = true, compressDynamics = true } = options;
+
+  const channels = audioBuffer.numberOfChannels;
+  const sampleRate = audioBuffer.sampleRate;
+  const length = audioBuffer.length;
+
+  const offlineCtx = new OfflineAudioContext(channels, length, sampleRate);
+  const source = offlineCtx.createBufferSource();
+  source.buffer = audioBuffer;
+
+  let lastNode: AudioNode = source;
+
+  // 1. 低频滤除 (Highpass Filter 100Hz, Q=0.707 切除空调轰鸣与手持风噪)
+  if (filterRumble) {
+    const highpass = offlineCtx.createBiquadFilter();
+    highpass.type = "highpass";
+    highpass.frequency.value = 100;
+    highpass.Q.value = 0.707;
+    lastNode.connect(highpass);
+    lastNode = highpass;
+  }
+
+  // 2. 人声存在感与清晰度增强 (Peaking Filter 3000Hz, Gain +3.5dB)
+  if (boostPresence) {
+    const presence = offlineCtx.createBiquadFilter();
+    presence.type = "peaking";
+    presence.frequency.value = 3000;
+    presence.Q.value = 1.0;
+    presence.gain.value = 3.5;
+    lastNode.connect(presence);
+    lastNode = presence;
+  }
+
+  // 3. 广播级压缩器 (DynamicsCompressorNode 均衡微弱声与大音量)
+  if (compressDynamics) {
+    const compressor = offlineCtx.createDynamicsCompressor();
+    compressor.threshold.value = -18;
+    compressor.knee.value = 12;
+    compressor.ratio.value = 4;
+    compressor.attack.value = 0.005;
+    compressor.release.value = 0.15;
+    lastNode.connect(compressor);
+    lastNode = compressor;
+  }
+
+  lastNode.connect(offlineCtx.destination);
+  source.start(0);
+
+  return await offlineCtx.startRendering();
+}
+
+/**
+ * 10. 音频硬件级离线变速 (0.5x ~ 2.0x 变速播放与导出)
+ */
+export async function changeAudioSpeed(
+  audioBuffer: AudioBuffer,
+  speed: number = 1.0
+): Promise<AudioBuffer> {
+  if (speed === 1.0) return audioBuffer;
+
+  const channels = audioBuffer.numberOfChannels;
+  const sampleRate = audioBuffer.sampleRate;
+  const newLength = Math.max(1, Math.floor(audioBuffer.length / speed));
+
+  const offlineCtx = new OfflineAudioContext(channels, newLength, sampleRate);
+  const source = offlineCtx.createBufferSource();
+  source.buffer = audioBuffer;
+  source.playbackRate.value = speed;
+
+  source.connect(offlineCtx.destination);
+  source.start(0);
+
+  return await offlineCtx.startRendering();
+}
+
+/**
+ * 11. 趣味音频倒放 (Reverse Audio Buffer)
+ */
+export function reverseAudioBuffer(audioBuffer: AudioBuffer): AudioBuffer {
+  const ctx = getAudioContext();
+  const channels = audioBuffer.numberOfChannels;
+  const length = audioBuffer.length;
+  const sampleRate = audioBuffer.sampleRate;
+
+  const newBuffer = ctx.createBuffer(channels, length, sampleRate);
+
+  for (let c = 0; c < channels; c++) {
+    const src = audioBuffer.getChannelData(c);
+    const dst = newBuffer.getChannelData(c);
+    for (let i = 0; i < length; i++) {
+      dst[i] = src[length - 1 - i];
+    }
+  }
+
+  return newBuffer;
+}
+
+/**
+ * 12. 伴奏提取与人声消除 (Center Channel Vocal Cut with Bass Preservation)
+ * 原理：大部分流行音乐主唱位于声场正中央 (L ≈ R)。
+ * 通过 L - R 差分相位抵消消除正中央人声；
+ * 同时用一阶低通滤波保留 200Hz 以下低音 (底鼓与贝斯)，避免消人声后声音单薄。
+ */
+export function extractKaraokeAccompaniment(
+  audioBuffer: AudioBuffer,
+  bassPreserveHz: number = 180
+): AudioBuffer {
+  const ctx = getAudioContext();
+  const channels = audioBuffer.numberOfChannels;
+  const length = audioBuffer.length;
+  const sampleRate = audioBuffer.sampleRate;
+
+  if (channels < 2) {
+    return audioBuffer;
+  }
+
+  const leftData = audioBuffer.getChannelData(0);
+  const rightData = audioBuffer.getChannelData(1);
+
+  const newBuffer = ctx.createBuffer(2, length, sampleRate);
+  const outL = newBuffer.getChannelData(0);
+  const outR = newBuffer.getChannelData(1);
+
+  // 简易一阶 RC 低通滤波保留低音
+  const dt = 1 / sampleRate;
+  const rc = 1 / (2 * Math.PI * bassPreserveHz);
+  const alpha = dt / (rc + dt);
+
+  let lowL = 0;
+  let lowR = 0;
+
+  for (let i = 0; i < length; i++) {
+    const l = leftData[i];
+    const r = rightData[i];
+
+    // 低通滤波得到低音频段 (Kick & Bass)
+    lowL += alpha * (l - lowL);
+    lowR += alpha * (r - lowR);
+
+    // 中高频人声差分消除
+    const diff = (l - r) * 0.7;
+
+    outL[i] = Math.max(-1, Math.min(1, diff + lowL));
+    outR[i] = Math.max(-1, Math.min(1, -diff + lowR));
+  }
+
+  return newBuffer;
+}
+

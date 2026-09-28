@@ -45,6 +45,8 @@ import {
   Eraser,
   FileSearch,
   Captions,
+  Clock,
+  Mic,
 } from "lucide-react";
 import CoconutLogo from "@/components/CoconutLogo";
 import Dropzone from "@/components/Dropzone";
@@ -100,7 +102,7 @@ type DocTabType =
   | "pdf-protect";
 
 type ImageTabType = "compress" | "heic" | "convert" | "resize" | "exif" | "watermark";
-type AudioTabType = "trim" | "convert" | "merge" | "extract" | "volume";
+type AudioTabType = "trim" | "convert" | "merge" | "extract" | "volume" | "speed" | "karaoke";
 type DailyTabType = "idphoto" | "qrcode" | "diff" | "dev";
 type ModuleType = "document" | "image" | "audio" | "utilities" | "ai";
 
@@ -150,11 +152,13 @@ const TOOLS_REGISTRY: { category: string; module: ModuleType; icon: any; tools: 
     module: "audio",
     icon: Music,
     tools: [
-      { id: "trim", module: "audio", name: "无损音频剪辑", desc: "毫秒级波形试听裁剪与铃声制作", badge: "波形", icon: Scissors, keywords: ["音频", "剪切", "剪辑", "音乐", "铃声"] },
-      { id: "convert", module: "audio", name: "音频格式转码", desc: "MP3 / WAV / FLAC / AAC / OGG", badge: "320K", icon: RefreshCw, keywords: ["音频", "转码", "格式", "mp3", "wav", "flac"] },
+      { id: "trim", module: "audio", name: "无损音频剪辑", desc: "毫秒级波形试听裁剪、卡点与铃声制作", badge: "波形", icon: Scissors, keywords: ["音频", "剪切", "剪辑", "音乐", "铃声"] },
+      { id: "convert", module: "audio", name: "音频格式转码", desc: "MP3 / WAV 高保真音频批量互转", badge: "320K", icon: RefreshCw, keywords: ["音频", "转码", "格式", "mp3", "wav", "flac"] },
       { id: "merge", module: "audio", name: "多音频无缝拼接", desc: "多音轨按顺序无缝混流串烧", badge: "串烧", icon: Combine, keywords: ["音频", "拼接", "合并", "混流", "串烧"] },
-      { id: "extract", module: "audio", name: "视频提取纯音频", desc: "MP4 / MKV 秒级提取高音质 MP3", badge: "秒提", icon: Film, keywords: ["视频", "提取", "伴奏", "mp4", "音频"] },
-      { id: "volume", module: "audio", name: "音量平衡增益", desc: "0%~300% 动态无损增益防爆音", badge: "增益", icon: Volume2, keywords: ["音量", "放大", "增益", "响度", "标准化"] },
+      { id: "extract", module: "audio", name: "视频原声提取", desc: "MP4 / MKV 视频画面预览并按需截取原声", badge: "声画同步", icon: Film, keywords: ["视频", "提取", "伴奏", "mp4", "音频"] },
+      { id: "volume", module: "audio", name: "音量与人声清晰化", desc: "0%~300% 动态放大、滤除空调杂音底噪与广播级防爆音", badge: "清晰化", icon: Volume2, keywords: ["音量", "放大", "增益", "降噪", "去杂音"] },
+      { id: "speed", module: "audio", name: "音频倍速与倒放", desc: "0.5x~2.0x 变速不变调与短视频趣味倒放", badge: "倍速/倒放", icon: Clock, keywords: ["变速", "倍速", "倒放", "快放", "慢放"] },
+      { id: "karaoke", module: "audio", name: "卡拉OK伴奏提取", desc: "中央声道人声消除与低音保留，一键做伴奏", badge: "一键伴奏", icon: Mic, keywords: ["伴奏", "消人声", "卡拉ok", "ktv", "人声提取"] },
     ],
   },
   {

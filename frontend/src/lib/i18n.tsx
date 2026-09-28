@@ -115,9 +115,19 @@ export const TOOL_TRANSLATIONS: Record<
     badge: "Fast Extract",
   },
   "volume": {
-    name: "Audio Volume Booster",
-    desc: "0% ~ 300% dynamic lossless gain with anti-clipping",
-    badge: "Gain",
+    name: "Volume Booster & Voice Clarity",
+    desc: "0% ~ 300% gain, low-rumble noise filter, and broadcast compression",
+    badge: "Voice Boost",
+  },
+  "speed": {
+    name: "Audio Speed & Reverse",
+    desc: "0.5x ~ 2.0x tempo adjustment & fun audio reverse playback",
+    badge: "Tempo/Reverse",
+  },
+  "karaoke": {
+    name: "Karaoke BGM & Vocal Cut",
+    desc: "Extract background accompaniment via center-channel cancellation",
+    badge: "Karaoke",
   },
 
   // Utilities
