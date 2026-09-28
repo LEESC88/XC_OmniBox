@@ -113,6 +113,35 @@ def test_pdf_split_endpoint(tmp_path: Path):
     assert len(res.content) > 500
     print(f"[OK] POST /api/v1/pdf/split (页面提取) 验证成功")
 
+def test_pdf_split_all_zip_endpoint(tmp_path: Path):
+    """测试 PDF 全量拆分为单页 ZIP 压缩包接口"""
+    import zipfile
+    import io
+    pdf_path = tmp_path / "test_split_all.pdf"
+    doc = pymupdf.open()
+    for i in range(4):
+        p = doc.new_page()
+        p.insert_text((72, 100), f"Split Page {i+1}", fontsize=16)
+    doc.save(str(pdf_path))
+    doc.close()
+
+    with open(pdf_path, "rb") as f:
+        res = client.post(
+            "/api/v1/pdf/split",
+            files={"file": ("test_split_all.pdf", f, "application/pdf")}
+        )
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "application/zip"
+    assert "filename*=UTF-8''test_split_all_all_pages.zip" in res.headers["content-disposition"]
+    
+    # 验证 zip 包内容
+    with zipfile.ZipFile(io.BytesIO(res.content)) as zf:
+        namelist = zf.namelist()
+        assert len(namelist) == 4
+        assert "test_split_all_page_1.pdf" in namelist
+        assert "test_split_all_page_4.pdf" in namelist
+    print(f"[OK] POST /api/v1/pdf/split (全量拆分为 ZIP 压缩包) 验证成功: 包含 {len(namelist)} 个单页 PDF")
+
 if __name__ == "__main__":
     temp_dir = BASE_DIR / "tests" / "output"
     temp_dir.mkdir(parents=True, exist_ok=True)
@@ -122,4 +151,5 @@ if __name__ == "__main__":
     test_pdf_watermark_endpoint(temp_dir)
     test_render_pages_thumbnail(temp_dir)
     test_pdf_split_endpoint(temp_dir)
+    test_pdf_split_all_zip_endpoint(temp_dir)
     print("=== 所有 API 路由测试全部通过！===")

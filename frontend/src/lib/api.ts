@@ -76,6 +76,24 @@ export async function convertWordToPdf(file: File, quality: string = "high"): Pr
   return { blob, filename };
 }
 
+function parseFilenameFromHeader(res: Response, fallback: string): string {
+  const disposition = res.headers.get("Content-Disposition") || res.headers.get("content-disposition");
+  if (!disposition) return fallback;
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match && utf8Match[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+  if (match && match[1]) {
+    return match[1];
+  }
+  return fallback;
+}
+
 export async function mergePdfs(files: File[]): Promise<{ blob: Blob; filename: string }> {
   const formData = new FormData();
   files.forEach((f) => formData.append("files", f));
@@ -91,7 +109,8 @@ export async function mergePdfs(files: File[]): Promise<{ blob: Blob; filename: 
   }
 
   const blob = await res.blob();
-  return { blob, filename: "merged_document.pdf" };
+  const filename = parseFilenameFromHeader(res, "merged_document.pdf");
+  return { blob, filename };
 }
 
 export async function splitPdf(file: File, pageRanges?: string): Promise<{ blob: Blob; filename: string }> {
@@ -112,7 +131,11 @@ export async function splitPdf(file: File, pageRanges?: string): Promise<{ blob:
   }
 
   const blob = await res.blob();
-  return { blob, filename: `extracted_${file.name}` };
+  const fallback = pageRanges
+    ? `extracted_${file.name}`
+    : `${file.name.replace(/\.[^/.]+$/, "")}_all_pages.zip`;
+  const filename = parseFilenameFromHeader(res, fallback);
+  return { blob, filename };
 }
 
 export async function addWatermark(
@@ -138,7 +161,8 @@ export async function addWatermark(
   }
 
   const blob = await res.blob();
-  return { blob, filename: `watermarked_${file.name}` };
+  const filename = parseFilenameFromHeader(res, `watermarked_${file.name}`);
+  return { blob, filename };
 }
 
 export async function protectPdf(file: File, password: string): Promise<{ blob: Blob; filename: string }> {
@@ -157,7 +181,8 @@ export async function protectPdf(file: File, password: string): Promise<{ blob: 
   }
 
   const blob = await res.blob();
-  return { blob, filename: `protected_${file.name}` };
+  const filename = parseFilenameFromHeader(res, `protected_${file.name}`);
+  return { blob, filename };
 }
 
 export async function renderPdfPages(

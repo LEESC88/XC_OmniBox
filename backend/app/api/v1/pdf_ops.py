@@ -35,11 +35,12 @@ async def merge_pdfs(
 
         add_cleanup_task(background_tasks, task_dir)
 
+        encoded_filename = urllib.parse.quote(output_pdf.name)
         return FileResponse(
             path=output_pdf,
-            filename="merged_document.pdf",
+            filename=output_pdf.name,
             media_type="application/pdf",
-            headers={"Content-Disposition": "attachment; filename=merged_document.pdf"}
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
         )
     except Exception as e:
         add_cleanup_task(background_tasks, task_dir)
@@ -49,9 +50,9 @@ async def merge_pdfs(
 async def split_pdf(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="要拆分的 PDF 文件"),
-    page_ranges: Optional[str] = Form(None, description="要提取的页面范围，例如 '1-3,5'。若留空则提取单页")
+    page_ranges: Optional[str] = Form(None, description="要提取的页面范围，例如 '1-3,5'。若留空则拆分为单页压缩包")
 ):
-    """指定提取特定页码（如提取 1-3 页），或将文档拆分"""
+    """指定提取特定页码（如提取 1-3 页），或将文档全量拆分为单页 ZIP 压缩包"""
     if not file.filename.lower().endswith(".pdf"):
         raise FileFormatNotSupportedException("请上传有效的 .pdf 格式文件")
 
@@ -67,13 +68,17 @@ async def split_pdf(
 
         add_cleanup_task(background_tasks, task_dir)
 
-        # 返回第一个生成的文件（单范围模式）
+        # 返回主要产物（若全量拆分则首项为 zip，若提取页码则为 pdf）
         target_file = split_files[0]
+        is_zip = target_file.suffix.lower() == ".zip"
+        media_type = "application/zip" if is_zip else "application/pdf"
+        encoded_filename = urllib.parse.quote(target_file.name)
+
         return FileResponse(
             path=target_file,
             filename=target_file.name,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename={target_file.name}"}
+            media_type=media_type,
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
         )
     except Exception as e:
         add_cleanup_task(background_tasks, task_dir)
