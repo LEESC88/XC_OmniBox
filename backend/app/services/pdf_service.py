@@ -330,3 +330,39 @@ class PdfService:
             return output_path
         except Exception as e:
             raise FileProcessingException(f"图片合成 PDF 失败: {str(e)}")
+
+    @staticmethod
+    def organize_pages(pdf_path: Path, output_path: Path, pages_config: List[dict]) -> Path:
+        """
+        PDF 页面可视化自由调度与编排 (调序、单页独立旋转、删减页面)
+        :param pages_config: 例如 [{"page": 0, "rotation": 90}, {"page": 2, "rotation": 0}]
+                             page 为原始 0 索引，rotation 为增量旋转角度 (90, 180, 270 或 0)
+        """
+        try:
+            doc_in = pymupdf.open(str(pdf_path))
+            total_pages = len(doc_in)
+            if total_pages == 0:
+                doc_in.close()
+                raise FileProcessingException("该 PDF 文档不包含任何有效页面")
+
+            if not pages_config:
+                doc_in.close()
+                raise FileProcessingException("未指定任何需要保留或导出的页面")
+
+            doc_out = pymupdf.open()
+            for item in pages_config:
+                src_page_idx = int(item.get("page", 0))
+                rot_delta = int(item.get("rotation", 0))
+
+                if 0 <= src_page_idx < total_pages:
+                    doc_out.insert_pdf(doc_in, from_page=src_page_idx, to_page=src_page_idx)
+                    target_page = doc_out[-1]
+                    if rot_delta != 0:
+                        target_page.set_rotation((target_page.rotation + rot_delta) % 360)
+
+            doc_out.save(str(output_path), deflate=True, garbage=4, clean=True)
+            doc_out.close()
+            doc_in.close()
+            return output_path
+        except Exception as e:
+            raise FileProcessingException(f"页面编排处理失败: {str(e)}")

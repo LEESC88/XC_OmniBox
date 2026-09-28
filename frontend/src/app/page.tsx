@@ -55,6 +55,7 @@ import PdfSplitStudio from "@/components/pdf/PdfSplitStudio";
 import PdfWatermarkStudio from "@/components/pdf/PdfWatermarkStudio";
 import PdfCompressStudio from "@/components/pdf/PdfCompressStudio";
 import ImagesToPdfStudio from "@/components/pdf/ImagesToPdfStudio";
+import PdfOrganizeStudio from "@/components/pdf/PdfOrganizeStudio";
 import UpdateModal from "@/components/UpdateModal";
 import SettingsModal from "@/components/SettingsModal";
 import CatPawLogo from "@/components/CatPawLogo";
@@ -77,6 +78,7 @@ import {
   protectPdf,
   compressPdf,
   convertImagesToPdf,
+  organizePdfPages,
   renderPdfPages,
   downloadBlob,
   HealthStatus,
@@ -88,6 +90,7 @@ type DocTabType =
   | "word-to-pdf"
   | "pdf-merge"
   | "pdf-split"
+  | "pdf-organize"
   | "pdf-watermark"
   | "pdf-compress"
   | "images-to-pdf"
@@ -119,6 +122,7 @@ const TOOLS_REGISTRY: { category: string; module: ModuleType; icon: any; tools: 
       { id: "word-to-pdf", module: "document", name: "Word 转超清 PDF", desc: "打印级矢量无损输出保留清晰度", badge: "300DPI", icon: FileCode2, keywords: ["word", "转pdf", "超清", "无损", "打印"] },
       { id: "pdf-merge", module: "document", name: "多 PDF 拼合合并", desc: "多文件按需排序混编整合", badge: "多选", icon: Combine, keywords: ["pdf", "合并", "拼接", "多文件"] },
       { id: "pdf-split", module: "document", name: "PDF 拆分与范围提取", desc: "按页码区间抽取指定页面", badge: "范围", icon: Scissors, keywords: ["pdf", "拆分", "提取", "截取", "分割"] },
+      { id: "pdf-organize", module: "document", name: "PDF 页面可视化调度", desc: "拖拽调序、单页独立旋转 90°/180°、剔除废页", badge: "画板", icon: Layers, keywords: ["pdf", "页面", "排序", "调序", "旋转", "删减", "画板"] },
       { id: "pdf-watermark", module: "document", name: "PDF 文字印章水印", desc: "倾斜半透明防伪防盗用标记", badge: "水印", icon: Stamp, keywords: ["pdf", "水印", "文字", "印章", "防伪"] },
       { id: "pdf-compress", module: "document", name: "PDF 智能极限压缩", desc: "消除冗余流与高保真图像下采样，大幅瘦身体积", badge: "省80%", icon: Minimize2, keywords: ["pdf", "压缩", "瘦身", "减小", "体积", "优化"] },
       { id: "images-to-pdf", module: "document", name: "多图一键合成 PDF", desc: "多张图片拖拽排序，自由合成单页或 A4 标准文档", badge: "高保真", icon: Combine, keywords: ["图片", "jpg", "png", "转pdf", "合成", "相册"] },
@@ -588,6 +592,36 @@ export default function Home() {
         lang === "en"
           ? `Combined successfully! Generated ${res.filename}, click below to download.`
           : `合成成功！已生成 ${res.filename}，请点击下方按钮下载保存`
+      );
+    } catch (err: any) {
+      setError(err.message || t.common.errorOccurred);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // PDF 页面可视化调度与编排 Studio 专用执行函数
+  const handleOrganizeExecute = async (pagesConfig: Array<{ page: number; rotation: number }>) => {
+    if (files.length === 0) {
+      setError(lang === "en" ? "Please upload a PDF file to organize first" : "请先上传需要编排的 PDF 文件");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+    setExecutionResult(null);
+
+    try {
+      const res = await organizePdfPages(files[0], pagesConfig);
+      setExecutionResult({
+        blob: res.blob,
+        filename: res.filename,
+        size: res.blob.size,
+      });
+      setSuccessMsg(
+        lang === "en"
+          ? `Organized successfully! Generated ${res.filename}, click below to download.`
+          : `编排完成！已生成 ${res.filename}，请点击下方按钮下载保存`
       );
     } catch (err: any) {
       setError(err.message || t.common.errorOccurred);
@@ -1251,6 +1285,52 @@ export default function Home() {
                       onClear={() => setFiles([])}
                       title={t.pdfSplit.dropzoneTitle}
                       hint={t.pdfSplit.dropzoneHint}
+                    />
+                  </div>
+                )
+              ) : activeDocTab === "pdf-organize" ? (
+                /* PDF 页面可视化调度与编排 Studio */
+                files.length > 0 ? (
+                  <div className="coconut-panel p-6 sm:p-8">
+                    <PdfOrganizeStudio
+                      file={files[0]}
+                      onOrganize={handleOrganizeExecute}
+                      loading={loading}
+                      error={error}
+                      successMsg={successMsg}
+                      executionResult={executionResult}
+                      onReset={() => {
+                        setExecutionResult(null);
+                        setSuccessMsg(null);
+                        setError(null);
+                      }}
+                      onClearFile={() => {
+                        setFiles([]);
+                        setExecutionResult(null);
+                        setSuccessMsg(null);
+                        setError(null);
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="coconut-panel p-6 sm:p-8 space-y-6">
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                        {t.pdfOrganize?.title || "PDF 页面可视化调度与编排"}
+                      </h3>
+                      <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
+                        {t.pdfOrganize?.desc || "自由拖拽调整页面顺序、单页独立旋转 90°/180°、剔除多余页面，一键导出定制新版 PDF。"}
+                      </p>
+                    </div>
+
+                    <Dropzone
+                      accept=".pdf"
+                      multiple={false}
+                      selectedFiles={files}
+                      onFilesSelected={setFiles}
+                      onClear={() => setFiles([])}
+                      title={t.pdfOrganize?.dropzoneTitle || "拖入待编排调度的 PDF 文档 (.pdf)，或点击选择"}
+                      hint={t.pdfOrganize?.dropzoneHint || "支持标准 PDF 文档，全本地处理"}
                     />
                   </div>
                 )

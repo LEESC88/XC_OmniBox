@@ -267,3 +267,42 @@ async def images_to_pdf(
     except Exception as e:
         add_cleanup_task(background_tasks, task_dir)
         raise HTTPException(status_code=500, detail=f"图片合成 PDF 失败: {str(e)}")
+
+@router.post("/organize", summary="PDF 页面可视化调度与编排 (调序/旋转/删减)")
+async def organize_pdf(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(..., description="上传待重新编排的 PDF 文件"),
+    pages_config: str = Form(..., description="页面配置 JSON 字符串, 如 [{'page':0,'rotation':90}]")
+):
+    """根据前端自由编排好的页码序列及每页旋转度数，导出全新的定制版 PDF"""
+    if not file.filename.lower().endswith(".pdf"):
+        raise FileFormatNotSupportedException("请上传有效的 .pdf 格式文件")
+
+    import json
+    try:
+        config_list = json.loads(pages_config)
+        if not isinstance(config_list, list):
+            raise ValueError()
+    except Exception:
+        raise HTTPException(status_code=400, detail="pages_config 必须是有效的 JSON 数组字符串")
+
+    task_dir = get_unique_task_dir()
+    input_pdf = task_dir / file.filename
+    output_pdf = task_dir / f"organized_{file.filename}"
+
+    try:
+        await save_upload_file(file, input_pdf)
+        PdfService.organize_pages(input_pdf, output_pdf, config_list)
+
+        add_cleanup_task(background_tasks, task_dir)
+
+        encoded_filename = urllib.parse.quote(output_pdf.name)
+        return FileResponse(
+            path=output_pdf,
+            filename=output_pdf.name,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
+        )
+    except Exception as e:
+        add_cleanup_task(background_tasks, task_dir)
+        raise HTTPException(status_code=500, detail=f"PDF 页面编排失败: {str(e)}")

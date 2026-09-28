@@ -316,6 +316,29 @@ export async function convertImagesToPdf(
   return { blob, filename };
 }
 
+export async function organizePdfPages(
+  file: File,
+  pagesConfig: Array<{ page: number; rotation: number }>
+): Promise<{ blob: Blob; filename: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("pages_config", JSON.stringify(pagesConfig));
+
+  const res = await fetch(`${API_BASE}/pdf/organize`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "编排处理失败" }));
+    throw new Error(err.detail || err.error || "PDF 页面编排失败");
+  }
+
+  const blob = await res.blob();
+  const filename = parseFilenameFromHeader(res, `organized_${file.name}`);
+  return { blob, filename };
+}
+
 
 export function downloadBlob(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);

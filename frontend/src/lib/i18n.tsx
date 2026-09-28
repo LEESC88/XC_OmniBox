@@ -50,6 +50,11 @@ export const TOOL_TRANSLATIONS: Record<
     desc: "Merge multiple JPG/PNG/WebP into a single vector PDF",
     badge: "Multi-image",
   },
+  "pdf-organize": {
+    name: "PDF Page Organizer",
+    desc: "Visual page reordering, individual page rotation, and page removal",
+    badge: "Canvas",
+  },
   "pdf-protect": {
     name: "PDF Password Protection",
     desc: "High-grade AES encryption to restrict viewing & printing",
@@ -234,6 +239,13 @@ export const UI_DICTIONARY = {
       desc: "支持选中多张照片或扫描件批量上传，自由上下拖拽调整排版顺序，支持原图自适应与标准 A4 规格导出。",
       dropzoneTitle: "拖入多张图片（按 Ctrl 多选），或点击选择",
       dropzoneHint: "支持 JPG / PNG / WebP / BMP / TIFF 格式",
+    },
+
+    pdfOrganize: {
+      title: "PDF 页面可视化调度与编排",
+      desc: "自由拖拽调整页面顺序、单页独立旋转 90°/180°、剔除多余页面，一键导出定制新版 PDF。",
+      dropzoneTitle: "拖入待编排调度的 PDF 文档 (.pdf)，或点击选择",
+      dropzoneHint: "支持标准 PDF 文档，全本地处理",
     },
 
     pdfProtect: {
@@ -519,6 +531,13 @@ export const UI_DICTIONARY = {
       desc: "Upload multiple photos or scans, reorder pages easily, and export as Fit or Standard A4 PDF documents.",
       dropzoneTitle: "Drop multiple images (Ctrl+Click to select), or click to browse",
       dropzoneHint: "Supports JPG / PNG / WebP / BMP / TIFF formats",
+    },
+
+    pdfOrganize: {
+      title: "PDF Page Visual Organizer & Layout",
+      desc: "Visually reorder page sequences, rotate individual pages by 90°/180°, delete unwanted pages, and export a clean PDF.",
+      dropzoneTitle: "Drop PDF document (.pdf) to organize, or click to browse",
+      dropzoneHint: "Supports standard PDF documents, processed entirely locally",
     },
 
     pdfProtect: {

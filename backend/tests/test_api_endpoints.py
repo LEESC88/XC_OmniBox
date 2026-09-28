@@ -195,6 +195,37 @@ def test_images_to_pdf_endpoint(tmp_path: Path):
     doc.close()
     print(f"[OK] POST /api/v1/pdf/images-to-pdf 验证成功: 成功拼合 2 页 PDF")
 
+def test_pdf_organize_endpoint(tmp_path: Path):
+    """测试 PDF 页面可视化调度与编排接口 (调序/旋转/删减)"""
+    import json
+    pdf_path = tmp_path / "test_organize.pdf"
+    doc = pymupdf.open()
+    for i in range(3):
+        p = doc.new_page()
+        p.insert_text((72, 100), f"Page {i+1}", fontsize=16)
+    doc.save(str(pdf_path))
+    doc.close()
+
+    # 目标配置: 提取原第 3 页 (索引 2) 旋转 90°, 提取原第 1 页 (索引 0) 旋转 180°
+    config = [{"page": 2, "rotation": 90}, {"page": 0, "rotation": 180}]
+
+    with open(pdf_path, "rb") as f:
+        res = client.post(
+            "/api/v1/pdf/organize",
+            files={"file": ("test_organize.pdf", f, "application/pdf")},
+            data={"pages_config": json.dumps(config)}
+        )
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "application/pdf"
+    
+    # 验证生成的 PDF 为 2 页，且每页旋转正确
+    doc_out = pymupdf.open(stream=res.content, filetype="pdf")
+    assert len(doc_out) == 2
+    assert doc_out[0].rotation == 90
+    assert doc_out[1].rotation == 180
+    doc_out.close()
+    print(f"[OK] POST /api/v1/pdf/organize 验证成功: 成功调序并旋转导出 2 页 PDF")
+
 if __name__ == "__main__":
     temp_dir = BASE_DIR / "tests" / "output"
     temp_dir.mkdir(parents=True, exist_ok=True)
@@ -207,4 +238,5 @@ if __name__ == "__main__":
     test_pdf_split_all_zip_endpoint(temp_dir)
     test_pdf_compress_endpoint(temp_dir)
     test_images_to_pdf_endpoint(temp_dir)
+    test_pdf_organize_endpoint(temp_dir)
     print("=== 所有 API 路由测试全部通过！===")
