@@ -1,18 +1,16 @@
-# Active Architecture Context: P0 Batch Pipeline Completed
+# Active Architecture Context: P1 Completed
 
-## 1. Status: P0 Concurrency & Pipeline Completed
-- Concurrency Engine: `frontend/src/lib/batchQueueManager.ts` (Worker Pool 1~6x, default 3x, ETA, error isolation).
-- Progress UI: `frontend/src/components/BatchQueueProgress.tsx` (real-time progress, thread adjuster, retry, cancel).
-- Integrated Tools: `ImageToolbox.tsx` (HEIC/Compress/Convert/Resize/Exif/Watermark) & `AudioToolbox.tsx` (Transcode & Parallel Track Decode).
-- Export Pipeline: Electron `files:save-batch` native save with JSZip browser fallback.
+## 1. Status: P1 Complete, Ready for P2
+- P1-1 Tool Chaining: Zero-copy File/Blob/Text bus active across all toolboxes.
+- P1-2 Self-Healing: Supervisor auto-recovers Python backend with transparent retry.
 
-## 2. Contracts & APIs
-- `executeBatchQueue(items, processor, options)`: concurrency worker pool with AbortSignal.
-- `exportBatchFiles(items, options)`: native folder export + JSZip bundle download.
-- `BatchTaskItem<TInput, TOutput>`: granular status (`waiting`|`processing`|`completed`|`error`|`cancelled`).
+## 2. Core Contracts & APIs
+- `toolBus.emit(target, payload)`: In-memory pipeline between tools.
+- `SendToButton`: Quick-action tool redirection on all output artifacts.
+- IPC `backend:restart` & `backend:check-health`: Process supervisor in `main.js`.
+- `apiFetch` in `api.ts`: Auto-restarts backend on network fail and retries.
 
-## 3. Verification & Compliance
-- `tsc --noEmit`: 0 errors.
-- `npm run build`: Static export generated successfully (4/4 pages).
-- `pytest backend/tests/`: 23/23 tests passed.
-- 100% offline local processing with error isolation.
+## 3. Boundary & Error Isolation
+- In-memory ObjectURL/Blob conversion prevents redundant disk write cycles.
+- Subscriptions clean up on unmount to prevent memory leaks.
+- Supervisor respects `isQuitting` flag to avoid zombie processes.

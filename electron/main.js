@@ -46,6 +46,8 @@ const isDev = !app.isPackaged || process.env.NODE_ENV === 'development';
 const BACKEND_PORT = 18520;
 let mainWindow = null;
 let backendProcess = null;
+let restartAttempts = 0;
+const MAX_RESTART_ATTEMPTS = 5;
 
 // ================= 全局持久化设置管理 =================
 function getConfigFilePath() {
@@ -192,9 +194,50 @@ function startBackendService() {
     backendProcess.on('exit', (code, signal) => {
       console.log(`[Backend Process Exited] code=${code}, signal=${signal}`);
       backendProcess = null;
+      if (!isQuitting) {
+        if (restartAttempts < MAX_RESTART_ATTEMPTS) {
+          restartAttempts++;
+          console.warn(`[Supervisor] Python backend crashed! Triggering auto-restart (${restartAttempts}/${MAX_RESTART_ATTEMPTS}) in 1s...`);
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('backend:status', { status: 'recovering', attempt: restartAttempts });
+          }
+          setTimeout(() => {
+            restartBackendService();
+          }, 1000);
+        } else {
+          console.error('[Supervisor] Max restart attempts exceeded for Python backend.');
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('backend:status', { status: 'failed', error: 'Max auto-restarts exceeded' });
+          }
+        }
+      }
     });
   } catch (err) {
     console.error('[Electron Main] Failed to spawn backend process:', err);
+  }
+}
+
+// 自动自愈重启 Python 后端服务
+async function restartBackendService() {
+  if (isQuitting) return false;
+  console.log('[Supervisor] Executing Python backend self-healing sequence...');
+  stopBackendService();
+  await new Promise((r) => setTimeout(r, 600));
+  startBackendService();
+  const healthy = await waitForBackend(`http://127.0.0.1:${BACKEND_PORT}/api/v1/health`, 20, 400);
+  if (healthy) {
+    console.log('[Supervisor] Python backend recovered and verified healthy!');
+    restartAttempts = 0;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('backend:status', { status: 'healthy', recovered: true });
+    }
+    return true;
+  } else {
+    console.error('[Supervisor] Backend recovery failed to respond to health check in time.');
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('backend:status', { status: 'unhealthy', error: 'Health check timed out' });
+    }
+    return false;
   }
 }
 
@@ -450,6 +493,28 @@ function setupSettingsIPC() {
       savedPaths.push(filePath);
     }
     return { success: true, folder: outDir, count: savedPaths.length };
+  });
+
+  ipcMain.handle('backend:restart', async () => {
+    return await restartBackendService();
+  });
+
+  ipcMain.handle('backend:check-health', async () => {
+    try {
+      const res = await new Promise((resolve) => {
+        const req = http.get(`http://127.0.0.1:${BACKEND_PORT}/api/v1/health`, (response) => {
+          resolve(response.statusCode === 200);
+        });
+        req.on('error', () => resolve(false));
+        req.setTimeout(1500, () => {
+          req.destroy();
+          resolve(false);
+        });
+      });
+      return res;
+    } catch (_) {
+      return false;
+    }
   });
 }
 

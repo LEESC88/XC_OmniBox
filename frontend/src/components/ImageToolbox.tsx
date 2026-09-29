@@ -38,6 +38,7 @@ import ScrollableTabNav from "@/components/ScrollableTabNav";
 import { useI18n } from "@/lib/i18n";
 import ImageCompareModal, { ImageCompareItem } from "@/components/ImageCompareModal";
 import BatchQueueProgress from "@/components/BatchQueueProgress";
+import SendToButton from "@/components/SendToButton";
 import {
   BatchTaskItem,
   BatchProgressSummary,
@@ -71,9 +72,16 @@ const PRESETS = [
 export interface ImageToolboxProps {
   currentTab?: ImageToolTab;
   onTabChange?: (tab: ImageToolTab) => void;
+  incomingFiles?: File[];
+  onIncomingFilesHandled?: () => void;
 }
 
-export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxProps = {}) {
+export default function ImageToolbox({
+  currentTab,
+  onTabChange,
+  incomingFiles,
+  onIncomingFilesHandled,
+}: ImageToolboxProps = {}) {
   const { lang } = useI18n();
   const [activeTab, setActiveTab] = useState<ImageToolTab>(currentTab || "compress");
   const [files, setFiles] = useState<File[]>([]);
@@ -82,6 +90,13 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
   const [results, setResults] = useState<ProcessedResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [compareItem, setCompareItem] = useState<ImageCompareItem | null>(null);
+
+  useEffect(() => {
+    if (incomingFiles && incomingFiles.length > 0) {
+      setFiles((prev) => [...prev, ...incomingFiles]);
+      onIncomingFilesHandled?.();
+    }
+  }, [incomingFiles]);
 
   // --- 并发队列与进度状态 ---
   const [concurrency, setConcurrency] = useState(3);
@@ -1249,6 +1264,17 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
                     >
                       <Download className="w-4 h-4" />
                     </button>
+
+                    <SendToButton
+                      compact
+                      category="image"
+                      payload={{
+                        blob: res.blob,
+                        filename: res.newFilename,
+                        sourceTitle: `图片工坊 (${res.newFilename})`,
+                      }}
+                      lang={lang}
+                    />
                   </div>
                 </div>
               );

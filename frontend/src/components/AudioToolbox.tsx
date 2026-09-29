@@ -49,6 +49,7 @@ import { downloadBlob } from "@/lib/api";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
 import { useI18n } from "@/lib/i18n";
 import BatchQueueProgress from "@/components/BatchQueueProgress";
+import SendToButton from "@/components/SendToButton";
 import {
   BatchTaskItem,
   BatchProgressSummary,
@@ -80,14 +81,22 @@ interface AudioResult {
 export interface AudioToolboxProps {
   currentTab?: AudioToolTab;
   onTabChange?: (tab: AudioToolTab) => void;
+  incomingFile?: File | null;
+  onIncomingFileHandled?: () => void;
 }
 
-export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxProps = {}) {
+export default function AudioToolbox({
+  currentTab,
+  onTabChange,
+  incomingFile,
+  onIncomingFileHandled,
+}: AudioToolboxProps = {}) {
   const { lang } = useI18n();
   const [activeTab, setActiveTab] = useState<AudioToolTab>(currentTab || "trim");
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progressMsg, setProgressMsg] = useState("");
+
 
   useEffect(() => {
     if (currentTab && currentTab !== activeTab) {
@@ -767,6 +776,25 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
     }
   };
 
+  useEffect(() => {
+    if (incomingFile) {
+      if (activeTab === "convert") {
+        setConvertFiles((prev) => [...prev, incomingFile]);
+      } else if (activeTab === "trim") {
+        handleTrimFileSelected(incomingFile);
+      } else if (activeTab === "extract") {
+        handleVideoFileSelected(incomingFile);
+      } else if (activeTab === "volume") {
+        handleVolumeFileSelected(incomingFile);
+      } else if (activeTab === "speed") {
+        handleSpeedFileSelected(incomingFile);
+      } else if (activeTab === "karaoke") {
+        handleKaraokeFileSelected(incomingFile);
+      }
+      onIncomingFileHandled?.();
+    }
+  }, [incomingFile, activeTab]);
+
   const handleExecuteKaraoke = async () => {
     if (!karaokeBuffer || !karaokeFile) return;
     setIsProcessing(true);
@@ -1192,13 +1220,25 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   <CheckCircle2 className="w-4 h-4" />
                   <span>{lang === "en" ? "Trimming Complete!" : "音频截取成功！"}</span>
                 </div>
-                <button
-                  onClick={() => downloadBlob(trimResult.blob, trimResult.filename)}
-                  className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>{lang === "en" ? "Download Trimmed Audio" : "立即下载截取音频"}</span>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <SendToButton
+                    compact
+                    category="audio"
+                    payload={{
+                      blob: trimResult.blob,
+                      filename: trimResult.filename,
+                      sourceTitle: lang === "en" ? "Audio Trim" : "音频截取",
+                    }}
+                    lang={lang}
+                  />
+                  <button
+                    onClick={() => downloadBlob(trimResult.blob, trimResult.filename)}
+                    className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{lang === "en" ? "Download Trimmed Audio" : "立即下载截取音频"}</span>
+                  </button>
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-xs text-coconut-700 dark:text-darkbg-text font-mono">
@@ -1419,12 +1459,24 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                         {formatDuration(res.duration)} · {formatBytes(res.newSize)}
                       </div>
                     </div>
-                    <button
-                      onClick={() => downloadBlob(res.blob, res.newFilename)}
-                      className="p-2 rounded-xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-text hover:bg-coconut-800 hover:text-coconut-50 dark:hover:bg-white dark:hover:text-zinc-950 transition-all active:scale-95"
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center space-x-1.5 flex-shrink-0">
+                      <SendToButton
+                        compact
+                        category="audio"
+                        payload={{
+                          blob: res.blob,
+                          filename: res.newFilename,
+                          sourceTitle: lang === "en" ? "Audio Transcode" : "音频转码",
+                        }}
+                        lang={lang}
+                      />
+                      <button
+                        onClick={() => downloadBlob(res.blob, res.newFilename)}
+                        className="p-2 rounded-xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-text hover:bg-coconut-800 hover:text-coconut-50 dark:hover:bg-white dark:hover:text-zinc-950 transition-all active:scale-95"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1592,13 +1644,25 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   <CheckCircle2 className="w-4 h-4" />
                   <span>{lang === "en" ? "Audio Merging Complete!" : "音频拼接合并成功！"}</span>
                 </div>
-                <button
-                  onClick={() => downloadBlob(mergeResult.blob, mergeResult.filename)}
-                  className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>{lang === "en" ? "Download Merged Audio" : "立即下载合并音频"}</span>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <SendToButton
+                    compact
+                    category="audio"
+                    payload={{
+                      blob: mergeResult.blob,
+                      filename: mergeResult.filename,
+                      sourceTitle: lang === "en" ? "Audio Merge" : "音频拼接",
+                    }}
+                    lang={lang}
+                  />
+                  <button
+                    onClick={() => downloadBlob(mergeResult.blob, mergeResult.filename)}
+                    className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{lang === "en" ? "Download Merged Audio" : "立即下载合并音频"}</span>
+                  </button>
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-xs text-coconut-700 dark:text-darkbg-text font-mono">
@@ -1820,13 +1884,25 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   <CheckCircle2 className="w-4 h-4" />
                   <span>{lang === "en" ? "Audio Extraction Complete!" : "视频音频剥离成功！"}</span>
                 </div>
-                <button
-                  onClick={() => downloadBlob(extractResult.blob, extractResult.filename)}
-                  className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>{lang === "en" ? "Download Audio" : "立即下载音频"}</span>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <SendToButton
+                    compact
+                    category="audio"
+                    payload={{
+                      blob: extractResult.blob,
+                      filename: extractResult.filename,
+                      sourceTitle: lang === "en" ? "Video Audio Extract" : "视频音频剥离",
+                    }}
+                    lang={lang}
+                  />
+                  <button
+                    onClick={() => downloadBlob(extractResult.blob, extractResult.filename)}
+                    className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{lang === "en" ? "Download Audio" : "立即下载音频"}</span>
+                  </button>
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-xs text-coconut-700 dark:text-darkbg-text font-mono">
@@ -2032,13 +2108,25 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   <CheckCircle2 className="w-4 h-4" />
                   <span>{lang === "en" ? "Audio Enhancement Complete!" : "音量与人声增强完成！"}</span>
                 </div>
-                <button
-                  onClick={() => downloadBlob(volumeResult.blob, volumeResult.filename)}
-                  className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>{lang === "en" ? "Download Enhanced Audio" : "立即下载增强音频"}</span>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <SendToButton
+                    compact
+                    category="audio"
+                    payload={{
+                      blob: volumeResult.blob,
+                      filename: volumeResult.filename,
+                      sourceTitle: lang === "en" ? "Audio Enhance" : "音量增强",
+                    }}
+                    lang={lang}
+                  />
+                  <button
+                    onClick={() => downloadBlob(volumeResult.blob, volumeResult.filename)}
+                    className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{lang === "en" ? "Download Enhanced Audio" : "立即下载增强音频"}</span>
+                  </button>
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-xs text-coconut-700 dark:text-darkbg-text font-mono">
@@ -2228,13 +2316,25 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   <CheckCircle2 className="w-4 h-4" />
                   <span>{lang === "en" ? "Speed / Reverse Processing Complete!" : "倍速/倒放音频生成完成！"}</span>
                 </div>
-                <button
-                  onClick={() => downloadBlob(speedResult.blob, speedResult.filename)}
-                  className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>{lang === "en" ? "Download Audio" : "立即下载音频"}</span>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <SendToButton
+                    compact
+                    category="audio"
+                    payload={{
+                      blob: speedResult.blob,
+                      filename: speedResult.filename,
+                      sourceTitle: lang === "en" ? "Audio Speed" : "音频变速",
+                    }}
+                    lang={lang}
+                  />
+                  <button
+                    onClick={() => downloadBlob(speedResult.blob, speedResult.filename)}
+                    className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{lang === "en" ? "Download Audio" : "立即下载音频"}</span>
+                  </button>
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-xs text-coconut-700 dark:text-darkbg-text font-mono">
@@ -2389,13 +2489,25 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   <CheckCircle2 className="w-4 h-4" />
                   <span>{lang === "en" ? "Accompaniment Extracted Successfully!" : "伴奏提取消人声完成！"}</span>
                 </div>
-                <button
-                  onClick={() => downloadBlob(karaokeResult.blob, karaokeResult.filename)}
-                  className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>{lang === "en" ? "Download Accompaniment" : "立即下载纯伴奏"}</span>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <SendToButton
+                    compact
+                    category="audio"
+                    payload={{
+                      blob: karaokeResult.blob,
+                      filename: karaokeResult.filename,
+                      sourceTitle: lang === "en" ? "Karaoke Accompaniment" : "卡拉OK伴奏提取",
+                    }}
+                    lang={lang}
+                  />
+                  <button
+                    onClick={() => downloadBlob(karaokeResult.blob, karaokeResult.filename)}
+                    className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{lang === "en" ? "Download Accompaniment" : "立即下载纯伴奏"}</span>
+                  </button>
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-xs text-coconut-700 dark:text-darkbg-text font-mono">

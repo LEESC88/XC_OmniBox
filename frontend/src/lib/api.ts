@@ -23,8 +23,32 @@ export interface HealthStatus {
   };
 }
 
+/**
+ * 具备主进程自愈能力的 API 请求封装
+ * 在网络连接拒绝（如后端奔溃）时自动请求主进程重启并静默重试
+ */
+export async function apiFetch(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (err: any) {
+    if (typeof window !== "undefined" && (window as any).electronAPI?.restartBackend) {
+      console.warn("[API Supervisor] Backend request failed. Attempting self-healing recovery...", err);
+      try {
+        const recovered = await (window as any).electronAPI.restartBackend();
+        if (recovered) {
+          await new Promise((r) => setTimeout(r, 400));
+          return await fetch(url, init);
+        }
+      } catch (supervisorErr) {
+        console.error("[API Supervisor] Auto-restart failed:", supervisorErr);
+      }
+    }
+    throw err;
+  }
+}
+
 export async function checkHealth(): Promise<HealthStatus> {
-  const res = await fetch(`${API_BASE}/health`);
+  const res = await apiFetch(`${API_BASE}/health`);
   if (!res.ok) throw new Error("后端服务未连接");
   return res.json();
 }
@@ -41,7 +65,7 @@ export async function convertPdfToWord(
     formData.append("end_page", String(endPage));
   }
 
-  const res = await fetch(`${API_BASE}/document/pdf-to-word`, {
+  const res = await apiFetch(`${API_BASE}/document/pdf-to-word`, {
     method: "POST",
     body: formData,
   });
@@ -61,7 +85,7 @@ export async function convertWordToPdf(file: File, quality: string = "high"): Pr
   formData.append("file", file);
   formData.append("quality", quality);
 
-  const res = await fetch(`${API_BASE}/document/word-to-pdf`, {
+  const res = await apiFetch(`${API_BASE}/document/word-to-pdf`, {
     method: "POST",
     body: formData,
   });
@@ -98,7 +122,7 @@ export async function mergePdfs(files: File[]): Promise<{ blob: Blob; filename: 
   const formData = new FormData();
   files.forEach((f) => formData.append("files", f));
 
-  const res = await fetch(`${API_BASE}/pdf/merge`, {
+  const res = await apiFetch(`${API_BASE}/pdf/merge`, {
     method: "POST",
     body: formData,
   });
@@ -120,7 +144,7 @@ export async function splitPdf(file: File, pageRanges?: string): Promise<{ blob:
     formData.append("page_ranges", pageRanges);
   }
 
-  const res = await fetch(`${API_BASE}/pdf/split`, {
+  const res = await apiFetch(`${API_BASE}/pdf/split`, {
     method: "POST",
     body: formData,
   });
@@ -150,7 +174,7 @@ export async function addWatermark(
   formData.append("opacity", String(opacity));
   formData.append("angle", String(angle));
 
-  const res = await fetch(`${API_BASE}/pdf/watermark`, {
+  const res = await apiFetch(`${API_BASE}/pdf/watermark`, {
     method: "POST",
     body: formData,
   });
@@ -170,7 +194,7 @@ export async function protectPdf(file: File, password: string): Promise<{ blob: 
   formData.append("file", file);
   formData.append("password", password);
 
-  const res = await fetch(`${API_BASE}/pdf/protect`, {
+  const res = await apiFetch(`${API_BASE}/pdf/protect`, {
     method: "POST",
     body: formData,
   });
@@ -218,7 +242,7 @@ export async function renderPdfPages(
   }
   formData.append("extract_words", String(extractWords));
 
-  const res = await fetch(`${API_BASE}/editor/render-pages`, {
+  const res = await apiFetch(`${API_BASE}/editor/render-pages`, {
     method: "POST",
     body: formData,
   });
@@ -242,7 +266,7 @@ export async function applyPdfModifications(
   formData.append("file", file);
   formData.append("modifications", JSON.stringify(modifications));
 
-  const res = await fetch(`${API_BASE}/editor/apply-modifications`, {
+  const res = await apiFetch(`${API_BASE}/editor/apply-modifications`, {
     method: "POST",
     body: formData,
   });
@@ -273,7 +297,7 @@ export async function compressPdf(
   formData.append("file", file);
   formData.append("level", level);
 
-  const res = await fetch(`${API_BASE}/pdf/compress`, {
+  const res = await apiFetch(`${API_BASE}/pdf/compress`, {
     method: "POST",
     body: formData,
   });
@@ -301,7 +325,7 @@ export async function convertImagesToPdf(
   files.forEach((f) => formData.append("files", f));
   formData.append("page_size", pageSize);
 
-  const res = await fetch(`${API_BASE}/pdf/images-to-pdf`, {
+  const res = await apiFetch(`${API_BASE}/pdf/images-to-pdf`, {
     method: "POST",
     body: formData,
   });
@@ -324,7 +348,7 @@ export async function organizePdfPages(
   formData.append("file", file);
   formData.append("pages_config", JSON.stringify(pagesConfig));
 
-  const res = await fetch(`${API_BASE}/pdf/organize`, {
+  const res = await apiFetch(`${API_BASE}/pdf/organize`, {
     method: "POST",
     body: formData,
   });
@@ -352,7 +376,7 @@ export async function inpaintImage(
   formData.append("radius", String(radius));
   formData.append("method", method);
 
-  const res = await fetch(`${API_BASE}/image/inpaint`, {
+  const res = await apiFetch(`${API_BASE}/image/inpaint`, {
     method: "POST",
     body: formData,
   });

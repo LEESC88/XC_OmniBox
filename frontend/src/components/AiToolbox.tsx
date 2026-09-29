@@ -55,6 +55,7 @@ import { formatBytes } from "@/lib/imageProcessor";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
 import { useI18n } from "@/lib/i18n";
 import ImageCompareModal, { ImageCompareItem } from "@/components/ImageCompareModal";
+import SendToButton from "@/components/SendToButton";
 
 export type AiTabType = "ai-bg-remove" | "ai-inpaint" | "ai-searchable-pdf" | "ai-subtitle" | "ai-ocr" | "ai-upscale";
 
@@ -62,6 +63,8 @@ export interface AiToolboxProps {
   currentTab?: AiTabType;
   onTabChange?: (tab: AiTabType) => void;
   onNavigateToIdPhoto?: (photoFile: File) => void;
+  incomingFile?: File | null;
+  onIncomingFileHandled?: () => void;
 }
 
 const BG_PRESETS = [
@@ -77,10 +80,13 @@ export default function AiToolbox({
   currentTab = "ai-bg-remove",
   onTabChange,
   onNavigateToIdPhoto,
+  incomingFile,
+  onIncomingFileHandled,
 }: AiToolboxProps) {
   const { lang } = useI18n();
   const [activeTab, setActiveTab] = useState<AiTabType>(currentTab);
   const [compareModalItem, setCompareModalItem] = useState<ImageCompareItem | null>(null);
+
 
   const localizeAiStage = (stage: string) => {
     if (lang !== "en" || !stage) return stage;
@@ -706,6 +712,23 @@ export default function AiToolbox({
     setSubtitleProgress(0);
   };
 
+  useEffect(() => {
+    if (incomingFile) {
+      if (activeTab === "ai-bg-remove") {
+        handleBgFileSelect({ target: { files: [incomingFile] } } as any);
+      } else if (activeTab === "ai-inpaint") {
+        handleInpaintFileSelect({ target: { files: [incomingFile] } } as any);
+      } else if (activeTab === "ai-upscale") {
+        handleUpscaleFileSelect({ target: { files: [incomingFile] } } as any);
+      } else if (activeTab === "ai-ocr") {
+        handleOcrFileSelect({ target: { files: [incomingFile] } } as any);
+      } else if (activeTab === "ai-subtitle") {
+        handleSubtitleFileSelect({ target: { files: [incomingFile] } } as any);
+      }
+      onIncomingFileHandled?.();
+    }
+  }, [incomingFile, activeTab]);
+
   const handleExecuteSubtitle = async () => {
     if (!subtitleFile) return;
     setSubtitleLoading(true);
@@ -1194,6 +1217,18 @@ export default function AiToolbox({
                         <Download className="w-4 h-4" />
                         <span>{lang === "en" ? "Download Lossless Transparent PNG" : "下载无损透明 PNG"}</span>
                       </button>
+
+                      {bgResultBlob && bgFile && (
+                        <SendToButton
+                          category="image"
+                          payload={{
+                            blob: bgResultBlob,
+                            filename: `XC_Cutout_${bgFile.name.replace(/\.[^/.]+$/, "")}.png`,
+                            sourceTitle: "AI 智能抠图",
+                          }}
+                          lang={lang}
+                        />
+                      )}
                     </div>
                   </div>
                 )}
@@ -1550,6 +1585,18 @@ export default function AiToolbox({
                           <Download className="w-4 h-4" />
                           <span>{lang === "en" ? "Download Inpainted Image" : "下载消除后图片"}</span>
                         </button>
+
+                        {inpaintResultBlob && inpaintFile && (
+                          <SendToButton
+                            category="image"
+                            payload={{
+                              blob: inpaintResultBlob,
+                              filename: `${inpaintFile.name.replace(/\.[^/.]+$/, "")}_inpainted.png`,
+                              sourceTitle: "AI 消除笔",
+                            }}
+                            lang={lang}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -2033,6 +2080,17 @@ export default function AiToolbox({
                         <Download className="w-4 h-4" />
                         <span>{lang === "en" ? "Export Subtitles (.srt)" : "导出标准字幕 (.srt)"}</span>
                       </button>
+
+                      {subtitleItems.length > 0 && (
+                        <SendToButton
+                          category="text"
+                          payload={{
+                            text: exportToSrt(subtitleItems),
+                            sourceTitle: "AI 音视频字幕",
+                          }}
+                          lang={lang}
+                        />
+                      )}
                     </div>
                   </div>
                 )}
@@ -2276,6 +2334,15 @@ export default function AiToolbox({
                           <Download className="w-3.5 h-3.5" />
                           <span>{lang === "en" ? "Export as TXT" : "导出为 TXT 文件"}</span>
                         </button>
+
+                        <SendToButton
+                          category="text"
+                          payload={{
+                            text: ocrEditableText,
+                            sourceTitle: "AI 文字提取 (OCR)",
+                          }}
+                          lang={lang}
+                        />
                       </div>
                     )}
                   </div>
@@ -2627,6 +2694,18 @@ export default function AiToolbox({
                             : `下载无损超清图 (${upscaleResult.scaleFactor}x PNG)`}
                         </span>
                       </button>
+
+                      {upscaleResult && upscaleFile && (
+                        <SendToButton
+                          category="image"
+                          payload={{
+                            blob: upscaleResult.blob,
+                            filename: `XC_UltraClear_${upscaleResult.scaleFactor}x_${upscaleFile.name.replace(/\.[^/.]+$/, "")}.png`,
+                            sourceTitle: "AI 高清修复",
+                          }}
+                          lang={lang}
+                        />
+                      )}
                     </div>
                   </div>
                 )}

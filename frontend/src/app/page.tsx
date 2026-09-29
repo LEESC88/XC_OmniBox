@@ -90,6 +90,7 @@ import {
   downloadBlob,
   HealthStatus,
 } from "@/lib/api";
+import { toolBus, blobToFile } from "@/lib/toolBus";
 
 type DocTabType =
   | "pdf-edit"
@@ -497,6 +498,63 @@ export default function Home() {
   const [incomingIdPhotoFile, setIncomingIdPhotoFile] = useState<File | null>(
     null,
   );
+  const [incomingImageFiles, setIncomingImageFiles] = useState<File[]>([]);
+  const [incomingAudioFile, setIncomingAudioFile] = useState<File | null>(null);
+  const [incomingAiFile, setIncomingAiFile] = useState<File | null>(null);
+  const [incomingDiffText, setIncomingDiffText] = useState<{
+    text: string;
+    side: "original" | "modified";
+  } | null>(null);
+
+  // 跨工具总线监听：无损内存零拷贝流转
+  useEffect(() => {
+    const unsubscribe = toolBus.subscribe(({ target, payload }) => {
+      setActiveModule(target.module);
+      if (target.module === "image") {
+        setActiveImageTab(target.tab as ImageTabType);
+        const f = blobToFile(payload.blob || payload.file, payload.filename);
+        if (f) {
+          setIncomingImageFiles([f]);
+        }
+      } else if (target.module === "audio") {
+        setActiveAudioTab(target.tab as AudioTabType);
+        const f = blobToFile(payload.blob || payload.file, payload.filename);
+        if (f) {
+          setIncomingAudioFile(f);
+        }
+      } else if (target.module === "ai") {
+        setActiveAiTab(target.tab as AiTabType);
+        const f = blobToFile(payload.blob || payload.file, payload.filename);
+        if (f) {
+          setIncomingAiFile(f);
+        }
+      } else if (target.module === "utilities") {
+        setActiveDailyTab(target.tab as DailyTabType);
+        if (target.tab === "idphoto") {
+          const f = blobToFile(payload.blob || payload.file, payload.filename);
+          if (f) {
+            setIncomingIdPhotoFile(f);
+          }
+        } else if (target.tab === "diff") {
+          setIncomingDiffText({
+            text: payload.text || "",
+            side: target.targetSide || "original",
+          });
+        }
+      } else if (target.module === "document") {
+        setActiveDocTab(target.tab as DocTabType);
+        const f = blobToFile(payload.blob || payload.file, payload.filename);
+        if (f) {
+          setFiles([f]);
+          setExecutionResult(null);
+          setError(null);
+        }
+      }
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -1532,22 +1590,31 @@ export default function Home() {
             <ImageToolbox
               currentTab={activeImageTab}
               onTabChange={setActiveImageTab}
+              incomingFiles={incomingImageFiles}
+              onIncomingFilesHandled={() => setIncomingImageFiles([])}
             />
           ) : activeModule === "audio" ? (
             <AudioToolbox
               currentTab={activeAudioTab}
               onTabChange={setActiveAudioTab}
+              incomingFile={incomingAudioFile}
+              onIncomingFileHandled={() => setIncomingAudioFile(null)}
             />
           ) : activeModule === "utilities" ? (
             <DailyToolbox
               currentTab={activeDailyTab}
               onTabChange={setActiveDailyTab}
               initialPhotoFile={incomingIdPhotoFile}
+              onInitialPhotoHandled={() => setIncomingIdPhotoFile(null)}
+              incomingDiffText={incomingDiffText}
+              onIncomingDiffHandled={() => setIncomingDiffText(null)}
             />
           ) : activeModule === "ai" ? (
             <AiToolbox
               currentTab={activeAiTab}
               onTabChange={setActiveAiTab}
+              incomingFile={incomingAiFile}
+              onIncomingFileHandled={() => setIncomingAiFile(null)}
               onNavigateToIdPhoto={(photoFile) => {
                 setIncomingIdPhotoFile(photoFile);
                 setActiveModule("utilities");

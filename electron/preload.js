@@ -29,6 +29,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCacheSize: () => ipcRenderer.invoke('settings:get-cache-size'),
   clearCache: () => ipcRenderer.invoke('settings:clear-cache'),
   getAutoStart: () => ipcRenderer.invoke('settings:get-autostart'),
-  setAutoStart: (enable) => ipcRenderer.invoke('settings:set-autostart', enable),
   saveBatchFiles: (payload) => ipcRenderer.invoke('files:save-batch', payload),
+  restartBackend: () => ipcRenderer.invoke('backend:restart'),
+  checkBackendHealth: () => ipcRenderer.invoke('backend:check-health'),
+  onBackendStatus: (callback) => {
+    const listener = (_event, data) => callback(data);
+    ipcRenderer.on('backend:status', listener);
+    return () => ipcRenderer.removeListener('backend:status', listener);
+  },
 });

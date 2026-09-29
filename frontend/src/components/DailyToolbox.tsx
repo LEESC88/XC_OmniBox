@@ -56,6 +56,7 @@ import {
 import { downloadBlob } from "@/lib/api";
 import { formatBytes } from "@/lib/imageProcessor";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
+import SendToButton from "@/components/SendToButton";
 import { useI18n } from "@/lib/i18n";
 
 type ToolTab = "idphoto" | "qrcode" | "diff" | "dev";
@@ -65,12 +66,18 @@ export interface DailyToolboxProps {
   currentTab?: ToolTab;
   onTabChange?: (tab: ToolTab) => void;
   initialPhotoFile?: File | null;
+  onInitialPhotoHandled?: () => void;
+  incomingDiffText?: { text: string; side: "original" | "modified" } | null;
+  onIncomingDiffHandled?: () => void;
 }
 
 export default function DailyToolbox({
   currentTab,
   onTabChange,
   initialPhotoFile,
+  onInitialPhotoHandled,
+  incomingDiffText,
+  onIncomingDiffHandled,
 }: DailyToolboxProps = {}) {
   const { lang } = useI18n();
   const [activeTab, setActiveTab] = useState<ToolTab>(currentTab || "idphoto");
@@ -89,6 +96,7 @@ export default function DailyToolbox({
     if (initialPhotoFile) {
       setActiveTab("idphoto");
       handlePhotoUpload(initialPhotoFile);
+      onInitialPhotoHandled?.();
     }
   }, [initialPhotoFile]);
 
@@ -329,6 +337,18 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
   const [diffModified, setDiffModified] = useState(() => lang === "en" ? ARTICLE_EN_NEW : ARTICLE_ZH_NEW);
   const [diffMode, setDiffMode] = useState<"lines" | "words">("lines");
   const [diffChangesOnly, setDiffChangesOnly] = useState(false);
+
+  useEffect(() => {
+    if (incomingDiffText) {
+      setActiveTab("diff");
+      if (incomingDiffText.side === "original") {
+        setDiffOriginal(incomingDiffText.text);
+      } else {
+        setDiffModified(incomingDiffText.text);
+      }
+      onIncomingDiffHandled?.();
+    }
+  }, [incomingDiffText, onIncomingDiffHandled]);
 
   const handleLoadArticleExample = () => {
     if (lang === "en") {
@@ -658,17 +678,28 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
 
                   {processedPhotoBlob && (
                     <div className="w-full space-y-2.5">
-                      <button
-                        onClick={() => {
-                          if (processedPhotoBlob) {
-                            downloadBlob(processedPhotoBlob, `id_photo_${selectedSpec.width}x${selectedSpec.height}_clean.jpg`);
-                          }
-                        }}
-                        className="w-full py-3 btn-3d-sunset text-white rounded-2xl text-sm font-bold flex items-center justify-center space-x-2"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>{lang === "en" ? "Download Single Photo" : "立即下载单张证件照"}</span>
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <SendToButton
+                          category="image"
+                          payload={{
+                            blob: processedPhotoBlob,
+                            filename: `id_photo_${selectedSpec.width}x${selectedSpec.height}_clean.jpg`,
+                            sourceTitle: lang === "en" ? "ID Photo Studio" : "证件照工坊",
+                          }}
+                          lang={lang}
+                        />
+                        <button
+                          onClick={() => {
+                            if (processedPhotoBlob) {
+                              downloadBlob(processedPhotoBlob, `id_photo_${selectedSpec.width}x${selectedSpec.height}_clean.jpg`);
+                            }
+                          }}
+                          className="flex-1 py-3 btn-3d-sunset text-white rounded-2xl text-sm font-bold flex items-center justify-center space-x-2"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>{lang === "en" ? "Download Single Photo" : "立即下载单张证件照"}</span>
+                        </button>
+                      </div>
 
                       <button
                         onClick={handleGenerateSheet}
@@ -690,13 +721,25 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                             alt="Print Sheet"
                             className="w-full max-h-48 object-contain rounded-xl border border-coconut-200 dark:border-darkbg-border bg-white"
                           />
-                          <button
-                            onClick={() => downloadBlob(sheetResult.blob, sheetResult.filename)}
-                            className="w-full py-2.5 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            <span>{lang === "en" ? "Download Print Sheet Image" : "下载 6 寸相纸冲印图"}</span>
-                          </button>
+                          <div className="flex items-center space-x-2">
+                            <SendToButton
+                              compact
+                              category="image"
+                              payload={{
+                                blob: sheetResult.blob,
+                                filename: sheetResult.filename,
+                                sourceTitle: lang === "en" ? "Print Sheet" : "相纸排版",
+                              }}
+                              lang={lang}
+                            />
+                            <button
+                              onClick={() => downloadBlob(sheetResult.blob, sheetResult.filename)}
+                              className="flex-1 py-2.5 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span>{lang === "en" ? "Download Print Sheet Image" : "下载 6 寸相纸冲印图"}</span>
+                            </button>
+                          </div>
                         </div>
                       )}
 
