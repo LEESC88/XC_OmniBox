@@ -61,10 +61,14 @@ export default function ShortcutsModal({
             </div>
             <div>
               <h3 className="text-base font-bold text-coconut-900 dark:text-darkbg-text">
-                {lang === "en" ? "Keyboard Shortcuts Guide" : "快捷键与效率指南"}
+                {lang === "en"
+                  ? "Keyboard Shortcuts Guide"
+                  : "快捷键与效率指南"}
               </h3>
               <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                {lang === "en" ? "Press Ctrl + / anywhere to toggle" : "随时按 Ctrl + / 即可呼出或隐藏"}
+                {lang === "en"
+                  ? "Press Ctrl + / anywhere to toggle"
+                  : "随时按 Ctrl + / 即可呼出或隐藏"}
               </p>
             </div>
           </div>
@@ -105,7 +109,10 @@ export default function ShortcutsModal({
                       <div className="flex items-center space-x-1 flex-shrink-0">
                         {item.key.split(" ").map((k, idx) =>
                           k === "+" ? (
-                            <span key={idx} className="text-xs text-coconut-400 font-mono">
+                            <span
+                              key={idx}
+                              className="text-xs text-coconut-400 font-mono"
+                            >
                               +
                             </span>
                           ) : (
@@ -115,7 +122,7 @@ export default function ShortcutsModal({
                             >
                               {k}
                             </kbd>
-                          )
+                          ),
                         )}
                       </div>
                     </div>
@@ -127,15 +134,7 @@ export default function ShortcutsModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3.5 bg-coconut-100/50 dark:bg-darkbg-subtle/50 border-t border-coconut-200/60 dark:border-darkbg-border flex items-center justify-between text-xs text-coconut-600 dark:text-darkbg-muted">
-          <span>{lang === "en" ? "💡 Tip: macOS users can use ⌘ (Command) key" : "💡 提示：macOS 用户可使用 ⌘ (Command) 键"}</span>
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 btn-3d-secondary rounded-xl text-xs font-bold"
-          >
-            {lang === "en" ? "Got it" : "知道了"}
-          </button>
-        </div>
+        <div className="px-6 py-3.5 bg-coconut-100/50 dark:bg-darkbg-subtle/50 border-t border-coconut-200/60 dark:border-darkbg-border flex items-center justify-between text-xs text-coconut-600 dark:text-darkbg-muted"></div>
       </div>
     </div>
   );
