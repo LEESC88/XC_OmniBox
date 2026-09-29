@@ -694,6 +694,7 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                               downloadBlob(processedPhotoBlob, `id_photo_${selectedSpec.width}x${selectedSpec.height}_clean.jpg`);
                             }
                           }}
+                          data-download-result="true"
                           className="flex-1 py-3 btn-3d-sunset text-white rounded-2xl text-sm font-bold flex items-center justify-center space-x-2"
                         >
                           <Download className="w-4 h-4" />
@@ -703,6 +704,7 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
 
                       <button
                         onClick={handleGenerateSheet}
+                        data-primary-action="true"
                         disabled={isProcessing}
                         className="w-full py-3 btn-3d-secondary rounded-2xl text-sm font-bold flex items-center justify-center space-x-2"
                       >

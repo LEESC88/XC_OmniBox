@@ -979,6 +979,7 @@ export default function AiToolbox({
             {/* 立即执行按钮 */}
             <button
               onClick={handleExecuteBgRemoval}
+              data-primary-action="true"
               disabled={bgLoading || !bgFile}
               className="w-full py-3.5 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 btn-3d-sunset active:scale-95"
             >

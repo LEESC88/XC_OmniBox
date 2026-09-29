@@ -47,6 +47,7 @@ import {
   Captions,
   Clock,
   Mic,
+  Keyboard,
 } from "lucide-react";
 import CoconutLogo from "@/components/CoconutLogo";
 import Dropzone from "@/components/Dropzone";
@@ -63,6 +64,8 @@ import ImagesToPdfStudio from "@/components/pdf/ImagesToPdfStudio";
 import PdfOrganizeStudio from "@/components/pdf/PdfOrganizeStudio";
 import UpdateModal from "@/components/UpdateModal";
 import SettingsModal from "@/components/SettingsModal";
+import ShortcutsModal from "@/components/ShortcutsModal";
+import { shortcutBus } from "@/lib/shortcutBus";
 import CatPawLogo from "@/components/CatPawLogo";
 import { useI18n, getLocalizedTools } from "@/lib/i18n";
 import {
@@ -575,6 +578,206 @@ export default function Home() {
   // 客户端自动更新弹窗状态
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
+
+  // 快捷键指南弹窗状态与全局提示
+  const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState<{ id: number; message: string } | null>(null);
+
+  const showToast = (message: string) => {
+    const id = Date.now();
+    setToastMsg({ id, message });
+    setTimeout(() => {
+      setToastMsg((curr) => (curr?.id === id ? null : curr));
+    }, 2500);
+  };
+
+  // 全局快捷键监听 (Ctrl+Enter, Ctrl+S, Ctrl+,, Ctrl+/, Ctrl+1~5, Esc)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+      const target = e.target as HTMLElement | null;
+      const isEditable =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+
+      if (e.key === "Escape") {
+        if (shortcutsModalOpen) {
+          setShortcutsModalOpen(false);
+          e.preventDefault();
+          return;
+        }
+        if (settingsModalOpen) {
+          setSettingsModalOpen(false);
+          e.preventDefault();
+          return;
+        }
+        if (updateModalOpen) {
+          setUpdateModalOpen(false);
+          e.preventDefault();
+          return;
+        }
+      }
+
+      if (isCtrlOrCmd) {
+        if (e.key === "/") {
+          e.preventDefault();
+          setShortcutsModalOpen((prev) => !prev);
+          return;
+        }
+
+        if (e.key === ",") {
+          e.preventDefault();
+          setSettingsModalOpen(true);
+          return;
+        }
+
+        if (!isEditable && ["1", "2", "3", "4", "5"].includes(e.key)) {
+          e.preventDefault();
+          const moduleMap: Record<string, ModuleType> = {
+            "1": "document",
+            "2": "image",
+            "3": "audio",
+            "4": "utilities",
+            "5": "ai",
+          };
+          const targetMod = moduleMap[e.key];
+          if (targetMod) {
+            setActiveModule(targetMod);
+            showToast(
+              lang === "en"
+                ? `Switched to ${targetMod.toUpperCase()}`
+                : `已切换至「${TOOLS_REGISTRY.find((r) => r.module === targetMod)?.category || targetMod}」`
+            );
+          }
+          return;
+        }
+
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const primaryBtn = document.querySelector<HTMLButtonElement>(
+            '[data-primary-action="true"]'
+          );
+          if (primaryBtn && !primaryBtn.disabled) {
+            primaryBtn.click();
+            showToast(lang === "en" ? "Action triggered via Ctrl+Enter" : "已通过 Ctrl+Enter 触发执行");
+          } else {
+            shortcutBus.emit("execute-primary");
+          }
+          return;
+        }
+
+        if (e.key.toLowerCase() === "s") {
+          e.preventDefault();
+          const downloadBtn = document.querySelector<HTMLButtonElement>(
+            '[data-download-result="true"]'
+          );
+          if (downloadBtn && !downloadBtn.disabled) {
+            downloadBtn.click();
+            showToast(lang === "en" ? "Downloaded via Ctrl+S" : "已通过 Ctrl+S 触发快捷下载");
+          } else if (executionResult) {
+            downloadBlob(executionResult.blob, executionResult.filename);
+            showToast(lang === "en" ? "Downloaded via Ctrl+S" : "已通过 Ctrl+S 触发快捷下载");
+          } else {
+            shortcutBus.emit("download-result");
+          }
+          return;
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [shortcutsModalOpen, settingsModalOpen, updateModalOpen, lang, executionResult]);
+
+  // 全局智能剪贴板粘贴监听 (Ctrl+V 粘贴图片/文本至当前工具)
+  useEffect(() => {
+    const handleGlobalPaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isEditable =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+
+      if (isEditable) return;
+
+      const items = e.clipboardData?.items;
+      if (items && items.length > 0) {
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (item.type.startsWith("image/")) {
+            const file = item.getAsFile();
+            if (file) {
+              e.preventDefault();
+              const namedFile = new File(
+                [file],
+                `pasted_image_${Date.now()}.${file.type.split("/")[1] || "png"}`,
+                { type: file.type, lastModified: Date.now() }
+              );
+
+              if (activeModule === "image") {
+                setIncomingImageFiles([namedFile]);
+                showToast(
+                  lang === "en"
+                    ? "Image pasted into Image Studio"
+                    : "已从剪贴板接收图片至图像工坊"
+                );
+              } else if (activeModule === "ai") {
+                setIncomingAiFile(namedFile);
+                showToast(
+                  lang === "en"
+                    ? "Image pasted into AI Studio"
+                    : "已从剪贴板接收图片至 AI 创意工坊"
+                );
+              } else if (activeModule === "utilities" && activeDailyTab === "idphoto") {
+                setIncomingIdPhotoFile(namedFile);
+                showToast(
+                  lang === "en"
+                    ? "Photo pasted into ID Photo Studio"
+                    : "已从剪贴板接收照片至证件照工坊"
+                );
+              } else if (activeModule === "document" && activeDocTab === "images-to-pdf") {
+                setFiles((prev) => [...prev, namedFile]);
+                showToast(
+                  lang === "en"
+                    ? "Image added to PDF queue"
+                    : "已从剪贴板添加图片至 PDF 队列"
+                );
+              } else {
+                setActiveModule("image");
+                setActiveImageTab("compress");
+                setIncomingImageFiles([namedFile]);
+                showToast(
+                  lang === "en"
+                    ? "Image recognized! Switched to Image Studio"
+                    : "识别到剪贴板图片！已自动切换至图像工坊"
+                );
+              }
+              return;
+            }
+          }
+        }
+      }
+
+      const text = e.clipboardData?.getData("text/plain");
+      if (text && text.trim().length > 0) {
+        if (activeModule === "utilities" && activeDailyTab === "diff") {
+          e.preventDefault();
+          setIncomingDiffText({ text, side: "original" });
+          showToast(
+            lang === "en"
+              ? "Pasted text into Article Diff (Original)"
+              : "已从剪贴板导入文本至文章对比（原版）"
+          );
+        }
+      }
+    };
+
+    window.addEventListener("paste", handleGlobalPaste);
+    return () => window.removeEventListener("paste", handleGlobalPaste);
+  }, [activeModule, activeDocTab, activeDailyTab, lang]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && (window as any).electronAPI) {
@@ -1363,6 +1566,14 @@ export default function Home() {
                   <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white dark:ring-darkbg-card animate-ping" />
                 )}
               </button>
+
+              <button
+                onClick={() => setShortcutsModalOpen(true)}
+                className="w-12 h-12 rounded-2xl border border-coconut-200/80 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-all active:scale-95 shadow-2xs group cursor-pointer"
+                title={lang === "en" ? "Shortcuts Guide (Ctrl + /)" : "快捷键指南 (Ctrl + /)"}
+              >
+                <Keyboard className="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform" />
+              </button>
             </>
           ) : (
             <>
@@ -1472,10 +1683,29 @@ export default function Home() {
                     </span>
                   ) : (
                     <span className="text-xs font-mono font-bold text-coconut-600 dark:text-darkbg-muted">
-                      v1.1.0
+                      v1.2.0
                     </span>
                   )}
                 </div>
+              </button>
+
+              {/* 快捷键指南卡片按钮 */}
+              <button
+                onClick={() => setShortcutsModalOpen(true)}
+                className="w-full flex items-center justify-between p-2.5 px-3.5 rounded-2xl border border-coconut-200/90 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle text-xs font-semibold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated transition-all active:scale-[0.98] shadow-2xs cursor-pointer group"
+                title={lang === "en" ? "Shortcuts Guide (Ctrl + /)" : "快捷键指南 (Ctrl + /)"}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-amber-50/90 dark:bg-[#2A2318] flex items-center justify-center border border-amber-200/80 dark:border-[#4A3E26] text-amber-600 dark:text-amber-400 flex-shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                    <Keyboard className="w-5 h-5 text-amber-500 transition-transform duration-300 group-hover:scale-110" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white">
+                    {lang === "en" ? "Shortcuts" : "快捷键指南"}
+                  </span>
+                </div>
+                <kbd className="px-2 py-0.5 text-[10px] font-mono font-bold bg-coconut-100 dark:bg-darkbg-elevated text-coconut-600 dark:text-darkbg-muted rounded border border-coconut-200 dark:border-darkbg-border">
+                  Ctrl + /
+                </kbd>
               </button>
             </>
           )}
@@ -2333,6 +2563,7 @@ export default function Home() {
                               executionResult.filename,
                             )
                           }
+                          data-download-result="true"
                           className="flex-1 py-3 px-4 rounded-xl btn-3d-sunset text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-coconut-sm"
                         >
                           <Download className="w-4 h-4" />
@@ -2356,6 +2587,7 @@ export default function Home() {
                   ) : (
                     <button
                       onClick={handleExecute}
+                      data-primary-action="true"
                       disabled={loading}
                       className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
                         loading
@@ -2402,6 +2634,21 @@ export default function Home() {
         onToggleTheme={toggleTheme}
         onOpenUpdateModal={() => setUpdateModalOpen(true)}
       />
+
+      {/* 全局快捷键指南速查面板 */}
+      <ShortcutsModal
+        isOpen={shortcutsModalOpen}
+        onClose={() => setShortcutsModalOpen(false)}
+        lang={lang}
+      />
+
+      {/* 快捷键与智能粘贴全局浮层 Toast */}
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-2xl bg-coconut-900/90 dark:bg-darkbg-elevated/95 backdrop-blur-md text-white text-xs font-semibold shadow-2xl border border-white/10 flex items-center gap-2.5 animate-slide-up pointer-events-none">
+          <Sparkles className="w-4 h-4 text-amber-400 animate-pulse flex-shrink-0" />
+          <span>{toastMsg.message}</span>
+        </div>
+      )}
     </div>
   );
 }

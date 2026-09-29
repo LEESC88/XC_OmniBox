@@ -1189,6 +1189,7 @@ export default function AudioToolbox({
 
                 <button
                   onClick={handleExportTrim}
+                  data-primary-action="true"
                   disabled={isProcessing}
                   className={`w-full sm:w-auto px-7 py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center space-x-2 transition-all ${
                     isProcessing
@@ -1233,6 +1234,7 @@ export default function AudioToolbox({
                   />
                   <button
                     onClick={() => downloadBlob(trimResult.blob, trimResult.filename)}
+                    data-download-result="true"
                     className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
                   >
                     <Download className="w-3.5 h-3.5" />

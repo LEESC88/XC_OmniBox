@@ -27,6 +27,23 @@
 
 ---
 
+## 🌟 What's New in v1.2.0
+
+- ⚡ **Global Productivity Shortcuts & Smart Clipboard**:
+  - Key shortcuts: `Ctrl + Enter` (Run current operation), `Ctrl + S` (Quick save/download generated result, intercepts browser save dialog), `Ctrl + 1~5` (Switch between the 5 primary modules instantly), `Ctrl + ,` (Preferences), `Ctrl + /` (Toggle shortcuts cheat sheet).
+  - Global Smart Clipboard (`Ctrl + V`): Paste copied images anywhere to automatically route into Image Studio, AI Studio, or ID Photo Studio; paste text directly into Article Diff.
+- 🔗 **Zero-Copy Tool Chaining & Data Pipeline**:
+  - Eliminates workflow silos with an in-memory `toolBus`. Every output card features a **"Send to..."** action menu.
+  - Seamlessly pipe AI Cutouts $\to$ ID Photos/Image Compression, Audio/Video Subtitles $\to$ Article Diff, Video Audio Extraction $\to$ Audio Trimmer/Transcoder/Karaoke without redundant disk I/O.
+- 🛡️ **Python Backend Self-Healing Supervisor**:
+  - Native Electron process supervisor with automatic health probing and crash recovery (exponential backoff up to 5 attempts).
+  - Frontend `apiFetch` interceptor automatically triggers background revival and transparently retries interrupted network calls.
+- 🚀 **Batch Concurrency Pipeline & Squoosh Quality Comparison**:
+  - Worker concurrency pool (4 workers), pause/cancel/retry controls, overall progress bar with remaining time estimation (ETA), and one-click ZIP packaging.
+  - Squoosh-style interactive split-screen quality comparison slider.
+
+---
+
 ## 🌟 What's New in v1.1.0
 
 - 🤖 **All-New AI Magic Studio Extensions**:
@@ -80,7 +97,7 @@
 
 ### Windows Installer (x64)
 Download the latest Windows installer directly from [GitHub Releases](https://github.com/LEESC88/XC_OmniBox/releases/latest):
-- **`XC_OmniBox-Setup-1.1.0.exe`**
+- **`XC_OmniBox-Setup-1.2.0.exe`**
 
 ---
 

@@ -27,6 +27,22 @@
 
 ---
 
+## 🌟 v1.2.0 重大更新亮点 / What's New in v1.2.0
+
+- ⚡ **全局快捷键与效率系统 (Productivity Shortcuts)**：
+  - 核心快捷键：`Ctrl + Enter` (执行当前操作)、`Ctrl + S` (一键快速下载结果，拦截默认网页另存)、`Ctrl + 1~5` (五大模块瞬间切换)、`Ctrl + ,` (系统偏好设置)、`Ctrl + /` (呼出/隐藏快捷键速查面板)。
+  - 全局智能剪贴板（`Ctrl + V`）：在任意界面按 `Ctrl + V` 自动识别图片并智能分发至图像压缩/AI/证件照等当前工坊；文本自动填入文章比对。
+- 🔗 **全功能跨工具无损联动流 (Tool Chaining / Pipeline)**：
+  - 彻底打破功能孤岛，新增内存级零拷贝流转总线（`toolBus`），各工具输出卡片全面集成 **“发送至 (Send to...)”** 快捷通道。
+  - 支持 AI 抠图 $\to$ 证件照/图片压缩、音视频字幕/OCR $\to$ 文章比对校对、视频音频剥离 $\to$ 截取/转码/卡拉OK伴奏，全程内存 `Blob` 零磁盘冗余读写。
+- 🛡️ **Python 守护进程自愈主管 (Process Resiliency Supervisor)**：
+  - Electron 主进程内嵌后端健康守护监控与崩溃自愈拉起机制（指数退避重启，最多 5 次），前端 API 网络拦截器在进程闪退或网络重连时自动透明重试，彻底解决后端中断导致的白屏无响应。
+- 🚀 **批量并发调度池与微距画质对比 (Batch Concurrency & Quality Compare)**：
+  - 批量图片与音频转码支持多 Worker 并发队列调度，提供任务级取消/重试、总体进度条与剩余时间预估（ETA），支持一键打包 Zip 导出。
+  - 集成 Squoosh 级交互式分屏微距滑动对比，压缩质量细节肉眼可见。
+
+---
+
 ## 🌟 v1.1.0 重大更新亮点 / What's New in v1.1.0
 
 - 🤖 **全新 AI 创新工坊三合一**：
@@ -80,7 +96,7 @@
 
 ### 下载预编译安装包 (Windows)
 前往 [GitHub Releases](https://github.com/LEESC88/XC_OmniBox/releases/latest) 下载最新的 Windows 64 位安装程序：
-- **`XC_OmniBox-Setup-1.1.0.exe`**
+- **`XC_OmniBox-Setup-1.2.0.exe`**
 
 ---
 

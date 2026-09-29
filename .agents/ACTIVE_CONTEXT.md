@@ -1,16 +1,16 @@
-# Active Architecture Context: P1 Completed
+# Active Architecture Context: P3 Completed & Release 1.2.0
 
-## 1. Status: P1 Complete, Ready for P2
-- P1-1 Tool Chaining: Zero-copy File/Blob/Text bus active across all toolboxes.
-- P1-2 Self-Healing: Supervisor auto-recovers Python backend with transparent retry.
+## 1. Status: P3 Shortcuts & Release 1.2.0 Complete
+- P3-1 Shortcuts: Ctrl+Enter (Run), Ctrl+S (Save), Ctrl+1~5 (Nav), Ctrl+/, Ctrl+,, Esc.
+- P3-2 Smart Clipboard: Ctrl+V global auto-routing for images and text.
+- Release: Version bumped to 1.2.0 across frontend, backend, electron, docs.
 
 ## 2. Core Contracts & APIs
-- `toolBus.emit(target, payload)`: In-memory pipeline between tools.
-- `SendToButton`: Quick-action tool redirection on all output artifacts.
-- IPC `backend:restart` & `backend:check-health`: Process supervisor in `main.js`.
-- `apiFetch` in `api.ts`: Auto-restarts backend on network fail and retries.
+- `shortcutBus`: Central event bus for execution and download triggers.
+- `[data-primary-action="true"]`: Universal DOM hook for primary execution.
+- `[data-download-result="true"]`: Universal DOM hook for quick result download.
+- `ShortcutsModal.tsx`: Visual cheat sheet for all system shortcuts.
 
 ## 3. Boundary & Error Isolation
-- In-memory ObjectURL/Blob conversion prevents redundant disk write cycles.
-- Subscriptions clean up on unmount to prevent memory leaks.
-- Supervisor respects `isQuitting` flag to avoid zombie processes.
+- Clipboard listener ignores inputs/textareas to protect text entry.
+- Keydown handler intercepts Ctrl+S to prevent default browser page save.
