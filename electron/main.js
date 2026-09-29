@@ -422,6 +422,35 @@ function setupSettingsIPC() {
       return false;
     }
   });
+
+  ipcMain.handle('files:save-batch', async (_e, { files, targetFolder }) => {
+    let outDir = targetFolder || desktopConfig.customExportPath;
+    if (!outDir) {
+      try {
+        outDir = app.getPath('downloads');
+      } catch (_) {
+        outDir = process.cwd();
+      }
+    }
+    if (!fs.existsSync(outDir)) {
+      fs.mkdirSync(outDir, { recursive: true });
+    }
+    const savedPaths = [];
+    for (const f of files) {
+      const sanitizedName = path.basename(f.name);
+      let filePath = path.join(outDir, sanitizedName);
+      let count = 1;
+      const parsed = path.parse(sanitizedName);
+      while (fs.existsSync(filePath)) {
+        filePath = path.join(outDir, `${parsed.name}_(${count})${parsed.ext}`);
+        count++;
+      }
+      const buffer = Buffer.from(f.buffer);
+      await fs.promises.writeFile(filePath, buffer);
+      savedPaths.push(filePath);
+    }
+    return { success: true, folder: outDir, count: savedPaths.length };
+  });
 }
 
 // 单例锁：防止用户重复打开多个客户端实例

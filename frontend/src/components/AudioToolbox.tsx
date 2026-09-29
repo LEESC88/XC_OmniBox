@@ -48,6 +48,13 @@ import { createZipBundle } from "@/lib/imageProcessor";
 import { downloadBlob } from "@/lib/api";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
 import { useI18n } from "@/lib/i18n";
+import BatchQueueProgress from "@/components/BatchQueueProgress";
+import {
+  BatchTaskItem,
+  BatchProgressSummary,
+  executeBatchQueue,
+  exportBatchFiles,
+} from "@/lib/batchQueueManager";
 
 export type AudioToolTab = "trim" | "convert" | "merge" | "extract" | "volume" | "speed" | "karaoke";
 
@@ -124,6 +131,18 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
   const [convertTargetFormat, setConvertTargetFormat] = useState<"mp3" | "wav">("mp3");
   const [convertKbps, setConvertKbps] = useState(320);
   const [convertResults, setConvertResults] = useState<AudioResult[]>([]);
+  const [convertConcurrency, setConvertConcurrency] = useState(3);
+  const [convertQueueItems, setConvertQueueItems] = useState<BatchTaskItem<File, AudioResult>[]>([]);
+  const [convertQueueSummary, setConvertQueueSummary] = useState<BatchProgressSummary>({
+    total: 0,
+    completed: 0,
+    failed: 0,
+    active: 0,
+    waiting: 0,
+    percent: 0,
+    etaSeconds: null,
+  });
+  const convertAbortCtrlRef = useRef<AbortController | null>(null);
 
   // ================= 3. 音频合并状态 =================
   const [mergeTracks, setMergeTracks] = useState<MergeTrack[]>([]);
@@ -400,60 +419,152 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
     }
   };
 
-  // ================= 2. 格式批量转码 =================
-  const handleExecuteConvert = async () => {
-    if (convertFiles.length === 0) return;
+  // ================= 2. 格式批量转码 (并发队列与错误隔离) =================
+  const processSingleAudio = async (
+    item: BatchTaskItem<File, AudioResult>,
+    reportProgress: (pct: number) => void
+  ): Promise<AudioResult> => {
+    const file = item.raw;
+    reportProgress(20);
+    const buffer = await decodeAudioFile(file);
+    reportProgress(60);
+    const { blob, ext } = await exportAudioBuffer(buffer, convertTargetFormat, convertKbps);
+    reportProgress(100);
+    const baseName = file.name.replace(/\.[^/.]+$/, "");
+    return {
+      id: `conv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      originalName: file.name,
+      originalSize: file.size,
+      newFilename: `${baseName}.${ext}`,
+      newSize: blob.size,
+      blob,
+      duration: buffer.duration,
+    };
+  };
+
+  const runConvertPipeline = async (tasks: BatchTaskItem<File, AudioResult>[]) => {
     setIsProcessing(true);
     setError(null);
-    const results: AudioResult[] = [];
+    const abortCtrl = new AbortController();
+    convertAbortCtrlRef.current = abortCtrl;
 
     try {
-      for (let i = 0; i < convertFiles.length; i++) {
-        const file = convertFiles[i];
-        setProgressMsg(lang === "en" ? `Transcoding (${i + 1}/${convertFiles.length}): ${file.name}` : `正在转码 (${i + 1}/${convertFiles.length}): ${file.name}`);
-        const buffer = await decodeAudioFile(file);
-        const { blob, ext } = await exportAudioBuffer(buffer, convertTargetFormat, convertKbps);
-        const baseName = file.name.replace(/\.[^/.]+$/, "");
-        results.push({
-          id: `conv_${Date.now()}_${i}`,
-          originalName: file.name,
-          originalSize: file.size,
-          newFilename: `${baseName}.${ext}`,
-          newSize: blob.size,
-          blob,
-          duration: buffer.duration,
-        });
-      }
-      setConvertResults(results);
+      const { items: updatedItems } = await executeBatchQueue(tasks, processSingleAudio, {
+        concurrency: convertConcurrency,
+        signal: abortCtrl.signal,
+        onProgress: (sum) => setConvertQueueSummary({ ...sum }),
+        onItemUpdate: (updated) => {
+          setConvertQueueItems((prev) => prev.map((it) => (it.id === updated.id ? { ...updated } : it)));
+        },
+      });
+
+      const completed = updatedItems
+        .filter((it) => it.status === "completed" && it.result)
+        .map((it) => it.result!);
+      setConvertResults(completed);
     } catch (err: any) {
-      setError((lang === "en" ? "Batch convert failed: " : "批量格式转码失败: ") + err.message);
+      setError(err?.message || (lang === "en" ? "Batch convert failed" : "批量格式转码失败"));
     } finally {
       setIsProcessing(false);
-      setProgressMsg("");
+      convertAbortCtrlRef.current = null;
     }
   };
 
-  // ================= 3. 音频多段拼接 =================
+  const handleExecuteConvert = async () => {
+    if (convertFiles.length === 0) return;
+    const tasks: BatchTaskItem<File, AudioResult>[] = convertFiles.map((file, i) => ({
+      id: `audio_task_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`,
+      name: file.name,
+      size: file.size,
+      raw: file,
+      status: "waiting",
+      progress: 0,
+    }));
+    setConvertQueueItems(tasks);
+    await runConvertPipeline(tasks);
+  };
+
+  const handleRetryConvertItem = async (itemId: string) => {
+    const updated = convertQueueItems.map((it) =>
+      it.id === itemId ? { ...it, status: "waiting" as const, error: undefined, progress: 0 } : it
+    );
+    setConvertQueueItems(updated);
+    await runConvertPipeline(updated);
+  };
+
+  const handleRetryAllFailedConvert = async () => {
+    const updated = convertQueueItems.map((it) =>
+      it.status === "error" || it.status === "cancelled"
+        ? { ...it, status: "waiting" as const, error: undefined, progress: 0 }
+        : it
+    );
+    setConvertQueueItems(updated);
+    await runConvertPipeline(updated);
+  };
+
+  const handleCancelConvertQueue = () => {
+    if (convertAbortCtrlRef.current) {
+      convertAbortCtrlRef.current.abort();
+    }
+    setIsProcessing(false);
+  };
+
+  const handleExportConvertAll = async () => {
+    if (convertResults.length === 0) return;
+    try {
+      const items = convertResults.map((r) => ({ blob: r.blob, filename: r.newFilename }));
+      const zipName = `XC_Converted_Audio_${Date.now()}.zip`;
+      await exportBatchFiles(items, { zipName, lang });
+    } catch (err: any) {
+      setError((lang === "en" ? "Failed to export audio files: " : "导出音频文件失败: ") + err.message);
+    }
+  };
+
+  // ================= 3. 音频多段拼接 (并发解析音轨) =================
   const handleAddMergeTracks = async (files: FileList | null) => {
-    if (!files) return;
+    if (!files || files.length === 0) return;
     setIsProcessing(true);
-    setProgressMsg(lang === "en" ? "Parsing track data..." : "正在解析音轨数据...");
+    setProgressMsg(lang === "en" ? "Decoding audio tracks in parallel..." : "正在并发解析音轨数据...");
+    const fileArray = Array.from(files);
     const incoming: MergeTrack[] = [];
 
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      try {
-        const buf = await decodeAudioFile(f);
-        incoming.push({
-          id: `track_${Date.now()}_${Math.random()}`,
-          file: f,
-          name: f.name,
-          size: f.size,
+    const trackTasks: BatchTaskItem<File, MergeTrack>[] = fileArray.map((f, i) => ({
+      id: `merge_item_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`,
+      name: f.name,
+      size: f.size,
+      raw: f,
+      status: "waiting",
+      progress: 0,
+    }));
+
+    await executeBatchQueue(
+      trackTasks,
+      async (item) => {
+        const buf = await decodeAudioFile(item.raw);
+        return {
+          id: `track_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          file: item.raw,
+          name: item.raw.name,
+          size: item.raw.size,
           duration: buf.duration,
           buffer: buf,
-        });
-      } catch (err) {
-        console.error(lang === "en" ? "Failed to load clip" : "加载片段失败", f.name);
+        };
+      },
+      {
+        concurrency: 3,
+        onProgress: (sum) => {
+          setProgressMsg(
+            lang === "en"
+              ? `Decoding audio tracks (${sum.completed}/${sum.total})...`
+              : `正在并行解码音轨 (${sum.completed}/${sum.total})...`
+          );
+        },
+      }
+    );
+
+    for (const t of trackTasks) {
+      if (t.status === "completed" && t.result) {
+        incoming.push(t.result);
       }
     }
 
@@ -1206,14 +1317,35 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                 </span>
                 <button
                   onClick={() => {
+                    if (convertAbortCtrlRef.current) convertAbortCtrlRef.current.abort();
                     setConvertFiles([]);
+                    setConvertQueueItems([]);
                     setConvertResults([]);
+                    setConvertQueueSummary({ total: 0, completed: 0, failed: 0, active: 0, waiting: 0, percent: 0, etaSeconds: null });
                   }}
                   className="text-xs text-rose-500 hover:text-rose-600 font-medium"
                 >
                   {lang === "en" ? "Clear List" : "清空列表"}
                 </button>
               </div>
+
+              {/* 批量并发队列进度监控面板 */}
+              {convertQueueItems.length > 0 && (
+                <BatchQueueProgress
+                  summary={convertQueueSummary}
+                  items={convertQueueItems}
+                  isProcessing={isProcessing}
+                  concurrency={convertConcurrency}
+                  onConcurrencyChange={setConvertConcurrency}
+                  onCancel={handleCancelConvertQueue}
+                  onRetryItem={handleRetryConvertItem}
+                  onRetryAllFailed={handleRetryAllFailedConvert}
+                  onExportAll={handleExportConvertAll}
+                  exportLabel={lang === "en" ? "Export All" : "一键导出全部音频"}
+                  title={lang === "en" ? "Audio Transcoding Queue" : "音频批量转码队列"}
+                  lang={lang}
+                />
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {convertFiles.map((f, i) => (
@@ -1229,29 +1361,25 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                 ))}
               </div>
 
-              <div className="flex justify-end pt-2">
-                <button
-                  onClick={handleExecuteConvert}
-                  disabled={isProcessing}
-                  className={`px-6 py-3 rounded-2xl text-xs font-bold flex items-center space-x-2 transition-all ${
-                    isProcessing
-                      ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
-                      : "btn-3d-sunset text-white"
-                  }`}
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>{lang === "en" ? "Transcoding in parallel..." : "正在并行转码中..."}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 text-amber-200" />
-                      <span>{lang === "en" ? "Start Batch Transcoding" : "开始批量转码"}</span>
-                    </>
-                  )}
-                </button>
-              </div>
+              {!isProcessing && (
+                <div className="flex justify-end pt-2">
+                  <button
+                    onClick={handleExecuteConvert}
+                    className="px-6 py-3 rounded-2xl text-xs font-bold flex items-center space-x-2 transition-all btn-3d-sunset text-white"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-200" />
+                    <span>
+                      {convertQueueItems.length > 0
+                        ? lang === "en"
+                          ? `Re-transcode All (${convertFiles.length} files)`
+                          : `重新并发转码全部 (${convertFiles.length} 首)`
+                        : lang === "en"
+                        ? `Start Batch Transcoding (${convertFiles.length} files)`
+                        : `开始批量并发转码 (${convertFiles.length} 首)`}
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -1268,15 +1396,11 @@ export default function AudioToolbox({ currentTab, onTabChange }: AudioToolboxPr
                   </span>
                 </div>
                 <button
-                  onClick={async () => {
-                    const items = convertResults.map((r) => ({ blob: r.blob, filename: r.newFilename }));
-                    const { blob, filename } = await createZipBundle(items, `XC_Converted_Audio_${Date.now()}.zip`);
-                    downloadBlob(blob, filename);
-                  }}
+                  onClick={handleExportConvertAll}
                   className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
                 >
                   <Archive className="w-3.5 h-3.5" />
-                  <span>{lang === "en" ? "Download All as ZIP" : "一键打包下载 (ZIP)"}</span>
+                  <span>{lang === "en" ? "Export All" : "一键导出全部"}</span>
                 </button>
               </div>
 

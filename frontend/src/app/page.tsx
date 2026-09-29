@@ -103,8 +103,21 @@ type DocTabType =
   | "images-to-pdf"
   | "pdf-protect";
 
-type ImageTabType = "compress" | "heic" | "convert" | "resize" | "exif" | "watermark";
-type AudioTabType = "trim" | "convert" | "merge" | "extract" | "volume" | "speed" | "karaoke";
+type ImageTabType =
+  | "compress"
+  | "heic"
+  | "convert"
+  | "resize"
+  | "exif"
+  | "watermark";
+type AudioTabType =
+  | "trim"
+  | "convert"
+  | "merge"
+  | "extract"
+  | "volume"
+  | "speed"
+  | "karaoke";
 type DailyTabType = "idphoto" | "qrcode" | "diff" | "dev";
 type ModuleType = "document" | "image" | "audio" | "utilities" | "ai";
 
@@ -118,22 +131,107 @@ interface ToolItem {
   keywords: string[];
 }
 
-const TOOLS_REGISTRY: { category: string; module: ModuleType; icon: any; tools: ToolItem[] }[] = [
+const TOOLS_REGISTRY: {
+  category: string;
+  module: ModuleType;
+  icon: any;
+  tools: ToolItem[];
+}[] = [
   {
     category: "文档处理与 PDF",
     module: "document",
     icon: FileText,
     tools: [
-      { id: "pdf-edit", module: "document", name: "PDF 在线原位编辑", desc: "1:1 原版排版就地改字与图层修改", badge: "Word级", icon: Edit3, keywords: ["pdf", "编辑", "改字", "修改", "word"] },
-      { id: "pdf-to-word", module: "document", name: "PDF 逆向转 Word", desc: "高保真提取表格与文本排版", badge: "推荐", icon: FileText, keywords: ["pdf", "转word", "提取", "转换", "docx"] },
-      { id: "word-to-pdf", module: "document", name: "Word 转超清 PDF", desc: "打印级矢量无损输出保留清晰度", badge: "300DPI", icon: FileCode2, keywords: ["word", "转pdf", "超清", "无损", "打印"] },
-      { id: "pdf-merge", module: "document", name: "多 PDF 拼合合并", desc: "多文件按需排序混编整合", badge: "多选", icon: Combine, keywords: ["pdf", "合并", "拼接", "多文件"] },
-      { id: "pdf-split", module: "document", name: "PDF 拆分与范围提取", desc: "按页码区间抽取指定页面", badge: "范围", icon: Scissors, keywords: ["pdf", "拆分", "提取", "截取", "分割"] },
-      { id: "pdf-organize", module: "document", name: "PDF 页面可视化调度", desc: "拖拽调序、单页独立旋转 90°/180°、剔除废页", badge: "画板", icon: Layers, keywords: ["pdf", "页面", "排序", "调序", "旋转", "删减", "画板"] },
-      { id: "pdf-watermark", module: "document", name: "PDF 文字印章水印", desc: "倾斜半透明防伪防盗用标记", badge: "水印", icon: Stamp, keywords: ["pdf", "水印", "文字", "印章", "防伪"] },
-      { id: "pdf-compress", module: "document", name: "PDF 智能极限压缩", desc: "消除冗余流与高保真图像下采样，大幅瘦身体积", badge: "省80%", icon: Minimize2, keywords: ["pdf", "压缩", "瘦身", "减小", "体积", "优化"] },
-      { id: "images-to-pdf", module: "document", name: "多图一键合成 PDF", desc: "多张图片拖拽排序，自由合成单页或 A4 标准文档", badge: "高保真", icon: Combine, keywords: ["图片", "jpg", "png", "转pdf", "合成", "相册"] },
-      { id: "pdf-protect", module: "document", name: "文档密码权限保护", desc: "AES 高强度加密限制阅读打印", badge: "安全", icon: Lock, keywords: ["pdf", "密码", "加密", "保护", "权限"] },
+      {
+        id: "pdf-edit",
+        module: "document",
+        name: "PDF 在线原位编辑",
+        desc: "1:1 原版排版就地改字与图层修改",
+        badge: "Word级",
+        icon: Edit3,
+        keywords: ["pdf", "编辑", "改字", "修改", "word"],
+      },
+      {
+        id: "pdf-to-word",
+        module: "document",
+        name: "PDF 逆向转 Word",
+        desc: "高保真提取表格与文本排版",
+        badge: "推荐",
+        icon: FileText,
+        keywords: ["pdf", "转word", "提取", "转换", "docx"],
+      },
+      {
+        id: "word-to-pdf",
+        module: "document",
+        name: "Word 转超清 PDF",
+        desc: "打印级矢量无损输出保留清晰度",
+        badge: "300DPI",
+        icon: FileCode2,
+        keywords: ["word", "转pdf", "超清", "无损", "打印"],
+      },
+      {
+        id: "pdf-merge",
+        module: "document",
+        name: "多 PDF 拼合合并",
+        desc: "多文件按需排序混编整合",
+        badge: "多选",
+        icon: Combine,
+        keywords: ["pdf", "合并", "拼接", "多文件"],
+      },
+      {
+        id: "pdf-split",
+        module: "document",
+        name: "PDF 拆分与范围提取",
+        desc: "按页码区间抽取指定页面",
+        badge: "范围",
+        icon: Scissors,
+        keywords: ["pdf", "拆分", "提取", "截取", "分割"],
+      },
+      {
+        id: "pdf-organize",
+        module: "document",
+        name: "PDF 页面可视化调度",
+        desc: "拖拽调序、单页独立旋转 90°/180°、剔除废页",
+        badge: "画板",
+        icon: Layers,
+        keywords: ["pdf", "页面", "排序", "调序", "旋转", "删减", "画板"],
+      },
+      {
+        id: "pdf-watermark",
+        module: "document",
+        name: "PDF 文字印章水印",
+        desc: "倾斜半透明防伪防盗用标记",
+        badge: "水印",
+        icon: Stamp,
+        keywords: ["pdf", "水印", "文字", "印章", "防伪"],
+      },
+      {
+        id: "pdf-compress",
+        module: "document",
+        name: "PDF 智能极限压缩",
+        desc: "消除冗余流与高保真图像下采样，大幅瘦身体积",
+        badge: "省80%",
+        icon: Minimize2,
+        keywords: ["pdf", "压缩", "瘦身", "减小", "体积", "优化"],
+      },
+      {
+        id: "images-to-pdf",
+        module: "document",
+        name: "多图一键合成 PDF",
+        desc: "多张图片拖拽排序，自由合成单页或 A4 标准文档",
+        badge: "高保真",
+        icon: Combine,
+        keywords: ["图片", "jpg", "png", "转pdf", "合成", "相册"],
+      },
+      {
+        id: "pdf-protect",
+        module: "document",
+        name: "文档密码权限保护",
+        desc: "AES 高强度加密限制阅读打印",
+        badge: "安全",
+        icon: Lock,
+        keywords: ["pdf", "密码", "加密", "保护", "权限"],
+      },
     ],
   },
   {
@@ -141,12 +239,60 @@ const TOOLS_REGISTRY: { category: string; module: ModuleType; icon: any; tools: 
     module: "image",
     icon: ImageIcon,
     tools: [
-      { id: "compress", module: "image", name: "智能极速压缩", desc: "TinyPNG 级高质量无损减容", badge: "省90%", icon: Zap, keywords: ["图片", "压缩", "缩小", "体积", "tinypng"] },
-      { id: "heic", module: "image", name: "苹果 HEIC 秒转", desc: "iPhone 实况与原图转 JPEG/PNG", badge: "苹果", icon: Apple, keywords: ["heic", "苹果", "iphone", "照片", "转jpg"] },
-      { id: "convert", module: "image", name: "万能格式互转", desc: "WebP / JPG / PNG / ICO 任意互转", badge: "全格式", icon: RefreshCw, keywords: ["图片", "格式", "转换", "webp", "ico", "png"] },
-      { id: "resize", module: "image", name: "尺寸精细缩放", desc: "证件照、社媒封面与壁纸预设", badge: "预设", icon: Maximize2, keywords: ["图片", "缩放", "尺寸", "分辨率", "裁剪"] },
-      { id: "exif", module: "image", name: "EXIF 隐私抹除", desc: "抹去 GPS 位置与相机设备信息", badge: "防泄密", icon: ShieldCheck, keywords: ["exif", "隐私", "gps", "定位", "元数据"] },
-      { id: "watermark", module: "image", name: "批量防盗水印", desc: "文字满铺与品牌 Logo 贴图盖章", badge: "防盗", icon: Stamp, keywords: ["图片", "水印", "logo", "版权", "盖章"] },
+      {
+        id: "compress",
+        module: "image",
+        name: "智能极速压缩",
+        desc: "TinyPNG 级高质量无损减容",
+        badge: "省90%",
+        icon: Zap,
+        keywords: ["图片", "压缩", "缩小", "体积", "tinypng"],
+      },
+      {
+        id: "heic",
+        module: "image",
+        name: "苹果 HEIC 秒转",
+        desc: "iPhone 实况与原图转 JPEG/PNG",
+        badge: "苹果",
+        icon: Apple,
+        keywords: ["heic", "苹果", "iphone", "照片", "转jpg"],
+      },
+      {
+        id: "convert",
+        module: "image",
+        name: "万能格式互转",
+        desc: "WebP / JPG / PNG / ICO 任意互转",
+        badge: "全格式",
+        icon: RefreshCw,
+        keywords: ["图片", "格式", "转换", "webp", "ico", "png"],
+      },
+      {
+        id: "resize",
+        module: "image",
+        name: "尺寸精细缩放",
+        desc: "证件照、社媒封面与壁纸预设",
+        badge: "预设",
+        icon: Maximize2,
+        keywords: ["图片", "缩放", "尺寸", "分辨率", "裁剪"],
+      },
+      {
+        id: "exif",
+        module: "image",
+        name: "EXIF 隐私抹除",
+        desc: "抹去 GPS 位置与相机设备信息",
+        badge: "防泄密",
+        icon: ShieldCheck,
+        keywords: ["exif", "隐私", "gps", "定位", "元数据"],
+      },
+      {
+        id: "watermark",
+        module: "image",
+        name: "批量防盗水印",
+        desc: "文字满铺与品牌 Logo 贴图盖章",
+        badge: "防盗",
+        icon: Stamp,
+        keywords: ["图片", "水印", "logo", "版权", "盖章"],
+      },
     ],
   },
   {
@@ -154,13 +300,69 @@ const TOOLS_REGISTRY: { category: string; module: ModuleType; icon: any; tools: 
     module: "audio",
     icon: Music,
     tools: [
-      { id: "trim", module: "audio", name: "无损音频剪辑", desc: "毫秒级波形试听裁剪、卡点与铃声制作", badge: "波形", icon: Scissors, keywords: ["音频", "剪切", "剪辑", "音乐", "铃声"] },
-      { id: "convert", module: "audio", name: "音频格式转码", desc: "MP3 / WAV 高保真音频批量互转", badge: "320K", icon: RefreshCw, keywords: ["音频", "转码", "格式", "mp3", "wav", "flac"] },
-      { id: "merge", module: "audio", name: "多音频无缝拼接", desc: "多音轨按顺序无缝混流串烧", badge: "串烧", icon: Combine, keywords: ["音频", "拼接", "合并", "混流", "串烧"] },
-      { id: "extract", module: "audio", name: "视频原声提取", desc: "MP4 / MKV 视频画面预览并按需截取原声", badge: "声画同步", icon: Film, keywords: ["视频", "提取", "伴奏", "mp4", "音频"] },
-      { id: "volume", module: "audio", name: "音量与人声清晰化", desc: "0%~300% 动态放大、滤除空调杂音底噪与广播级防爆音", badge: "清晰化", icon: Volume2, keywords: ["音量", "放大", "增益", "降噪", "去杂音"] },
-      { id: "speed", module: "audio", name: "音频倍速与倒放", desc: "0.5x~2.0x 变速不变调与短视频趣味倒放", badge: "倍速/倒放", icon: Clock, keywords: ["变速", "倍速", "倒放", "快放", "慢放"] },
-      { id: "karaoke", module: "audio", name: "卡拉OK伴奏提取", desc: "中央声道人声消除与低音保留，一键做伴奏", badge: "一键伴奏", icon: Mic, keywords: ["伴奏", "消人声", "卡拉ok", "ktv", "人声提取"] },
+      {
+        id: "trim",
+        module: "audio",
+        name: "无损音频剪辑",
+        desc: "毫秒级波形试听裁剪、卡点与铃声制作",
+        badge: "波形",
+        icon: Scissors,
+        keywords: ["音频", "剪切", "剪辑", "音乐", "铃声"],
+      },
+      {
+        id: "convert",
+        module: "audio",
+        name: "音频格式转码",
+        desc: "MP3 / WAV 高保真音频批量互转",
+        badge: "320K",
+        icon: RefreshCw,
+        keywords: ["音频", "转码", "格式", "mp3", "wav", "flac"],
+      },
+      {
+        id: "merge",
+        module: "audio",
+        name: "多音频无缝拼接",
+        desc: "多音轨按顺序无缝混流串烧",
+        badge: "串烧",
+        icon: Combine,
+        keywords: ["音频", "拼接", "合并", "混流", "串烧"],
+      },
+      {
+        id: "extract",
+        module: "audio",
+        name: "视频原声提取",
+        desc: "MP4 / MKV 视频画面预览并按需截取原声",
+        badge: "声画同步",
+        icon: Film,
+        keywords: ["视频", "提取", "伴奏", "mp4", "音频"],
+      },
+      {
+        id: "volume",
+        module: "audio",
+        name: "音量与人声清晰化",
+        desc: "0%~300% 动态放大、滤除空调杂音底噪与广播级防爆音",
+        badge: "清晰化",
+        icon: Volume2,
+        keywords: ["音量", "放大", "增益", "降噪", "去杂音"],
+      },
+      {
+        id: "speed",
+        module: "audio",
+        name: "音频倍速与倒放",
+        desc: "0.5x~2.0x 变速不变调与短视频趣味倒放",
+        badge: "倍速/倒放",
+        icon: Clock,
+        keywords: ["变速", "倍速", "倒放", "快放", "慢放"],
+      },
+      {
+        id: "karaoke",
+        module: "audio",
+        name: "卡拉OK伴奏提取",
+        desc: "中央声道人声消除与低音保留，一键做伴奏",
+        badge: "一键伴奏",
+        icon: Mic,
+        keywords: ["伴奏", "消人声", "卡拉ok", "ktv", "人声提取"],
+      },
     ],
   },
   {
@@ -168,10 +370,42 @@ const TOOLS_REGISTRY: { category: string; module: ModuleType; icon: any; tools: 
     module: "utilities",
     icon: Wrench,
     tools: [
-      { id: "idphoto", module: "utilities", name: "证件照换底排版", desc: "红白蓝灰智能换底与 6 寸打印排版", badge: "6寸打印", icon: UserCheck, keywords: ["证件照", "换底", "排版", "冲印", "相纸"] },
-      { id: "qrcode", module: "utilities", name: "个性化艺术二维码", desc: "炫彩渐变色与中心嵌入 Logo", badge: "Logo", icon: QrCode, keywords: ["二维码", "qr", "扫码", "生成", "渐变"] },
-      { id: "diff", module: "utilities", name: "文章与文本对比", desc: "文章段落与文本增删变动实时高亮与精细对比", badge: "文章对比", icon: GitCompare, keywords: ["diff", "对比", "文章", "文本", "差异"] },
-      { id: "dev", module: "utilities", name: "开发与编码利器", desc: "JSON 校验、Base64、Hash、时间戳", badge: "神器", icon: Code2, keywords: ["json", "base64", "hash", "时间戳", "开发"] },
+      {
+        id: "idphoto",
+        module: "utilities",
+        name: "证件照换底排版",
+        desc: "红白蓝灰智能换底与 6 寸打印排版",
+        badge: "6寸打印",
+        icon: UserCheck,
+        keywords: ["证件照", "换底", "排版", "冲印", "相纸"],
+      },
+      {
+        id: "qrcode",
+        module: "utilities",
+        name: "个性化艺术二维码",
+        desc: "炫彩渐变色与中心嵌入 Logo",
+        badge: "Logo",
+        icon: QrCode,
+        keywords: ["二维码", "qr", "扫码", "生成", "渐变"],
+      },
+      {
+        id: "diff",
+        module: "utilities",
+        name: "文章与文本对比",
+        desc: "文章段落与文本增删变动实时高亮与精细对比",
+        badge: "文章对比",
+        icon: GitCompare,
+        keywords: ["diff", "对比", "文章", "文本", "差异"],
+      },
+      {
+        id: "dev",
+        module: "utilities",
+        name: "开发与编码利器",
+        desc: "JSON 校验、Base64、Hash、时间戳",
+        badge: "神器",
+        icon: Code2,
+        keywords: ["json", "base64", "hash", "时间戳", "开发"],
+      },
     ],
   },
   {
@@ -179,28 +413,90 @@ const TOOLS_REGISTRY: { category: string; module: ModuleType; icon: any; tools: 
     module: "ai",
     icon: Sparkles,
     tools: [
-      { id: "ai-bg-remove", module: "ai", name: "AI 发丝级智能抠图", desc: "逐像素分离人像与复杂背景，支持一键证件照换底排版", badge: "AI抠图", icon: Sparkles, keywords: ["抠图", "去除背景", "透明底", "人像", "发丝", "ai"] },
-      { id: "ai-inpaint", module: "ai", name: "AI 消除笔 / 去水印", desc: "智能涂抹消除画面杂物、路人、水印与瑕疵，边缘平滑修补", badge: "智能涂抹", icon: Eraser, keywords: ["消除", "去水印", "橡皮擦", "涂抹", "擦除", "inpaint", "ai"] },
-      { id: "ai-searchable-pdf", module: "ai", name: "双层可搜索 PDF 制作", desc: "将扫描件/图像注入底层透明文字排版层，实现极速检索与精准划词复制", badge: "双层PDF", icon: FileSearch, keywords: ["可搜索pdf", "双层pdf", "扫描件", "ocr", "复制文字", "pdf", "ai"] },
-      { id: "ai-subtitle", module: "ai", name: "音视频智能断句字幕", desc: "离线硬件级音频能量切片，毫秒对齐语音时间轴，一键导出 SRT/VTT 字幕", badge: "字幕提取", icon: Captions, keywords: ["字幕", "断句", "vad", "srt", "vtt", "音频", "视频", "ai"] },
-      { id: "ai-ocr", module: "ai", name: "AI 文字提取 (OCR)", desc: "高精提取中英文、书籍、发票及表格字形，支持一键复制与 TXT 导出", badge: "多语言", icon: FileText, keywords: ["ocr", "文字提取", "识别", "扫描", "文字识别", "ai"] },
-      { id: "ai-upscale", module: "ai", name: "AI 模糊图片高清修复", desc: "2x / 4x 超分辨率重建与边缘锐化，让低清模糊图焕发新生", badge: "超分辨率", icon: Maximize2, keywords: ["超清", "修复", "高清", "放大", "清晰度", "降噪", "ai"] },
+      {
+        id: "ai-bg-remove",
+        module: "ai",
+        name: "AI 发丝级智能抠图",
+        desc: "逐像素分离人像与复杂背景，支持一键证件照换底排版",
+        badge: "AI抠图",
+        icon: Sparkles,
+        keywords: ["抠图", "去除背景", "透明底", "人像", "发丝", "ai"],
+      },
+      {
+        id: "ai-inpaint",
+        module: "ai",
+        name: "AI 消除笔 / 去水印",
+        desc: "智能涂抹消除画面杂物、路人、水印与瑕疵，边缘平滑修补",
+        badge: "智能涂抹",
+        icon: Eraser,
+        keywords: ["消除", "去水印", "橡皮擦", "涂抹", "擦除", "inpaint", "ai"],
+      },
+      {
+        id: "ai-searchable-pdf",
+        module: "ai",
+        name: "双层可搜索 PDF 制作",
+        desc: "将扫描件/图像注入底层透明文字排版层，实现极速检索与精准划词复制",
+        badge: "双层PDF",
+        icon: FileSearch,
+        keywords: [
+          "可搜索pdf",
+          "双层pdf",
+          "扫描件",
+          "ocr",
+          "复制文字",
+          "pdf",
+          "ai",
+        ],
+      },
+      {
+        id: "ai-subtitle",
+        module: "ai",
+        name: "音视频智能断句字幕",
+        desc: "离线硬件级音频能量切片，毫秒对齐语音时间轴，一键导出 SRT/VTT 字幕",
+        badge: "字幕提取",
+        icon: Captions,
+        keywords: ["字幕", "断句", "vad", "srt", "vtt", "音频", "视频", "ai"],
+      },
+      {
+        id: "ai-ocr",
+        module: "ai",
+        name: "AI 文字提取 (OCR)",
+        desc: "高精提取中英文、书籍、发票及表格字形，支持一键复制与 TXT 导出",
+        badge: "多语言",
+        icon: FileText,
+        keywords: ["ocr", "文字提取", "识别", "扫描", "文字识别", "ai"],
+      },
+      {
+        id: "ai-upscale",
+        module: "ai",
+        name: "AI 模糊图片高清修复",
+        desc: "2x / 4x 超分辨率重建与边缘锐化，让低清模糊图焕发新生",
+        badge: "超分辨率",
+        icon: Maximize2,
+        keywords: ["超清", "修复", "高清", "放大", "清晰度", "降噪", "ai"],
+      },
     ],
   },
 ];
 
 export default function Home() {
   const { lang, setLang, t } = useI18n();
-  const toolsRegistry = useMemo(() => getLocalizedTools(TOOLS_REGISTRY, lang), [lang]);
+  const toolsRegistry = useMemo(
+    () => getLocalizedTools(TOOLS_REGISTRY, lang),
+    [lang],
+  );
   const [activeModule, setActiveModule] = useState<ModuleType>("document");
   const [expandedModule, setExpandedModule] = useState<ModuleType | null>(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [activeDocTab, setActiveDocTab] = useState<DocTabType>("pdf-edit");
-  const [activeImageTab, setActiveImageTab] = useState<ImageTabType>("compress");
+  const [activeImageTab, setActiveImageTab] =
+    useState<ImageTabType>("compress");
   const [activeAudioTab, setActiveAudioTab] = useState<AudioTabType>("trim");
   const [activeDailyTab, setActiveDailyTab] = useState<DailyTabType>("idphoto");
   const [activeAiTab, setActiveAiTab] = useState<AiTabType>("ai-bg-remove");
-  const [incomingIdPhotoFile, setIncomingIdPhotoFile] = useState<File | null>(null);
+  const [incomingIdPhotoFile, setIncomingIdPhotoFile] = useState<File | null>(
+    null,
+  );
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -224,11 +520,13 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window !== "undefined" && (window as any).electronAPI) {
-      const unsubscribe = (window as any).electronAPI.onUpdateStatus((data: any) => {
-        if (data.status === "available" || data.status === "ready") {
-          setHasUpdate(true);
-        }
-      });
+      const unsubscribe = (window as any).electronAPI.onUpdateStatus(
+        (data: any) => {
+          if (data.status === "available" || data.status === "ready") {
+            setHasUpdate(true);
+          }
+        },
+      );
       return () => {
         if (typeof unsubscribe === "function") unsubscribe();
       };
@@ -237,7 +535,10 @@ export default function Home() {
 
   // 初始化深色模式、自定义配色与字体偏好
   useEffect(() => {
-    if (typeof window !== "undefined" && (window as any).electronAPI?.getDesktopConfig) {
+    if (
+      typeof window !== "undefined" &&
+      (window as any).electronAPI?.getDesktopConfig
+    ) {
       (window as any).electronAPI.getDesktopConfig().then((c: any) => {
         if (c?.customTheme) {
           applyCustomTheme(c.customTheme);
@@ -290,12 +591,14 @@ export default function Home() {
   const [startPage, setStartPage] = useState<number>(0);
   const [pageRanges, setPageRanges] = useState<string>("");
   const [watermarkText, setWatermarkText] = useState<string>(() =>
-    lang === "en" ? "CONFIDENTIAL" : "内部机密 严禁外传"
+    lang === "en" ? "CONFIDENTIAL" : "内部机密 严禁外传",
   );
   const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.3);
   const [watermarkAngle, setWatermarkAngle] = useState<number>(45);
   const [protectPassword, setProtectPassword] = useState<string>("");
-  const [conversionQuality, setConversionQuality] = useState<"light" | "standard" | "high">("high");
+  const [conversionQuality, setConversionQuality] = useState<
+    "light" | "standard" | "high"
+  >("high");
 
   useEffect(() => {
     if (lang === "en" && watermarkText === "内部机密 严禁外传") {
@@ -380,7 +683,11 @@ export default function Home() {
   // 启动 1:1 原版在线编辑工作台
   const handleStartEditor = async () => {
     if (files.length === 0) {
-      setError(lang === "en" ? "Please select a PDF file first" : "请先上传需要编辑的 PDF 文件");
+      setError(
+        lang === "en"
+          ? "Please select a PDF file first"
+          : "请先上传需要编辑的 PDF 文件",
+      );
       return;
     }
     setParsingEditor(true);
@@ -394,7 +701,12 @@ export default function Home() {
         pages: data.pages,
       });
     } catch (err: any) {
-      setError(err.message || (lang === "en" ? "Failed to parse original PDF" : "解析原版 PDF 失败"));
+      setError(
+        err.message ||
+          (lang === "en"
+            ? "Failed to parse original PDF"
+            : "解析原版 PDF 失败"),
+      );
     } finally {
       setParsingEditor(false);
     }
@@ -458,7 +770,7 @@ export default function Home() {
           files[0],
           watermarkText,
           watermarkOpacity,
-          watermarkAngle
+          watermarkAngle,
         );
         resultBlob = res.blob;
         resultFilename = res.filename;
@@ -482,7 +794,7 @@ export default function Home() {
       setSuccessMsg(
         lang === "en"
           ? `Finished! Generated ${resultFilename}, click below to download.`
-          : `处理完成！已生成 ${resultFilename}，请点击下方按钮下载保存`
+          : `处理完成！已生成 ${resultFilename}，请点击下方按钮下载保存`,
       );
     } catch (err: any) {
       setError(err.message || t.common.errorOccurred);
@@ -512,7 +824,7 @@ export default function Home() {
       setSuccessMsg(
         lang === "en"
           ? `Split & extracted! Generated ${res.filename}, click below to download.`
-          : `拆分提取成功！已生成 ${res.filename}，请点击下方按钮下载保存`
+          : `拆分提取成功！已生成 ${res.filename}，请点击下方按钮下载保存`,
       );
     } catch (err: any) {
       setError(err.message || t.common.errorOccurred);
@@ -522,7 +834,11 @@ export default function Home() {
   };
 
   // 水印实时预览 Studio 专用执行函数
-  const handleWatermarkExecute = async (text: string, opacity: number, angle: number) => {
+  const handleWatermarkExecute = async (
+    text: string,
+    opacity: number,
+    angle: number,
+  ) => {
     if (files.length === 0) {
       setError(t.common.uploadWatermarkPdfFirst);
       return;
@@ -542,7 +858,7 @@ export default function Home() {
       setSuccessMsg(
         lang === "en"
           ? `Watermark applied! Generated ${res.filename}, click below to download.`
-          : `水印添加成功！已生成 ${res.filename}，请点击下方按钮下载保存`
+          : `水印添加成功！已生成 ${res.filename}，请点击下方按钮下载保存`,
       );
     } catch (err: any) {
       setError(err.message || t.common.errorOccurred);
@@ -554,7 +870,11 @@ export default function Home() {
   // PDF 智能压缩 Studio 专用执行函数
   const handleCompressExecute = async (level: "low" | "medium" | "high") => {
     if (files.length === 0) {
-      setError(lang === "en" ? "Please upload a PDF file to compress first" : "请先上传需要压缩的 PDF 文件");
+      setError(
+        lang === "en"
+          ? "Please upload a PDF file to compress first"
+          : "请先上传需要压缩的 PDF 文件",
+      );
       return;
     }
     setLoading(true);
@@ -573,7 +893,7 @@ export default function Home() {
       setSuccessMsg(
         lang === "en"
           ? `Compression finished! Generated ${res.filename}, click below to download.`
-          : `压缩完成！已生成 ${res.filename}，请点击下方按钮下载保存`
+          : `压缩完成！已生成 ${res.filename}，请点击下方按钮下载保存`,
       );
     } catch (err: any) {
       setError(err.message || t.common.errorOccurred);
@@ -585,7 +905,11 @@ export default function Home() {
   // 多图合成 PDF Studio 专用执行函数
   const handleImagesToPdfExecute = async (pageSize: "fit" | "a4") => {
     if (files.length === 0) {
-      setError(lang === "en" ? "Please select at least one image to combine" : "请至少选择一张图片进行合成");
+      setError(
+        lang === "en"
+          ? "Please select at least one image to combine"
+          : "请至少选择一张图片进行合成",
+      );
       return;
     }
     setLoading(true);
@@ -603,7 +927,7 @@ export default function Home() {
       setSuccessMsg(
         lang === "en"
           ? `Combined successfully! Generated ${res.filename}, click below to download.`
-          : `合成成功！已生成 ${res.filename}，请点击下方按钮下载保存`
+          : `合成成功！已生成 ${res.filename}，请点击下方按钮下载保存`,
       );
     } catch (err: any) {
       setError(err.message || t.common.errorOccurred);
@@ -613,9 +937,15 @@ export default function Home() {
   };
 
   // PDF 页面可视化调度与编排 Studio 专用执行函数
-  const handleOrganizeExecute = async (pagesConfig: Array<{ page: number; rotation: number }>) => {
+  const handleOrganizeExecute = async (
+    pagesConfig: Array<{ page: number; rotation: number }>,
+  ) => {
     if (files.length === 0) {
-      setError(lang === "en" ? "Please upload a PDF file to organize first" : "请先上传需要编排的 PDF 文件");
+      setError(
+        lang === "en"
+          ? "Please upload a PDF file to organize first"
+          : "请先上传需要编排的 PDF 文件",
+      );
       return;
     }
     setLoading(true);
@@ -633,7 +963,7 @@ export default function Home() {
       setSuccessMsg(
         lang === "en"
           ? `Organized successfully! Generated ${res.filename}, click below to download.`
-          : `编排完成！已生成 ${res.filename}，请点击下方按钮下载保存`
+          : `编排完成！已生成 ${res.filename}，请点击下方按钮下载保存`,
       );
     } catch (err: any) {
       setError(err.message || t.common.errorOccurred);
@@ -643,7 +973,11 @@ export default function Home() {
   };
 
   // 如果处于在线编辑工作台模式，全屏展示 A4 拟真编辑器
-  if (activeModule === "document" && activeDocTab === "pdf-edit" && editorData) {
+  if (
+    activeModule === "document" &&
+    activeDocTab === "pdf-edit" &&
+    editorData
+  ) {
     return (
       <main className="h-screen w-screen overflow-hidden bg-coconut-100/60 dark:bg-darkbg-canvas flex flex-col p-2 sm:p-4">
         <InPlacePdfEditor
@@ -659,17 +993,18 @@ export default function Home() {
 
   const allTools = toolsRegistry.flatMap((g) => g.tools);
 
-  const currentCategory = toolsRegistry.find((g) => g.module === activeModule) || toolsRegistry[0];
+  const currentCategory =
+    toolsRegistry.find((g) => g.module === activeModule) || toolsRegistry[0];
   const currentActiveTool =
     activeModule === "document"
       ? allTools.find((t) => t.id === activeDocTab)
       : activeModule === "image"
-      ? allTools.find((t) => t.id === activeImageTab)
-      : activeModule === "audio"
-      ? allTools.find((t) => t.id === activeAudioTab)
-      : activeModule === "utilities"
-      ? allTools.find((t) => t.id === activeDailyTab)
-      : allTools.find((t) => t.id === activeAiTab);
+        ? allTools.find((t) => t.id === activeImageTab)
+        : activeModule === "audio"
+          ? allTools.find((t) => t.id === activeAudioTab)
+          : activeModule === "utilities"
+            ? allTools.find((t) => t.id === activeDailyTab)
+            : allTools.find((t) => t.id === activeAiTab);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-transparent text-coconut-900 dark:text-darkbg-text subpixel-antialiased">
@@ -684,22 +1019,30 @@ export default function Home() {
       {/* ===================== 左侧 PRO 侧边栏 ===================== */}
       <aside
         className={`fixed lg:static inset-y-0 left-0 z-50 flex flex-col bg-[var(--color-sidebar-bg)] border-r border-[var(--color-border)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          mobileMenuOpen ? "translate-x-0 w-80 max-w-[85vw]" : "-translate-x-full lg:translate-x-0"
+          mobileMenuOpen
+            ? "translate-x-0 w-80 max-w-[85vw]"
+            : "-translate-x-full lg:translate-x-0"
         } ${sidebarCollapsed ? "lg:w-20" : "lg:w-72"}`}
       >
         {/* 顶部品牌 */}
-        <div className={`border-b border-coconut-200/80 dark:border-darkbg-border flex items-center transition-all duration-300 ${
-          sidebarCollapsed ? "p-3 justify-center" : "p-4 justify-between"
-        }`}>
+        <div
+          className={`border-b border-coconut-200/80 dark:border-darkbg-border flex items-center transition-all duration-300 ${
+            sidebarCollapsed ? "p-3 justify-center" : "p-4 justify-between"
+          }`}
+        >
           {sidebarCollapsed ? (
             /* 折叠态：居中猫肉球 Logo 按钮，点击直接展开侧边栏 */
             <button
               onClick={() => setSidebarCollapsed(false)}
               className="p-1 rounded-2xl hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-transform active:scale-95 group relative flex items-center justify-center cursor-pointer"
-              title={lang === "en" ? "Click to expand sidebar" : "点击展开侧边栏"}
+              title={
+                lang === "en" ? "Click to expand sidebar" : "点击展开侧边栏"
+              }
             >
               <CatPawLogo size={40} />
-              <span className="sr-only">{lang === "en" ? "Expand sidebar" : "展开侧边栏"}</span>
+              <span className="sr-only">
+                {lang === "en" ? "Expand sidebar" : "展开侧边栏"}
+              </span>
             </button>
           ) : (
             /* 展开态：左侧治愈系猫肉球 Logo (点击即可收起侧边栏) + 品牌名 */
@@ -708,7 +1051,11 @@ export default function Home() {
                 <button
                   onClick={() => setSidebarCollapsed(true)}
                   className="p-1 rounded-2xl hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-transform active:scale-95 cursor-pointer flex-shrink-0"
-                  title={lang === "en" ? "Click to collapse sidebar" : "点击收起侧边栏"}
+                  title={
+                    lang === "en"
+                      ? "Click to collapse sidebar"
+                      : "点击收起侧边栏"
+                  }
                 >
                   <CatPawLogo size={40} />
                 </button>
@@ -753,21 +1100,21 @@ export default function Home() {
                     ? group.module === "document"
                       ? "Docs"
                       : group.module === "image"
-                      ? "Image"
-                      : group.module === "audio"
-                      ? "Audio"
-                      : group.module === "utilities"
-                      ? "Utils"
-                      : "AI"
+                        ? "Image"
+                        : group.module === "audio"
+                          ? "Audio"
+                          : group.module === "utilities"
+                            ? "Utils"
+                            : "AI"
                     : group.module === "document"
-                    ? "文档"
-                    : group.module === "image"
-                    ? "图片"
-                    : group.module === "audio"
-                    ? "音频"
-                    : group.module === "utilities"
-                    ? "日常"
-                    : "AI工坊";
+                      ? "文档"
+                      : group.module === "image"
+                        ? "图片"
+                        : group.module === "audio"
+                          ? "音频"
+                          : group.module === "utilities"
+                            ? "日常"
+                            : "AI工坊";
 
                 return (
                   <button
@@ -818,8 +1165,8 @@ export default function Home() {
                           ? "Click to collapse all tools"
                           : "点击收回折叠全部工具"
                         : lang === "en"
-                        ? "Click to expand all tools"
-                        : "点击展开全部工具"
+                          ? "Click to expand all tools"
+                          : "点击展开全部工具"
                     }
                     className={`w-full flex items-center justify-between p-2.5 rounded-2xl text-sm font-bold transition-all select-none active:scale-[0.99] ${
                       isGroupActive
@@ -828,11 +1175,13 @@ export default function Home() {
                     }`}
                   >
                     <div className="flex items-center gap-2.5 truncate">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform shadow-2xs ${
-                        isGroupActive
-                          ? "bg-accent-gradient text-white shadow-xs scale-105"
-                          : "bg-coconut-200/70 dark:bg-darkbg-subtle text-coconut-800 dark:text-darkbg-text"
-                      }`}>
+                      <div
+                        className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform shadow-2xs ${
+                          isGroupActive
+                            ? "bg-accent-gradient text-white shadow-xs scale-105"
+                            : "bg-coconut-200/70 dark:bg-darkbg-subtle text-coconut-800 dark:text-darkbg-text"
+                        }`}
+                      >
                         <GroupIcon className="w-5 h-5" />
                       </div>
                       <span className="truncate">{group.category}</span>
@@ -841,16 +1190,22 @@ export default function Home() {
                       <span className="text-xs px-2 py-0.5 rounded-full bg-coconut-200/60 dark:bg-darkbg-subtle font-mono text-coconut-700 dark:text-darkbg-muted font-semibold">
                         {group.tools.length}
                       </span>
-                      <ChevronRight className={`w-4 h-4 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                        isGroupExpanded ? "rotate-90 text-orange-600 font-bold" : "text-coconut-400 opacity-60"
-                      }`} />
+                      <ChevronRight
+                        className={`w-4 h-4 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                          isGroupExpanded
+                            ? "rotate-90 text-orange-600 font-bold"
+                            : "text-coconut-400 opacity-60"
+                        }`}
+                      />
                     </div>
                   </button>
 
                   {/* 丝滑手风琴抽屉动画：CSS Grid 无级平滑展开收起 */}
                   <div
                     className={`grid transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden ${
-                      isGroupExpanded ? "grid-rows-[1fr] opacity-100 mt-1" : "grid-rows-[0fr] opacity-0 mt-0 pointer-events-none"
+                      isGroupExpanded
+                        ? "grid-rows-[1fr] opacity-100 mt-1"
+                        : "grid-rows-[0fr] opacity-0 mt-0 pointer-events-none"
                     }`}
                   >
                     <div className="min-h-0 pl-3 pr-1 py-1 space-y-1 border-l-2 border-orange-500/50 ml-3.5">
@@ -861,7 +1216,8 @@ export default function Home() {
                           ((t.module === "document" && activeDocTab === t.id) ||
                             (t.module === "image" && activeImageTab === t.id) ||
                             (t.module === "audio" && activeAudioTab === t.id) ||
-                            (t.module === "utilities" && activeDailyTab === t.id) ||
+                            (t.module === "utilities" &&
+                              activeDailyTab === t.id) ||
                             (t.module === "ai" && activeAiTab === t.id));
 
                         return (
@@ -875,7 +1231,9 @@ export default function Home() {
                             }`}
                           >
                             <div className="flex items-center gap-2.5 truncate min-w-0 flex-1">
-                              <Icon className={`w-4 h-4 flex-shrink-0 ${isCur ? "text-amber-100" : "text-coconut-600 dark:text-darkbg-muted"}`} />
+                              <Icon
+                                className={`w-4 h-4 flex-shrink-0 ${isCur ? "text-amber-100" : "text-coconut-600 dark:text-darkbg-muted"}`}
+                              />
                               <span className="truncate">{t.name}</span>
                             </div>
                             {t.badge && (
@@ -908,7 +1266,11 @@ export default function Home() {
               <button
                 onClick={() => setSettingsModalOpen(true)}
                 className="w-12 h-12 rounded-2xl border border-coconut-200/80 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-all active:scale-95 shadow-2xs group cursor-pointer"
-                title={lang === "en" ? "System Preferences (Tray / Auto-start / Formats / Storage)" : "系统偏好设置 (托盘行为/开机自启/格式转换/文件存储)"}
+                title={
+                  lang === "en"
+                    ? "System Preferences (Tray / Auto-start / Formats / Storage)"
+                    : "系统偏好设置 (托盘行为/开机自启/格式转换/文件存储)"
+                }
               >
                 <CoconutLogo size={32} variant="settings" />
               </button>
@@ -916,7 +1278,11 @@ export default function Home() {
               <button
                 onClick={toggleTheme}
                 className="w-12 h-12 rounded-2xl border border-coconut-200/80 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-all active:scale-95 shadow-2xs group cursor-pointer"
-                title={lang === "en" ? `Switch theme (Current: ${isDark ? "Dark" : "Light"})` : `切换外观主题 (当前: ${isDark ? "曜黑暗夜" : "暖椰润肤"})`}
+                title={
+                  lang === "en"
+                    ? `Switch theme (Current: ${isDark ? "Dark" : "Light"})`
+                    : `切换外观主题 (当前: ${isDark ? "曜黑暗夜" : "暖椰润肤"})`
+                }
               >
                 {isDark ? (
                   <Sun className="w-6 h-6 text-amber-500 transition-transform duration-300 group-hover:rotate-45" />
@@ -928,7 +1294,11 @@ export default function Home() {
               <button
                 onClick={() => setUpdateModalOpen(true)}
                 className="w-12 h-12 rounded-2xl border border-coconut-200/80 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-all active:scale-95 shadow-2xs relative group cursor-pointer"
-                title={lang === "en" ? "Check software version & updates" : "检查软件版本与更新"}
+                title={
+                  lang === "en"
+                    ? "Check software version & updates"
+                    : "检查软件版本与更新"
+                }
               >
                 <Sparkles className="w-6 h-6 text-orange-500 transition-transform duration-300 group-hover:scale-110" />
                 {hasUpdate && (
@@ -942,7 +1312,11 @@ export default function Home() {
               <button
                 onClick={() => setSettingsModalOpen(true)}
                 className="w-full flex items-center justify-between p-2.5 px-3.5 rounded-2xl border border-coconut-200/90 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle text-xs font-semibold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated transition-all active:scale-[0.98] shadow-2xs cursor-pointer group"
-                title={lang === "en" ? "System Preferences (Tray / Auto-start / Engine / Storage / Cache)" : "系统偏好设置 (托盘行为/开机自启/格式引擎/文件路径/缓存清理)"}
+                title={
+                  lang === "en"
+                    ? "System Preferences (Tray / Auto-start / Engine / Storage / Cache)"
+                    : "系统偏好设置 (托盘行为/开机自启/格式引擎/文件路径/缓存清理)"
+                }
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="w-11 h-11 rounded-2xl bg-orange-50/90 dark:bg-[#2A1F19] flex items-center justify-center border border-orange-200/80 dark:border-[#4A372C] flex-shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
@@ -967,7 +1341,9 @@ export default function Home() {
               <button
                 onClick={toggleTheme}
                 className="w-full flex items-center justify-between p-2.5 px-3.5 rounded-2xl border border-coconut-200/90 dark:border-darkbg-border bg-white/90 dark:bg-darkbg-subtle text-xs sm:text-sm font-semibold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100/70 dark:hover:bg-darkbg-elevated transition-all active:scale-[0.98] shadow-2xs cursor-pointer group"
-                title={lang === "en" ? "Switch interface theme" : "切换界面外观主题"}
+                title={
+                  lang === "en" ? "Switch interface theme" : "切换界面外观主题"
+                }
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="w-11 h-11 rounded-2xl bg-amber-50/90 dark:bg-[#2A1F19] flex items-center justify-center border border-amber-200/80 dark:border-[#4A372C] flex-shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
@@ -979,12 +1355,18 @@ export default function Home() {
                   </div>
                   <div className="text-left min-w-0 flex-1">
                     <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white leading-tight truncate">
-                      {isDark ? t.sidebar.darkAppearance : t.sidebar.lightAppearance}
+                      {isDark
+                        ? t.sidebar.darkAppearance
+                        : t.sidebar.lightAppearance}
                     </div>
                     <div className="text-[11px] text-coconut-600 dark:text-darkbg-muted font-mono leading-tight mt-0.5 truncate">
                       {lang === "en"
-                        ? (isDark ? "OLED Dark Mode" : "Warm Coconut Aesthetic")
-                        : (isDark ? "Dark Appearance" : "Light Appearance")}
+                        ? isDark
+                          ? "OLED Dark Mode"
+                          : "Warm Coconut Aesthetic"
+                        : isDark
+                          ? "Dark Appearance"
+                          : "Light Appearance"}
                     </div>
                   </div>
                 </div>
@@ -1021,7 +1403,9 @@ export default function Home() {
                   <div className="w-11 h-11 rounded-2xl bg-orange-100/80 dark:bg-[#2A1F19] flex items-center justify-center border border-orange-200/80 dark:border-[#4A372C] text-orange-600 dark:text-orange-400 flex-shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                     <Sparkles className="w-6 h-6 text-orange-500 transition-transform duration-300 group-hover:scale-110" />
                   </div>
-                  <span className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white">{t.sidebar.updateCenter}</span>
+                  <span className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white">
+                    {t.sidebar.updateCenter}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {hasUpdate ? (
@@ -1029,7 +1413,9 @@ export default function Home() {
                       {lang === "en" ? "NEW" : "发现新版"}
                     </span>
                   ) : (
-                    <span className="text-xs font-mono font-bold text-coconut-600 dark:text-darkbg-muted">v1.1.0</span>
+                    <span className="text-xs font-mono font-bold text-coconut-600 dark:text-darkbg-muted">
+                      v1.1.0
+                    </span>
                   )}
                 </div>
               </button>
@@ -1047,13 +1433,17 @@ export default function Home() {
             <button
               onClick={() => setMobileMenuOpen(true)}
               className="lg:hidden p-2 rounded-xl text-coconut-600 dark:text-darkbg-muted hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-colors"
-              aria-label={lang === "en" ? "Open sidebar navigation" : "打开侧边导航"}
+              aria-label={
+                lang === "en" ? "Open sidebar navigation" : "打开侧边导航"
+              }
             >
               <Menu className="w-5 h-5" />
             </button>
 
             <nav className="flex items-center gap-2 text-xs sm:text-sm text-coconut-700 dark:text-darkbg-muted truncate">
-              <span className="hover:text-coconut-950 dark:hover:text-white transition-colors">{t.workspace}</span>
+              <span className="hover:text-coconut-950 dark:hover:text-white transition-colors">
+                {t.workspace}
+              </span>
               <ChevronRight className="w-4 h-4 flex-shrink-0 text-coconut-400" />
               <span className="font-semibold text-coconut-800 dark:text-darkbg-text">
                 {currentCategory?.category}
@@ -1139,9 +1529,15 @@ export default function Home() {
 
           {/* 模块路由内容渲染 */}
           {activeModule === "image" ? (
-            <ImageToolbox currentTab={activeImageTab} onTabChange={setActiveImageTab} />
+            <ImageToolbox
+              currentTab={activeImageTab}
+              onTabChange={setActiveImageTab}
+            />
           ) : activeModule === "audio" ? (
-            <AudioToolbox currentTab={activeAudioTab} onTabChange={setActiveAudioTab} />
+            <AudioToolbox
+              currentTab={activeAudioTab}
+              onTabChange={setActiveAudioTab}
+            />
           ) : activeModule === "utilities" ? (
             <DailyToolbox
               currentTab={activeDailyTab}
@@ -1331,7 +1727,8 @@ export default function Home() {
                         {t.pdfOrganize?.title || "PDF 页面可视化调度与编排"}
                       </h3>
                       <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                        {t.pdfOrganize?.desc || "自由拖拽调整页面顺序、单页独立旋转 90°/180°、剔除多余页面，一键导出定制新版 PDF。"}
+                        {t.pdfOrganize?.desc ||
+                          "自由拖拽调整页面顺序、单页独立旋转 90°/180°、剔除多余页面，一键导出定制新版 PDF。"}
                       </p>
                     </div>
 
@@ -1341,8 +1738,14 @@ export default function Home() {
                       selectedFiles={files}
                       onFilesSelected={setFiles}
                       onClear={() => setFiles([])}
-                      title={t.pdfOrganize?.dropzoneTitle || "拖入待编排调度的 PDF 文档 (.pdf)，或点击选择"}
-                      hint={t.pdfOrganize?.dropzoneHint || "支持标准 PDF 文档，全本地处理"}
+                      title={
+                        t.pdfOrganize?.dropzoneTitle ||
+                        "拖入待编排调度的 PDF 文档 (.pdf)，或点击选择"
+                      }
+                      hint={
+                        t.pdfOrganize?.dropzoneHint ||
+                        "支持标准 PDF 文档，全本地处理"
+                      }
                     />
                   </div>
                 )
@@ -1423,7 +1826,8 @@ export default function Home() {
                         {t.pdfCompress?.title || "PDF 智能极限体积瘦身"}
                       </h3>
                       <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                        {t.pdfCompress?.desc || "支持轻度、平衡、极限三档优化，清除孤立死对象并智能下采样高清大图，压缩比可达 50%~80%。"}
+                        {t.pdfCompress?.desc ||
+                          "支持轻度、平衡、极限三档优化，清除孤立死对象并智能下采样高清大图，压缩比可达 50%~80%。"}
                       </p>
                     </div>
 
@@ -1433,8 +1837,14 @@ export default function Home() {
                       selectedFiles={files}
                       onFilesSelected={setFiles}
                       onClear={() => setFiles([])}
-                      title={t.pdfCompress?.dropzoneTitle || "拖入待压缩瘦身的 PDF 文档 (.pdf)，或点击选择"}
-                      hint={t.pdfCompress?.dropzoneHint || "支持标准 PDF 文档，完全本地处理无隐私泄露"}
+                      title={
+                        t.pdfCompress?.dropzoneTitle ||
+                        "拖入待压缩瘦身的 PDF 文档 (.pdf)，或点击选择"
+                      }
+                      hint={
+                        t.pdfCompress?.dropzoneHint ||
+                        "支持标准 PDF 文档，完全本地处理无隐私泄露"
+                      }
                     />
                   </div>
                 )
@@ -1470,7 +1880,8 @@ export default function Home() {
                         {t.imagesToPdf?.title || "多图片一键拼合转高清 PDF"}
                       </h3>
                       <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                        {t.imagesToPdf?.desc || "支持选中多张照片或扫描件批量上传，自由上下拖拽调整排版顺序，支持原图自适应与标准 A4 规格导出。"}
+                        {t.imagesToPdf?.desc ||
+                          "支持选中多张照片或扫描件批量上传，自由上下拖拽调整排版顺序，支持原图自适应与标准 A4 规格导出。"}
                       </p>
                     </div>
 
@@ -1480,8 +1891,14 @@ export default function Home() {
                       selectedFiles={files}
                       onFilesSelected={setFiles}
                       onClear={() => setFiles([])}
-                      title={t.imagesToPdf?.dropzoneTitle || "拖入多张图片（按 Ctrl 多选），或点击选择"}
-                      hint={t.imagesToPdf?.dropzoneHint || "支持 JPG / PNG / WebP / BMP / TIFF 格式"}
+                      title={
+                        t.imagesToPdf?.dropzoneTitle ||
+                        "拖入多张图片（按 Ctrl 多选），或点击选择"
+                      }
+                      hint={
+                        t.imagesToPdf?.dropzoneHint ||
+                        "支持 JPG / PNG / WebP / BMP / TIFF 格式"
+                      }
                     />
                   </div>
                 )
@@ -1552,7 +1969,8 @@ export default function Home() {
                                 {executionResult.filename}
                               </h4>
                               <p className="text-xs text-orange-800 dark:text-amber-300 font-mono font-medium">
-                                {formatBytes(executionResult.size)} · {t.pdfProtect.readyText}
+                                {formatBytes(executionResult.size)} ·{" "}
+                                {t.pdfProtect.readyText}
                               </p>
                             </div>
                           </div>
@@ -1563,7 +1981,12 @@ export default function Home() {
 
                         <div className="flex flex-wrap items-center gap-3 pt-1">
                           <button
-                            onClick={() => downloadBlob(executionResult.blob, executionResult.filename)}
+                            onClick={() =>
+                              downloadBlob(
+                                executionResult.blob,
+                                executionResult.filename,
+                              )
+                            }
                             className="flex-1 py-3 px-4 rounded-xl btn-3d-sunset text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-coconut-sm"
                           >
                             <Download className="w-4 h-4" />
@@ -1628,13 +2051,36 @@ export default function Home() {
                   {/* 质量档位选择器 — 仅 Word 转 PDF 显示 */}
                   {activeDocTab === "word-to-pdf" && (
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-coconut-800 dark:text-darkbg-text">{t.quality.label}</label>
+                      <label className="text-xs font-bold text-coconut-800 dark:text-darkbg-text">
+                        {t.quality.label}
+                      </label>
                       <div className="grid grid-cols-3 gap-2">
-                        {([
-                          { key: "light" as const, label: t.quality.light, icon: "📄", dpi: t.quality.lightDpi, desc: t.quality.lightDesc, size: t.quality.lightSize },
-                          { key: "standard" as const, label: t.quality.standard, icon: "📋", dpi: t.quality.standardDpi, desc: t.quality.standardDesc, size: t.quality.standardSize },
-                          { key: "high" as const, label: t.quality.high, icon: "🖨️", dpi: t.quality.highDpi, desc: t.quality.highDesc, size: t.quality.highSize },
-                        ]).map((q) => (
+                        {[
+                          {
+                            key: "light" as const,
+                            label: t.quality.light,
+                            icon: "📄",
+                            dpi: t.quality.lightDpi,
+                            desc: t.quality.lightDesc,
+                            size: t.quality.lightSize,
+                          },
+                          {
+                            key: "standard" as const,
+                            label: t.quality.standard,
+                            icon: "📋",
+                            dpi: t.quality.standardDpi,
+                            desc: t.quality.standardDesc,
+                            size: t.quality.standardSize,
+                          },
+                          {
+                            key: "high" as const,
+                            label: t.quality.high,
+                            icon: "🖨️",
+                            dpi: t.quality.highDpi,
+                            desc: t.quality.highDesc,
+                            size: t.quality.highSize,
+                          },
+                        ].map((q) => (
                           <button
                             key={q.key}
                             onClick={() => setConversionQuality(q.key)}
@@ -1644,16 +2090,34 @@ export default function Home() {
                                 : "border-coconut-200 dark:border-darkbg-border bg-coconut-50/50 dark:bg-darkbg-subtle hover:border-coconut-300 dark:hover:border-darkbg-border/80"
                             }`}
                           >
-                            <div className="text-base leading-none mb-1">{q.icon}</div>
-                            <div className={`text-xs font-bold ${conversionQuality === q.key ? "text-accent-solid" : "text-coconut-900 dark:text-darkbg-text"}`}>
+                            <div className="text-base leading-none mb-1">
+                              {q.icon}
+                            </div>
+                            <div
+                              className={`text-xs font-bold ${conversionQuality === q.key ? "text-accent-solid" : "text-coconut-900 dark:text-darkbg-text"}`}
+                            >
                               {q.label}
                             </div>
-                            <div className="text-[10px] font-mono text-coconut-500 dark:text-darkbg-muted mt-0.5">{q.dpi}</div>
-                            <div className="text-[10px] text-coconut-400 dark:text-darkbg-muted">{q.size}</div>
+                            <div className="text-[10px] font-mono text-coconut-500 dark:text-darkbg-muted mt-0.5">
+                              {q.dpi}
+                            </div>
+                            <div className="text-[10px] text-coconut-400 dark:text-darkbg-muted">
+                              {q.size}
+                            </div>
                             {conversionQuality === q.key && (
                               <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-accent-solid text-white flex items-center justify-center">
-                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                <svg
+                                  className="w-2.5 h-2.5"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={3}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M5 13l4 4L19 7"
+                                  />
                                 </svg>
                               </div>
                             )}
@@ -1685,11 +2149,16 @@ export default function Home() {
                           {files[0].name}
                         </h4>
                         <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1 text-xs text-coconut-600 dark:text-darkbg-muted">
-                          <span className="font-mono">{formatBytes(files[0].size)}</span>
+                          <span className="font-mono">
+                            {formatBytes(files[0].size)}
+                          </span>
                           <span>·</span>
                           <span>
                             {pdfToWordThumb?.numPages
-                              ? t.common.pdfPageCount.replace("{n}", String(pdfToWordThumb.numPages))
+                              ? t.common.pdfPageCount.replace(
+                                  "{n}",
+                                  String(pdfToWordThumb.numPages),
+                                )
                               : t.common.pdfFormat}
                           </span>
                         </div>
@@ -1704,10 +2173,19 @@ export default function Home() {
                             min="1"
                             max={pdfToWordThumb?.numPages || 999}
                             value={startPage + 1}
-                            onChange={(e) => setStartPage(Math.max(0, (parseInt(e.target.value) || 1) - 1))}
+                            onChange={(e) =>
+                              setStartPage(
+                                Math.max(
+                                  0,
+                                  (parseInt(e.target.value) || 1) - 1,
+                                ),
+                              )
+                            }
                             className="w-16 px-2 py-1 text-xs font-mono font-bold bg-white dark:bg-darkbg-card border border-coconut-300 dark:border-darkbg-border rounded-lg text-center"
                           />
-                          <span className="text-[11px] text-coconut-500">{t.common.startPageHint}</span>
+                          <span className="text-[11px] text-coconut-500">
+                            {t.common.startPageHint}
+                          </span>
                         </div>
                       </div>
 
@@ -1724,7 +2202,9 @@ export default function Home() {
                     </div>
                   ) : (
                     <Dropzone
-                      accept={activeDocTab === "word-to-pdf" ? ".docx,.doc" : ".pdf"}
+                      accept={
+                        activeDocTab === "word-to-pdf" ? ".docx,.doc" : ".pdf"
+                      }
                       multiple={false}
                       selectedFiles={files}
                       onFilesSelected={setFiles}
@@ -1768,7 +2248,8 @@ export default function Home() {
                               {executionResult.filename}
                             </h4>
                             <p className="text-xs text-orange-800 dark:text-amber-300 font-mono font-medium">
-                              {formatBytes(executionResult.size)} · {t.common.readyForDownload}
+                              {formatBytes(executionResult.size)} ·{" "}
+                              {t.common.readyForDownload}
                             </p>
                           </div>
                         </div>
@@ -1779,7 +2260,12 @@ export default function Home() {
 
                       <div className="flex flex-wrap items-center gap-3 pt-1">
                         <button
-                          onClick={() => downloadBlob(executionResult.blob, executionResult.filename)}
+                          onClick={() =>
+                            downloadBlob(
+                              executionResult.blob,
+                              executionResult.filename,
+                            )
+                          }
                           className="flex-1 py-3 px-4 rounded-xl btn-3d-sunset text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-coconut-sm"
                         >
                           <Download className="w-4 h-4" />

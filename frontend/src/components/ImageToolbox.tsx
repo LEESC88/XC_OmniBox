@@ -37,6 +37,13 @@ import { downloadBlob } from "@/lib/api";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
 import { useI18n } from "@/lib/i18n";
 import ImageCompareModal, { ImageCompareItem } from "@/components/ImageCompareModal";
+import BatchQueueProgress from "@/components/BatchQueueProgress";
+import {
+  BatchTaskItem,
+  BatchProgressSummary,
+  executeBatchQueue,
+  exportBatchFiles,
+} from "@/lib/batchQueueManager";
 
 type ImageToolTab = "heic" | "compress" | "convert" | "resize" | "exif" | "watermark";
 
@@ -76,10 +83,26 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
   const [error, setError] = useState<string | null>(null);
   const [compareItem, setCompareItem] = useState<ImageCompareItem | null>(null);
 
+  // --- 并发队列与进度状态 ---
+  const [concurrency, setConcurrency] = useState(3);
+  const [queueItems, setQueueItems] = useState<BatchTaskItem<File, ProcessedResult>[]>([]);
+  const [queueSummary, setQueueSummary] = useState<BatchProgressSummary>({
+    total: 0,
+    completed: 0,
+    failed: 0,
+    active: 0,
+    waiting: 0,
+    percent: 0,
+    etaSeconds: null,
+  });
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
     if (currentTab && currentTab !== activeTab) {
       setActiveTab(currentTab);
       setResults([]);
+      setQueueItems([]);
+      setQueueSummary({ total: 0, completed: 0, failed: 0, active: 0, waiting: 0, percent: 0, etaSeconds: null });
       setError(null);
     }
   }, [currentTab]);
@@ -151,171 +174,244 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
   };
 
   const removeFile = (index: number) => {
+    const fileToRemove = files[index];
     setFiles((prev) => prev.filter((_, i) => i !== index));
+    if (fileToRemove) {
+      setQueueItems((prev) => prev.filter((it) => it.name !== fileToRemove.name));
+    }
   };
 
   const clearAllFiles = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
     setFiles([]);
+    setQueueItems([]);
     setResults([]);
     setError(null);
+    setQueueSummary({ total: 0, completed: 0, failed: 0, active: 0, waiting: 0, percent: 0, etaSeconds: null });
   };
 
-  // 执行批量处理
+  // 处理单个图片任务的核心函数（具备错误隔离能力）
+  const processSingleImage = async (
+    item: BatchTaskItem<File, ProcessedResult>,
+    reportProgress: (pct: number) => void
+  ): Promise<ProcessedResult> => {
+    const file = item.raw;
+    reportProgress(20);
+
+    if (activeTab === "heic") {
+      const { blob, filename } = await convertHeic(file, heicTargetFormat, heicQuality);
+      reportProgress(100);
+      return {
+        id: `res_${Date.now()}_${Math.random()}`,
+        originalName: file.name,
+        originalSize: file.size,
+        originalUrl: URL.createObjectURL(file),
+        newFilename: filename,
+        newSize: blob.size,
+        blob,
+        previewUrl: URL.createObjectURL(blob),
+      };
+    } else if (activeTab === "compress") {
+      const { blob, filename, originalSize, compressedSize } = await compressImage(file, {
+        quality: compressQuality,
+        maxWidthOrHeight: compressMaxResolution,
+        maxSizeMB: compressTargetSizeMB,
+      });
+      reportProgress(100);
+      return {
+        id: `res_${Date.now()}_${Math.random()}`,
+        originalName: file.name,
+        originalSize,
+        originalUrl: URL.createObjectURL(file),
+        newFilename: filename,
+        newSize: compressedSize,
+        blob,
+        previewUrl: URL.createObjectURL(blob),
+      };
+    } else if (activeTab === "convert") {
+      const { blob, filename } = await convertFormat(file, convertTarget, convertQuality, convertBgColor);
+      reportProgress(100);
+      return {
+        id: `res_${Date.now()}_${Math.random()}`,
+        originalName: file.name,
+        originalSize: file.size,
+        originalUrl: URL.createObjectURL(file),
+        newFilename: filename,
+        newSize: blob.size,
+        blob,
+        previewUrl: convertTarget === "ico" ? "" : URL.createObjectURL(blob),
+        extraInfo: lang === "en" ? `Target: ${convertTarget.toUpperCase()}` : `目标: ${convertTarget.toUpperCase()}`,
+      };
+    } else if (activeTab === "resize") {
+      let tW = typeof customWidth === "number" ? customWidth : undefined;
+      let tH = typeof customHeight === "number" ? customHeight : undefined;
+      if (resizeMode === "preset") {
+        tW = selectedPreset.width;
+        tH = selectedPreset.height;
+      }
+
+      const { blob, filename, originalWidth, originalHeight, targetWidth, targetHeight } = await resizeImage(
+        file,
+        {
+          mode: resizeMode,
+          percent: resizePercent,
+          targetWidth: tW,
+          targetHeight: tH,
+          maintainAspectRatio: lockAspect,
+        }
+      );
+      reportProgress(100);
+      return {
+        id: `res_${Date.now()}_${Math.random()}`,
+        originalName: file.name,
+        originalSize: file.size,
+        originalUrl: URL.createObjectURL(file),
+        newFilename: filename,
+        newSize: blob.size,
+        blob,
+        previewUrl: URL.createObjectURL(blob),
+        extraInfo: `${originalWidth}x${originalHeight} → ${targetWidth}x${targetHeight}`,
+      };
+    } else if (activeTab === "exif") {
+      const { blob, filename, originalSize, newSize } = await stripExif(file);
+      reportProgress(100);
+      return {
+        id: `res_${Date.now()}_${Math.random()}`,
+        originalName: file.name,
+        originalSize,
+        originalUrl: URL.createObjectURL(file),
+        newFilename: filename,
+        newSize,
+        blob,
+        previewUrl: URL.createObjectURL(blob),
+        extraInfo: lang === "en" ? "GPS & camera metadata stripped" : "已完全清除 GPS 定位与拍摄元数据",
+      };
+    } else if (activeTab === "watermark") {
+      const { blob, filename } = await applyWatermark(file, {
+        type: watermarkType,
+        text: watermarkText,
+        textColor: watermarkTextColor,
+        fontSize: watermarkFontSize,
+        opacity: watermarkOpacity,
+        rotation: watermarkRotation,
+        position: watermarkPos,
+        logoFile: watermarkLogoFile || undefined,
+      });
+      reportProgress(100);
+      return {
+        id: `res_${Date.now()}_${Math.random()}`,
+        originalName: file.name,
+        originalSize: file.size,
+        originalUrl: URL.createObjectURL(file),
+        newFilename: filename,
+        newSize: blob.size,
+        blob,
+        previewUrl: URL.createObjectURL(blob),
+        extraInfo:
+          watermarkType === "text"
+            ? lang === "en"
+              ? `Text Watermark: ${watermarkText}`
+              : `文字水印: ${watermarkText}`
+            : lang === "en"
+            ? "Logo Stamp Watermark"
+            : "Logo 贴图水印",
+      };
+    }
+    throw new Error("Unsupported image action");
+  };
+
+  // 执行并发任务管线
+  const runPipeline = async (tasks: BatchTaskItem<File, ProcessedResult>[]) => {
+    setIsProcessing(true);
+    setError(null);
+    const abortCtrl = new AbortController();
+    abortControllerRef.current = abortCtrl;
+
+    try {
+      const { items: updatedItems } = await executeBatchQueue(tasks, processSingleImage, {
+        concurrency,
+        signal: abortCtrl.signal,
+        onProgress: (sum) => setQueueSummary({ ...sum }),
+        onItemUpdate: (updated) => {
+          setQueueItems((prev) => prev.map((it) => (it.id === updated.id ? { ...updated } : it)));
+        },
+      });
+
+      const completed = updatedItems
+        .filter((it) => it.status === "completed" && it.result)
+        .map((it) => it.result!);
+      setResults(completed);
+    } catch (err: any) {
+      setError(err?.message || (lang === "en" ? "Batch queue execution error" : "批量队列处理发生异常"));
+    } finally {
+      setIsProcessing(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  // 执行或重头启动批量处理
   const handleExecuteBatch = async () => {
     if (files.length === 0) {
       setError(lang === "en" ? "Please select or drop images to process" : "请先选择或拖拽上传需要处理的图片");
       return;
     }
 
-    setIsProcessing(true);
-    setError(null);
-    const newResults: ProcessedResult[] = [];
+    const tasks: BatchTaskItem<File, ProcessedResult>[] = files.map((file, i) => ({
+      id: `task_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`,
+      name: file.name,
+      size: file.size,
+      raw: file,
+      status: "waiting",
+      progress: 0,
+    }));
 
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        setProgressText(
-          lang === "en"
-            ? `Processing (${i + 1}/${files.length}): ${file.name}`
-            : `正在处理 (${i + 1}/${files.length}): ${file.name}`
-        );
-
-        if (activeTab === "heic") {
-          const { blob, filename } = await convertHeic(file, heicTargetFormat, heicQuality);
-          newResults.push({
-            id: `res_${Date.now()}_${i}`,
-            originalName: file.name,
-            originalSize: file.size,
-            originalUrl: URL.createObjectURL(file),
-            newFilename: filename,
-            newSize: blob.size,
-            blob,
-            previewUrl: URL.createObjectURL(blob),
-          });
-        } else if (activeTab === "compress") {
-          const { blob, filename, originalSize, compressedSize } = await compressImage(file, {
-            quality: compressQuality,
-            maxWidthOrHeight: compressMaxResolution,
-            maxSizeMB: compressTargetSizeMB,
-          });
-          newResults.push({
-            id: `res_${Date.now()}_${i}`,
-            originalName: file.name,
-            originalSize,
-            originalUrl: URL.createObjectURL(file),
-            newFilename: filename,
-            newSize: compressedSize,
-            blob,
-            previewUrl: URL.createObjectURL(blob),
-          });
-        } else if (activeTab === "convert") {
-          const { blob, filename } = await convertFormat(file, convertTarget, convertQuality, convertBgColor);
-          newResults.push({
-            id: `res_${Date.now()}_${i}`,
-            originalName: file.name,
-            originalSize: file.size,
-            originalUrl: URL.createObjectURL(file),
-            newFilename: filename,
-            newSize: blob.size,
-            blob,
-            previewUrl: convertTarget === "ico" ? "" : URL.createObjectURL(blob),
-            extraInfo: lang === "en" ? `Target: ${convertTarget.toUpperCase()}` : `目标: ${convertTarget.toUpperCase()}`,
-          });
-        } else if (activeTab === "resize") {
-          let tW = typeof customWidth === "number" ? customWidth : undefined;
-          let tH = typeof customHeight === "number" ? customHeight : undefined;
-          if (resizeMode === "preset") {
-            tW = selectedPreset.width;
-            tH = selectedPreset.height;
-          }
-
-          const { blob, filename, originalWidth, originalHeight, targetWidth, targetHeight } = await resizeImage(
-            file,
-            {
-              mode: resizeMode,
-              percent: resizePercent,
-              targetWidth: tW,
-              targetHeight: tH,
-              maintainAspectRatio: lockAspect,
-            }
-          );
-          newResults.push({
-            id: `res_${Date.now()}_${i}`,
-            originalName: file.name,
-            originalSize: file.size,
-            originalUrl: URL.createObjectURL(file),
-            newFilename: filename,
-            newSize: blob.size,
-            blob,
-            previewUrl: URL.createObjectURL(blob),
-            extraInfo: `${originalWidth}x${originalHeight} → ${targetWidth}x${targetHeight}`,
-          });
-        } else if (activeTab === "exif") {
-          const { blob, filename, originalSize, newSize } = await stripExif(file);
-          newResults.push({
-            id: `res_${Date.now()}_${i}`,
-            originalName: file.name,
-            originalSize,
-            originalUrl: URL.createObjectURL(file),
-            newFilename: filename,
-            newSize,
-            blob,
-            previewUrl: URL.createObjectURL(blob),
-            extraInfo: lang === "en" ? "GPS & camera metadata stripped" : "已完全清除 GPS 定位与拍摄元数据",
-          });
-        } else if (activeTab === "watermark") {
-          const { blob, filename } = await applyWatermark(file, {
-            type: watermarkType,
-            text: watermarkText,
-            textColor: watermarkTextColor,
-            fontSize: watermarkFontSize,
-            opacity: watermarkOpacity,
-            rotation: watermarkRotation,
-            position: watermarkPos,
-            logoFile: watermarkLogoFile || undefined,
-          });
-          newResults.push({
-            id: `res_${Date.now()}_${i}`,
-            originalName: file.name,
-            originalSize: file.size,
-            originalUrl: URL.createObjectURL(file),
-            newFilename: filename,
-            newSize: blob.size,
-            blob,
-            previewUrl: URL.createObjectURL(blob),
-            extraInfo:
-              watermarkType === "text"
-                ? lang === "en"
-                  ? `Text Watermark: ${watermarkText}`
-                  : `文字水印: ${watermarkText}`
-                : lang === "en"
-                ? "Logo Stamp Watermark"
-                : "Logo 贴图水印",
-          });
-        }
-      }
-
-      setResults(newResults);
-      setProgressText("");
-    } catch (err: any) {
-      setError(err.message || (lang === "en" ? "An error occurred while batch processing images" : "批量处理图片时发生错误"));
-    } finally {
-      setIsProcessing(false);
-    }
+    setQueueItems(tasks);
+    await runPipeline(tasks);
   };
 
-  // 打包全部为 ZIP
-  const handleDownloadAllZip = async () => {
+  // 单项重试
+  const handleRetryItem = async (itemId: string) => {
+    const updated = queueItems.map((it) =>
+      it.id === itemId ? { ...it, status: "waiting" as const, error: undefined, progress: 0 } : it
+    );
+    setQueueItems(updated);
+    await runPipeline(updated);
+  };
+
+  // 重试所有失败/取消项
+  const handleRetryAllFailed = async () => {
+    const updated = queueItems.map((it) =>
+      it.status === "error" || it.status === "cancelled"
+        ? { ...it, status: "waiting" as const, error: undefined, progress: 0 }
+        : it
+    );
+    setQueueItems(updated);
+    await runPipeline(updated);
+  };
+
+  // 中途取消队列
+  const handleCancelQueue = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setIsProcessing(false);
+  };
+
+  // 统一批量导出 (Electron 直接落盘，浏览器无缝降级 ZIP 打包下载)
+  const handleExportAll = async () => {
     if (results.length === 0) return;
     try {
       const items = results.map((r) => ({ blob: r.blob, filename: r.newFilename }));
       const zipName = `XC_${activeTab}_images_${Date.now()}.zip`;
-      const { blob, filename } = await createZipBundle(items, zipName);
-      downloadBlob(blob, filename);
+      await exportBatchFiles(items, { zipName, lang });
     } catch (err: any) {
-      setError((lang === "en" ? "Failed to create ZIP bundle: " : "生成 ZIP 打包文件失败: ") + err.message);
+      setError((lang === "en" ? "Failed to export files: " : "导出文件失败: ") + err.message);
     }
   };
+
+  const handleDownloadAllZip = handleExportAll;
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in">
@@ -1017,28 +1113,40 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
         </div>
       )}
 
+      {/* 批量并发队列进度监控面板 */}
+      {queueItems.length > 0 && (
+        <BatchQueueProgress
+          summary={queueSummary}
+          items={queueItems}
+          isProcessing={isProcessing}
+          concurrency={concurrency}
+          onConcurrencyChange={setConcurrency}
+          onCancel={handleCancelQueue}
+          onRetryItem={handleRetryItem}
+          onRetryAllFailed={handleRetryAllFailed}
+          onExportAll={handleExportAll}
+          exportLabel={lang === "en" ? "Export All" : "一键导出全部"}
+          title={lang === "en" ? "Image Batch Processing Queue" : "图片批量并发队列"}
+          lang={lang}
+        />
+      )}
+
       {/* 执行主按钮 */}
-      {files.length > 0 && results.length === 0 && (
+      {files.length > 0 && !isProcessing && (
         <button
           onClick={handleExecuteBatch}
-          disabled={isProcessing}
-          className={`w-full py-4 rounded-2xl font-bold text-sm flex items-center justify-center space-x-2 transition-all shadow-coconut-sm ${
-            isProcessing
-              ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
-              : "btn-3d-sunset text-white"
-          }`}
+          className="w-full py-4 rounded-2xl font-bold text-sm flex items-center justify-center space-x-2 transition-all shadow-coconut-sm btn-3d-sunset text-white"
         >
-          {isProcessing ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span>{progressText || (lang === "en" ? "Batch processing in progress..." : "正在批量处理中...")}</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-5 h-5 text-amber-200" />
-              <span>{lang === "en" ? `Start Processing (${files.length} files)` : `立即开始执行 (${files.length} 个文件)`}</span>
-            </>
-          )}
+          <Sparkles className="w-5 h-5 text-amber-200" />
+          <span>
+            {queueItems.length > 0
+              ? lang === "en"
+                ? `Re-process All (${files.length} files)`
+                : `重新并发处理全部 (${files.length} 个文件)`
+              : lang === "en"
+              ? `Start Processing (${files.length} files)`
+              : `立即开始并发处理 (${files.length} 个文件)`}
+          </span>
         </button>
       )}
 
@@ -1061,11 +1169,11 @@ export default function ImageToolbox({ currentTab, onTabChange }: ImageToolboxPr
               </span>
             </div>
             <button
-              onClick={handleDownloadAllZip}
+              onClick={handleExportAll}
               className="px-4 py-2 btn-3d-sunset text-white rounded-xl text-xs font-bold flex items-center space-x-1.5"
             >
               <Archive className="w-4 h-4" />
-              <span>{lang === "en" ? "Download All as ZIP" : "一键打包下载全部 (ZIP)"}</span>
+              <span>{lang === "en" ? "Export All" : "一键导出全部"}</span>
             </button>
           </div>
 

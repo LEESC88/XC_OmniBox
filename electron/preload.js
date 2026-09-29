@@ -30,4 +30,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clearCache: () => ipcRenderer.invoke('settings:clear-cache'),
   getAutoStart: () => ipcRenderer.invoke('settings:get-autostart'),
   setAutoStart: (enable) => ipcRenderer.invoke('settings:set-autostart', enable),
+  saveBatchFiles: (payload) => ipcRenderer.invoke('files:save-batch', payload),
 });

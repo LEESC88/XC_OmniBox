@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "XC_OmniBox (XC 万象箱) - 极速本地多功能工具箱",
-  description: "极速 · 极简 · 高保真 · 300+ DPI 无损 · 零隐私泄漏的本地多功能工具箱",
+  title: "XC_OmniBox (XC 万象箱)",
+  description: "本地多功能工具箱",
 };
 
 export const viewport: Viewport = {
@@ -96,4 +96,3 @@ export default function RootLayout({
     </html>
   );
 }
-
