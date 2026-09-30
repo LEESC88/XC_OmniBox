@@ -122,7 +122,7 @@ type AudioTabType =
   | "volume"
   | "speed"
   | "karaoke";
-type DailyTabType = "idphoto" | "qrcode" | "diff" | "dev";
+type DailyTabType = "idphoto" | "qrcode" | "diff";
 type ModuleType = "document" | "image" | "audio" | "utilities" | "ai";
 
 interface ToolItem {
@@ -370,7 +370,7 @@ const TOOLS_REGISTRY: {
     ],
   },
   {
-    category: "实用与开发工坊",
+    category: "日常与便民工坊",
     module: "utilities",
     icon: Wrench,
     tools: [
@@ -400,15 +400,6 @@ const TOOLS_REGISTRY: {
         badge: "文章对比",
         icon: GitCompare,
         keywords: ["diff", "对比", "文章", "文本", "差异"],
-      },
-      {
-        id: "dev",
-        module: "utilities",
-        name: "开发与编码利器",
-        desc: "JSON 校验、Base64、Hash、时间戳",
-        badge: "神器",
-        icon: Code2,
-        keywords: ["json", "base64", "hash", "时间戳", "开发"],
       },
     ],
   },
@@ -1689,7 +1680,7 @@ export default function Home() {
                     </span>
                   ) : (
                     <span className="text-xs font-mono font-bold text-coconut-600 dark:text-darkbg-muted">
-                      v1.3.0
+                      v1.3.1
                     </span>
                   )}
                 </div>

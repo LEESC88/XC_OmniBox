@@ -27,6 +27,14 @@
 
 ---
 
+## 🌟 What's New in v1.3.1
+
+- 🧹 **Module Streamlining & Clutter Removal**:
+  - Completely excised the redundant "Finance & Everyday Utils" tab (removing miscellaneous RMB capitalization, word statistics, ID card validator, and JSON/Base64/Hash/Timestamp helpers).
+  - The Everyday Utilities studio is now laser-focused on its 3 flagship, high-value tools: **ID Photo Studio & Print Layout**, **Artistic QR Code Generator & Scanner**, and **Article & Text Diff Engine**.
+
+---
+
 ## 🌟 What's New in v1.3.0
 
 - 🏎️ **Full-Stack 60~120 FPS Fluid Performance Engine**:

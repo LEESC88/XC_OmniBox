@@ -146,11 +146,6 @@ export const TOOL_TRANSLATIONS: Record<
     desc: "Real-time side-by-side article revisions and text diff comparison",
     badge: "Article Diff",
   },
-  "dev": {
-    name: "Developer Toolkit",
-    desc: "JSON validator, Base64, hashing, timestamp converter",
-    badge: "Swiss Knife",
-  },
 
   // AI
   "ai-bg-remove": {
@@ -189,7 +184,7 @@ export const CATEGORY_TRANSLATIONS: Record<string, string> = {
   document: "Document & PDF",
   image: "Image & Visual",
   audio: "Audio & Sound",
-  utilities: "Utility & Dev",
+  utilities: "Everyday Utilities",
   ai: "AI Magic Studio",
 };
 

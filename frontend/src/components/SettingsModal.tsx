@@ -481,7 +481,7 @@ export default function SettingsModal({
 
           <div className="hidden md:block pt-4 border-t border-coconut-300/60 dark:border-[#3D2E26]">
             <span className="text-xs font-mono font-bold text-coconut-700 dark:text-neutral-400">
-              XC OmniBox v1.3.0
+              XC OmniBox v1.3.1
             </span>
           </div>
         </div>

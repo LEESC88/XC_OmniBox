@@ -1,18 +1,16 @@
-# Active Architecture Context: Fluid Performance Engine & Release 1.3.0
+# Active Architecture Context: Streamline & Release 1.3.1
 
-## 1. Status: 60~120 FPS Fluid Optimization & Release 1.3.0 Complete
-- GPU Acceleration: Chromium GPU rasterization, zero-copy, Canvas OOP rasterization, no background throttling.
-- Virtual Rendering: `content-visibility: auto` on batch queue tasks; GPU composited layers on modals & views.
-- Concurrent Navigation: `startTransition` on module switching for 0ms interaction response.
-- RAF Event Loop: `requestAnimationFrame` on Squoosh quality slider & zoom/pan gestures.
-- Release: Version bumped to 1.3.0 across frontend, backend, electron, and bilingual docs.
+## 1. Status: Cleaned Dev/RMB Module & Release 1.3.1
+- Excised redundant "财务大写与日常实用" (RMB uppercase, stats, idcard, dev json/base64/hash/timestamp).
+- Streamlined Everyday Utilities module to 3 core tools: `idphoto` (证件照), `qrcode` (二维码), `diff` (文章对比).
+- Synchronized type definitions (`DailyTabType`, `ToolTab`), `TOOLS_REGISTRY`, and bilingual `i18n.tsx`.
+- Bumped version to 1.3.1 across root, frontend, backend, electron, settings, and documentation.
 
 ## 2. Core Contracts & APIs
-- `electron/main.js`: `--enable-gpu-rasterization`, `--enable-zero-copy`, `--ignore-gpu-blocklist`.
-- `globals.css`: `.gpu-layer`, `.virtual-scroll-item`, `.smooth-scroll`.
-- `page.tsx`: `useTransition` wrapped `setActiveModule`.
-- `ImageCompareModal.tsx`: RAF throttled `updateSplitFromPointer` & container pan.
+- `DailyToolbox.tsx`: 3-tab layout (`idphoto`, `qrcode`, `diff`), completely purged of dev states.
+- `page.tsx`: Cleaned `TOOLS_REGISTRY` entry and updated category label to "日常与便民工坊".
+- `i18n.tsx`: Updated English module translation to "Everyday Utilities".
 
 ## 3. Boundary & Error Isolation
-- RAF handles cancel pending frames on unmount and before subsequent pointer movements.
-- Spellcheck disabled in Electron webPreferences to prevent background worker stalls.
+- Preserved `SendToButton` and `toolBus` pipelines to `idphoto` and `diff` without breaking changes.
+- Validated via `tsc --noEmit` and production Next.js export build.
