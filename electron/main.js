@@ -376,6 +376,24 @@ function createWindow() {
     }
   });
 
+  // 拦截全部 target="_blank" 或 window.open 外部链接，一律调用系统默认外部浏览器 (Chrome/Edge 等) 打开，严禁在内嵌窗口加载
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  // 拦截非本地的外部页面导航跳转
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (url.startsWith('http:') || url.startsWith('https:')) {
+      if (!url.startsWith('http://localhost:3000') && !url.startsWith('http://127.0.0.1:3000')) {
+        event.preventDefault();
+        shell.openExternal(url);
+      }
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -386,6 +404,12 @@ function createWindow() {
 
 // 注册设置相关的 IPC 通道
 function setupSettingsIPC() {
+  ipcMain.handle('app:open-external', async (_e, url) => {
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+      await shell.openExternal(url);
+    }
+  });
+
   ipcMain.handle('settings:get-config', () => {
     let defaultDownloadsPath = '';
     try {

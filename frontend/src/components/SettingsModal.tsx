@@ -100,6 +100,7 @@ export default function SettingsModal({
   const [clearingCache, setClearingCache] = useState(false);
   const [isElectron, setIsElectron] = useState(false);
   const [defaultDownloadsPath, setDefaultDownloadsPath] = useState<string>("");
+  const [appVersion, setAppVersion] = useState<string>("1.3.2");
 
   // 快照：记录打开弹窗时的已持久化状态，用于判断 isDirty 以及取消时还原
   const snapshotRef = useRef<{
@@ -188,6 +189,11 @@ export default function SettingsModal({
     if (typeof window !== "undefined" && (window as any).electronAPI) {
       setIsElectron(true);
       const api = (window as any).electronAPI;
+      if (api.getAppVersion) {
+        api.getAppVersion().then((v: string) => {
+          if (v) setAppVersion(v);
+        }).catch(() => {});
+      }
 
       if (api.getDesktopConfig) {
         api.getDesktopConfig().then((c: DesktopConfig) => {
@@ -481,7 +487,7 @@ export default function SettingsModal({
 
           <div className="hidden md:block pt-4 border-t border-coconut-300/60 dark:border-[#3D2E26]">
             <span className="text-xs font-mono font-bold text-coconut-700 dark:text-neutral-400">
-              XC OmniBox v1.3.1
+              XC OmniBox v{appVersion}
             </span>
           </div>
         </div>
@@ -1186,8 +1192,8 @@ export default function SettingsModal({
                     <div className="text-xs sm:text-sm font-bold text-coconut-950 dark:text-white">
                       {t.settings.appVersionTitle}
                     </div>
-                    <div className="text-xs text-coconut-800 dark:text-neutral-200 mt-1 font-medium">
-                      {t.settings.versionLabel}
+                    <div className="text-xs text-coconut-800 dark:text-neutral-200 mt-1 font-medium font-mono">
+                      {t.settings.versionLabel.replace("{version}", appVersion)}
                     </div>
                   </div>
                   <button
@@ -1207,18 +1213,38 @@ export default function SettingsModal({
                   </div>
                   <p className="text-xs text-coconut-700 dark:text-neutral-200 leading-relaxed font-medium">
                     {lang === "en"
-                      ? "Fast · Minimal · High-fidelity · 300+ DPI lossless · Zero privacy leak offline multimedia & dev toolbox."
-                      : "极速 · 极简 · 300+ DPI 无损 · 零隐私泄漏的本地多功能工具箱，100% 本地运算与高保真处理。"}
+                      ? "A local offline multimedia and productivity toolbox."
+                      : "本地离线运行的多媒体与日常效率工具箱。"}
                   </p>
-                  <div className="pt-1 flex items-center gap-3">
-                    <a
-                      href="https://github.com/LEESC88/XC_OmniBox"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline"
+                  <div className="pt-1 flex flex-wrap items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = "https://github.com/LEESC88/XC_OmniBox";
+                        if (typeof window !== "undefined" && (window as any).electronAPI?.openExternal) {
+                          (window as any).electronAPI.openExternal(url);
+                        } else {
+                          window.open(url, "_blank");
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:underline cursor-pointer"
                     >
                       {lang === "en" ? "GitHub Repository" : "GitHub 开源仓库"} <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = "https://github.com/LEESC88/XC_OmniBox/blob/main/USER_MANUAL.md";
+                        if (typeof window !== "undefined" && (window as any).electronAPI?.openExternal) {
+                          (window as any).electronAPI.openExternal(url);
+                        } else {
+                          window.open(url, "_blank");
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                    >
+                      {lang === "en" ? "User Manual" : "用户使用手册"} <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               </div>

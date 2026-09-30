@@ -13,7 +13,7 @@ from app.api.v1.image import router as image_router
 app = FastAPI(
     title="XC_OmniBox 后端核心 API",
     description="支持高质量 Word/PDF 互转 (300+ DPI 保真)、PDF 在线所见即所得编辑、PDF 页面管理与水印安全服务、图片多功能处理服务",
-    version="1.3.1",
+    version="1.3.2",
     docs_url="/docs",
     redoc_url="/redoc"
 )

@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="README_EN.md">English</a> | <strong>简体中文</strong>
+  <a href="README_EN.md">English</a> | <strong>简体中文</strong> | <a href="USER_MANUAL.md"><strong>📖 用户使用手册</strong></a>
 </p>
 
 <p align="center">
@@ -24,6 +24,18 @@
 ## 📖 简介 / Introduction
 
 **XC_OmniBox (XC 万象箱)** 是一款基于 Electron + Next.js (React) + FastAPI (Python 混合引擎) 构建的现代化本地多功能工具箱。致力于为创作者、工程师、办公人士提供**100% 纯本地离线运算、零隐私泄漏、零云端限制、秒级响应**的一站式多媒体与日常效率工具。
+
+---
+
+## 🌟 v1.3.2 细节优化与用户手册 / What's New in v1.3.2
+
+- 📖 **官方用户手册发布 (User Manual)**：
+  - 编写了详尽的中英文官方用户操作手册 [`USER_MANUAL.md`](USER_MANUAL.md) / [`USER_MANUAL_EN.md`](USER_MANUAL_EN.md)，包含快速入门、五大工坊核心玩法、快捷键速查表及常见问题排查。
+- 🌐 **外部链接直跳默认浏览器**：
+  - 拦截所有外部网页跳转（GitHub 仓库、使用手册、版本发布页等），统一由 Windows 系统默认浏览器（Chrome / Edge 等）唤起打开，彻底杜绝在内嵌窗口加载网页。
+- 🔄 **关于面板版本号动态同步与文案精简**：
+  - 设置中心关于页面动态读取系统当前版本号，彻底解决版本显示滞后问题。
+  - 精简去除了过度的宣传文案，呈现极简纯净的本地工具箱体验。
 
 ---
 

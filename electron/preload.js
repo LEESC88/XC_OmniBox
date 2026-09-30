@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   // 获取当前应用版本
   getAppVersion: () => ipcRenderer.invoke('app:get-version'),
+  // 在系统默认浏览器中打开外部链接
+  openExternal: (url) => ipcRenderer.invoke('app:open-external', url),
 
   // 全局设置与偏好配置
   getDesktopConfig: () => ipcRenderer.invoke('settings:get-config'),

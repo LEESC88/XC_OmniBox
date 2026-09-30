@@ -1680,7 +1680,7 @@ export default function Home() {
                     </span>
                   ) : (
                     <span className="text-xs font-mono font-bold text-coconut-600 dark:text-darkbg-muted">
-                      v1.3.1
+                      v1.3.2
                     </span>
                   )}
                 </div>

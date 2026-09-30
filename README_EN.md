@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>English</strong> | <a href="README.md">简体中文</a>
+  <strong>English</strong> | <a href="README.md">简体中文</a> | <a href="USER_MANUAL_EN.md"><strong>📖 User Manual</strong></a>
 </p>
 
 <p align="center">
@@ -24,6 +24,18 @@
 ## 📖 Introduction
 
 **XC_OmniBox** is a modern, high-performance desktop productivity and multimedia toolbox built with Electron, Next.js (React), and FastAPI (Python hybrid engine). Designed from the ground up for privacy-conscious developers, content creators, and office professionals, XC_OmniBox guarantees **100% local offline processing, zero cloud data transfer, zero vendor lock-in, and instant latency-free responsiveness**.
+
+---
+
+## 🌟 What's New in v1.3.2
+
+- 📖 **Official User Manual Released**:
+  - Comprehensive bilingual documentation [`USER_MANUAL.md`](USER_MANUAL.md) / [`USER_MANUAL_EN.md`](USER_MANUAL_EN.md) detailing quick start, core studio guides, shortcuts cheatsheet, and troubleshooting.
+- 🌐 **External Links Route Directly to System Browser**:
+  - All web links (GitHub repository, user manual, release notes) automatically open in the user's default external browser (Chrome, Edge, etc.) rather than an internal Electron window.
+- 🔄 **Dynamic Version Sync & Clean Description**:
+  - The settings about panel dynamically reads the actual running application version.
+  - Simplified and refined about panel descriptions for a clean, understated aesthetic.
 
 ---
 

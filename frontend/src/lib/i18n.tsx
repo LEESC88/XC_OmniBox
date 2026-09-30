@@ -420,7 +420,7 @@ export const UI_DICTIONARY = {
       autoCheckUpdateTitle: "启动时自动检查更新",
       autoCheckUpdateDesc: "每次启动应用时在后台静默检查 GitHub 官方版本，有新版时只在侧边栏亮起小红点",
       appVersionTitle: "XC OmniBox 桌面旗舰版",
-      versionLabel: "当前版本: v1.1.0 · 本地极速多功能架构",
+      versionLabel: "当前版本: v{version} · 本地离线多功能架构",
       checkUpdateBtn: "检查最新版本",
     },
 
@@ -712,7 +712,7 @@ export const UI_DICTIONARY = {
       autoCheckUpdateTitle: "Check for Updates on Startup",
       autoCheckUpdateDesc: "Silently checks for new GitHub releases on launch; shows a red dot on sidebar if available",
       appVersionTitle: "XC OmniBox Desktop Edition",
-      versionLabel: "Current Version: v1.1.0 · Precision Native Architecture",
+      versionLabel: "Current Version: v{version} · Offline Native Architecture",
       checkUpdateBtn: "Check for Latest Version",
     },
 

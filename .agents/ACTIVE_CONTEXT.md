@@ -1,16 +1,17 @@
-# Active Architecture Context: Streamline & Release 1.3.1
+# Active Architecture Context: User Manual & Release 1.3.2
 
-## 1. Status: Cleaned Dev/RMB Module & Release 1.3.1
-- Excised redundant "财务大写与日常实用" (RMB uppercase, stats, idcard, dev json/base64/hash/timestamp).
-- Streamlined Everyday Utilities module to 3 core tools: `idphoto` (证件照), `qrcode` (二维码), `diff` (文章对比).
-- Synchronized type definitions (`DailyTabType`, `ToolTab`), `TOOLS_REGISTRY`, and bilingual `i18n.tsx`.
-- Bumped version to 1.3.1 across root, frontend, backend, electron, settings, and documentation.
+## 1. Status: User Manual & Release 1.3.2 Complete
+- Published bilingual official user manual (`USER_MANUAL.md` and `USER_MANUAL_EN.md`).
+- Intercepted external URL opening: all links route directly to Windows default browser via `shell.openExternal`.
+- Dynamically synchronized version display (`v{appVersion}`) in settings about panel; removed braggy slogan.
+- Bumped version to 1.3.2 across root, frontend, backend, electron, settings, and documentation.
 
 ## 2. Core Contracts & APIs
-- `DailyToolbox.tsx`: 3-tab layout (`idphoto`, `qrcode`, `diff`), completely purged of dev states.
-- `page.tsx`: Cleaned `TOOLS_REGISTRY` entry and updated category label to "日常与便民工坊".
-- `i18n.tsx`: Updated English module translation to "Everyday Utilities".
+- `electron/main.js`: `setWindowOpenHandler` and `will-navigate` forward HTTP(S) to `shell.openExternal`.
+- `electron/preload.js`: `electronAPI.openExternal(url)`.
+- `SettingsModal.tsx`: Dynamic version read via `api.getAppVersion()`, simplified about description.
+- `USER_MANUAL.md` / `USER_MANUAL_EN.md`: Comprehensive 7-section user guide.
 
 ## 3. Boundary & Error Isolation
-- Preserved `SendToButton` and `toolBus` pipelines to `idphoto` and `diff` without breaking changes.
-- Validated via `tsc --noEmit` and production Next.js export build.
+- Action `'deny'` on internal electron window creation prevents embedded browser popups.
+- Verified via `tsc --noEmit` and production Next.js export build.
