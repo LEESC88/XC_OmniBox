@@ -112,7 +112,7 @@ export default function UpdateModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in">
-      <div className="relative w-full max-w-md p-6 bg-[#FDFBF7] dark:bg-[#251E1A] border border-[#D2BCAB] dark:border-[#4D392E] rounded-3xl shadow-2xl transition-all">
+      <div className="gpu-layer relative w-full max-w-md p-6 bg-[#FDFBF7] dark:bg-[#251E1A] border border-[#D2BCAB] dark:border-[#4D392E] rounded-3xl shadow-2xl transition-all">
         {/* 关闭按钮 */}
         <button
           onClick={onClose}

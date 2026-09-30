@@ -430,7 +430,7 @@ export default function SettingsModal({
       }}
     >
       <div
-        className="relative w-full max-w-4xl w-[94vw] md:w-[920px] bg-[#FDFBF7] dark:bg-[#1E1713] border border-[#CBB09C] dark:border-[#4D392E] rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[88vh] animate-scale-up text-coconut-950 dark:text-white"
+        className="gpu-layer relative w-full max-w-4xl w-[94vw] md:w-[920px] bg-[#FDFBF7] dark:bg-[#1E1713] border border-[#CBB09C] dark:border-[#4D392E] rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[88vh] animate-scale-up text-coconut-950 dark:text-white"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 左侧导航栏 */}
@@ -481,7 +481,7 @@ export default function SettingsModal({
 
           <div className="hidden md:block pt-4 border-t border-coconut-300/60 dark:border-[#3D2E26]">
             <span className="text-xs font-mono font-bold text-coconut-700 dark:text-neutral-400">
-              XC OmniBox v1.2.0
+              XC OmniBox v1.3.0
             </span>
           </div>
         </div>

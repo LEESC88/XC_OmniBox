@@ -52,7 +52,7 @@ export default function ShortcutsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-lg bg-coconut-50 dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border rounded-3xl shadow-2xl overflow-hidden animate-scale-up">
+      <div className="gpu-layer w-full max-w-lg bg-coconut-50 dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border rounded-3xl shadow-2xl overflow-hidden animate-scale-up">
         {/* Header */}
         <div className="px-6 py-4.5 border-b border-coconut-200/70 dark:border-darkbg-border flex items-center justify-between">
           <div className="flex items-center space-x-2.5">

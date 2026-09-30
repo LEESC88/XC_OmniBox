@@ -56,6 +56,16 @@ export default function ImageCompareModal({
   });
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const panRafRef = useRef<number | null>(null);
+
+  // 清理未完成的帧动画
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) cancelAnimationFrame(rafIdRef.current);
+      if (panRafRef.current !== null) cancelAnimationFrame(panRafRef.current);
+    };
+  }, []);
 
   // 重置状态
   useEffect(() => {
@@ -95,14 +105,21 @@ export default function ImageCompareModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // 移动分割线位置
+  // 移动分割线位置 (通过 RAF 节流对齐 60/120/144Hz 屏幕刷新率，杜绝高回报率鼠标引起 React 抖动)
   const updateSplitFromPointer = useCallback((clientX: number) => {
     if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    if (rect.width <= 0) return;
-    const offset = clientX - rect.left;
-    const percentage = Math.max(0, Math.min(100, (offset / rect.width) * 100));
-    setSplitPos(percentage);
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
+    rafIdRef.current = requestAnimationFrame(() => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const offset = clientX - rect.left;
+      const percentage = Math.max(0, Math.min(100, (offset / rect.width) * 100));
+      setSplitPos(percentage);
+      rafIdRef.current = null;
+    });
   }, []);
 
   // 分割拖动事件
@@ -156,11 +173,19 @@ export default function ImageCompareModal({
     }
 
     if (isPanning && zoom > 1) {
-      const dx = e.clientX - panStartRef.current.startX;
-      const dy = e.clientY - panStartRef.current.startY;
-      setPan({
-        x: panStartRef.current.initPanX + dx,
-        y: panStartRef.current.initPanY + dy,
+      const clientX = e.clientX;
+      const clientY = e.clientY;
+      if (panRafRef.current !== null) {
+        cancelAnimationFrame(panRafRef.current);
+      }
+      panRafRef.current = requestAnimationFrame(() => {
+        const dx = clientX - panStartRef.current.startX;
+        const dy = clientY - panStartRef.current.startY;
+        setPan({
+          x: panStartRef.current.initPanX + dx,
+          y: panStartRef.current.initPanY + dy,
+        });
+        panRafRef.current = null;
       });
     }
   };
@@ -220,7 +245,7 @@ export default function ImageCompareModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-6xl max-h-[95vh] flex flex-col bg-[#FDFBF7] dark:bg-[#1C1613] border border-coconut-300 dark:border-darkbg-border rounded-3xl shadow-2xl overflow-hidden">
+      <div className="gpu-layer relative w-full max-w-6xl max-h-[95vh] flex flex-col bg-[#FDFBF7] dark:bg-[#1C1613] border border-coconut-300 dark:border-darkbg-border rounded-3xl shadow-2xl overflow-hidden">
         
         {/* 顶部 Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-coconut-200/80 dark:border-darkbg-border bg-coconut-100/50 dark:bg-darkbg-subtle flex-shrink-0">

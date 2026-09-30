@@ -326,6 +326,12 @@ app.commandLine.appendSwitch('high-dpi-support', '1');
 app.commandLine.appendSwitch('enable-font-antialiasing');
 app.commandLine.appendSwitch('force-color-profile', 'srgb');
 
+// 强制释放 Chromium 引擎 GPU 硬件加速，确保高刷屏 60~120 FPS 满帧丝滑运行
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-features', 'CanvasOopRasterization,Accelerated2dCanvas,VaapiVideoDecoder');
+
 function createWindow() {
   const iconPath = path.join(__dirname, '../resources/icon.ico');
 
@@ -341,6 +347,9 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
+      backgroundThrottling: false, // 窗口失焦或最小化时不降频卡死，保证批量多任务满速处理
+      spellcheck: false, // 禁用系统后台拼写检查线程，杜绝代码/长文本/Base64 处理时的微卡顿
+      v8CacheOptions: 'bypassHeatCheck', // 提高 V8 脚本执行缓存命中率，启动与加载极速响应
     },
     autoHideMenuBar: true,
   });

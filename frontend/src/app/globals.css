@@ -131,13 +131,13 @@ body:not(.dark) {
 }
 
 .btn-3d-sunset:hover:not(:disabled) {
-  transform: translateY(-2px);
+  transform: translate3d(0, -2px, 0);
   box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35), 0 14px 26px -2px var(--color-accent-shadow, rgba(234, 88, 12, 0.55)) !important;
   filter: brightness(1.06);
 }
 
 .btn-3d-sunset:active:not(:disabled) {
-  transform: translateY(3px);
+  transform: translate3d(0, 3px, 0);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35), 0 3px 8px var(--color-accent-shadow, rgba(234, 88, 12, 0.35)) !important;
   transition-duration: 0.08s;
 }
@@ -207,7 +207,7 @@ body:not(.dark) {
 }
 
 .btn-3d-secondary:hover:not(:disabled) {
-  transform: translateY(-1px);
+  transform: translate3d(0, -1px, 0);
   background: #F4E5D6;
   border-color: #BCA08C;
   box-shadow: 0 4px 0 #BCA08C, 0 6px 16px -2px rgba(120, 75, 45, 0.16);
@@ -219,7 +219,7 @@ body:not(.dark) {
 }
 
 .btn-3d-secondary:active:not(:disabled) {
-  transform: translateY(2px);
+  transform: translate3d(0, 2px, 0);
   box-shadow: 0 1px 0 #BCA08C;
   transition-duration: 0.08s;
 }
@@ -375,5 +375,27 @@ body:not(.dark) {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ================= 60~120 FPS 丝滑高刷加速支持 ================= */
+/* 硬件合成加速图层：使浮层、弹窗、侧边栏独立走显卡 Compositor 线程，杜绝 CPU 重排重绘 */
+.gpu-layer {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform, opacity;
+}
+
+/* 视口虚拟裁剪容器：百项并发任务/长文件列表视口外节点直接跳过 Style 与 Layout 计算 */
+.virtual-scroll-item {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 46px;
+}
+
+/* 极速平滑惯性滚动 */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
 
 

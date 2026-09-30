@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useTransition } from "react";
 import {
   Edit3,
   FileText,
@@ -489,7 +489,13 @@ export default function Home() {
     () => getLocalizedTools(TOOLS_REGISTRY, lang),
     [lang],
   );
-  const [activeModule, setActiveModule] = useState<ModuleType>("document");
+  const [activeModule, setActiveModuleState] = useState<ModuleType>("document");
+  const [, startTransition] = useTransition();
+  const setActiveModule = (mod: ModuleType) => {
+    startTransition(() => {
+      setActiveModuleState(mod);
+    });
+  };
   const [expandedModule, setExpandedModule] = useState<ModuleType | null>(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [activeDocTab, setActiveDocTab] = useState<DocTabType>("pdf-edit");
@@ -1683,7 +1689,7 @@ export default function Home() {
                     </span>
                   ) : (
                     <span className="text-xs font-mono font-bold text-coconut-600 dark:text-darkbg-muted">
-                      v1.2.0
+                      v1.3.0
                     </span>
                   )}
                 </div>

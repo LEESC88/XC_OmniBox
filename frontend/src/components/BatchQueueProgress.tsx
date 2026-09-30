@@ -208,7 +208,7 @@ export default function BatchQueueProgress({
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between p-2.5 rounded-xl bg-coconut-50/70 dark:bg-darkbg-subtle border border-coconut-200/50 dark:border-darkbg-border/60 text-xs transition-colors"
+              className="virtual-scroll-item flex items-center justify-between p-2.5 rounded-xl bg-coconut-50/70 dark:bg-darkbg-subtle border border-coconut-200/50 dark:border-darkbg-border/60 text-xs transition-colors"
             >
               <div className="flex items-center space-x-2.5 min-w-0 flex-1 pr-2">
                 {/* 状态徽标 */}
