@@ -55,6 +55,7 @@ class WordToPdfService:
                 converted = cls._convert_via_windows_com(docx_path, output_pdf_path, preset)
                 if converted and output_pdf_path.exists() and output_pdf_path.stat().st_size > 0:
                     cls._optimize_pdf_fonts(output_pdf_path)
+                    cls._post_process_quality(output_pdf_path, quality)
                     return output_pdf_path
             except Exception as e:
                 print(f"Notice: MS Word COM convert not available or failed ({e}), falling back...")
@@ -66,6 +67,7 @@ class WordToPdfService:
                 converted = cls._convert_via_libreoffice(libreoffice_bin, docx_path, output_pdf_path, preset)
                 if converted and output_pdf_path.exists() and output_pdf_path.stat().st_size > 0:
                     cls._optimize_pdf_fonts(output_pdf_path)
+                    cls._post_process_quality(output_pdf_path, quality)
                     return output_pdf_path
             except Exception as e:
                 print(f"Notice: LibreOffice convert failed ({e}), falling back...")
@@ -76,6 +78,7 @@ class WordToPdfService:
             d2p_convert(str(docx_path), str(output_pdf_path))
             if output_pdf_path.exists() and output_pdf_path.stat().st_size > 0:
                 cls._optimize_pdf_fonts(output_pdf_path)
+                cls._post_process_quality(output_pdf_path, quality)
                 return output_pdf_path
         except Exception as e:
             print(f"Notice: docx2pdf failed ({e})")
@@ -273,3 +276,88 @@ class WordToPdfService:
                 doc.close()
         except Exception as e:
             print(f"Notice: _optimize_pdf_fonts skipped: {e}")
+
+    @classmethod
+    def _post_process_quality(cls, pdf_path: Path, quality: str):
+        """
+        针对文档内包含的位图图像，按所选质量档位进行智能重采样与体积梯级分化：
+        - high (高清): 保持原生打印级 100% 原始位图与矢量排版，不做任何降质处理
+        - standard (标准 150 DPI): 平衡画质与文件体积，最大长边限制 1400px，JPEG 质量 75
+        - light (轻量 96 DPI): 极致便携小体积，最大长边限制 900px，JPEG 质量 50
+        注意：仅当处理后图像体积确实缩小时才更新流（绝不反向膨胀）；若文档无位图或未缩小，则保持原文件不变。
+        """
+        if quality == "high":
+            return
+
+        try:
+            import io
+            import pymupdf
+            from PIL import Image
+
+            doc = pymupdf.open(str(pdf_path))
+            processed_xrefs = set()
+            modified = False
+
+            if quality == "light":
+                jpg_quality = 50
+                max_dim = 900
+            elif quality == "standard":
+                jpg_quality = 75
+                max_dim = 1400
+            else:
+                doc.close()
+                return
+
+            for page in doc:
+                image_list = page.get_images(full=True)
+                for img_info in image_list:
+                    xref = img_info[0]
+                    if xref in processed_xrefs:
+                        continue
+                    processed_xrefs.add(xref)
+
+                    try:
+                        base_img = doc.extract_image(xref)
+                        if not base_img:
+                            continue
+                        raw_bytes = base_img.get("image")
+                        if not raw_bytes or len(raw_bytes) < 4096:
+                            continue
+
+                        pil_img = Image.open(io.BytesIO(raw_bytes))
+                        width, height = pil_img.size
+
+                        needs_resize = max(width, height) > max_dim
+                        if needs_resize:
+                            ratio = max_dim / max(width, height)
+                            new_w = max(1, int(width * ratio))
+                            new_h = max(1, int(height * ratio))
+                            pil_img = pil_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
+                        out_buf = io.BytesIO()
+                        if pil_img.mode in ("RGBA", "LA", "P"):
+                            pil_img.save(out_buf, format="PNG", optimize=True)
+                        else:
+                            if pil_img.mode != "RGB":
+                                pil_img = pil_img.convert("RGB")
+                            pil_img.save(out_buf, format="JPEG", quality=jpg_quality, optimize=True)
+
+                        compressed_bytes = out_buf.getvalue()
+                        # 严格守护：仅当重采样后体积确实变小时才替换，确保绝不反向膨胀
+                        if len(compressed_bytes) < len(raw_bytes):
+                            doc.update_stream(xref, compressed_bytes)
+                            modified = True
+                    except Exception:
+                        continue
+
+            if modified:
+                temp_out = pdf_path.with_name(f"{pdf_path.stem}_tieropt.pdf")
+                doc.save(str(temp_out), deflate=True, garbage=4, clean=True)
+                doc.close()
+                if temp_out.exists() and temp_out.stat().st_size > 0:
+                    temp_out.replace(pdf_path)
+            else:
+                doc.close()
+        except Exception as e:
+            print(f"Notice: _post_process_quality skipped: {e}")
+

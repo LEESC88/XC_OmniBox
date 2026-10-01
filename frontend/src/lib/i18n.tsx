@@ -432,12 +432,12 @@ export const UI_DICTIONARY = {
       lightDpi: "96 DPI",
       standardDpi: "150 DPI",
       highDpi: "300 DPI",
-      lightDesc: "文件最小",
-      standardDesc: "平衡画质",
-      highDesc: "打印级",
-      lightSize: "~0.3-1 MB",
-      standardSize: "~1-3 MB",
-      highSize: "~3-8 MB",
+      lightDesc: "便携小体积",
+      standardDesc: "平衡推荐",
+      highDesc: "打印级无损",
+      lightSize: "便携网络分享",
+      standardSize: "通用平衡画质",
+      highSize: "原图打印质感",
     },
 
     common: {
@@ -727,9 +727,9 @@ export const UI_DICTIONARY = {
       lightDesc: "Smallest Size",
       standardDesc: "Balanced Quality",
       highDesc: "Print Grade",
-      lightSize: "~0.3-1 MB",
-      standardSize: "~1-3 MB",
-      highSize: "~3-8 MB",
+      lightSize: "Compact & Share",
+      standardSize: "General Balance",
+      highSize: "Original Fidelity",
     },
 
     common: {
