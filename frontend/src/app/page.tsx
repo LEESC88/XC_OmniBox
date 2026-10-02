@@ -481,8 +481,17 @@ export default function Home() {
     [lang],
   );
   const [activeModule, setActiveModuleState] = useState<ModuleType>("document");
+  const [visitedModules, setVisitedModules] = useState<Set<ModuleType>>(
+    () => new Set<ModuleType>(["document"])
+  );
   const [, startTransition] = useTransition();
   const setActiveModule = (mod: ModuleType) => {
+    setVisitedModules((prev) => {
+      if (prev.has(mod)) return prev;
+      const next = new Set(prev);
+      next.add(mod);
+      return next;
+    });
     startTransition(() => {
       setActiveModuleState(mod);
     });
@@ -1680,7 +1689,7 @@ export default function Home() {
                     </span>
                   ) : (
                     <span className="text-xs font-mono font-bold text-coconut-600 dark:text-darkbg-muted">
-                      v1.3.2
+                      v1.4.0
                     </span>
                   )}
                 </div>
@@ -1812,45 +1821,9 @@ export default function Home() {
             );
           })()}
 
-          {/* 模块路由内容渲染 */}
-          {activeModule === "image" ? (
-            <ImageToolbox
-              currentTab={activeImageTab}
-              onTabChange={setActiveImageTab}
-              incomingFiles={incomingImageFiles}
-              onIncomingFilesHandled={() => setIncomingImageFiles([])}
-            />
-          ) : activeModule === "audio" ? (
-            <AudioToolbox
-              currentTab={activeAudioTab}
-              onTabChange={setActiveAudioTab}
-              incomingFile={incomingAudioFile}
-              onIncomingFileHandled={() => setIncomingAudioFile(null)}
-            />
-          ) : activeModule === "utilities" ? (
-            <DailyToolbox
-              currentTab={activeDailyTab}
-              onTabChange={setActiveDailyTab}
-              initialPhotoFile={incomingIdPhotoFile}
-              onInitialPhotoHandled={() => setIncomingIdPhotoFile(null)}
-              incomingDiffText={incomingDiffText}
-              onIncomingDiffHandled={() => setIncomingDiffText(null)}
-            />
-          ) : activeModule === "ai" ? (
-            <AiToolbox
-              currentTab={activeAiTab}
-              onTabChange={setActiveAiTab}
-              incomingFile={incomingAiFile}
-              onIncomingFileHandled={() => setIncomingAiFile(null)}
-              onNavigateToIdPhoto={(photoFile) => {
-                setIncomingIdPhotoFile(photoFile);
-                setActiveModule("utilities");
-                setActiveDailyTab("idphoto");
-              }}
-            />
-          ) : (
-            /* ===================== 文档处理与 PDF 工作台 ===================== */
-            <div className="space-y-6">
+          {/* 模块路由内容渲染 (Keep-Alive 存活驻留：访问过的模块保留 DOM，0ms 瞬切且不丢失工作现场) */}
+          <div className={activeModule === "document" ? "space-y-6 animate-fade-in" : "hidden"}>
+            {/* ===================== 文档处理与 PDF 工作台 ===================== */}
               {/* PDF 在线直接编辑卡片 */}
               {activeDocTab === "pdf-edit" ? (
                 <div className="coconut-panel p-6 sm:p-8 space-y-6">
@@ -2607,6 +2580,60 @@ export default function Home() {
                   )}
                 </div>
               )}
+            </div>
+
+          {/* 图像工坊 (Keep-Alive 存活驻留：访问过则保留 DOM，0ms 瞬切且不丢失工作现场) */}
+          {(visitedModules.has("image") || activeModule === "image") && (
+            <div className={activeModule === "image" ? "block animate-fade-in" : "hidden"}>
+              <ImageToolbox
+                currentTab={activeImageTab}
+                onTabChange={setActiveImageTab}
+                incomingFiles={incomingImageFiles}
+                onIncomingFilesHandled={() => setIncomingImageFiles([])}
+              />
+            </div>
+          )}
+
+          {/* 音频工坊 (Keep-Alive 存活驻留) */}
+          {(visitedModules.has("audio") || activeModule === "audio") && (
+            <div className={activeModule === "audio" ? "block animate-fade-in" : "hidden"}>
+              <AudioToolbox
+                currentTab={activeAudioTab}
+                onTabChange={setActiveAudioTab}
+                incomingFile={incomingAudioFile}
+                onIncomingFileHandled={() => setIncomingAudioFile(null)}
+              />
+            </div>
+          )}
+
+          {/* 实用工具 (Keep-Alive 存活驻留) */}
+          {(visitedModules.has("utilities") || activeModule === "utilities") && (
+            <div className={activeModule === "utilities" ? "block animate-fade-in" : "hidden"}>
+              <DailyToolbox
+                currentTab={activeDailyTab}
+                onTabChange={setActiveDailyTab}
+                initialPhotoFile={incomingIdPhotoFile}
+                onInitialPhotoHandled={() => setIncomingIdPhotoFile(null)}
+                incomingDiffText={incomingDiffText}
+                onIncomingDiffHandled={() => setIncomingDiffText(null)}
+              />
+            </div>
+          )}
+
+          {/* AI 创意工坊 (Keep-Alive 存活驻留) */}
+          {(visitedModules.has("ai") || activeModule === "ai") && (
+            <div className={activeModule === "ai" ? "block animate-fade-in" : "hidden"}>
+              <AiToolbox
+                currentTab={activeAiTab}
+                onTabChange={setActiveAiTab}
+                incomingFile={incomingAiFile}
+                onIncomingFileHandled={() => setIncomingAiFile(null)}
+                onNavigateToIdPhoto={(photoFile) => {
+                  setIncomingIdPhotoFile(photoFile);
+                  setActiveModule("utilities");
+                  setActiveDailyTab("idphoto");
+                }}
+              />
             </div>
           )}
 

@@ -24,27 +24,41 @@ export interface HealthStatus {
 }
 
 /**
- * 具备主进程自愈能力的 API 请求封装
- * 在网络连接拒绝（如后端奔溃）时自动请求主进程重启并静默重试
+ * 具备冷启动平滑重试与主进程自愈能力的 API 请求封装
+ * 在后端冷启动阶段柔性等待，异常奔溃时自动请求主进程重启并静默重试
  */
 export async function apiFetch(url: string, init?: RequestInit): Promise<Response> {
-  try {
-    return await fetch(url, init);
-  } catch (err: any) {
-    if (typeof window !== "undefined" && (window as any).electronAPI?.restartBackend) {
-      console.warn("[API Supervisor] Backend request failed. Attempting self-healing recovery...", err);
-      try {
-        const recovered = await (window as any).electronAPI.restartBackend();
-        if (recovered) {
-          await new Promise((r) => setTimeout(r, 400));
-          return await fetch(url, init);
-        }
-      } catch (supervisorErr) {
-        console.error("[API Supervisor] Auto-restart failed:", supervisorErr);
+  const maxInitialRetries = 3;
+  let attempt = 0;
+
+  while (attempt <= maxInitialRetries) {
+    try {
+      return await fetch(url, init);
+    } catch (err: any) {
+      attempt++;
+      if (attempt <= maxInitialRetries) {
+        // 后端可能正在并发启动中，微秒级间隔柔性重试
+        await new Promise((r) => setTimeout(r, 400));
+        continue;
       }
+
+      // 重试后仍无法连接，判断是否需要主进程自愈重启
+      if (typeof window !== "undefined" && (window as any).electronAPI?.restartBackend) {
+        console.warn("[API Supervisor] Backend request failed after initial retries. Attempting self-healing recovery...", err);
+        try {
+          const recovered = await (window as any).electronAPI.restartBackend();
+          if (recovered) {
+            await new Promise((r) => setTimeout(r, 500));
+            return await fetch(url, init);
+          }
+        } catch (supervisorErr) {
+          console.error("[API Supervisor] Auto-restart failed:", supervisorErr);
+        }
+      }
+      throw err;
     }
-    throw err;
   }
+  throw new Error("后端连接失败");
 }
 
 export async function checkHealth(): Promise<HealthStatus> {

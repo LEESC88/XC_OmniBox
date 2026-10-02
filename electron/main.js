@@ -612,13 +612,17 @@ if (!gotTheLock) {
       }
     });
 
-    startBackendService();
-
-    // 等待后端启动就绪
-    await waitForBackend(`http://127.0.0.1:${BACKEND_PORT}/api/v1/health`, 20, 500);
-
+    // 1. 窗口与托盘秒开：不再等待 Python 后端冷启动就绪，实现 300ms 极速呈现
     createWindow();
     createTray();
+
+    // 2. 并行异步拉起 Python 后端，不阻塞 UI 渲染与用户交互
+    startBackendService();
+    waitForBackend(`http://127.0.0.1:${BACKEND_PORT}/api/v1/health`, 30, 400).then((healthy) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('backend:status', { status: healthy ? 'healthy' : 'unhealthy' });
+      }
+    });
 
     // 监听文件导出/下载：支持指定固定目录与完成后自动在资源管理器定位
     session.defaultSession.on('will-download', (_event, item) => {

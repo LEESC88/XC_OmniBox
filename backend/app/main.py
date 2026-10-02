@@ -13,7 +13,7 @@ from app.api.v1.image import router as image_router
 app = FastAPI(
     title="XC_OmniBox 后端核心 API",
     description="支持高质量 Word/PDF 互转 (300+ DPI 保真)、PDF 在线所见即所得编辑、PDF 页面管理与水印安全服务、图片多功能处理服务",
-    version="1.3.2",
+    version="1.4.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -50,7 +50,7 @@ def root():
         "project": "OmniToolbox Backend",
         "status": "online",
         "swagger_docs": "/docs",
-        "version": "1.2.0"
+        "version": "1.4.0"
     }
 
 if __name__ == "__main__":
