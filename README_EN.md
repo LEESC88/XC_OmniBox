@@ -27,6 +27,14 @@
 
 ---
 
+## 🌟 What's New in v1.4.1
+
+- 📑 **Document Studio Horizontal Scrollable Tab Bar**:
+  - Added the top horizontal sub-feature tab bar to the Document & PDF workbench, offering 1-click navigation across all 10 document sub-tools.
+  - Aligns 100% with Image, Audio, Daily, and AI studios with mouse wheel horizontal scrolling, drag-to-scroll gestures, micro-scrollbar, and pagination arrows.
+
+---
+
 ## 🌟 What's New in v1.4.0
 
 - ⚡ **Sub-Second Cold Boot (300ms UI Presentation)**:

@@ -100,7 +100,7 @@ export default function SettingsModal({
   const [clearingCache, setClearingCache] = useState(false);
   const [isElectron, setIsElectron] = useState(false);
   const [defaultDownloadsPath, setDefaultDownloadsPath] = useState<string>("");
-  const [appVersion, setAppVersion] = useState<string>("1.4.0");
+  const [appVersion, setAppVersion] = useState<string>("1.4.1");
 
   // 快照：记录打开弹窗时的已持久化状态，用于判断 isDirty 以及取消时还原
   const snapshotRef = useRef<{

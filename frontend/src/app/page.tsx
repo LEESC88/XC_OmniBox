@@ -65,6 +65,7 @@ import PdfOrganizeStudio from "@/components/pdf/PdfOrganizeStudio";
 import UpdateModal from "@/components/UpdateModal";
 import SettingsModal from "@/components/SettingsModal";
 import ShortcutsModal from "@/components/ShortcutsModal";
+import ScrollableTabNav from "@/components/ScrollableTabNav";
 import { shortcutBus } from "@/lib/shortcutBus";
 import CatPawLogo from "@/components/CatPawLogo";
 import { useI18n, getLocalizedTools } from "@/lib/i18n";
@@ -480,6 +481,16 @@ export default function Home() {
     () => getLocalizedTools(TOOLS_REGISTRY, lang),
     [lang],
   );
+  const docTabs = useMemo(() => {
+    const docGroup = toolsRegistry.find((g) => g.module === "document");
+    if (!docGroup) return [];
+    return docGroup.tools.map((t) => ({
+      id: t.id,
+      label: t.name,
+      icon: t.icon,
+      badge: t.badge,
+    }));
+  }, [toolsRegistry]);
   const [activeModule, setActiveModuleState] = useState<ModuleType>("document");
   const [visitedModules, setVisitedModules] = useState<Set<ModuleType>>(
     () => new Set<ModuleType>(["document"])
@@ -1689,7 +1700,7 @@ export default function Home() {
                     </span>
                   ) : (
                     <span className="text-xs font-mono font-bold text-coconut-600 dark:text-darkbg-muted">
-                      v1.4.0
+                      v1.4.1
                     </span>
                   )}
                 </div>
@@ -1823,6 +1834,13 @@ export default function Home() {
 
           {/* 模块路由内容渲染 (Keep-Alive 存活驻留：访问过的模块保留 DOM，0ms 瞬切且不丢失工作现场) */}
           <div className={activeModule === "document" ? "space-y-6 animate-fade-in" : "hidden"}>
+            {/* 10 大文档与 PDF 子功能横向 Tab 切换条 (支持鼠标滚轮横移、鼠标拖拽滑动、专属微滑轨与左右翻页箭头) */}
+            <ScrollableTabNav
+              tabs={docTabs}
+              activeTab={activeDocTab}
+              onTabChange={(id) => handleDocTabChange(id as DocTabType)}
+            />
+
             {/* ===================== 文档处理与 PDF 工作台 ===================== */}
               {/* PDF 在线直接编辑卡片 */}
               {activeDocTab === "pdf-edit" ? (
