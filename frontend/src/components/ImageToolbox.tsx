@@ -1049,8 +1049,9 @@ export default function ImageToolbox({
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className="group relative border-2 border-dashed border-coconut-300 dark:border-darkbg-border hover:border-coconut-500 dark:hover:border-palm-500 bg-coconut-50/40 dark:bg-darkbg-card hover:bg-coconut-100/40 dark:hover:bg-darkbg-elevated rounded-3xl p-6 sm:p-10 text-center cursor-pointer transition-all duration-300 shadow-coconut-sm select-none"
+        className="group relative overflow-hidden border-2 border-dashed border-[#D2BCAB]/70 dark:border-[#4D392E]/60 hover:border-amber-500/70 dark:hover:border-amber-500/70 bg-gradient-to-b from-[#FBF8F4]/80 to-[#F5ECE1]/60 dark:from-[#211713]/70 dark:to-[#18110D]/70 hover:from-[#FFFDF9] hover:to-[#FDF4EB] dark:hover:from-[#291D17] dark:hover:to-[#1F1511] rounded-3xl p-8 sm:p-11 text-center cursor-pointer transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-amber-900/5 select-none"
       >
+        <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_40%,rgba(245,158,11,0.08),transparent_65%)]" />
         <input
           ref={fileInputRef}
           type="file"
@@ -1059,17 +1060,17 @@ export default function ImageToolbox({
           onChange={handleFileChange}
           className="hidden"
         />
-        <div className="flex flex-col items-center space-y-3.5">
-          <div className="w-14 h-14 rounded-2xl bg-coconut-100 dark:bg-darkbg-elevated text-coconut-700 dark:text-toast-400 flex items-center justify-center group-hover:scale-105 transition-transform shadow-inner">
+        <div className="relative flex flex-col items-center space-y-3.5">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center group-hover:scale-105 group-hover:-translate-y-0.5 transition-all duration-300 shadow-md shadow-orange-500/25">
             <UploadCloud className="w-7 h-7" />
           </div>
           <div>
-            <p className="text-base font-bold text-coconut-900 dark:text-darkbg-text tracking-tight">
+            <p className="text-base font-bold text-coconut-900 dark:text-darkbg-text tracking-tight group-hover:text-amber-800 dark:group-hover:text-amber-300 transition-colors">
               {lang === "en"
                 ? "Click or drag images here (Batch processing supported)"
                 : "点击选择或拖拽图片到此处（支持多图批量处理）"}
             </p>
-            <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
+            <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1 max-w-md mx-auto">
               {activeTab === "heic"
                 ? lang === "en"
                   ? "Supports Apple iPhone / iPad formats: .HEIC, .HEIF"
@@ -1078,6 +1079,15 @@ export default function ImageToolbox({
                 ? "Supports image formats: JPG, PNG, WebP, AVIF, BMP, SVG, HEIC, etc."
                 : "支持主流图片格式: JPG, PNG, WebP, AVIF, BMP, SVG, HEIC 等"}
             </p>
+          </div>
+          <div className="flex items-center flex-wrap justify-center gap-2 pt-1 text-[11px] font-medium text-coconut-600 dark:text-darkbg-muted">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
+              ⚡ 本地硬件加速
+            </span>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-semibold">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+              100% 本地沙盒保密
+            </span>
           </div>
         </div>
       </div>

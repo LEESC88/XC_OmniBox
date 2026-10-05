@@ -23,6 +23,7 @@ import {
   Contact,
   ExternalLink,
   ScanLine,
+  ShieldCheck,
 } from "lucide-react";
 import {
   ID_SPECS,
@@ -386,8 +387,9 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                   handlePhotoUpload(e.dataTransfer.files[0]);
                 }
               }}
-              className="border-2 border-dashed border-coconut-300 dark:border-darkbg-border hover:border-palm-500 rounded-3xl p-10 sm:p-12 text-center cursor-pointer transition-all bg-coconut-100/30 dark:bg-darkbg-card/40 hover:bg-palm-50/20 dark:hover:bg-palm-950/20"
+              className="group relative overflow-hidden border-2 border-dashed border-[#D2BCAB]/70 dark:border-[#4D392E]/60 hover:border-amber-500/70 dark:hover:border-amber-500/70 bg-gradient-to-b from-[#FBF8F4]/80 to-[#F5ECE1]/60 dark:from-[#211713]/70 dark:to-[#18110D]/70 hover:from-[#FFFDF9] hover:to-[#FDF4EB] dark:hover:from-[#291D17] dark:hover:to-[#1F1511] rounded-3xl p-8 sm:p-12 text-center cursor-pointer transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-amber-900/5 select-none"
             >
+              <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_40%,rgba(245,158,11,0.08),transparent_65%)]" />
               <input
                 id="photo-upload-input"
                 type="file"
@@ -399,14 +401,29 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                 }}
                 className="hidden"
               />
-              <UploadCloud className="w-12 h-12 text-palm-600 dark:text-palm-400 mx-auto mb-3" />
-              <div className="text-base font-semibold text-coconut-900 dark:text-darkbg-text">
-                {lang === "en" ? "Click or drag portrait photo here" : "点击或拖拽上传人像证件照"}
-              </div>
-              <div className="text-xs text-coconut-500 dark:text-darkbg-muted mt-1">
-                {lang === "en"
-                  ? "Supports white, blue, red or plain color background portraits. Smart replacement and automatic layout"
-                  : "支持白底、蓝底、红底或纯色背景自拍照，智能平滑替换底色并自动排版"}
+              <div className="relative flex flex-col items-center space-y-3.5">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center group-hover:scale-105 group-hover:-translate-y-0.5 transition-all duration-300 shadow-md shadow-orange-500/25">
+                  <UploadCloud className="w-7 h-7" />
+                </div>
+                <div>
+                  <div className="text-base font-bold text-coconut-900 dark:text-darkbg-text tracking-tight group-hover:text-amber-800 dark:group-hover:text-amber-300 transition-colors">
+                    {lang === "en" ? "Click or drag portrait photo here" : "点击或拖拽上传人像证件照"}
+                  </div>
+                  <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1 max-w-md mx-auto">
+                    {lang === "en"
+                      ? "Supports white, blue, red or plain color background portraits. Smart replacement and automatic layout"
+                      : "支持白底、蓝底、红底或纯色背景自拍照，智能平滑替换底色并自动排版"}
+                  </div>
+                </div>
+                <div className="flex items-center flex-wrap justify-center gap-2 pt-1 text-[11px] font-medium text-coconut-600 dark:text-darkbg-muted">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
+                    ⚡ 边缘羽化抠图算法
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-semibold">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    100% 本地沙盒保密
+                  </span>
+                </div>
               </div>
             </div>
           ) : (

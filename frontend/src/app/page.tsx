@@ -1974,13 +1974,29 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="coconut-panel p-6 sm:p-8 space-y-6">
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                        {t.pdfMerge.title}
-                      </h3>
-                      <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                        {t.pdfMerge.desc}
-                      </p>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+                      <div className="flex items-start sm:items-center gap-3.5">
+                        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 shadow-md shadow-indigo-500/25 flex items-center justify-center text-white flex-shrink-0">
+                          <Combine className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center flex-wrap gap-2">
+                            <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                              {t.pdfMerge.title}
+                            </h3>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 tracking-wider uppercase">
+                              多文件无损拼合
+                            </span>
+                          </div>
+                          <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                            {t.pdfMerge.desc}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
+                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        <span>{t.pdfEdit?.privacyGuarantee || "100% 本地沙盒 · 零云端上传"}</span>
+                      </div>
                     </div>
 
                     <Dropzone
@@ -2020,13 +2036,29 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="coconut-panel p-6 sm:p-8 space-y-6">
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                        {t.pdfSplit.title}
-                      </h3>
-                      <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                        {t.pdfSplit.desc}
-                      </p>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+                      <div className="flex items-start sm:items-center gap-3.5">
+                        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 shadow-md shadow-rose-500/25 flex items-center justify-center text-white flex-shrink-0">
+                          <Scissors className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center flex-wrap gap-2">
+                            <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                              {t.pdfSplit.title}
+                            </h3>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-rose-500/10 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30 tracking-wider uppercase">
+                              全文档点选拆分
+                            </span>
+                          </div>
+                          <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                            {t.pdfSplit.desc}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
+                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        <span>{t.pdfEdit?.privacyGuarantee || "100% 本地沙盒 · 零云端上传"}</span>
+                      </div>
                     </div>
 
                     <Dropzone
@@ -2066,14 +2098,30 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="coconut-panel p-6 sm:p-8 space-y-6">
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                        {t.pdfOrganize?.title || "PDF 页面可视化调度与编排"}
-                      </h3>
-                      <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                        {t.pdfOrganize?.desc ||
-                          "自由拖拽调整页面顺序、单页独立旋转 90°/180°、剔除多余页面，一键导出定制新版 PDF。"}
-                      </p>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+                      <div className="flex items-start sm:items-center gap-3.5">
+                        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/25 flex items-center justify-center text-white flex-shrink-0">
+                          <Sliders className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center flex-wrap gap-2">
+                            <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                              {t.pdfOrganize?.title || "PDF 页面可视化调度与编排"}
+                            </h3>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-violet-500/10 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300 border border-violet-500/30 tracking-wider uppercase">
+                              页面调序旋转
+                            </span>
+                          </div>
+                          <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                            {t.pdfOrganize?.desc ||
+                              "自由拖拽调整页面顺序、单页独立旋转 90°/180°、剔除多余页面，一键导出定制新版 PDF。"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
+                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        <span>{t.pdfEdit?.privacyGuarantee || "100% 本地沙盒 · 零云端上传"}</span>
+                      </div>
                     </div>
 
                     <Dropzone
@@ -2119,13 +2167,29 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="coconut-panel p-6 sm:p-8 space-y-6">
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                        {t.pdfWatermark.title}
-                      </h3>
-                      <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                        {t.pdfWatermark.desc}
-                      </p>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+                      <div className="flex items-start sm:items-center gap-3.5">
+                        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 shadow-md shadow-teal-500/25 flex items-center justify-center text-white flex-shrink-0">
+                          <Stamp className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center flex-wrap gap-2">
+                            <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                              {t.pdfWatermark.title}
+                            </h3>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-teal-500/10 dark:bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/30 tracking-wider uppercase">
+                              真底图动态水印
+                            </span>
+                          </div>
+                          <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                            {t.pdfWatermark.desc}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
+                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        <span>{t.pdfEdit?.privacyGuarantee || "100% 本地沙盒 · 零云端上传"}</span>
+                      </div>
                     </div>
 
                     <Dropzone
@@ -2165,14 +2229,30 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="coconut-panel p-6 sm:p-8 space-y-6">
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                        {t.pdfCompress?.title || "PDF 智能极限体积瘦身"}
-                      </h3>
-                      <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                        {t.pdfCompress?.desc ||
-                          "支持轻度、平衡、极限三档优化，清除孤立死对象并智能下采样高清大图，压缩比可达 50%~80%。"}
-                      </p>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+                      <div className="flex items-start sm:items-center gap-3.5">
+                        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/25 flex items-center justify-center text-white flex-shrink-0">
+                          <Zap className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center flex-wrap gap-2">
+                            <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                              {t.pdfCompress?.title || "PDF 智能极限体积瘦身"}
+                            </h3>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 tracking-wider uppercase">
+                              极限智能瘦身
+                            </span>
+                          </div>
+                          <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                            {t.pdfCompress?.desc ||
+                              "支持轻度、平衡、极限三档优化，清除孤立死对象并智能下采样高清大图，压缩比可达 50%~80%。"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
+                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        <span>{t.pdfEdit?.privacyGuarantee || "100% 本地沙盒 · 零云端上传"}</span>
+                      </div>
                     </div>
 
                     <Dropzone
@@ -2219,14 +2299,30 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="coconut-panel p-6 sm:p-8 space-y-6">
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                        {t.imagesToPdf?.title || "多图片一键拼合转高清 PDF"}
-                      </h3>
-                      <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                        {t.imagesToPdf?.desc ||
-                          "支持选中多张照片或扫描件批量上传，自由上下拖拽调整排版顺序，支持原图自适应与标准 A4 规格导出。"}
-                      </p>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+                      <div className="flex items-start sm:items-center gap-3.5">
+                        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-md shadow-cyan-500/25 flex items-center justify-center text-white flex-shrink-0">
+                          <ImageIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center flex-wrap gap-2">
+                            <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                              {t.imagesToPdf?.title || "多图片一键拼合转高清 PDF"}
+                            </h3>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 tracking-wider uppercase">
+                              批量自适应拼合
+                            </span>
+                          </div>
+                          <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                            {t.imagesToPdf?.desc ||
+                              "支持选中多张照片或扫描件批量上传，自由上下拖拽调整排版顺序，支持原图自适应与标准 A4 规格导出。"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
+                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        <span>{t.pdfEdit?.privacyGuarantee || "100% 本地沙盒 · 零云端上传"}</span>
+                      </div>
                     </div>
 
                     <Dropzone
@@ -2250,9 +2346,20 @@ export default function Home() {
                 /* PDF 权限密码保护双栏 Studio */
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                   <div className="lg:col-span-5 coconut-panel p-5 sm:p-6 space-y-5">
-                    <div className="flex items-center gap-2 pb-3 border-b border-coconut-200/80 dark:border-darkbg-border text-sm font-bold text-coconut-950 dark:text-darkbg-text">
-                      <Lock className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                      <span>{t.pdfProtect.title}</span>
+                    <div className="flex items-center gap-3 pb-3 border-b border-coconut-200/80 dark:border-darkbg-border">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-600 to-red-700 shadow-sm flex items-center justify-center text-white flex-shrink-0">
+                        <Lock className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-bold text-coconut-950 dark:text-darkbg-text">
+                            {t.pdfProtect.title}
+                          </h3>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30">
+                            AES 工业级加密
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-3">
