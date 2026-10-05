@@ -221,9 +221,17 @@ export const UI_DICTIONARY = {
       title: "PDF 1:1 原版排版在线工作台",
       desc: "拖入需要就地修改的 PDF 文件，即可进入原位文字改字、遮盖涂抹与新增段落模式，完全锁定原版排版不跑偏。",
       dropzoneTitle: "拖入待编辑的 PDF 文件，点击即可进入在线工作台",
-      dropzoneHint: "支持标准 PDF 文档",
+      dropzoneHint: "支持标准 PDF 格式文档 · 离线秒级解析",
       launchBtn: "进入在线 Word 级编辑工作台",
       parsing: "正在解析 PDF 排版与图层字形...",
+      badge: "1:1 原版锁定",
+      privacyGuarantee: "100% 本地沙盒 · 零云端上传",
+      feature1Title: "原位文字修改",
+      feature1Desc: "1:1 锁定版面字符坐标，排版零位移直接覆写修改",
+      feature2Title: "无痕遮盖涂抹",
+      feature2Desc: "像素级白底与色块覆盖，精准隐藏敏感机密信息",
+      feature3Title: "图层增补与批注",
+      feature3Desc: "自由插入新文本框、印章签名、批注便签与高亮图层",
     },
 
     pdfMerge: {
@@ -289,6 +297,12 @@ export const UI_DICTIONARY = {
       defaultHint: "支持相应格式文档",
       selectedFiles: "已选文件 ({n})",
       reselect: "重新选择",
+      dragOrClick: "拖拽文件至此区域，或",
+      clickToBrowse: "点击浏览本地文件",
+      readyBadge: "准备就绪",
+      localSandbox: "本地离线沙盒解析",
+      privacyNotice: "隐私安全保护",
+      releaseToUpload: "松开鼠标立即加载文档",
     },
 
     updateModal: {
@@ -513,9 +527,17 @@ export const UI_DICTIONARY = {
       title: "PDF 1:1 In-Place Typography Studio",
       desc: "Drag & drop PDF to edit text in-place, erase, or add paragraphs while preserving 100% layout fidelity.",
       dropzoneTitle: "Drag & drop PDF to edit, or click to browse",
-      dropzoneHint: "Supports standard PDF documents",
+      dropzoneHint: "Supports standard PDF documents · Local offline parsing",
       launchBtn: "Launch In-Place Word-Level Studio",
       parsing: "Analyzing PDF typography and layout...",
+      badge: "1:1 WYSIWYG Lock",
+      privacyGuarantee: "100% Local Sandbox · Zero Cloud Upload",
+      feature1Title: "In-Place Text Editing",
+      feature1Desc: "1:1 coordinate lock, edit text directly without layout shifts",
+      feature2Title: "Seamless Redaction",
+      feature2Desc: "Pixel-accurate opaque masking to redact private data securely",
+      feature3Title: "Layer Annotation & Stamp",
+      feature3Desc: "Freely insert textboxes, custom stamps, signatures and callouts",
     },
 
     pdfMerge: {
@@ -581,6 +603,12 @@ export const UI_DICTIONARY = {
       defaultHint: "Supports corresponding document formats",
       selectedFiles: "Selected Files ({n})",
       reselect: "Reselect",
+      dragOrClick: "Drag & drop files here, or",
+      clickToBrowse: "click to browse files",
+      readyBadge: "Ready",
+      localSandbox: "Local Offline Sandbox",
+      privacyNotice: "Privacy Guaranteed",
+      releaseToUpload: "Release mouse to load document",
     },
 
     updateModal: {

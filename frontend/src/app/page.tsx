@@ -48,6 +48,7 @@ import {
   Clock,
   Mic,
   Keyboard,
+  Type,
 } from "lucide-react";
 import CoconutLogo from "@/components/CoconutLogo";
 import Dropzone from "@/components/Dropzone";
@@ -1845,13 +1846,30 @@ export default function Home() {
               {/* PDF 在线直接编辑卡片 */}
               {activeDocTab === "pdf-edit" ? (
                 <div className="coconut-panel p-6 sm:p-8 space-y-6">
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                      {t.pdfEdit.title}
-                    </h3>
-                    <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                      {t.pdfEdit.desc}
-                    </p>
+                  {/* 顶栏：企业级标题区 + 视觉标识与安全保证 */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+                    <div className="flex items-start sm:items-center gap-3.5">
+                      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-orange-500/25 flex items-center justify-center text-white flex-shrink-0">
+                        <Edit3 className="w-5 h-5 sm:w-6 sm:h-6" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center flex-wrap gap-2">
+                          <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                            {t.pdfEdit.title}
+                          </h3>
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 tracking-wider uppercase">
+                            {t.pdfEdit.badge || "1:1 原版锁定"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                          {t.pdfEdit.desc}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      <span>{t.pdfEdit.privacyGuarantee || "100% 本地沙盒 · 零云端上传"}</span>
+                    </div>
                   </div>
 
                   <Dropzone
@@ -1862,10 +1880,50 @@ export default function Home() {
                     onClear={() => setFiles([])}
                     title={t.pdfEdit.dropzoneTitle}
                     hint={t.pdfEdit.dropzoneHint}
+                    badge={t.pdfEdit.badge || "1:1 原版锁定"}
                   />
 
+                  {/* 企业级核心能力三柱微卡片网格 (Capability Showcase) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FAF1E8]/60 dark:bg-[#251E1A]/60 border border-[#D2BCAB]/50 dark:border-[#4D392E]/60 space-y-1.5 transition-all hover:border-amber-500/40">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                        <div className="w-6 h-6 rounded-lg bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                          <Type className="w-3.5 h-3.5" />
+                        </div>
+                        <span>{t.pdfEdit.feature1Title || "原位文字修改"}</span>
+                      </div>
+                      <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted leading-relaxed pl-8">
+                        {t.pdfEdit.feature1Desc || "1:1 锁定版面字符坐标，排版零位移直接覆写修改"}
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FAF1E8]/60 dark:bg-[#251E1A]/60 border border-[#D2BCAB]/50 dark:border-[#4D392E]/60 space-y-1.5 transition-all hover:border-orange-500/40">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                        <div className="w-6 h-6 rounded-lg bg-orange-500/10 dark:bg-orange-500/20 flex items-center justify-center text-orange-600 dark:text-orange-400">
+                          <Eraser className="w-3.5 h-3.5" />
+                        </div>
+                        <span>{t.pdfEdit.feature2Title || "无痕遮盖涂抹"}</span>
+                      </div>
+                      <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted leading-relaxed pl-8">
+                        {t.pdfEdit.feature2Desc || "像素级白底与色块覆盖，精准隐藏敏感机密信息"}
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FAF1E8]/60 dark:bg-[#251E1A]/60 border border-[#D2BCAB]/50 dark:border-[#4D392E]/60 space-y-1.5 transition-all hover:border-rose-500/40">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                        <div className="w-6 h-6 rounded-lg bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                          <Layers className="w-3.5 h-3.5" />
+                        </div>
+                        <span>{t.pdfEdit.feature3Title || "图层增补与批注"}</span>
+                      </div>
+                      <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted leading-relaxed pl-8">
+                        {t.pdfEdit.feature3Desc || "自由插入新文本框、印章签名、批注便签与高亮图层"}
+                      </p>
+                    </div>
+                  </div>
+
                   {error && (
-                    <div className="p-3 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-2 text-toast-700 dark:text-toast-300 text-xs">
+                    <div className="p-3.5 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-2.5 text-toast-700 dark:text-toast-300 text-xs">
                       <AlertCircle className="w-4 h-4 flex-shrink-0 text-toast-500" />
                       <span>{error}</span>
                     </div>
@@ -1874,21 +1932,22 @@ export default function Home() {
                   <button
                     onClick={handleStartEditor}
                     disabled={parsingEditor}
-                    className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                    className={`w-full py-4 px-6 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 transition-all duration-300 ${
                       parsingEditor
                         ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
-                        : "btn-3d-sunset text-white cursor-pointer"
+                        : "btn-3d-sunset text-white cursor-pointer group shadow-lg"
                     }`}
                   >
                     {parsingEditor ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="w-5 h-5 animate-spin" />
                         <span>{t.pdfEdit.parsing}</span>
                       </>
                     ) : (
                       <>
-                        <Edit3 className="w-4 h-4 text-amber-100" />
+                        <Edit3 className="w-5 h-5 text-amber-100 group-hover:scale-110 transition-transform" />
                         <span>{t.pdfEdit.launchBtn}</span>
+                        <ArrowRight className="w-4 h-4 opacity-75 group-hover:translate-x-1 transition-transform" />
                       </>
                     )}
                   </button>
@@ -2320,17 +2379,33 @@ export default function Home() {
               ) : (
                 /* PDF 转 Word 或 Word 转 PDF */
                 <div className="coconut-panel p-6 sm:p-8 space-y-6">
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                      {activeDocTab === "word-to-pdf"
-                        ? t.common.wordConversion
-                        : t.common.pdfConversion}
-                    </h3>
-                    <p className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                      {activeDocTab === "word-to-pdf"
-                        ? t.common.wordDesc
-                        : t.common.pdfDesc}
-                    </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+                    <div className="flex items-start sm:items-center gap-3.5">
+                      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-orange-500/25 flex items-center justify-center text-white flex-shrink-0">
+                        <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center flex-wrap gap-2">
+                          <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                            {activeDocTab === "word-to-pdf"
+                              ? t.common.wordConversion
+                              : t.common.pdfConversion}
+                          </h3>
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 tracking-wider uppercase">
+                            {activeDocTab === "word-to-pdf" ? "300 DPI 打印级" : "高保真逆向还原"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                          {activeDocTab === "word-to-pdf"
+                            ? t.common.wordDesc
+                            : t.common.pdfDesc}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      <span>{t.pdfEdit.privacyGuarantee || "100% 本地沙盒 · 零云端上传"}</span>
+                    </div>
                   </div>
 
                   {/* 质量档位选择器 — 仅 Word 转 PDF 显示 */}
