@@ -27,6 +27,30 @@
 
 ---
 
+## 🌟 What's New in v1.5.1
+
+- 📊 **Brand New Spreadsheet Studio**:
+  - **Sheet Merge**: Drag and drop multiple Excel / CSV workbooks. Automatically identifies header columns, filters empty rows, deduplicates, appends source origin tags, and exports consolidated spreadsheets.
+  - **Sheet Split**: Upload large master spreadsheets and automatically split them by any chosen category column (e.g., Department, City, Product Type) into individual Excel workbooks packaged in a single ZIP download.
+- 🗂️ **Smart File Organizer**:
+  - Purpose-built for cluttered Desktop and Downloads folders. Automatically categorizes files by **format type** (Documents, Images, Videos, Audio, Archives, Installers, Code), **chronological timeline** (`YYYY/MM`), and isolates corrupted **0KB empty files**.
+  - **Dry-Run Preview**: Inspect planned relative destinations, category summaries, and file size statistics before performing any actual disk move. Auto-appends sequence numbers to prevent overwrite collisions, with web ZIP export fallback.
+- ⚡ **Fast Duplicate Cleaner**:
+  - Benchmarks the industry-leading `czkawka` architecture with a **Tiered Short-Circuit Hashing Engine** (Level 1: File size clustering $\to$ Level 2: Head 4KB partial fingerprint $\to$ Level 3: Full SHA-256/MD5 hash confirmation) to minimize disk I/O.
+  - Intelligently tags originals and replicas with 1-click batch safe removal to the **Windows OS Recycle Bin**, completely preventing accidental permanent data loss with full restore support.
+- 🛠️ **Hardened Cross-Process IPC Pipeline**:
+  - Standardized IPC contracts between Electron main process and renderer for directory scanning, batch atomic renaming, and recycle bin operations.
+
+---
+
+## 🌟 What's New in v1.5.0
+
+- 🎨 **Enterprise UI/UX Design System Overhaul**:
+  - Comprehensive aesthetic refresh across all toolboxes featuring Squircle duotone icons, microchip parameter badges, radial ambient glow dropzones, and precision sliders.
+  - Visual and haptic refinement across Interactive PDF Editor, Image Studio, Audio Studio, and Daily Utilities.
+
+---
+
 ## 🌟 What's New in v1.4.1
 
 - 📑 **Document Studio Horizontal Scrollable Tab Bar**:
