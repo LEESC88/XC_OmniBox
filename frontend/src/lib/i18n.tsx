@@ -178,10 +178,23 @@ export const TOOL_TRANSLATIONS: Record<
     desc: "2x / 4x super-resolution reconstruction and edge sharpening",
     badge: "Super-Res",
   },
+
+  // Spreadsheet
+  "sheet-merge": {
+    name: "Smart Sheet Merge",
+    desc: "Auto align headers, fill missing columns, and batch merge sheets",
+    badge: "Auto-Align",
+  },
+  "sheet-split": {
+    name: "Column Sheet Splitter",
+    desc: "Split huge datasets by specific column values into multiple files",
+    badge: "Batch Split",
+  },
 };
 
 export const CATEGORY_TRANSLATIONS: Record<string, string> = {
   document: "Document & PDF",
+  spreadsheet: "Spreadsheet & Data",
   image: "Image & Visual",
   audio: "Audio & Sound",
   utilities: "Everyday Utilities",
@@ -200,10 +213,37 @@ export const UI_DICTIONARY = {
 
     modules: {
       document: "文档",
+      spreadsheet: "表格",
       image: "图片",
       audio: "音频",
       utilities: "日常",
       ai: "AI工坊",
+    },
+
+    spreadsheet: {
+      title: "表格自动化工坊",
+      desc: "多 Excel 表格智能纵向拼接、大表按字段快速拆分、全本地流式计算零隐私泄露。",
+      mergeTab: "多表智能拼接",
+      splitTab: "大表按列拆分",
+      badgeMerge: "自动对齐表头",
+      badgeSplit: "按列批量分拆",
+      mergeMode: "表头对齐模式",
+      modeUnion: "并集对齐 (缺漏补空)",
+      modeIntersection: "交集对齐 (仅保留共有列)",
+      appendSourceCol: "追加数据来源文件名列",
+      sourceColName: "来源列名称",
+      deduplicate: "整行去重 (过滤重复数据)",
+      startMergeBtn: "开始执行多表合并",
+      splitColLabel: "选择用于拆分的分组列",
+      includeHeader: "子表格保留表头",
+      prefixFileName: "输出文件名前缀带原表名",
+      startSplitBtn: "开始拆分并打包",
+      detectedHeaders: "已探测表头 ({n} 列)",
+      previewRows: "前 5 行数据预览",
+      dropzoneMergeTitle: "拖入多个 Excel/CSV 文件，或点击选择",
+      dropzoneMergeHint: "支持 .xlsx, .xls, .csv 格式 · 自动对齐列名",
+      dropzoneSplitTitle: "拖入待拆分的单个 Excel/CSV 文件",
+      dropzoneSplitHint: "支持 .xlsx, .xls, .csv 格式 · 本地极速秒级解析",
     },
 
     sidebar: {
@@ -506,10 +546,37 @@ export const UI_DICTIONARY = {
 
     modules: {
       document: "Document",
+      spreadsheet: "Sheets",
       image: "Image",
       audio: "Audio",
       utilities: "Utilities",
       ai: "AI Studio",
+    },
+
+    spreadsheet: {
+      title: "Spreadsheet Automation Studio",
+      desc: "Smart vertical merge for multi-sheets, column-based rapid splitting, 100% local streaming computation without privacy leaks.",
+      mergeTab: "Smart Sheet Merge",
+      splitTab: "Column-based Splitter",
+      badgeMerge: "Auto-Align Headers",
+      badgeSplit: "Batch Column Split",
+      mergeMode: "Header Alignment Mode",
+      modeUnion: "Union (Fill blanks for missing columns)",
+      modeIntersection: "Intersection (Common columns only)",
+      appendSourceCol: "Append [Source Filename] Column",
+      sourceColName: "Source Column Name",
+      deduplicate: "Row Deduplication (Filter identical rows)",
+      startMergeBtn: "Start Merging Spreadsheets",
+      splitColLabel: "Select Grouping Column to Split",
+      includeHeader: "Retain headers in split files",
+      prefixFileName: "Prefix filenames with original file name",
+      startSplitBtn: "Start Splitting & Archive",
+      detectedHeaders: "Detected Headers ({n} columns)",
+      previewRows: "First 5 Rows Preview",
+      dropzoneMergeTitle: "Drag & drop multiple Excel/CSV files, or click to browse",
+      dropzoneMergeHint: "Supports .xlsx, .xls, .csv files · Auto header alignment",
+      dropzoneSplitTitle: "Drag & drop single Excel/CSV file to split",
+      dropzoneSplitHint: "Supports .xlsx, .xls, .csv files · Millisecond local parsing",
     },
 
     sidebar: {

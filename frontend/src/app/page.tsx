@@ -49,10 +49,12 @@ import {
   Mic,
   Keyboard,
   Type,
+  TableProperties,
 } from "lucide-react";
 import CoconutLogo from "@/components/CoconutLogo";
 import Dropzone from "@/components/Dropzone";
 import InPlacePdfEditor from "@/components/InPlacePdfEditor";
+import SpreadsheetToolbox, { SpreadsheetTab } from "@/components/SpreadsheetToolbox";
 import ImageToolbox from "@/components/ImageToolbox";
 import AudioToolbox from "@/components/AudioToolbox";
 import DailyToolbox from "@/components/DailyToolbox";
@@ -125,7 +127,8 @@ type AudioTabType =
   | "speed"
   | "karaoke";
 type DailyTabType = "idphoto" | "qrcode" | "diff";
-type ModuleType = "document" | "image" | "audio" | "utilities" | "ai";
+type SpreadsheetTabType = "sheet-merge" | "sheet-split";
+type ModuleType = "document" | "spreadsheet" | "image" | "audio" | "utilities" | "ai";
 
 interface ToolItem {
   id: string;
@@ -237,6 +240,31 @@ const TOOLS_REGISTRY: {
         badge: "安全",
         icon: Lock,
         keywords: ["pdf", "密码", "加密", "保护", "权限"],
+      },
+    ],
+  },
+  {
+    category: "表格与数据整理",
+    module: "spreadsheet",
+    icon: TableProperties,
+    tools: [
+      {
+        id: "sheet-merge",
+        module: "spreadsheet",
+        name: "多表智能拼接",
+        desc: "自动对齐表头列名，缺失字段留空补位，批量拼合总表",
+        badge: "自动对齐",
+        icon: Combine,
+        keywords: ["excel", "合并", "拼接", "表格", "汇总", "merge", "sheet", "csv"],
+      },
+      {
+        id: "sheet-split",
+        module: "spreadsheet",
+        name: "大表按列拆分",
+        desc: "指定关键列字段（如部门/月份），一键拆分为多个文件并打包",
+        badge: "按列分拆",
+        icon: Scissors,
+        keywords: ["excel", "拆分", "分表", "分组", "split", "sheet", "csv"],
       },
     ],
   },
@@ -515,10 +543,13 @@ export default function Home() {
     useState<ImageTabType>("compress");
   const [activeAudioTab, setActiveAudioTab] = useState<AudioTabType>("trim");
   const [activeDailyTab, setActiveDailyTab] = useState<DailyTabType>("idphoto");
+  const [activeSpreadsheetTab, setActiveSpreadsheetTab] =
+    useState<SpreadsheetTabType>("sheet-merge");
   const [activeAiTab, setActiveAiTab] = useState<AiTabType>("ai-bg-remove");
   const [incomingIdPhotoFile, setIncomingIdPhotoFile] = useState<File | null>(
     null,
   );
+  const [incomingSpreadsheetFiles, setIncomingSpreadsheetFiles] = useState<File[]>([]);
   const [incomingImageFiles, setIncomingImageFiles] = useState<File[]>([]);
   const [incomingAudioFile, setIncomingAudioFile] = useState<File | null>(null);
   const [incomingAiFile, setIncomingAiFile] = useState<File | null>(null);
@@ -531,7 +562,13 @@ export default function Home() {
   useEffect(() => {
     const unsubscribe = toolBus.subscribe(({ target, payload }) => {
       setActiveModule(target.module);
-      if (target.module === "image") {
+      if (target.module === "spreadsheet") {
+        setActiveSpreadsheetTab(target.tab as SpreadsheetTabType);
+        const f = blobToFile(payload.blob || payload.file, payload.filename);
+        if (f) {
+          setIncomingSpreadsheetFiles([f]);
+        }
+      } else if (target.module === "image") {
         setActiveImageTab(target.tab as ImageTabType);
         const f = blobToFile(payload.blob || payload.file, payload.filename);
         if (f) {
@@ -947,6 +984,8 @@ export default function Home() {
       setSuccessMsg(null);
       setEditorData(null);
       setExecutionResult(null);
+    } else if (item.module === "spreadsheet") {
+      setActiveSpreadsheetTab(item.id as SpreadsheetTabType);
     } else if (item.module === "image") {
       setActiveImageTab(item.id as ImageTabType);
     } else if (item.module === "audio") {
@@ -1277,13 +1316,15 @@ export default function Home() {
   const currentActiveTool =
     activeModule === "document"
       ? allTools.find((t) => t.id === activeDocTab)
-      : activeModule === "image"
-        ? allTools.find((t) => t.id === activeImageTab)
-        : activeModule === "audio"
-          ? allTools.find((t) => t.id === activeAudioTab)
-          : activeModule === "utilities"
-            ? allTools.find((t) => t.id === activeDailyTab)
-            : allTools.find((t) => t.id === activeAiTab);
+      : activeModule === "spreadsheet"
+        ? allTools.find((t) => t.id === activeSpreadsheetTab)
+        : activeModule === "image"
+          ? allTools.find((t) => t.id === activeImageTab)
+          : activeModule === "audio"
+            ? allTools.find((t) => t.id === activeAudioTab)
+            : activeModule === "utilities"
+              ? allTools.find((t) => t.id === activeDailyTab)
+              : allTools.find((t) => t.id === activeAiTab);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-transparent text-coconut-900 dark:text-darkbg-text subpixel-antialiased">
@@ -1493,6 +1534,7 @@ export default function Home() {
                         const isCur =
                           activeModule === t.module &&
                           ((t.module === "document" && activeDocTab === t.id) ||
+                            (t.module === "spreadsheet" && activeSpreadsheetTab === t.id) ||
                             (t.module === "image" && activeImageTab === t.id) ||
                             (t.module === "audio" && activeAudioTab === t.id) ||
                             (t.module === "utilities" &&
@@ -1772,6 +1814,7 @@ export default function Home() {
           >
             {[
               { id: "document", label: t.modules.document, icon: FileText },
+              { id: "spreadsheet", label: t.modules.spreadsheet, icon: TableProperties },
               { id: "image", label: t.modules.image, icon: ImageIcon },
               { id: "audio", label: t.modules.audio, icon: Music },
               { id: "utilities", label: t.modules.utilities, icon: Wrench },
@@ -2781,6 +2824,18 @@ export default function Home() {
                 </div>
               )}
             </div>
+
+          {/* 表格工坊 (Keep-Alive 存活驻留：访问过则保留 DOM，0ms 瞬切且不丢失工作现场) */}
+          {(visitedModules.has("spreadsheet") || activeModule === "spreadsheet") && (
+            <div className={activeModule === "spreadsheet" ? "block animate-fade-in" : "hidden"}>
+              <SpreadsheetToolbox
+                currentTab={activeSpreadsheetTab}
+                onTabChange={setActiveSpreadsheetTab}
+                incomingFiles={incomingSpreadsheetFiles}
+                onIncomingFilesHandled={() => setIncomingSpreadsheetFiles([])}
+              />
+            </div>
+          )}
 
           {/* 图像工坊 (Keep-Alive 存活驻留：访问过则保留 DOM，0ms 瞬切且不丢失工作现场) */}
           {(visitedModules.has("image") || activeModule === "image") && (

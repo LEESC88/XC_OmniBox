@@ -14,7 +14,7 @@ export interface ToolTransferPayload {
 }
 
 export interface ToolTarget {
-  module: "document" | "image" | "audio" | "utilities" | "ai";
+  module: "document" | "spreadsheet" | "image" | "audio" | "utilities" | "ai";
   tab?: string;
   targetSide?: "original" | "modified"; // 专用于文章/文本对比
 }
