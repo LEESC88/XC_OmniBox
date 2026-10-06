@@ -406,8 +406,9 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
         setIsScanningOrganize(true);
         try {
           const res = await (window as any).electronAPI.scanFolder({ folderPath: folder, maxDepth: 4 });
-          if (res?.success && res.files) {
-            setOrganizeFiles(res.files);
+          const list = Array.isArray(res) ? res : (res?.files || []);
+          if (Array.isArray(list)) {
+            setOrganizeFiles(list);
           } else {
             setError(lang === "en" ? "Failed to scan folder" : "扫描目录失败");
           }
@@ -453,18 +454,20 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
           targetPath: p.targetFullPath || `${organizeFolderPath}/${p.targetRelativePath}`,
         }));
         const res = await (window as any).electronAPI.organizeExecute({ tasks });
-        if (res?.success) {
+        if (res?.success || (typeof res?.count === "number" && res.count > 0)) {
+          const count = res?.count ?? res?.successCount ?? res?.executed?.length ?? tasks.length;
           setOrganizeSuccessMsg(
             lang === "en"
-              ? `Successfully organized ${res.count} files into categories!`
-              : `已成功整理并归纳 ${res.count} 个文件！`
+              ? `Successfully organized ${count} files into categories!`
+              : `已成功整理并归纳 ${count} 个文件！`
           );
           const refresh = await (window as any).electronAPI.scanFolder({
             folderPath: organizeFolderPath,
             maxDepth: 4,
           });
-          if (refresh?.success) {
-            setOrganizeFiles(refresh.files);
+          const refList = Array.isArray(refresh) ? refresh : (refresh?.files || []);
+          if (Array.isArray(refList)) {
+            setOrganizeFiles(refList);
           }
         }
       } else {
@@ -548,8 +551,9 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
         setDupProgress({ stage: lang === "en" ? "Scanning folder files..." : "正在扫描目录内文件...", current: 0, total: 100 });
         try {
           const res = await (window as any).electronAPI.scanFolder({ folderPath: folder, maxDepth: 6 });
-          if (res?.success && res.files) {
-            await runDuplicateScan(res.files);
+          const list = Array.isArray(res) ? res : (res?.files || []);
+          if (Array.isArray(list)) {
+            await runDuplicateScan(list);
           } else {
             setError(lang === "en" ? "Failed to scan folder" : "扫描目录失败");
             setIsScanningDup(false);
@@ -618,11 +622,12 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
     try {
       if (typeof window !== "undefined" && (window as any).electronAPI?.trashItems) {
         const res = await (window as any).electronAPI.trashItems({ paths: targets });
-        if (res?.success) {
+        if (res?.success || typeof res?.trashedCount === "number") {
+          const count = res?.trashedCount ?? targets.length;
           setDupSuccessMsg(
             lang === "en"
-              ? `Safely moved ${res.trashedCount} replica files to the Recycle Bin!`
-              : `已将 ${res.trashedCount} 个重复副本安全移入系统回收站！`
+              ? `Safely moved ${count} replica files to the Recycle Bin!`
+              : `已将 ${count} 个重复副本安全移入系统回收站！`
           );
           const trashedSet = new Set(targets);
           setDupGroups((prevGroups) =>

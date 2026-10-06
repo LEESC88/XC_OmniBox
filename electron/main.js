@@ -592,7 +592,7 @@ function setupSettingsIPC() {
     }
 
     walk(folderPath, 0);
-    return results;
+    return { success: true, files: results, count: results.length };
   });
 
   ipcMain.handle('files:organize-execute', async (_e, { tasks }) => {
@@ -621,7 +621,7 @@ function setupSettingsIPC() {
       }
     }
 
-    return { successCount: executed.length, errorCount: errors.length, executed, errors };
+    return { success: executed.length > 0 || errors.length === 0, count: executed.length, successCount: executed.length, errorCount: errors.length, executed, errors };
   });
 
   ipcMain.handle('files:trash-items', async (_e, { paths }) => {
@@ -639,7 +639,7 @@ function setupSettingsIPC() {
       }
     }
 
-    return { trashedCount, errorCount: errors.length, errors };
+    return { success: true, count: trashedCount, trashedCount, errorCount: errors.length, errors };
   });
 
   ipcMain.handle('files:read-file-hash', async (_e, { filePath, partialBytes }) => {
