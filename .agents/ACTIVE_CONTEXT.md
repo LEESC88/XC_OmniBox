@@ -1,14 +1,9 @@
-# Active Architecture Memory: Spreadsheet Studio (Phase 1)
+# Active Architecture Memory: Phase 2 Organizer & Deduplicator
 
-## 1. 当前进展
-- Phase 1 MVP 落地完成：独立顶层模块 `spreadsheet`（表格工坊 / Sheets）。
-- 已实现子工具: 
-  1. `sheet-merge`: 多表智能纵向拼合（并集/交集对齐、来源文件名列、整行去重、表头探针）
-  2. `sheet-split`: 单表按列极速拆分（指定列键分组、批量导出独立工作簿、ZIP 打包下载）
-- 编译与验证: `next build` 100% 静态构建通过，跨工具总线 ToolBus 已接入。
-
-## 2. 核心架构契约
-- 引擎: `frontend/src/lib/spreadsheetProcessor.ts`
-- 界面: `frontend/src/components/SpreadsheetToolbox.tsx`
-- 顶层模块与主路由: `frontend/src/app/page.tsx`
-- 国际化: `frontend/src/lib/i18n.tsx`
+## 1. 状态与交付
+- 架构策略: 采纳方案 A，并入 `utilities` (日常工具箱 DailyToolbox)。
+- 完成功能:
+  1. `organize` (目录智能归类大师): 类型归类/年月归类/空文件隔离 + Dry-Run 差异拟移动预演清单 + 原生防覆盖
+  2. `duplicate` (重复文件极速排重): 三级阶梯哈希引擎 (Size -> Head4K -> FullHash) + 原件/副本智能标记 + Windows 回收站安全移动防误删
+- 兼容机制: Electron IPC 原生安全管道 + Web 浏览器 File 句柄切片与 ZIP 打包无缝降级。
+- 质量验证: `npm --prefix frontend run build` 闭环编译通过，无类型与语法警告。

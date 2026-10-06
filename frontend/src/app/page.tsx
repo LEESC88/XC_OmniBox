@@ -50,6 +50,8 @@ import {
   Keyboard,
   Type,
   TableProperties,
+  FolderTree,
+  CopyCheck,
 } from "lucide-react";
 import CoconutLogo from "@/components/CoconutLogo";
 import Dropzone from "@/components/Dropzone";
@@ -126,7 +128,7 @@ type AudioTabType =
   | "volume"
   | "speed"
   | "karaoke";
-type DailyTabType = "idphoto" | "qrcode" | "diff";
+type DailyTabType = "idphoto" | "organize" | "duplicate" | "qrcode" | "diff";
 type SpreadsheetTabType = "sheet-merge" | "sheet-split";
 type ModuleType = "document" | "spreadsheet" | "image" | "audio" | "utilities" | "ai";
 
@@ -412,6 +414,24 @@ const TOOLS_REGISTRY: {
         badge: "6寸打印",
         icon: UserCheck,
         keywords: ["证件照", "换底", "排版", "冲印", "相纸"],
+      },
+      {
+        id: "organize",
+        module: "utilities",
+        name: "目录智能归类大师",
+        desc: "按格式类型/修改年月快速归档与空文件清理，带变更预览",
+        badge: "智能归类",
+        icon: FolderTree,
+        keywords: ["整理", "归类", "归档", "格式", "分类", "年月", "organize"],
+      },
+      {
+        id: "duplicate",
+        module: "utilities",
+        name: "重复文件极速排重",
+        desc: "三级阶梯哈希精准比对，智能推荐标记与安全移入回收站",
+        badge: "极速查重",
+        icon: CopyCheck,
+        keywords: ["重复", "查重", "排重", "清理", "哈希", "duplicate"],
       },
       {
         id: "qrcode",

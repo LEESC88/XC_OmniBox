@@ -24,6 +24,13 @@ import {
   ExternalLink,
   ScanLine,
   ShieldCheck,
+  FolderTree,
+  CopyCheck,
+  FolderOpen,
+  FileCheck2,
+  Calendar,
+  FileX,
+  Layers,
 } from "lucide-react";
 import {
   ID_SPECS,
@@ -38,13 +45,22 @@ import {
   buildWifiQrString,
   buildVCardQrString,
 } from "@/lib/utilityProcessor";
+import {
+  FileItemMeta,
+  OrganizeRuleType,
+  OrganizePlanItem,
+  DuplicateGroup,
+  generateOrganizePlan,
+  findDuplicatesFast,
+  exportOrganizedZip,
+} from "@/lib/organizerProcessor";
 import { downloadBlob } from "@/lib/api";
 import { formatBytes } from "@/lib/imageProcessor";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
 import SendToButton from "@/components/SendToButton";
 import { useI18n } from "@/lib/i18n";
 
-type ToolTab = "idphoto" | "qrcode" | "diff";
+export type ToolTab = "idphoto" | "organize" | "duplicate" | "qrcode" | "diff";
 
 export interface DailyToolboxProps {
   currentTab?: ToolTab;
@@ -346,9 +362,306 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
 
   const diffResult = computeTextDiff(diffOriginal, diffModified, diffMode);
 
+  // =======================================================
+  // 4. 目录智能归类大师状态与逻辑
+  // =======================================================
+  const [organizeFolderPath, setOrganizeFolderPath] = useState<string>("");
+  const [organizeFiles, setOrganizeFiles] = useState<FileItemMeta[]>([]);
+  const [organizeRule, setOrganizeRule] = useState<OrganizeRuleType>("by-type");
+  const [isScanningOrganize, setIsScanningOrganize] = useState<boolean>(false);
+  const [isExecutingOrganize, setIsExecutingOrganize] = useState<boolean>(false);
+  const [organizeSuccessMsg, setOrganizeSuccessMsg] = useState<string | null>(null);
+  const [organizeSearch, setOrganizeSearch] = useState<string>("");
+  const organizeFolderInputRef = useRef<HTMLInputElement>(null);
+
+  const organizePlan = React.useMemo(() => {
+    return generateOrganizePlan(organizeFiles, organizeRule, organizeFolderPath);
+  }, [organizeFiles, organizeRule, organizeFolderPath]);
+
+  const filteredOrganizePlan = React.useMemo(() => {
+    if (!organizeSearch.trim()) return organizePlan;
+    const q = organizeSearch.toLowerCase();
+    return organizePlan.filter(
+      (p) =>
+        p.fileName.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q) ||
+        p.targetSubDir.toLowerCase().includes(q)
+    );
+  }, [organizePlan, organizeSearch]);
+
+  const organizeStats = React.useMemo(() => {
+    const totalCount = organizePlan.length;
+    const totalBytes = organizePlan.reduce((acc, cur) => acc + cur.size, 0);
+    const catSet = new Set(organizePlan.map((p) => p.category));
+    return { totalCount, totalBytes, categoryCount: catSet.size };
+  }, [organizePlan]);
+
+  const handleSelectOrganizeFolder = async () => {
+    setError(null);
+    setOrganizeSuccessMsg(null);
+    if (typeof window !== "undefined" && (window as any).electronAPI?.selectFolder) {
+      const folder = await (window as any).electronAPI.selectFolder();
+      if (folder) {
+        setOrganizeFolderPath(folder);
+        setIsScanningOrganize(true);
+        try {
+          const res = await (window as any).electronAPI.scanFolder({ folderPath: folder, maxDepth: 4 });
+          if (res?.success && res.files) {
+            setOrganizeFiles(res.files);
+          } else {
+            setError(lang === "en" ? "Failed to scan folder" : "扫描目录失败");
+          }
+        } catch (err: any) {
+          setError(err?.message || (lang === "en" ? "Scan failed" : "目录扫描出错"));
+        } finally {
+          setIsScanningOrganize(false);
+        }
+      }
+    } else {
+      organizeFolderInputRef.current?.click();
+    }
+  };
+
+  const handleOrganizeWebFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
+    const firstRel = fileList[0]?.webkitRelativePath || "";
+    const folderRoot = firstRel ? firstRel.split("/")[0] : "Folder";
+    setOrganizeFolderPath(folderRoot);
+    const metas: FileItemMeta[] = fileList.map((f) => ({
+      path: f.webkitRelativePath || f.name,
+      name: f.name,
+      size: f.size,
+      mtime: f.lastModified,
+      ext: "." + (f.name.split(".").pop() || ""),
+      fileObj: f,
+      relPath: f.webkitRelativePath,
+    }));
+    setOrganizeFiles(metas);
+    setOrganizeSuccessMsg(null);
+  };
+
+  const handleExecuteOrganize = async () => {
+    if (organizePlan.length === 0) return;
+    setIsExecutingOrganize(true);
+    setError(null);
+    setOrganizeSuccessMsg(null);
+    try {
+      if (typeof window !== "undefined" && (window as any).electronAPI?.organizeExecute && organizeFolderPath) {
+        const tasks = organizePlan.map((p) => ({
+          sourcePath: p.sourcePath,
+          targetPath: p.targetFullPath || `${organizeFolderPath}/${p.targetRelativePath}`,
+        }));
+        const res = await (window as any).electronAPI.organizeExecute({ tasks });
+        if (res?.success) {
+          setOrganizeSuccessMsg(
+            lang === "en"
+              ? `Successfully organized ${res.count} files into categories!`
+              : `已成功整理并归纳 ${res.count} 个文件！`
+          );
+          const refresh = await (window as any).electronAPI.scanFolder({
+            folderPath: organizeFolderPath,
+            maxDepth: 4,
+          });
+          if (refresh?.success) {
+            setOrganizeFiles(refresh.files);
+          }
+        }
+      } else {
+        const zipBlob = await exportOrganizedZip(organizePlan);
+        downloadBlob(zipBlob, `organized_${organizeRule}_${Date.now()}.zip`);
+        setOrganizeSuccessMsg(
+          lang === "en"
+            ? "Successfully generated organized directory ZIP archive!"
+            : "已将整理后的目录结构打包下载为 ZIP 压缩包！"
+        );
+      }
+    } catch (err: any) {
+      setError(err?.message || (lang === "en" ? "Failed to organize" : "整理执行失败"));
+    } finally {
+      setIsExecutingOrganize(false);
+    }
+  };
+
+  // =======================================================
+  // 5. 重复文件极速排重状态与逻辑
+  // =======================================================
+  const [dupFolderPath, setDupFolderPath] = useState<string>("");
+  const [dupGroups, setDupGroups] = useState<DuplicateGroup[]>([]);
+  const [dupSelectedPaths, setDupSelectedPaths] = useState<Set<string>>(new Set());
+  const [isScanningDup, setIsScanningDup] = useState<boolean>(false);
+  const [isTrashingDup, setIsTrashingDup] = useState<boolean>(false);
+  const [dupProgress, setDupProgress] = useState<{ stage: string; current: number; total: number } | null>(null);
+  const [dupSuccessMsg, setDupSuccessMsg] = useState<string | null>(null);
+  const dupFolderInputRef = useRef<HTMLInputElement>(null);
+
+  const dupStats = React.useMemo(() => {
+    let duplicateFileCount = 0;
+    let reclaimableBytes = 0;
+    dupGroups.forEach((g) => {
+      const duplicates = g.files.slice(1);
+      duplicateFileCount += duplicates.length;
+      reclaimableBytes += duplicates.reduce((acc, f) => acc + f.size, 0);
+    });
+    return {
+      groupCount: dupGroups.length,
+      duplicateFileCount,
+      reclaimableBytes,
+      selectedCount: dupSelectedPaths.size,
+    };
+  }, [dupGroups, dupSelectedPaths]);
+
+  const runDuplicateScan = async (files: FileItemMeta[]) => {
+    setIsScanningDup(true);
+    setDupSuccessMsg(null);
+    setError(null);
+    setDupGroups([]);
+    setDupSelectedPaths(new Set());
+    try {
+      const groups = await findDuplicatesFast(files, (p) => setDupProgress(p));
+      setDupGroups(groups);
+      const initialSelected = new Set<string>();
+      groups.forEach((g) => {
+        g.files.forEach((f) => {
+          if (f.isSuggestedDelete) {
+            initialSelected.add(f.path);
+          }
+        });
+      });
+      setDupSelectedPaths(initialSelected);
+    } catch (err: any) {
+      setError(err?.message || (lang === "en" ? "Deduplication error" : "查重分析出错"));
+    } finally {
+      setIsScanningDup(false);
+      setDupProgress(null);
+    }
+  };
+
+  const handleSelectDupFolder = async () => {
+    setError(null);
+    setDupSuccessMsg(null);
+    if (typeof window !== "undefined" && (window as any).electronAPI?.selectFolder) {
+      const folder = await (window as any).electronAPI.selectFolder();
+      if (folder) {
+        setDupFolderPath(folder);
+        setIsScanningDup(true);
+        setDupProgress({ stage: lang === "en" ? "Scanning folder files..." : "正在扫描目录内文件...", current: 0, total: 100 });
+        try {
+          const res = await (window as any).electronAPI.scanFolder({ folderPath: folder, maxDepth: 6 });
+          if (res?.success && res.files) {
+            await runDuplicateScan(res.files);
+          } else {
+            setError(lang === "en" ? "Failed to scan folder" : "扫描目录失败");
+            setIsScanningDup(false);
+          }
+        } catch (err: any) {
+          setError(err?.message || (lang === "en" ? "Scan failed" : "目录扫描出错"));
+          setIsScanningDup(false);
+        }
+      }
+    } else {
+      dupFolderInputRef.current?.click();
+    }
+  };
+
+  const handleDupWebFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
+    const firstRel = fileList[0]?.webkitRelativePath || "";
+    const folderRoot = firstRel ? firstRel.split("/")[0] : "Folder";
+    setDupFolderPath(folderRoot);
+    const metas: FileItemMeta[] = fileList.map((f) => ({
+      path: f.webkitRelativePath || f.name,
+      name: f.name,
+      size: f.size,
+      mtime: f.lastModified,
+      ext: "." + (f.name.split(".").pop() || ""),
+      fileObj: f,
+      relPath: f.webkitRelativePath,
+    }));
+    await runDuplicateScan(metas);
+  };
+
+  const toggleSelectDupPath = (path: string) => {
+    setDupSelectedPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  };
+
+  const selectAllSuggestedDups = () => {
+    const selected = new Set<string>();
+    dupGroups.forEach((g) => {
+      g.files.forEach((f) => {
+        if (f.isSuggestedDelete) selected.add(f.path);
+      });
+    });
+    setDupSelectedPaths(selected);
+  };
+
+  const deselectAllDups = () => {
+    setDupSelectedPaths(new Set());
+  };
+
+  const handleTrashDuplicates = async () => {
+    if (dupSelectedPaths.size === 0) return;
+    setIsTrashingDup(true);
+    setError(null);
+    setDupSuccessMsg(null);
+    const targets = Array.from(dupSelectedPaths);
+
+    try {
+      if (typeof window !== "undefined" && (window as any).electronAPI?.trashItems) {
+        const res = await (window as any).electronAPI.trashItems({ paths: targets });
+        if (res?.success) {
+          setDupSuccessMsg(
+            lang === "en"
+              ? `Safely moved ${res.trashedCount} replica files to the Recycle Bin!`
+              : `已将 ${res.trashedCount} 个重复副本安全移入系统回收站！`
+          );
+          const trashedSet = new Set(targets);
+          setDupGroups((prevGroups) =>
+            prevGroups
+              .map((group) => ({
+                ...group,
+                files: group.files.filter((f) => !trashedSet.has(f.path)),
+              }))
+              .filter((group) => group.files.length > 1)
+          );
+          setDupSelectedPaths(new Set());
+        }
+      } else {
+        const trashedSet = new Set(targets);
+        setDupGroups((prevGroups) =>
+          prevGroups
+            .map((group) => ({
+              ...group,
+              files: group.files.filter((f) => !trashedSet.has(f.path)),
+            }))
+            .filter((group) => group.files.length > 1)
+        );
+        setDupSelectedPaths(new Set());
+        setDupSuccessMsg(
+          lang === "en"
+            ? `Removed ${targets.length} duplicates from preview.`
+            : `已从预览列表中剔除 ${targets.length} 个重复副本文件。`
+        );
+      }
+    } catch (err: any) {
+      setError(err?.message || (lang === "en" ? "Failed to delete files" : "删除文件失败"));
+    } finally {
+      setIsTrashingDup(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in">
-      {/* 3 大功能 Tab 切换 (支持鼠标滚轮横移、鼠标拖拽滑动、专属微滑轨与左右翻页箭头) */}
+      {/* 5 大功能 Tab 切换 */}
       <ScrollableTabNav
         tabs={[
           {
@@ -356,6 +669,18 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
             label: lang === "en" ? "ID Photo Studio" : "证件照换底与相纸排版",
             icon: UserCheck,
             badge: lang === "en" ? "6-Inch Print / KB Limit" : "6寸排版/KB限容",
+          },
+          {
+            id: "organize",
+            label: lang === "en" ? "Smart Organizer" : "目录智能归类大师",
+            icon: FolderTree,
+            badge: lang === "en" ? "Dry Run / Rules" : "变更试运行/智能归类",
+          },
+          {
+            id: "duplicate",
+            label: lang === "en" ? "Fast Deduplicator" : "重复文件极速排重",
+            icon: CopyCheck,
+            badge: lang === "en" ? "Tiered Hash / Trash" : "三级哈希/安全回收站",
           },
           {
             id: "qrcode",
@@ -696,7 +1021,628 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
         </div>
       )}
 
-      {/* ================= 2. 个性化二维码与扫码识别面板 ================= */}
+      {/* ================= 2. 目录智能归类大师 ================= */}
+      {activeTab === "organize" && (
+        <div className="space-y-6">
+          <input
+            ref={organizeFolderInputRef}
+            type="file"
+            multiple
+            {...({ webkitdirectory: "", directory: "" } as any)}
+            onChange={(e) => handleOrganizeWebFiles(e.target.files)}
+            className="hidden"
+          />
+
+          {!organizeFolderPath ? (
+            <div
+              onClick={handleSelectOrganizeFolder}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  handleOrganizeWebFiles(e.dataTransfer.files);
+                }
+              }}
+              className="group relative overflow-hidden border-2 border-dashed border-[#D2BCAB]/70 dark:border-[#4D392E]/60 hover:border-amber-500/70 dark:hover:border-amber-500/70 bg-gradient-to-b from-[#FBF8F4]/80 to-[#F5ECE1]/60 dark:from-[#211713]/70 dark:to-[#18110D]/70 hover:from-[#FFFDF9] hover:to-[#FDF4EB] dark:hover:from-[#291D17] dark:hover:to-[#1F1511] rounded-3xl p-8 sm:p-12 text-center cursor-pointer transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-amber-900/5 select-none"
+            >
+              <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_40%,rgba(245,158,11,0.08),transparent_65%)]" />
+              <div className="relative flex flex-col items-center space-y-3.5">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white flex items-center justify-center group-hover:scale-105 group-hover:-translate-y-0.5 transition-all duration-300 shadow-md shadow-amber-600/25">
+                  <FolderTree className="w-7 h-7" />
+                </div>
+                <div>
+                  <div className="text-base font-bold text-coconut-900 dark:text-darkbg-text tracking-tight group-hover:text-amber-800 dark:group-hover:text-amber-300 transition-colors">
+                    {lang === "en" ? "Select or Drop Directory to Organize" : "选择或拖拽需要规整的混乱目录"}
+                  </div>
+                  <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1 max-w-md mx-auto">
+                    {lang === "en"
+                      ? "Ideal for cluttered Desktop and Downloads. Auto classify into Documents, Images, Media, Archives with safe Dry-Run."
+                      : "专为桌面、下载文件夹量身打造，按文档、图片、音视频、压缩包自动分流归档，提供变更试运行预演"}
+                  </div>
+                </div>
+                <div className="flex items-center flex-wrap justify-center gap-2 pt-1 text-[11px] font-medium text-coconut-600 dark:text-darkbg-muted">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
+                    ⚡ 变更试运行预演 (Dry Run)
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
+                    🛡️ 重名冲突自动追加序号
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-semibold">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    100% 本地极速处理
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="coconut-panel p-5 sm:p-6 space-y-6">
+              {/* 顶部路径与操作栏 */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-coconut-200/60 dark:border-darkbg-border">
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                    <FolderOpen className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs text-coconut-500 dark:text-darkbg-muted font-medium">
+                      {lang === "en" ? "Target Working Directory" : "当前整理目录"}
+                    </div>
+                    <div className="text-sm font-bold text-coconut-900 dark:text-darkbg-text truncate max-w-sm sm:max-w-md" title={organizeFolderPath}>
+                      {organizeFolderPath}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleSelectOrganizeFolder}
+                    disabled={isScanningOrganize || isExecutingOrganize}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-coconut-100 hover:bg-coconut-200 dark:bg-darkbg-subtle dark:hover:bg-darkbg-border text-coconut-800 dark:text-darkbg-text transition-colors flex items-center space-x-1.5"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    <span>{lang === "en" ? "Change Folder" : "切换目录"}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setOrganizeFolderPath("");
+                      setOrganizeFiles([]);
+                      setOrganizeSuccessMsg(null);
+                    }}
+                    className="p-1.5 rounded-xl text-coconut-400 hover:text-red-500 dark:text-darkbg-muted dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                    title={lang === "en" ? "Reset" : "重置"}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* 归类策略切换卡片 */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-coconut-800 dark:text-darkbg-text flex items-center space-x-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-amber-500" />
+                  <span>{lang === "en" ? "Organization Rule Preset" : "智能归档预设规则"}</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setOrganizeRule("by-type")}
+                    className={`p-3.5 rounded-2xl text-left border transition-all ${
+                      organizeRule === "by-type"
+                        ? "border-amber-500 bg-amber-50/50 dark:bg-amber-950/20 shadow-sm"
+                        : "border-coconut-200 dark:border-darkbg-border bg-white dark:bg-darkbg-subtle hover:border-coconut-300 dark:hover:border-darkbg-muted"
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2 text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                      <Layers className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <span>{lang === "en" ? "By File Format" : "按格式类型归类"}</span>
+                    </div>
+                    <div className="text-[11px] text-coconut-500 dark:text-darkbg-muted mt-1 leading-relaxed">
+                      {lang === "en"
+                        ? "Auto sort into Documents, Images, Videos, Archives, Installers, Code"
+                        : "按文档、图片、视频、音频、压缩包、安装包与代码自动收纳"}
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setOrganizeRule("by-date")}
+                    className={`p-3.5 rounded-2xl text-left border transition-all ${
+                      organizeRule === "by-date"
+                        ? "border-amber-500 bg-amber-50/50 dark:bg-amber-950/20 shadow-sm"
+                        : "border-coconut-200 dark:border-darkbg-border bg-white dark:bg-darkbg-subtle hover:border-coconut-300 dark:hover:border-darkbg-muted"
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2 text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                      <Calendar className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <span>{lang === "en" ? "By Modification Date" : "按修改时间归类"}</span>
+                    </div>
+                    <div className="text-[11px] text-coconut-500 dark:text-darkbg-muted mt-1 leading-relaxed">
+                      {lang === "en"
+                        ? "Chronologically nest files into 'YYYY/MM' folders by last modified time"
+                        : "依据文件最后修改时间，自动按「年份/月份」时间轴建立目录"}
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setOrganizeRule("clean-empty")}
+                    className={`p-3.5 rounded-2xl text-left border transition-all ${
+                      organizeRule === "clean-empty"
+                        ? "border-amber-500 bg-amber-50/50 dark:bg-amber-950/20 shadow-sm"
+                        : "border-coconut-200 dark:border-darkbg-border bg-white dark:bg-darkbg-subtle hover:border-coconut-300 dark:hover:border-darkbg-muted"
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2 text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                      <FileX className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <span>{lang === "en" ? "Isolate 0KB Files" : "隔离 0KB 空文件"}</span>
+                    </div>
+                    <div className="text-[11px] text-coconut-500 dark:text-darkbg-muted mt-1 leading-relaxed">
+                      {lang === "en"
+                        ? "Isolate zero-byte corrupted or blank files into a dedicated directory"
+                        : "精准找出大小为 0 字节的无效幽灵文件并收纳到隔离目录"}
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* 统计指标卡 */}
+              <div className="grid grid-cols-3 gap-3 p-3.5 rounded-2xl bg-coconut-50/70 dark:bg-darkbg-card border border-coconut-200/60 dark:border-darkbg-border">
+                <div className="text-center">
+                  <div className="text-[11px] text-coconut-500 dark:text-darkbg-muted font-medium">
+                    {lang === "en" ? "Pending Files" : "待处理文件"}
+                  </div>
+                  <div className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text mt-0.5">
+                    {organizeStats.totalCount}
+                  </div>
+                </div>
+                <div className="text-center border-x border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="text-[11px] text-coconut-500 dark:text-darkbg-muted font-medium">
+                    {lang === "en" ? "Target Categories" : "生成分类目录"}
+                  </div>
+                  <div className="text-base sm:text-lg font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">
+                    {organizeStats.categoryCount}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-[11px] text-coconut-500 dark:text-darkbg-muted font-medium">
+                    {lang === "en" ? "Total Size" : "总涉及容量"}
+                  </div>
+                  <div className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text mt-0.5">
+                    {formatBytes(organizeStats.totalBytes)}
+                  </div>
+                </div>
+              </div>
+
+              {/* 变更试运行预演表格 (Dry Run Preview) */}
+              <div className="space-y-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="text-xs font-bold text-coconut-800 dark:text-darkbg-text flex items-center space-x-1.5">
+                    <FileCheck2 className="w-3.5 h-3.5 text-palm-600 dark:text-palm-400" />
+                    <span>{lang === "en" ? "Dry Run Preview (Changes Overview)" : "试运行预演清单 (拟移动路径)"}</span>
+                    <span className="text-[11px] font-normal text-coconut-500">
+                      ({filteredOrganizePlan.length} / {organizePlan.length})
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={organizeSearch}
+                    onChange={(e) => setOrganizeSearch(e.target.value)}
+                    placeholder={lang === "en" ? "Filter by name or category..." : "搜索文件名称或分类..."}
+                    className="px-3 py-1 text-xs rounded-xl border border-coconut-200 dark:border-darkbg-border bg-white dark:bg-darkbg-card text-coconut-900 dark:text-darkbg-text placeholder-coconut-400 dark:placeholder-darkbg-muted focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div className="max-h-72 overflow-y-auto rounded-2xl border border-coconut-200/70 dark:border-darkbg-border bg-white dark:bg-darkbg-card divide-y divide-coconut-100 dark:divide-darkbg-border">
+                  {filteredOrganizePlan.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-coconut-400 dark:text-darkbg-muted">
+                      {lang === "en" ? "No matching files for this rule." : "当前规则下没有符合条件的文件"}
+                    </div>
+                  ) : (
+                    filteredOrganizePlan.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-3 sm:px-4 flex items-center justify-between gap-3 text-xs hover:bg-coconut-50/50 dark:hover:bg-darkbg-subtle/50 transition-colors"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-coconut-900 dark:text-darkbg-text truncate" title={item.fileName}>
+                            {item.fileName}
+                          </div>
+                          <div className="text-[11px] text-coconut-500 dark:text-darkbg-muted flex items-center space-x-2 mt-0.5 truncate">
+                            <span className="text-amber-600 dark:text-amber-400 font-medium">➜ {item.targetRelativePath}</span>
+                          </div>
+                        </div>
+                        <div className="shrink-0 flex items-center space-x-2">
+                          <span className="px-2 py-0.5 rounded-md bg-coconut-100 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted text-[10px] font-medium">
+                            {item.category}
+                          </span>
+                          <span className="text-coconut-400 dark:text-darkbg-muted font-mono text-[11px]">
+                            {formatBytes(item.size)}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* 成功 / 错误提示 */}
+              {organizeSuccessMsg && (
+                <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300 text-xs flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{organizeSuccessMsg}</span>
+                </div>
+              )}
+              {error && (
+                <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/40 text-red-800 dark:text-red-300 text-xs flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* 底部执行按钮 */}
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="text-[11px] text-coconut-500 dark:text-darkbg-muted flex items-center space-x-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span>
+                    {typeof window !== "undefined" && (window as any).electronAPI?.organizeExecute
+                      ? (lang === "en" ? "Native rename & move: atomic, zero duplication" : "原生目录秒级重命名移动，原子操作无损防丢失")
+                      : (lang === "en" ? "Browser mode: exports new folder tree as a ZIP archive" : "浏览器模式：将整理后的目录结构导出为 ZIP 压缩包")}
+                  </span>
+                </div>
+
+                <button
+                  onClick={handleExecuteOrganize}
+                  disabled={organizePlan.length === 0 || isExecutingOrganize}
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-2xl text-xs sm:text-sm font-bold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-md shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all"
+                >
+                  {isExecutingOrganize ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>{lang === "en" ? "Organizing..." : "正在规整目录..."}</span>
+                    </>
+                  ) : (
+                    <>
+                      <FolderTree className="w-4 h-4" />
+                      <span>
+                        {typeof window !== "undefined" && (window as any).electronAPI?.organizeExecute
+                          ? (lang === "en" ? `Execute Organization (${organizePlan.length} files)` : `确认执行智能归档 (${organizePlan.length} 个文件)`)
+                          : (lang === "en" ? `Export Organized ZIP (${organizePlan.length} files)` : `导出规整压缩包 ZIP (${organizePlan.length} 个文件)`)}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ================= 3. 重复文件极速排重 ================= */}
+      {activeTab === "duplicate" && (
+        <div className="space-y-6">
+          <input
+            ref={dupFolderInputRef}
+            type="file"
+            multiple
+            {...({ webkitdirectory: "", directory: "" } as any)}
+            onChange={(e) => handleDupWebFiles(e.target.files)}
+            className="hidden"
+          />
+
+          {!dupFolderPath && dupGroups.length === 0 && !isScanningDup ? (
+            <div
+              onClick={handleSelectDupFolder}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  handleDupWebFiles(e.dataTransfer.files);
+                }
+              }}
+              className="group relative overflow-hidden border-2 border-dashed border-[#D2BCAB]/70 dark:border-[#4D392E]/60 hover:border-rose-500/70 dark:hover:border-rose-500/70 bg-gradient-to-b from-[#FBF8F4]/80 to-[#F5ECE1]/60 dark:from-[#211713]/70 dark:to-[#18110D]/70 hover:from-[#FFFDF9] hover:to-[#FDF4EB] dark:hover:from-[#291D17] dark:hover:to-[#1F1511] rounded-3xl p-8 sm:p-12 text-center cursor-pointer transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-rose-900/5 select-none"
+            >
+              <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_40%,rgba(244,63,94,0.08),transparent_65%)]" />
+              <div className="relative flex flex-col items-center space-y-3.5">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 text-white flex items-center justify-center group-hover:scale-105 group-hover:-translate-y-0.5 transition-all duration-300 shadow-md shadow-rose-500/25">
+                  <CopyCheck className="w-7 h-7" />
+                </div>
+                <div>
+                  <div className="text-base font-bold text-coconut-900 dark:text-darkbg-text tracking-tight group-hover:text-rose-800 dark:group-hover:text-rose-300 transition-colors">
+                    {lang === "en" ? "Select Directory to Scan Duplicates" : "选择需要极速查重的目标目录"}
+                  </div>
+                  <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1 max-w-md mx-auto">
+                    {lang === "en"
+                      ? "Tiered short-circuit hashing engine. Rapidly scans duplicates and safely moves replicas to Recycle Bin."
+                      : "对标 czkawka 三级阶梯哈希引擎，秒级识别相同文件，智能建议清理并安全移入系统回收站"}
+                  </div>
+                </div>
+                <div className="flex items-center flex-wrap justify-center gap-2 pt-1 text-[11px] font-medium text-coconut-600 dark:text-darkbg-muted">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
+                    ⚡ 三级阶梯短路哈希 (Level 1-3)
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
+                    🛡️ 原件/副本智能区分标注
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 text-rose-700 dark:text-rose-400 font-semibold">
+                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                    系统回收站防误删保障
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="coconut-panel p-5 sm:p-6 space-y-6">
+              {/* 顶部路径与操作栏 */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-coconut-200/60 dark:border-darkbg-border">
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                    <FolderOpen className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs text-coconut-500 dark:text-darkbg-muted font-medium">
+                      {lang === "en" ? "Scanned Directory" : "查重扫描目录"}
+                    </div>
+                    <div className="text-sm font-bold text-coconut-900 dark:text-darkbg-text truncate max-w-sm sm:max-w-md" title={dupFolderPath}>
+                      {dupFolderPath}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleSelectDupFolder}
+                    disabled={isScanningDup || isTrashingDup}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-coconut-100 hover:bg-coconut-200 dark:bg-darkbg-subtle dark:hover:bg-darkbg-border text-coconut-800 dark:text-darkbg-text transition-colors flex items-center space-x-1.5"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    <span>{lang === "en" ? "Rescan Folder" : "重新扫描目录"}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDupFolderPath("");
+                      setDupGroups([]);
+                      setDupSelectedPaths(new Set());
+                      setDupSuccessMsg(null);
+                    }}
+                    className="p-1.5 rounded-xl text-coconut-400 hover:text-red-500 dark:text-darkbg-muted dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                    title={lang === "en" ? "Reset" : "重置"}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* 扫描进行中状态展示 */}
+              {isScanningDup && (
+                <div className="p-6 rounded-2xl bg-coconut-50/70 dark:bg-darkbg-card border border-coconut-200/60 dark:border-darkbg-border text-center space-y-3">
+                  <Loader2 className="w-8 h-8 text-rose-500 animate-spin mx-auto" />
+                  <div className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                    {dupProgress?.stage || (lang === "en" ? "Scanning duplicates..." : "正在进行三级哈希比对...")}
+                  </div>
+                  {dupProgress && dupProgress.total > 0 && (
+                    <div className="max-w-xs mx-auto space-y-1">
+                      <div className="w-full bg-coconut-200 dark:bg-darkbg-border h-1.5 rounded-full overflow-hidden">
+                        <div
+                          className="bg-rose-500 h-full transition-all duration-200"
+                          style={{ width: `${Math.round((dupProgress.current / dupProgress.total) * 100)}%` }}
+                        />
+                      </div>
+                      <div className="text-[11px] text-coconut-500 dark:text-darkbg-muted font-mono">
+                        {dupProgress.current} / {dupProgress.total}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 查重结果展示 */}
+              {!isScanningDup && (
+                <>
+                  {dupGroups.length === 0 ? (
+                    <div className="py-12 text-center space-y-2">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <div className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                        {lang === "en" ? "No duplicate files found!" : "太棒了！未发现任何重复文件"}
+                      </div>
+                      <div className="text-xs text-coconut-500 dark:text-darkbg-muted">
+                        {lang === "en" ? "The directory is clean and well-organized." : "该目录下所有文件内容均互不相同，目录健康整洁"}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* 指标卡 */}
+                      <div className="grid grid-cols-3 gap-3 p-3.5 rounded-2xl bg-coconut-50/70 dark:bg-darkbg-card border border-coconut-200/60 dark:border-darkbg-border">
+                        <div className="text-center">
+                          <div className="text-[11px] text-coconut-500 dark:text-darkbg-muted font-medium">
+                            {lang === "en" ? "Duplicate Groups" : "重复文件簇"}
+                          </div>
+                          <div className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text mt-0.5">
+                            {dupStats.groupCount}
+                          </div>
+                        </div>
+                        <div className="text-center border-x border-coconut-200/60 dark:border-darkbg-border">
+                          <div className="text-[11px] text-coconut-500 dark:text-darkbg-muted font-medium">
+                            {lang === "en" ? "Replicas Found" : "可清理副本"}
+                          </div>
+                          <div className="text-base sm:text-lg font-extrabold text-rose-600 dark:text-rose-400 mt-0.5">
+                            {dupStats.duplicateFileCount}
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-[11px] text-coconut-500 dark:text-darkbg-muted font-medium">
+                            {lang === "en" ? "Reclaimable Space" : "预计释放空间"}
+                          </div>
+                          <div className="text-base sm:text-lg font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                            {formatBytes(dupStats.reclaimableBytes)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 快捷批量选择条 */}
+                      <div className="flex items-center justify-between gap-2 px-1">
+                        <div className="text-xs text-coconut-600 dark:text-darkbg-muted flex items-center space-x-2">
+                          <span>{lang === "en" ? "Selection:" : "当前勾选:"}</span>
+                          <span className="font-bold text-rose-600 dark:text-rose-400">
+                            {dupStats.selectedCount} {lang === "en" ? "files" : "个副本"}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            type="button"
+                            onClick={selectAllSuggestedDups}
+                            className="text-xs text-palm-600 dark:text-palm-400 hover:underline font-medium"
+                          >
+                            {lang === "en" ? "Select All Suggested" : "全选建议清理项"}
+                          </button>
+                          <span className="text-coconut-300 dark:text-darkbg-border">|</span>
+                          <button
+                            type="button"
+                            onClick={deselectAllDups}
+                            className="text-xs text-coconut-500 dark:text-darkbg-muted hover:underline font-medium"
+                          >
+                            {lang === "en" ? "Deselect All" : "取消全选"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 重复文件列表 */}
+                      <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                        {dupGroups.map((group, groupIdx) => (
+                          <div
+                            key={group.id}
+                            className="rounded-2xl border border-coconut-200/80 dark:border-darkbg-border bg-white dark:bg-darkbg-card overflow-hidden"
+                          >
+                            <div className="px-3.5 py-2 bg-coconut-50/80 dark:bg-darkbg-subtle/60 border-b border-coconut-100 dark:border-darkbg-border flex items-center justify-between text-xs">
+                              <div className="flex items-center space-x-2 font-medium text-coconut-700 dark:text-darkbg-text">
+                                <span className="font-bold text-rose-600 dark:text-rose-400">#{groupIdx + 1}</span>
+                                <span>{lang === "en" ? "Cluster" : "重复组"}</span>
+                                <span className="text-coconut-400">·</span>
+                                <span className="font-mono text-coconut-500">{formatBytes(group.size)} /份</span>
+                              </div>
+                              <span className="text-[11px] text-coconut-400 font-mono">
+                                MD5: {group.hash.slice(0, 10)}...
+                              </span>
+                            </div>
+
+                            <div className="divide-y divide-coconut-100 dark:divide-darkbg-border">
+                              {group.files.map((file, fIdx) => {
+                                const isOriginal = fIdx === 0;
+                                const isChecked = dupSelectedPaths.has(file.path);
+
+                                return (
+                                  <div
+                                    key={file.path || fIdx}
+                                    className={`p-3 flex items-center justify-between gap-3 text-xs transition-colors ${
+                                      isOriginal
+                                        ? "bg-emerald-50/20 dark:bg-emerald-950/10"
+                                        : isChecked
+                                        ? "bg-rose-50/30 dark:bg-rose-950/20"
+                                        : ""
+                                    }`}
+                                  >
+                                    <div className="flex items-center space-x-3 min-w-0 flex-1">
+                                      {!isOriginal ? (
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={() => toggleSelectDupPath(file.path)}
+                                          className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 dark:bg-darkbg-card border-coconut-300 dark:border-darkbg-border cursor-pointer shrink-0"
+                                        />
+                                      ) : (
+                                        <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                        </div>
+                                      )}
+                                      <div className="min-w-0 flex-1">
+                                        <div className="font-semibold text-coconut-900 dark:text-darkbg-text truncate" title={file.name}>
+                                          {file.name}
+                                        </div>
+                                        <div className="text-[11px] text-coconut-500 dark:text-darkbg-muted truncate mt-0.5" title={file.path}>
+                                          {file.path}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="shrink-0 flex items-center space-x-2">
+                                      {isOriginal ? (
+                                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
+                                          {lang === "en" ? "Keep Original" : "保留原件"}
+                                        </span>
+                                      ) : (
+                                        <span className="px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-[10px] font-bold">
+                                          {lang === "en" ? "Replica" : "冗余副本"}
+                                        </span>
+                                      )}
+                                      <span className="text-[11px] text-coconut-400 font-mono hidden sm:inline">
+                                        {new Date(file.mtime).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 成功 / 错误提示 */}
+                      {dupSuccessMsg && (
+                        <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300 text-xs flex items-center space-x-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>{dupSuccessMsg}</span>
+                        </div>
+                      )}
+                      {error && (
+                        <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/40 text-red-800 dark:text-red-300 text-xs flex items-center space-x-2">
+                          <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                          <span>{error}</span>
+                        </div>
+                      )}
+
+                      {/* 底部执行按钮 */}
+                      <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div className="text-[11px] text-coconut-500 dark:text-darkbg-muted flex items-center space-x-1.5">
+                          <Trash2 className="w-4 h-4 text-rose-500 shrink-0" />
+                          <span>
+                            {lang === "en"
+                              ? "Safely moved to OS Recycle Bin. Can be restored at any time if needed."
+                              : "移入系统回收站而非永久物理抹除，支持随时打开回收站原路还原"}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={handleTrashDuplicates}
+                          disabled={dupSelectedPaths.size === 0 || isTrashingDup}
+                          className="w-full sm:w-auto px-6 py-2.5 rounded-2xl text-xs sm:text-sm font-bold bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white shadow-md shadow-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all"
+                        >
+                          {isTrashingDup ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>{lang === "en" ? "Moving to Trash..." : "正在移入回收站..."}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="w-4 h-4" />
+                              <span>
+                                {lang === "en"
+                                  ? `Safely Move ${dupSelectedPaths.size} Replicas to Recycle Bin`
+                                  : `安全移入回收站 (已选 ${dupSelectedPaths.size} 个副本)`}
+                              </span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ================= 4. 个性化二维码与扫码识别面板 ================= */}
       {activeTab === "qrcode" && (
         <div className="space-y-6">
           {/* 二维码模式切换 */}

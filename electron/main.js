@@ -2,6 +2,7 @@ const { app, BrowserWindow, dialog, protocol, Tray, Menu, shell, ipcMain, sessio
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 const treeKill = require('tree-kill');
 const { initUpdater } = require('./updater');
@@ -548,6 +549,113 @@ function setupSettingsIPC() {
     } catch (_) {
       return false;
     }
+  });
+
+  // ========== 第二期：目录极速扫描与安全归档 / 排重 IPC 管道 ==========
+  ipcMain.handle('files:scan-folder', async (_e, { folderPath, maxDepth = 10 }) => {
+    if (!folderPath || !fs.existsSync(folderPath)) {
+      throw new Error('指定文件夹路径不存在或无权访问');
+    }
+
+    const results = [];
+    function walk(currentDir, depth) {
+      if (depth > maxDepth) return;
+      let entries = [];
+      try {
+        entries = fs.readdirSync(currentDir, { withFileTypes: true });
+      } catch (_) {
+        return;
+      }
+
+      for (const entry of entries) {
+        const fullPath = path.join(currentDir, entry.name);
+        try {
+          if (entry.isDirectory()) {
+            // 跳过常见忽略目录
+            if (['.git', 'node_modules', '$RECYCLE.BIN', 'System Volume Information'].includes(entry.name)) {
+              continue;
+            }
+            walk(fullPath, depth + 1);
+          } else if (entry.isFile()) {
+            const stat = fs.statSync(fullPath);
+            results.push({
+              path: fullPath,
+              name: entry.name,
+              size: stat.size,
+              mtime: stat.mtimeMs,
+              ext: path.extname(entry.name).toLowerCase(),
+              relPath: path.relative(folderPath, fullPath),
+            });
+          }
+        } catch (_) {}
+      }
+    }
+
+    walk(folderPath, 0);
+    return results;
+  });
+
+  ipcMain.handle('files:organize-execute', async (_e, { tasks }) => {
+    const executed = [];
+    const errors = [];
+
+    for (const task of tasks) {
+      try {
+        const targetDir = path.dirname(task.targetPath);
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+        // 如果目标文件已存在，自动生成带 (1), (2) 的不冲突文件名
+        let finalTarget = task.targetPath;
+        let count = 1;
+        const parsed = path.parse(task.targetPath);
+        while (fs.existsSync(finalTarget)) {
+          finalTarget = path.join(parsed.dir, `${parsed.name} (${count})${parsed.ext}`);
+          count++;
+        }
+
+        fs.renameSync(task.sourcePath, finalTarget);
+        executed.push({ source: task.sourcePath, target: finalTarget });
+      } catch (err) {
+        errors.push({ source: task.sourcePath, error: err.message });
+      }
+    }
+
+    return { successCount: executed.length, errorCount: errors.length, executed, errors };
+  });
+
+  ipcMain.handle('files:trash-items', async (_e, { paths }) => {
+    let trashedCount = 0;
+    const errors = [];
+
+    for (const p of paths) {
+      try {
+        if (fs.existsSync(p)) {
+          await shell.trashItem(p);
+          trashedCount++;
+        }
+      } catch (err) {
+        errors.push({ path: p, error: err.message });
+      }
+    }
+
+    return { trashedCount, errorCount: errors.length, errors };
+  });
+
+  ipcMain.handle('files:read-file-hash', async (_e, { filePath, partialBytes }) => {
+    if (!fs.existsSync(filePath)) {
+      throw new Error('文件不存在');
+    }
+
+    return new Promise((resolve, reject) => {
+      const hash = crypto.createHash('md5');
+      const streamOptions = partialBytes ? { start: 0, end: partialBytes - 1 } : {};
+      const stream = fs.createReadStream(filePath, streamOptions);
+
+      stream.on('data', (chunk) => hash.update(chunk));
+      stream.on('end', () => resolve(hash.digest('hex')));
+      stream.on('error', (err) => reject(err));
+    });
   });
 }
 

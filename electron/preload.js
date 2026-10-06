@@ -32,6 +32,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clearCache: () => ipcRenderer.invoke('settings:clear-cache'),
   getAutoStart: () => ipcRenderer.invoke('settings:get-autostart'),
   saveBatchFiles: (payload) => ipcRenderer.invoke('files:save-batch', payload),
+  scanFolder: (payload) => ipcRenderer.invoke('files:scan-folder', payload),
+  organizeExecute: (payload) => ipcRenderer.invoke('files:organize-execute', payload),
+  trashItems: (payload) => ipcRenderer.invoke('files:trash-items', payload),
+  readFileHash: (payload) => ipcRenderer.invoke('files:read-file-hash', payload),
   restartBackend: () => ipcRenderer.invoke('backend:restart'),
   checkBackendHealth: () => ipcRenderer.invoke('backend:check-health'),
   onBackendStatus: (callback) => {
