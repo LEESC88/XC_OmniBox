@@ -1,9 +1,6 @@
-# Active Architecture Memory: Phase 2 Organizer & Deduplicator
+# Active Architecture Memory: Releases & Pipelines
 
 ## 1. 状态与交付
-- 架构策略: 采纳方案 A，并入 `utilities` (日常工具箱 DailyToolbox)。
-- 完成功能:
-  1. `organize` (目录智能归类大师): 类型归类/年月归类/空文件隔离 + Dry-Run 差异拟移动预演清单 + 原生防覆盖
-  2. `duplicate` (重复文件极速排重): 三级阶梯哈希引擎 (Size -> Head4K -> FullHash) + 原件/副本智能标记 + Windows 回收站安全移动防误删
-- 兼容机制: Electron IPC 原生安全管道 + Web 浏览器 File 句柄切片与 ZIP 打包无缝降级。
-- 质量验证: `npm --prefix frontend run build` 闭环编译通过，无类型与语法警告。
+- 当前发布版本: `v1.5.1` (Git Tag + GitHub Release 均已同步完成)
+- 产物发布状态: `XC_OmniBox-Setup-1.5.1.exe` (~186MB)、`.blockmap` 与 `latest.yml` 均已全量上传至 GitHub Releases。
+- 一键 Release 管道: 集成 `npm run release:publish` (`scripts/publish-release.js`)，后续任何更新只需一键调用即可自动完成「前端构建 -> 签名打包 exe -> 提取更新日志 -> 上传 GitHub Release」。
