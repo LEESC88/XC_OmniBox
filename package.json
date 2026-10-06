@@ -12,7 +12,8 @@
     "build:backend": "backend\\venv\\Scripts\\python.exe backend/build_backend.py",
     "dist": "npm run build:frontend && npm run build:backend && electron-builder",
     "dist:fast": "npm run build:frontend && electron-builder",
-    "pack": "npm run build:frontend && electron-builder --dir"
+    "pack": "npm run build:frontend && electron-builder --dir",
+    "release:publish": "node scripts/publish-release.js"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",
