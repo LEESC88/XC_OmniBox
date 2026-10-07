@@ -149,7 +149,7 @@ async function main() {
 
   let release = releases.find((r) => r.tag_name === tagName);
   const releaseNotes = extractReleaseNotes();
-  const releaseTitle = `XC OmniBox v${version} - 表格工坊、目录智能归类大师与极速排重`;
+  const releaseTitle = `XC OmniBox v${version} - 体验与可靠性全面跃升 (PDF原位编辑/图片管线优化/表格防崩溃)`;
 
   if (!release) {
     console.log(`[GitHub API] Creating new release for tag ${tagName}...`);

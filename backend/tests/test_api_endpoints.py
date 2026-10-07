@@ -68,6 +68,20 @@ def test_pdf_watermark_endpoint(tmp_path: Path):
     assert "内部机密" in page_text
     print(f"[OK] POST /api/v1/pdf/watermark 中文水印验证成功 (接收到 {len(res.content)} 字节带水印 PDF)")
 
+    # Test tile layout
+    with open(pdf_path, "rb") as f:
+        res_tile = client.post(
+            "/api/v1/pdf/watermark",
+            files={"file": ("test_watermark.pdf", f, "application/pdf")},
+            data={"watermark_text": "CONFIDENTIAL TILE", "opacity": 0.3, "angle": 30, "layout": "tile"}
+        )
+    assert res_tile.status_code == 200
+    assert len(res_tile.content) > 0
+    doc_tile = pymupdf.open(stream=res_tile.content, filetype="pdf")
+    tile_text = doc_tile[0].get_text()
+    assert "CONFIDENTIAL TILE" in tile_text
+    print(f"[OK] POST /api/v1/pdf/watermark 平铺矩阵水印验证成功 (接收到 {len(res_tile.content)} 字节)")
+
 def test_render_pages_thumbnail(tmp_path: Path):
     """测试 PDF 页面快速缩略图渲染接口 (max_pages=1, extract_words=False)"""
     pdf_path = tmp_path / "test_thumb.pdf"

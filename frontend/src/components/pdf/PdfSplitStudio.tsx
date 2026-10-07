@@ -61,6 +61,35 @@ function formatPageSetToRanges(pageNumbers: number[]): string {
   return ranges.join(", ");
 }
 
+// 辅助函数：解析用户输入的范围字符串 (如 "1-5, 8, 12-20") 为页码集合
+function parseRangeStringToPages(rangeStr: string, maxPages: number): Set<number> {
+  const result = new Set<number>();
+  if (!rangeStr.trim()) return result;
+  const parts = rangeStr.split(/[,，]/);
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    if (trimmed.includes("-")) {
+      const [startStr, endStr] = trimmed.split("-").map((s) => s.trim());
+      const start = parseInt(startStr, 10);
+      const end = parseInt(endStr, 10);
+      if (!isNaN(start) && !isNaN(end)) {
+        const from = Math.max(1, Math.min(start, end));
+        const to = Math.min(maxPages, Math.max(start, end));
+        for (let i = from; i <= to; i++) {
+          result.add(i);
+        }
+      }
+    } else {
+      const page = parseInt(trimmed, 10);
+      if (!isNaN(page) && page >= 1 && page <= maxPages) {
+        result.add(page);
+      }
+    }
+  }
+  return result;
+}
+
 export default function PdfSplitStudio({
   file,
   onSplit,
@@ -80,8 +109,10 @@ export default function PdfSplitStudio({
   // 模式：extract (提取选中页) | split-all (拆分为单页压缩包)
   const [splitMode, setSplitMode] = useState<"extract" | "split-all">("extract");
 
-  // 选中的页码 (1-based index)
+  // 选中的页码 (1-based index) 与范围输入文本
   const [selectedPages, setSelectedPages] = useState<Set<number>>(new Set());
+  const [rangeInput, setRangeInput] = useState<string>("1");
+  const [visibleCount, setVisibleCount] = useState<number>(36);
 
   // 放大预览的单页
   const [zoomedPage, setZoomedPage] = useState<PageData | null>(null);
@@ -93,6 +124,8 @@ export default function PdfSplitStudio({
     setRenderError(null);
     setPages([]);
     setSelectedPages(new Set());
+    setRangeInput("1");
+    setVisibleCount(36);
 
     // 采用 80 DPI 快速渲染缩略图，跳过文本块提取
     renderPdfPages(file, 80, undefined, false)
@@ -102,6 +135,7 @@ export default function PdfSplitStudio({
           setNumPages(res.numPages);
           // 默认全选前 1 页方便即开即用
           setSelectedPages(new Set([1]));
+          setRangeInput("1");
           setRenderingPages(false);
         }
       })
@@ -128,8 +162,16 @@ export default function PdfSplitStudio({
       } else {
         next.add(pageNum);
       }
+      setRangeInput(formatPageSetToRanges(Array.from(next)));
       return next;
     });
+  };
+
+  // 用户在文本框输入范围
+  const handleRangeInputChange = (val: string) => {
+    setRangeInput(val);
+    const parsed = parseRangeStringToPages(val, numPages);
+    setSelectedPages(parsed);
   };
 
   // 全选
@@ -139,11 +181,13 @@ export default function PdfSplitStudio({
       all.add(i);
     }
     setSelectedPages(all);
+    setRangeInput(formatPageSetToRanges(Array.from(all)));
   };
 
   // 清空选择
   const handleDeselectAll = () => {
     setSelectedPages(new Set());
+    setRangeInput("");
   };
 
   // 反选
@@ -155,6 +199,7 @@ export default function PdfSplitStudio({
       }
     }
     setSelectedPages(next);
+    setRangeInput(formatPageSetToRanges(Array.from(next)));
   };
 
   // 奇数页
@@ -164,6 +209,7 @@ export default function PdfSplitStudio({
       odds.add(i);
     }
     setSelectedPages(odds);
+    setRangeInput(formatPageSetToRanges(Array.from(odds)));
   };
 
   // 偶数页
@@ -173,6 +219,7 @@ export default function PdfSplitStudio({
       evens.add(i);
     }
     setSelectedPages(evens);
+    setRangeInput(formatPageSetToRanges(Array.from(evens)));
   };
 
   // 触发拆分/提取
@@ -304,6 +351,23 @@ export default function PdfSplitStudio({
               </span>
             )}
           </div>
+
+          {/* 手动输入页码范围 (如 1-5, 8, 12-20) */}
+          <div className="w-full flex flex-col sm:flex-row sm:items-center gap-2 pt-2 border-t border-coconut-200/50 dark:border-darkbg-border/60">
+            <label className="text-xs font-semibold text-coconut-800 dark:text-darkbg-text whitespace-nowrap">
+              {lang === "en" ? "Custom Range:" : "自定义范围输入:"}
+            </label>
+            <input
+              type="text"
+              placeholder={lang === "en" ? "e.g. 1-5, 8, 12-20" : "例如 1-5, 8, 12-20 (支持逗号与减号区间)"}
+              value={rangeInput}
+              onChange={(e) => handleRangeInputChange(e.target.value)}
+              className="flex-1 px-3 py-1.5 text-xs font-mono bg-white dark:bg-darkbg-card border border-coconut-300 dark:border-darkbg-border rounded-xl outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 text-coconut-900 dark:text-darkbg-text"
+            />
+            <span className="text-[11px] text-coconut-500 whitespace-nowrap">
+              {lang === "en" ? "Auto-synced with cards" : "与下方点选实时双向同步"}
+            </span>
+          </div>
         </div>
       )}
 
@@ -329,85 +393,109 @@ export default function PdfSplitStudio({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 max-h-[520px] overflow-y-auto p-1 pr-2 no-scrollbar">
-          {pages.map((p) => {
-            const pageNum = p.pageIndex + 1;
-            const isSelected = selectedPages.has(pageNum);
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 max-h-[520px] overflow-y-auto p-1 pr-2 no-scrollbar">
+            {pages.slice(0, visibleCount).map((p) => {
+              const pageNum = p.pageIndex + 1;
+              const isSelected = selectedPages.has(pageNum);
 
-            return (
-              <div
-                key={p.pageIndex}
-                onClick={() => {
-                  if (splitMode === "extract") {
-                    togglePageSelection(pageNum);
-                  }
-                }}
-                className={`group relative rounded-2xl border-2 transition-all duration-200 overflow-hidden select-none cursor-pointer flex flex-col bg-white dark:bg-darkbg-card shadow-2xs hover:shadow-coconut-sm ${
-                  splitMode === "split-all"
-                    ? "border-coconut-200 dark:border-darkbg-border opacity-90 hover:opacity-100"
-                    : isSelected
-                    ? "border-orange-500 ring-2 ring-orange-500/20 shadow-coconut-sm scale-[1.02] bg-orange-50/30 dark:bg-orange-950/20"
-                    : "border-coconut-200 dark:border-darkbg-border hover:border-orange-300 dark:hover:border-orange-600/50 hover:scale-[1.01]"
-                }`}
-              >
-                {/* 页面顶部状态条：勾选框 + 放大图标 */}
-                <div className="p-2 flex items-center justify-between bg-coconut-50/80 dark:bg-darkbg-subtle/80 border-b border-coconut-100 dark:border-darkbg-border">
-                  <div className="flex items-center gap-1.5">
-                    {splitMode === "extract" && (
-                      <div
-                        className={`w-4 h-4 rounded flex items-center justify-center transition-all ${
-                          isSelected
-                            ? "bg-accent-gradient text-white"
-                            : "border border-coconut-300 dark:border-darkbg-border bg-white dark:bg-darkbg-subtle"
-                        }`}
-                      >
-                        {isSelected && <CheckSquare className="w-3.5 h-3.5" />}
-                      </div>
-                    )}
-                    <span className="text-[11px] font-bold font-mono text-coconut-900 dark:text-darkbg-text">
-                      P.{pageNum}
-                    </span>
+              return (
+                <div
+                  key={p.pageIndex}
+                  onClick={() => {
+                    if (splitMode === "extract") {
+                      togglePageSelection(pageNum);
+                    }
+                  }}
+                  className={`group relative rounded-2xl border-2 transition-all duration-200 overflow-hidden select-none cursor-pointer flex flex-col bg-white dark:bg-darkbg-card shadow-2xs hover:shadow-coconut-sm ${
+                    splitMode === "split-all"
+                      ? "border-coconut-200 dark:border-darkbg-border opacity-90 hover:opacity-100"
+                      : isSelected
+                      ? "border-orange-500 ring-2 ring-orange-500/20 shadow-coconut-sm scale-[1.02] bg-orange-50/30 dark:bg-orange-950/20"
+                      : "border-coconut-200 dark:border-darkbg-border hover:border-orange-300 dark:hover:border-orange-600/50 hover:scale-[1.01]"
+                  }`}
+                >
+                  {/* 页面顶部状态条：勾选框 + 放大图标 */}
+                  <div className="p-2 flex items-center justify-between bg-coconut-50/80 dark:bg-darkbg-subtle/80 border-b border-coconut-100 dark:border-darkbg-border">
+                    <div className="flex items-center gap-1.5">
+                      {splitMode === "extract" && (
+                        <div
+                          className={`w-4 h-4 rounded flex items-center justify-center transition-all ${
+                            isSelected
+                              ? "bg-accent-gradient text-white"
+                              : "border border-coconut-300 dark:border-darkbg-border bg-white dark:bg-darkbg-subtle"
+                          }`}
+                        >
+                          {isSelected && <CheckSquare className="w-3.5 h-3.5" />}
+                        </div>
+                      )}
+                      <span className="text-[11px] font-bold font-mono text-coconut-900 dark:text-darkbg-text">
+                        P.{pageNum}
+                      </span>
+                    </div>
+
+                    {/* 放大镜单页查看按钮 */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setZoomedPage(p);
+                      }}
+                      title={lang === "en" ? "Click to zoom into this page" : "点击放大查看该页"}
+                      className="p-1 rounded-md text-coconut-500 hover:text-orange-600 hover:bg-orange-500/10 transition-colors"
+                    >
+                      <ZoomIn className="w-3.5 h-3.5" />
+                    </button>
                   </div>
 
-                  {/* 放大镜单页查看按钮 */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setZoomedPage(p);
-                    }}
-                    title={lang === "en" ? "Click to zoom into this page" : "点击放大查看该页"}
-                    className="p-1 rounded-md text-coconut-500 hover:text-orange-600 hover:bg-orange-500/10 transition-colors"
-                  >
-                    <ZoomIn className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                  {/* 页面真实缩略图画面 */}
+                  <div className="relative aspect-[1/1.414] w-full bg-coconut-100/50 dark:bg-darkbg-subtle/50 flex items-center justify-center overflow-hidden">
+                    <img
+                      src={p.image}
+                      alt={`Page ${pageNum}`}
+                      className="w-full h-full object-contain p-1"
+                      loading="lazy"
+                    />
+                    {/* 未选中时的轻微遮罩 */}
+                    {splitMode === "extract" && !isSelected && (
+                      <div className="absolute inset-0 bg-white/40 dark:bg-black/40 transition-opacity" />
+                    )}
+                  </div>
 
-                {/* 页面真实缩略图画面 */}
-                <div className="relative aspect-[1/1.414] w-full bg-coconut-100/50 dark:bg-darkbg-subtle/50 flex items-center justify-center overflow-hidden">
-                  <img
-                    src={p.image}
-                    alt={`Page ${pageNum}`}
-                    className="w-full h-full object-contain p-1"
-                    loading="lazy"
-                  />
-                  {/* 未选中时的轻微遮罩 */}
-                  {splitMode === "extract" && !isSelected && (
-                    <div className="absolute inset-0 bg-white/40 dark:bg-black/40 transition-opacity" />
-                  )}
+                  {/* 底部文字 */}
+                  <div className="py-1 px-2 text-center text-[10px] font-semibold text-coconut-600 dark:text-darkbg-muted bg-coconut-50/50 dark:bg-darkbg-subtle/50 border-t border-coconut-100 dark:border-darkbg-border">
+                    {splitMode === "split-all"
+                      ? (lang === "en" ? "Split as separate file" : "将拆分为独立文件")
+                      : isSelected
+                      ? (lang === "en" ? "✓ Selected for export" : "✓ 已选中导出")
+                      : (lang === "en" ? "Click to select" : "点击选中")}
+                  </div>
                 </div>
+              );
+            })}
+          </div>
 
-                {/* 底部文字 */}
-                <div className="py-1 px-2 text-center text-[10px] font-semibold text-coconut-600 dark:text-darkbg-muted bg-coconut-50/50 dark:bg-darkbg-subtle/50 border-t border-coconut-100 dark:border-darkbg-border">
-                  {splitMode === "split-all"
-                    ? (lang === "en" ? "Split as separate file" : "将拆分为独立文件")
-                    : isSelected
-                    ? (lang === "en" ? "✓ Selected for export" : "✓ 已选中导出")
-                    : (lang === "en" ? "Click to select" : "点击选中")}
-                </div>
-              </div>
-            );
-          })}
+          {/* 大文档分页加载更多按钮 */}
+          {pages.length > visibleCount && (
+            <div className="flex items-center justify-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((prev) => prev + 36)}
+                className="py-2 px-4 rounded-xl btn-3d-secondary text-xs font-bold shadow-2xs hover:border-orange-400"
+              >
+                {lang === "en"
+                  ? `Load Next 36 Pages (${visibleCount} of ${pages.length} shown)`
+                  : `加载后续 36 页缩略图 (已显示 ${visibleCount} / ${pages.length} 页)`}
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisibleCount(pages.length)}
+                className="py-2 px-3 text-xs text-coconut-600 dark:text-darkbg-muted hover:text-orange-600 underline font-medium"
+              >
+                {lang === "en" ? "Show All Pages" : "展开全部页面"}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

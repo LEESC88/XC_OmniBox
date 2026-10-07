@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   ArrowLeft,
   Edit3,
@@ -80,6 +80,7 @@ export default function InPlacePdfEditor({
   const [modifications, setModifications] = useState<Modification[]>([]);
   const [loadingExport, setLoadingExport] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   // 原位替换弹窗状态
   const [activeReplaceBlock, setActiveReplaceBlock] = useState<Block | null>(null);
@@ -95,6 +96,46 @@ export default function InPlacePdfEditor({
   // 新增文字输入框
   const [newTextDialog, setNewTextDialog] = useState<{ x: number; y: number } | null>(null);
   const [addedText, setAddedText] = useState("");
+
+  // Safeguard exit with confirmation when unsaved changes exist
+  const handleRequestExit = () => {
+    if (modifications.length > 0) {
+      setShowExitConfirm(true);
+    } else {
+      onExit();
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (activeReplaceBlock || newTextDialog) {
+          setActiveReplaceBlock(null);
+          setNewTextDialog(null);
+        } else if (showExitConfirm) {
+          setShowExitConfirm(false);
+        } else if (modifications.length > 0) {
+          setShowExitConfirm(true);
+        } else {
+          onExit();
+        }
+      }
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (modifications.length > 0) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [modifications, showExitConfirm, activeReplaceBlock, newTextDialog, onExit]);
 
   const page = pages[currentPage] || pages[0];
 
@@ -239,7 +280,7 @@ export default function InPlacePdfEditor({
         {/* 左侧：返回与标题 */}
         <div className="flex items-center gap-3">
           <button
-            onClick={onExit}
+            onClick={handleRequestExit}
             className="p-2 rounded-xl text-coconut-600 dark:text-darkbg-muted hover:text-coconut-900 dark:hover:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-elevated transition-colors active:scale-95"
             title={lang === "en" ? "Back to reselect" : "返回重选"}
           >
@@ -471,7 +512,7 @@ export default function InPlacePdfEditor({
 
           {/* 4. 顶层：原位文字交互热区 (原位改字模式下悬停高亮) */}
           {mode === "replace" &&
-            page.blocks.map((b) => {
+            (page.blocks || []).map((b) => {
               const left = (b.x0 / page.width) * 100;
               const top = (b.y0 / page.height) * 100;
               const width = ((b.x1 - b.x0) / page.width) * 100;
@@ -677,6 +718,49 @@ export default function InPlacePdfEditor({
             : `原始尺寸: ${page.width} x ${page.height} pt`}
         </span>
       </div>
+
+      {/* 退出防呆二次确认弹窗 */}
+      {showExitConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-darkbg-card border border-coconut-200 dark:border-darkbg-border rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl animate-fade-in">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-coconut-950 dark:text-white">
+                  {lang === "en" ? "Discard Unsaved Edits?" : "放弃未导出的编辑？"}
+                </h4>
+                <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-0.5">
+                  {lang === "en"
+                    ? `You have made ${modifications.length} modification(s). Exiting now will lose all changes.`
+                    : `您已就地修改了 ${modifications.length} 处内容。现在退出将直接丢弃所有修改且无法撤销。`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowExitConfirm(false)}
+                className="py-2.5 px-4 rounded-xl btn-3d-secondary text-xs font-bold"
+              >
+                {lang === "en" ? "Keep Editing" : "继续编辑"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowExitConfirm(false);
+                  onExit();
+                }}
+                className="py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shadow-xs"
+              >
+                {lang === "en" ? "Discard & Exit" : "放弃修改并退出"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

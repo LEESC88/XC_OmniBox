@@ -23,7 +23,7 @@ import { useI18n } from "@/lib/i18n";
 
 interface PdfWatermarkStudioProps {
   file: File;
-  onExecute: (text: string, opacity: number, angle: number) => Promise<void>;
+  onExecute: (text: string, opacity: number, angle: number, layout: "center" | "tile") => Promise<void>;
   loading: boolean;
   error: string | null;
   successMsg: string | null;
@@ -85,6 +85,7 @@ export default function PdfWatermarkStudio({
   const [watermarkText, setWatermarkText] = useState<string>(lang === "en" ? "CONFIDENTIAL" : "内部机密 严禁外传");
   const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.3);
   const [watermarkAngle, setWatermarkAngle] = useState<number>(45);
+  const [layout, setLayout] = useState<"center" | "tile">("center");
 
   const [pages, setPages] = useState<PageData[]>([]);
   const [numPages, setNumPages] = useState<number>(1);
@@ -130,7 +131,7 @@ export default function PdfWatermarkStudio({
   };
 
   const handleSubmit = () => {
-    onExecute(watermarkText.trim() || (lang === "en" ? "CONFIDENTIAL" : "内部机密"), watermarkOpacity, watermarkAngle);
+    onExecute(watermarkText.trim() || (lang === "en" ? "CONFIDENTIAL" : "内部机密"), watermarkOpacity, watermarkAngle, layout);
   };
 
   return (
@@ -266,6 +267,37 @@ export default function PdfWatermarkStudio({
                   {lang === "en" ? ang.labelEn : ang.label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* 排版布局模式：居中单水印 vs 满屏防截屏平铺水印 */}
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-coconut-900 dark:text-darkbg-text">
+              {lang === "en" ? "Watermark Layout Mode" : "水印排版布局模式"}
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setLayout("center")}
+                className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all text-center ${
+                  layout === "center"
+                    ? "bg-accent-gradient text-white border-transparent shadow-xs"
+                    : "bg-white/60 dark:bg-darkbg-subtle border-coconut-200 dark:border-darkbg-border text-coconut-800 dark:text-darkbg-muted hover:border-orange-400"
+                }`}
+              >
+                {lang === "en" ? "Center (Single)" : "中心单印 (标准)"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLayout("tile")}
+                className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all text-center ${
+                  layout === "tile"
+                    ? "bg-accent-gradient text-white border-transparent shadow-xs"
+                    : "bg-white/60 dark:bg-darkbg-subtle border-coconut-200 dark:border-darkbg-border text-coconut-800 dark:text-darkbg-muted hover:border-orange-400"
+                }`}
+              >
+                {lang === "en" ? "Tile Grid (Anti-Leak)" : "满屏平铺 (防截屏泄密)"}
+              </button>
             </div>
           </div>
 
@@ -405,28 +437,53 @@ export default function PdfWatermarkStudio({
               />
             )}
 
-            {/* 实时动态水印图层：绝对居中、实时旋转、实时半透明度 */}
-            <div
-              className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden"
-              aria-hidden="true"
-            >
+            {/* 实时动态水印图层：支持单印居中与满屏平铺两种渲染模式 */}
+            {layout === "tile" ? (
               <div
-                style={{
-                  transform: `rotate(-${watermarkAngle}deg)`,
-                  opacity: watermarkOpacity,
-                  color: "#6b7280",
-                }}
-                className="text-center font-bold tracking-widest whitespace-nowrap select-none transition-transform duration-150 ease-out"
+                className="absolute -inset-10 pointer-events-none grid grid-cols-3 grid-rows-4 items-center justify-items-center overflow-hidden"
+                aria-hidden="true"
               >
-                <span className="text-xl sm:text-2xl md:text-3xl lg:text-4xl drop-shadow-2xs">
-                  {watermarkText.trim() || (lang === "en" ? "CONFIDENTIAL" : "内部机密")}
-                </span>
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      transform: `rotate(-${watermarkAngle}deg)`,
+                      opacity: watermarkOpacity,
+                      color: "#6b7280",
+                    }}
+                    className="text-center font-bold tracking-widest whitespace-nowrap select-none transition-transform duration-150 ease-out"
+                  >
+                    <span className="text-xs sm:text-sm md:text-base font-extrabold drop-shadow-2xs">
+                      {watermarkText.trim() || (lang === "en" ? "CONFIDENTIAL" : "内部机密")}
+                    </span>
+                  </div>
+                ))}
               </div>
-            </div>
+            ) : (
+              <div
+                className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden"
+                aria-hidden="true"
+              >
+                <div
+                  style={{
+                    transform: `rotate(-${watermarkAngle}deg)`,
+                    opacity: watermarkOpacity,
+                    color: "#6b7280",
+                  }}
+                  className="text-center font-bold tracking-widest whitespace-nowrap select-none transition-transform duration-150 ease-out"
+                >
+                  <span className="text-xl sm:text-2xl md:text-3xl lg:text-4xl drop-shadow-2xs">
+                    {watermarkText.trim() || (lang === "en" ? "CONFIDENTIAL" : "内部机密")}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* 右下角比例徽章 */}
             <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-[10px] text-white font-mono">
-              {lang === "en" ? "100% Vector Centered · Real-time Render" : "100% 矢量居中 · 实时渲染"}
+              {layout === "tile"
+                ? (lang === "en" ? "Full Grid Tile · Real-time Render" : "满屏平铺防泄密 · 实时渲染")
+                : (lang === "en" ? "100% Vector Centered · Real-time Render" : "100% 矢量居中 · 实时渲染")}
             </div>
           </div>
         </div>

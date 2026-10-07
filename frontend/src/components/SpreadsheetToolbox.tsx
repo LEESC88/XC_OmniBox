@@ -10,6 +10,7 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   FileSpreadsheet,
   Layers,
   ArrowRight,
@@ -27,9 +28,11 @@ import {
   probeSpreadsheet,
   mergeSpreadsheets,
   splitSpreadsheet,
+  probeSplitGroups,
   SheetProbeResult,
   MergeResult,
   SplitResult,
+  SplitProbeGroupResult,
 } from "@/lib/spreadsheetProcessor";
 
 export type SpreadsheetTab = "sheet-merge" | "sheet-split";
@@ -56,6 +59,8 @@ export default function SpreadsheetToolbox({
   const [appendSourceCol, setAppendSourceCol] = useState(true);
   const [sourceColName, setSourceColName] = useState(lang === "en" ? "Source_File" : "数据来源文件");
   const [deduplicate, setDeduplicate] = useState(false);
+  const [mergeHeaderRowIndex, setMergeHeaderRowIndex] = useState<number>(0);
+  const [mergeSheetName, setMergeSheetName] = useState<string>("");
   const [mergeProbe, setMergeProbe] = useState<SheetProbeResult | null>(null);
   const [isMerging, setIsMerging] = useState(false);
   const [mergeProgressText, setMergeProgressText] = useState("");
@@ -65,6 +70,11 @@ export default function SpreadsheetToolbox({
   const [splitFile, setSplitFile] = useState<File | null>(null);
   const [splitProbe, setSplitProbe] = useState<SheetProbeResult | null>(null);
   const [splitColIndex, setSplitColIndex] = useState<number>(0);
+  const [splitHeaderRowIndex, setSplitHeaderRowIndex] = useState<number>(0);
+  const [splitSheetName, setSplitSheetName] = useState<string>("");
+  const [splitGroupInfo, setSplitGroupInfo] = useState<SplitProbeGroupResult | null>(null);
+  const [isProbingGroups, setIsProbingGroups] = useState<boolean>(false);
+  const [forceSplitHighCardinality, setForceSplitHighCardinality] = useState<boolean>(false);
   const [includeHeader, setIncludeHeader] = useState(true);
   const [prefixWithOriginalName, setPrefixWithOriginalName] = useState(true);
   const [isSplitting, setIsSplitting] = useState(false);
@@ -99,25 +109,34 @@ export default function SpreadsheetToolbox({
     onTabChange?.(tabId);
   };
 
-  // 探测多表合并首个文件的表头
+  // 探测多表合并首个文件的表头与工作表
   useEffect(() => {
     if (mergeFiles.length > 0) {
-      probeSpreadsheet(mergeFiles[0])
-        .then((res) => setMergeProbe(res))
+      probeSpreadsheet(mergeFiles[0], mergeHeaderRowIndex, mergeSheetName || undefined)
+        .then((res) => {
+          setMergeProbe(res);
+          if (!mergeSheetName && res.sheetNames.length > 0) {
+            setMergeSheetName(res.activeSheet);
+          }
+        })
         .catch(() => setMergeProbe(null));
     } else {
       setMergeProbe(null);
       setMergeResult(null);
+      setMergeSheetName("");
+      setMergeHeaderRowIndex(0);
     }
-  }, [mergeFiles]);
+  }, [mergeFiles, mergeHeaderRowIndex, mergeSheetName]);
 
   // 探测拆分文件的表头与列
   useEffect(() => {
     if (splitFile) {
-      probeSpreadsheet(splitFile)
+      probeSpreadsheet(splitFile, splitHeaderRowIndex, splitSheetName || undefined)
         .then((res) => {
           setSplitProbe(res);
-          setSplitColIndex(0);
+          if (!splitSheetName && res.sheetNames.length > 0) {
+            setSplitSheetName(res.activeSheet);
+          }
         })
         .catch((err) => {
           setSplitProbe(null);
@@ -126,8 +145,33 @@ export default function SpreadsheetToolbox({
     } else {
       setSplitProbe(null);
       setSplitResult(null);
+      setSplitGroupInfo(null);
+      setSplitSheetName("");
+      setSplitHeaderRowIndex(0);
+      setSplitColIndex(0);
+      setForceSplitHighCardinality(false);
     }
-  }, [splitFile]);
+  }, [splitFile, splitHeaderRowIndex, splitSheetName]);
+
+  // 探测拆分依据列的分组唯一值统计（防 OOM 预警）
+  useEffect(() => {
+    if (splitFile && splitProbe && splitProbe.headers.length > 0) {
+      setIsProbingGroups(true);
+      setForceSplitHighCardinality(false);
+      probeSplitGroups(splitFile, splitColIndex, splitHeaderRowIndex, splitSheetName || undefined)
+        .then((info) => {
+          setSplitGroupInfo(info);
+        })
+        .catch(() => {
+          setSplitGroupInfo(null);
+        })
+        .finally(() => {
+          setIsProbingGroups(false);
+        });
+    } else {
+      setSplitGroupInfo(null);
+    }
+  }, [splitFile, splitColIndex, splitHeaderRowIndex, splitSheetName, splitProbe?.activeSheet]);
 
   // 执行多表合并
   const handleExecuteMerge = async () => {
@@ -147,7 +191,8 @@ export default function SpreadsheetToolbox({
           appendSourceCol,
           sourceColName,
           deduplicate,
-          headerRowIndex: 0,
+          headerRowIndex: mergeHeaderRowIndex,
+          targetSheetName: mergeSheetName || undefined,
         },
         (progress) => {
           setMergeProgressText(`[${progress.current}/${progress.total}] ${progress.currentFile}`);
@@ -168,6 +213,10 @@ export default function SpreadsheetToolbox({
       setError(lang === "en" ? "Please select an Excel/CSV file to split" : "请先选择待拆分的 Excel/CSV 文件");
       return;
     }
+    if (splitGroupInfo?.isHighCardinality && !forceSplitHighCardinality) {
+      setError(lang === "en" ? "High-cardinality risk: please check confirmation to proceed" : "存在高基数列风险：请先勾选确认方可继续拆分");
+      return;
+    }
     setError(null);
     setIsSplitting(true);
     setSplitResult(null);
@@ -177,9 +226,10 @@ export default function SpreadsheetToolbox({
         splitFile,
         {
           splitColumnIndex: splitColIndex,
-          headerRowIndex: 0,
+          headerRowIndex: splitHeaderRowIndex,
           includeHeader,
           prefixWithOriginalName,
+          targetSheetName: splitSheetName || undefined,
         },
         (progress) => {
           setSplitProgressText(`[${progress.current}/${progress.total}] 正在生成分组: ${progress.currentKey}`);
@@ -291,6 +341,47 @@ export default function SpreadsheetToolbox({
                     >
                       <option value="union">{t.spreadsheet.modeUnion}</option>
                       <option value="intersection">{t.spreadsheet.modeIntersection}</option>
+                    </select>
+                  </div>
+
+                  {/* 表头所在行号 */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-coconut-800 dark:text-darkbg-text">
+                      {lang === "en" ? "Header Row Number" : "表头所在行号"}
+                    </label>
+                    <select
+                      value={mergeHeaderRowIndex}
+                      onChange={(e) => setMergeHeaderRowIndex(parseInt(e.target.value))}
+                      className="w-full px-3.5 py-2 text-xs sm:text-sm bg-white/90 dark:bg-darkbg-card border border-coconut-300 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-emerald-500 shadow-2xs"
+                    >
+                      <option value={0}>{lang === "en" ? "Row 1 (Default)" : "第 1 行 (标准单表头)"}</option>
+                      <option value={1}>{lang === "en" ? "Row 2 (Title banner in row 1)" : "第 2 行 (第1行为大标题)"}</option>
+                      <option value={2}>{lang === "en" ? "Row 3" : "第 3 行"}</option>
+                      <option value={3}>{lang === "en" ? "Row 4" : "第 4 行"}</option>
+                      <option value={4}>{lang === "en" ? "Row 5" : "第 5 行"}</option>
+                    </select>
+                  </div>
+
+                  {/* 目标工作表 (多 Sheet 支持) */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-coconut-800 dark:text-darkbg-text">
+                      {lang === "en" ? "Target Worksheet (Sheet)" : "目标工作表 (Sheet)"}
+                    </label>
+                    <select
+                      value={mergeSheetName || (mergeProbe?.activeSheet || "")}
+                      onChange={(e) => setMergeSheetName(e.target.value)}
+                      disabled={!mergeProbe || mergeProbe.sheetNames.length <= 1}
+                      className="w-full px-3.5 py-2 text-xs sm:text-sm bg-white/90 dark:bg-darkbg-card border border-coconut-300 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text disabled:opacity-60 focus:outline-none focus:border-emerald-500 shadow-2xs"
+                    >
+                      {mergeProbe && mergeProbe.sheetNames.length > 0 ? (
+                        mergeProbe.sheetNames.map((name) => (
+                          <option key={name} value={name}>
+                            {name} {name === mergeProbe.sheetNames[0] ? `(${lang === "en" ? "First" : "第一张"})` : ""}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="">{lang === "en" ? "Default Sheet" : "默认首个工作表"}</option>
+                      )}
                     </select>
                   </div>
 
@@ -473,6 +564,43 @@ export default function SpreadsheetToolbox({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* 目标工作表 (多 Sheet 支持) */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-coconut-800 dark:text-darkbg-text">
+                      {lang === "en" ? "Target Worksheet (Sheet)" : "目标工作表 (Sheet)"}
+                    </label>
+                    <select
+                      value={splitSheetName || (splitProbe.activeSheet || "")}
+                      onChange={(e) => setSplitSheetName(e.target.value)}
+                      disabled={splitProbe.sheetNames.length <= 1}
+                      className="w-full px-3.5 py-2 text-xs sm:text-sm bg-white/90 dark:bg-darkbg-card border border-coconut-300 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text disabled:opacity-60 focus:outline-none focus:border-indigo-500 shadow-2xs font-medium"
+                    >
+                      {splitProbe.sheetNames.map((name) => (
+                        <option key={name} value={name}>
+                          {name} {name === splitProbe.sheetNames[0] ? `(${lang === "en" ? "First" : "第一张"})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 表头所在行号 */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-coconut-800 dark:text-darkbg-text">
+                      {lang === "en" ? "Header Row Number" : "表头所在行号"}
+                    </label>
+                    <select
+                      value={splitHeaderRowIndex}
+                      onChange={(e) => setSplitHeaderRowIndex(parseInt(e.target.value))}
+                      className="w-full px-3.5 py-2 text-xs sm:text-sm bg-white/90 dark:bg-darkbg-card border border-coconut-300 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-indigo-500 shadow-2xs font-medium"
+                    >
+                      <option value={0}>{lang === "en" ? "Row 1 (Default)" : "第 1 行 (标准单表头)"}</option>
+                      <option value={1}>{lang === "en" ? "Row 2 (Title banner in row 1)" : "第 2 行 (第1行为大标题)"}</option>
+                      <option value={2}>{lang === "en" ? "Row 3" : "第 3 行"}</option>
+                      <option value={3}>{lang === "en" ? "Row 4" : "第 4 行"}</option>
+                      <option value={4}>{lang === "en" ? "Row 5" : "第 5 行"}</option>
+                    </select>
+                  </div>
+
                   {/* 分组键选择 */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-coconut-800 dark:text-darkbg-text">
@@ -518,6 +646,85 @@ export default function SpreadsheetToolbox({
                   </div>
                 </div>
 
+                {/* 分组探针与防 OOM 高基数列预警 */}
+                {splitGroupInfo && (
+                  <div className="space-y-3 pt-2 border-t border-coconut-200/60 dark:border-darkbg-border">
+                    {/* 高基数高危警告卡片 */}
+                    {splitGroupInfo.isHighCardinality && (
+                      <div className="p-4 bg-amber-500/10 dark:bg-amber-500/15 border-2 border-amber-500/50 rounded-2xl space-y-3 animate-pulse">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <h5 className="text-xs sm:text-sm font-extrabold text-amber-900 dark:text-amber-200">
+                              {lang === "en"
+                                ? `High-Cardinality Warning (${splitGroupInfo.distinctCount} groups)`
+                                : `高基数列预警：检测到当前列有 ${splitGroupInfo.distinctCount} 个唯一值`}
+                            </h5>
+                            <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                              {lang === "en"
+                                ? `Splitting by this column will generate ${splitGroupInfo.distinctCount} separate Excel files. This may cause browser freezes or memory exhaustion (OOM). Please verify if you accidentally selected an ID, serial, or phone number column.`
+                                : `若按此拆分将直接生成 ${splitGroupInfo.distinctCount} 个独立 Excel 文件并打包，极可能导致浏览器卡顿甚至内存溢出 (OOM) 崩溃！请仔细核对是否误选了身份证、订单号、手机号等高唯一性字段。`}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-2 border-t border-amber-300/60 dark:border-amber-700/60">
+                          <label className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-200 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={forceSplitHighCardinality}
+                              onChange={(e) => setForceSplitHighCardinality(e.target.checked)}
+                              className="rounded accent-amber-600 cursor-pointer"
+                            />
+                            <span>
+                              {lang === "en"
+                                ? "I understand the risk and confirm to split this column"
+                                : "我已知晓大量文件风险，确认按此列强制拆分"}
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 常规分组统计采样 */}
+                    <div className="p-3.5 bg-white/70 dark:bg-darkbg-card/70 border border-coconut-200/80 dark:border-darkbg-border rounded-xl space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-coconut-800 dark:text-darkbg-text flex items-center gap-1.5">
+                          <span>预计拆解出</span>
+                          <span className="font-bold text-indigo-600 dark:text-indigo-400 font-mono px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 rounded">
+                            {splitGroupInfo.distinctCount}
+                          </span>
+                          <span>个独立子表 (数据总计约 {splitGroupInfo.totalRows} 行)</span>
+                        </span>
+                        {isProbingGroups && (
+                          <span className="text-[11px] text-coconut-500 flex items-center gap-1">
+                            <Loader2 className="w-3 h-3 animate-spin" /> 计算分组中...
+                          </span>
+                        )}
+                      </div>
+
+                      {splitGroupInfo.sampleKeys.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pt-1">
+                          {splitGroupInfo.sampleKeys.map((s, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 text-[11px] bg-coconut-100 dark:bg-darkbg-subtle text-coconut-800 dark:text-darkbg-text rounded-md border border-coconut-200/60 dark:border-darkbg-border flex items-center gap-1.5"
+                            >
+                              <span className="font-medium">{s.key}</span>
+                              <span className="text-[10px] text-coconut-500 font-mono">({s.count}行)</span>
+                            </span>
+                          ))}
+                          {splitGroupInfo.distinctCount > splitGroupInfo.sampleKeys.length && (
+                            <span className="px-2 py-0.5 text-[11px] text-coconut-500">
+                              +{splitGroupInfo.distinctCount - splitGroupInfo.sampleKeys.length} 更多分组...
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* 启动拆分按钮 */}
                 <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="text-xs text-coconut-600 dark:text-darkbg-muted">
@@ -526,8 +733,11 @@ export default function SpreadsheetToolbox({
 
                   <button
                     onClick={handleExecuteSplit}
-                    disabled={isSplitting}
-                    className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-md shadow-indigo-600/25 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-95"
+                    disabled={
+                      isSplitting ||
+                      Boolean(splitGroupInfo?.isHighCardinality && !forceSplitHighCardinality)
+                    }
+                    className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-md shadow-indigo-600/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all active:scale-95"
                   >
                     {isSplitting ? (
                       <>

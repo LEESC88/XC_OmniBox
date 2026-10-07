@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Images,
   ArrowUp,
@@ -49,6 +49,17 @@ export default function ImagesToPdfStudio({
 }: ImagesToPdfStudioProps) {
   const { lang } = useI18n();
   const [pageSize, setPageSize] = useState<ImagePageSize>("fit");
+
+  // Memoized ObjectURLs with strict lifecycle revocation to prevent memory leaks
+  const previewUrls = useMemo(() => {
+    return files.map((f) => URL.createObjectURL(f));
+  }, [files]);
+
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [previewUrls]);
 
   // 上移
   const moveUp = (index: number) => {
@@ -162,7 +173,7 @@ export default function ImagesToPdfStudio({
       {/* 图片卡片列表 */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
         {files.map((file, idx) => {
-          const previewUrl = URL.createObjectURL(file);
+          const previewUrl = previewUrls[idx];
           return (
             <div
               key={`${file.name}_${idx}`}

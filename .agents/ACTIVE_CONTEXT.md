@@ -1,6 +1,12 @@
-# Active Architecture Memory: Releases & Pipelines
+# Active Architecture Memory
 
 ## 1. 状态与交付
-- 当前发布版本: `v1.5.1` (Git Tag + GitHub Release 均已同步完成)
-- 产物发布状态: `XC_OmniBox-Setup-1.5.1.exe` (~186MB)、`.blockmap` 与 `latest.yml` 均已全量上传至 GitHub Releases。
-- 一键 Release 管道: 集成 `npm run release:publish` (`scripts/publish-release.js`)，后续任何更新只需一键调用即可自动完成「前端构建 -> 签名打包 exe -> 提取更新日志 -> 上传 GitHub Release」。
+- 后端回归测试: `pytest backend/tests` (23/23 pass)
+- 前端编译类型检查: `npx tsc --noEmit` (100% pass)
+- 单元逻辑自检: 表名合法化截断、表头行号偏移、高基数探测通过
+
+## 2. 表格工具 (Spreadsheet) 重点修复项
+1. **表头行号自适应配置 (T1)**: 支持 1~5 行任意指定表头所在行号，自动适配带跨列大标题横幅的复杂中国式报表。
+2. **多工作表 (Sheet) 智能检测 (T1)**: 自动探测工作簿多 Sheet 结构，提供目标 Sheet 切换选择器。
+3. **高基数列防 OOM 预警与防错机制 (T1)**: 异步采样预估唯一键值分组数，唯一值 > 100 时醒目警示拦截并要求二次确认，展示代表性分组采样徽章。
+4. **工作表名合法化清洗 (T1)**: 严格清洗 `[ ] : * ? / \ '` 非法字符并强制截断至 31 字符以内，杜绝 Excel 修复报错。

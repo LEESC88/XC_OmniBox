@@ -373,11 +373,15 @@ export default function PdfMergeStudio({
             </>
           ) : (
             <>
-              <Sparkles className="w-4 h-4 text-amber-200" />
+              <Sparkles className={`w-4 h-4 ${files.length < 2 ? "text-coconut-400" : "text-amber-200"}`} />
               <span>
-                {lang === "en"
-                  ? `Merge ${files.length} Selected PDF Files`
-                  : `开始合并选中的 ${files.length} 个 PDF 文件`}
+                {files.length < 2
+                  ? lang === "en"
+                    ? "Please add at least 2 PDF files to merge (Current: 1)"
+                    : "请至少添加 2 个 PDF 文件进行拼合 (当前仅 1 个)"
+                  : lang === "en"
+                    ? `Merge ${files.length} Selected PDF Files`
+                    : `开始合并选中的 ${files.length} 个 PDF 文件`}
               </span>
             </>
           )}

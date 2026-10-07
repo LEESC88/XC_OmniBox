@@ -68,6 +68,25 @@ export async function convertHeic(
 }
 
 /**
+ * 辅助：为 HEIC 文件极速生成轻量级缩略图预览 (消灭黑盒等待)
+ */
+export async function generateHeicThumbnail(file: File): Promise<string> {
+  try {
+    const heic2any = await getHeic2Any();
+    const result = await heic2any({
+      blob: file,
+      toType: "image/jpeg",
+      quality: 0.25,
+    });
+    const blob = Array.isArray(result) ? result[0] : result;
+    return URL.createObjectURL(blob);
+  } catch (e) {
+    console.warn("Failed to generate HEIC thumbnail:", e);
+    return "";
+  }
+}
+
+/**
  * 2. 智能图片压缩 (TinyPNG 级别)
  */
 export async function compressImage(
@@ -77,8 +96,9 @@ export async function compressImage(
     maxWidthOrHeight?: number;
     maxSizeMB?: number;
   }
-): Promise<{ blob: Blob; filename: string; originalSize: number; compressedSize: number }> {
+): Promise<{ blob: Blob; filename: string; originalSize: number; compressedSize: number; isOptimizedAlready?: boolean }> {
   const originalSize = file.size;
+  const isPng = file.type === "image/png" || file.name.toLowerCase().endsWith(".png");
 
   // 尝试使用 browser-image-compression
   try {
@@ -88,10 +108,22 @@ export async function compressImage(
       maxWidthOrHeight: options.maxWidthOrHeight || 4096,
       useWebWorker: true,
       initialQuality: options.quality,
-      fileType: file.type || "image/jpeg",
+      fileType: isPng ? "image/png" : "image/jpeg",
     };
 
     const compressedFile = await imageCompression(file, compressionConfig);
+
+    // 兜底机制：若压缩后体积反而膨胀或持平，自动保留原图避免画质受损与体积倒退
+    if (compressedFile.size >= originalSize) {
+      return {
+        blob: file,
+        filename: file.name,
+        originalSize,
+        compressedSize: originalSize,
+        isOptimizedAlready: true,
+      };
+    }
+
     return {
       blob: compressedFile,
       filename: file.name,
@@ -122,9 +154,15 @@ export async function compressImage(
 
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
+
+    const mimeType = isPng ? "image/png" : "image/jpeg";
+    // 若导出 JPEG，预填充白色背景，避免透明通道变死黑
+    if (mimeType === "image/jpeg") {
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, w, h);
+    }
     ctx.drawImage(img, 0, 0, w, h);
 
-    const mimeType = file.type === "image/png" ? "image/png" : "image/jpeg";
     const blob: Blob = await new Promise((res, rej) => {
       canvas.toBlob(
         (b) => {
@@ -135,6 +173,16 @@ export async function compressImage(
         options.quality
       );
     });
+
+    if (blob.size >= originalSize) {
+      return {
+        blob: file,
+        filename: file.name,
+        originalSize,
+        compressedSize: originalSize,
+        isOptimizedAlready: true,
+      };
+    }
 
     return {
       blob,
@@ -153,7 +201,7 @@ export async function convertFormat(
   targetFormat: "jpg" | "png" | "webp" | "avif" | "ico" | "bmp",
   quality: number = 0.92,
   fillBackground: string = "#FFFFFF"
-): Promise<{ blob: Blob; filename: string }> {
+): Promise<{ blob: Blob; filename: string; previewBlob?: Blob }> {
   // 处理 HEIC 特殊输入
   let sourceBlob: Blob = file;
   if (file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif")) {
@@ -177,7 +225,7 @@ export async function convertFormat(
     const pngBlob: Blob = await new Promise((res) => canvas.toBlob((b) => res(b!), "image/png"));
     const icoBlob = await createIcoFromPng(pngBlob, canvas.width, canvas.height);
     const baseName = file.name.replace(/\.[^/.]+$/, "");
-    return { blob: icoBlob, filename: `${baseName}.ico` };
+    return { blob: icoBlob, filename: `${baseName}.ico`, previewBlob: pngBlob };
   }
 
   // AVIF 前端 Canvas 优先 + 本地 Python Pillow 后端双重引擎
@@ -304,15 +352,19 @@ async function createIcoFromPng(pngBlob: Blob, width: number, height: number): P
 /**
  * 4. 批量尺寸缩放与预设
  */
+export interface ResizeOptions {
+  mode: "percent" | "custom" | "preset";
+  percent?: number; // 25, 50, 75, 150, 200
+  targetWidth?: number;
+  targetHeight?: number;
+  maintainAspectRatio?: boolean;
+  fitMode?: "crop" | "pad" | "stretch";
+  padBgColor?: string;
+}
+
 export async function resizeImage(
   file: File,
-  options: {
-    mode: "percent" | "custom" | "preset";
-    percent?: number; // 25, 50, 75, 150, 200
-    targetWidth?: number;
-    targetHeight?: number;
-    maintainAspectRatio?: boolean;
-  }
+  options: ResizeOptions
 ): Promise<{
   blob: Blob;
   filename: string;
@@ -325,38 +377,100 @@ export async function resizeImage(
   const origW = img.naturalWidth;
   const origH = img.naturalHeight;
 
-  let finalW = origW;
-  let finalH = origH;
+  let targetW = origW;
+  let targetH = origH;
+  const fitMode = options.fitMode || (options.mode === "preset" ? "crop" : "pad");
 
   if (options.mode === "percent") {
     const p = (options.percent || 100) / 100;
-    finalW = Math.max(1, Math.round(origW * p));
-    finalH = Math.max(1, Math.round(origH * p));
+    targetW = Math.max(1, Math.round(origW * p));
+    targetH = Math.max(1, Math.round(origH * p));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("无法初始化缩放画布");
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, targetW, targetH);
+
+    const mimeType = file.type || "image/png";
+    const blob: Blob = await new Promise((res, rej) => {
+      canvas.toBlob(
+        (b) => {
+          if (b) res(b);
+          else rej(new Error("缩放图像失败"));
+        },
+        mimeType,
+        0.95
+      );
+    });
+
+    const baseName = file.name.replace(/\.[^/.]+$/, "");
+    const ext = file.name.split(".").pop() || "png";
+    return {
+      blob,
+      filename: `${baseName}_${targetW}x${targetH}.${ext}`,
+      originalWidth: origW,
+      originalHeight: origH,
+      targetWidth: targetW,
+      targetHeight: targetH,
+    };
+  }
+
+  // custom 或 preset 模式
+  if (options.mode === "preset") {
+    targetW = options.targetWidth || origW;
+    targetH = options.targetHeight || origH;
   } else if (options.mode === "custom") {
     if (options.targetWidth && options.targetHeight) {
-      finalW = options.targetWidth;
-      finalH = options.targetHeight;
+      targetW = options.targetWidth;
+      targetH = options.targetHeight;
     } else if (options.targetWidth && !options.targetHeight) {
-      finalW = options.targetWidth;
-      finalH = options.maintainAspectRatio ? Math.round((origH * finalW) / origW) : origH;
+      targetW = options.targetWidth;
+      targetH = options.maintainAspectRatio ? Math.round((origH * targetW) / origW) : origH;
     } else if (!options.targetWidth && options.targetHeight) {
-      finalH = options.targetHeight;
-      finalW = options.maintainAspectRatio ? Math.round((origW * finalH) / origH) : origW;
+      targetH = options.targetHeight;
+      targetW = options.maintainAspectRatio ? Math.round((origW * targetH) / origH) : origW;
     }
-  } else if (options.mode === "preset") {
-    finalW = options.targetWidth || origW;
-    finalH = options.targetHeight || origH;
   }
 
   const canvas = document.createElement("canvas");
-  canvas.width = finalW;
-  canvas.height = finalH;
+  canvas.width = targetW;
+  canvas.height = targetH;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("无法初始化缩放画布");
 
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(img, 0, 0, finalW, finalH);
+
+  if (fitMode === "crop") {
+    // 等比裁切 (Cover) 居中填满，两端裁切，杜绝画面拉伸变形
+    const scale = Math.max(targetW / origW, targetH / origH);
+    const drawW = Math.round(origW * scale);
+    const drawH = Math.round(origH * scale);
+    const dx = Math.round((targetW - drawW) / 2);
+    const dy = Math.round((targetH - drawH) / 2);
+    ctx.drawImage(img, dx, dy, drawW, drawH);
+  } else if (fitMode === "pad") {
+    // 等比留白 (Contain) 居中适应，四周留白，杜绝画面拉伸变形
+    const scale = Math.min(targetW / origW, targetH / origH);
+    const drawW = Math.round(origW * scale);
+    const drawH = Math.round(origH * scale);
+    const dx = Math.round((targetW - drawW) / 2);
+    const dy = Math.round((targetH - drawH) / 2);
+
+    if (options.padBgColor) {
+      ctx.fillStyle = options.padBgColor;
+      ctx.fillRect(0, 0, targetW, targetH);
+    }
+    ctx.drawImage(img, dx, dy, drawW, drawH);
+  } else {
+    // 强制拉伸充满 (Stretch)
+    ctx.drawImage(img, 0, 0, targetW, targetH);
+  }
 
   const mimeType = file.type || "image/png";
   const blob: Blob = await new Promise((res, rej) => {
@@ -374,11 +488,11 @@ export async function resizeImage(
   const ext = file.name.split(".").pop() || "png";
   return {
     blob,
-    filename: `${baseName}_${finalW}x${finalH}.${ext}`,
+    filename: `${baseName}_${targetW}x${targetH}.${ext}`,
     originalWidth: origW,
     originalHeight: origH,
-    targetWidth: finalW,
-    targetHeight: finalH,
+    targetWidth: targetW,
+    targetHeight: targetH,
   };
 }
 
@@ -455,16 +569,21 @@ export async function applyWatermark(
   ctx.globalAlpha = options.opacity !== undefined ? options.opacity : 0.4;
 
   if (options.type === "text" && options.text) {
-    const fontSize = options.fontSize || Math.max(16, Math.round(w / 25));
-    ctx.font = `bold ${fontSize}px sans-serif`;
+    // 依据图像实际短边分辨率进行动态比例换算，以 1000px 为基准规格，解决高低分辨率下字号失真问题
+    const refDimension = Math.min(w, h);
+    const scaleFactor = Math.max(0.4, refDimension / 1000);
+    const baseFontSize = options.fontSize || 24;
+    const effectiveFontSize = Math.max(12, Math.round(baseFontSize * scaleFactor));
+
+    ctx.font = `bold ${effectiveFontSize}px sans-serif`;
     ctx.fillStyle = options.textColor || "#ffffff";
     ctx.shadowColor = "rgba(0,0,0,0.5)";
-    ctx.shadowBlur = 4;
+    ctx.shadowBlur = Math.max(2, Math.round(effectiveFontSize * 0.15));
 
     if (options.position === "tile") {
-      // 平铺防盗水印
-      const stepX = fontSize * 10;
-      const stepY = fontSize * 5;
+      // 自适应全图平铺防盗水印网格步长
+      const stepX = Math.max(effectiveFontSize * 8, Math.round(w / 4));
+      const stepY = Math.max(effectiveFontSize * 4, Math.round(h / 6));
       const rad = ((options.rotation || -25) * Math.PI) / 180;
 
       for (let x = -w; x < w * 2; x += stepX) {
@@ -483,7 +602,7 @@ export async function applyWatermark(
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
-      const margin = 20;
+      const margin = Math.max(20, Math.round(refDimension * 0.03));
       if (options.position === "bottom-right") {
         ctx.textAlign = "right";
         ctx.textBaseline = "bottom";
@@ -511,14 +630,16 @@ export async function applyWatermark(
     }
   } else if (options.type === "logo" && options.logoFile) {
     const logoImg = await loadImageFromFile(options.logoFile);
-    // Logo 限制在主图宽度的 15%~25%
-    const logoScale = Math.min((w * 0.2) / logoImg.naturalWidth, (h * 0.2) / logoImg.naturalHeight, 1);
-    const lw = logoImg.naturalWidth * logoScale;
-    const lh = logoImg.naturalHeight * logoScale;
+    // Logo 限制在主图宽度的 20%~25%
+    const maxLogoW = w * 0.25;
+    const maxLogoH = h * 0.25;
+    const logoScale = Math.min(maxLogoW / logoImg.naturalWidth, maxLogoH / logoImg.naturalHeight, 1);
+    const lw = Math.round(logoImg.naturalWidth * logoScale);
+    const lh = Math.round(logoImg.naturalHeight * logoScale);
 
     let lx = (w - lw) / 2;
     let ly = (h - lh) / 2;
-    const margin = 20;
+    const margin = Math.max(20, Math.round(Math.min(w, h) * 0.03));
 
     if (options.position === "bottom-right") {
       lx = w - lw - margin;

@@ -5,8 +5,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import CORS_ORIGINS
 from app.core.exceptions import ToolboxException
 from app.api.v1.health import router as health_router
-from app.api.v1.document import router as document_router
-from app.api.v1.pdf_ops import router as pdf_ops_router
+from app.api.v1.document_api import router as document_api_router
 from app.api.v1.editor import router as editor_router
 from app.api.v1.image import router as image_router
 
@@ -38,8 +37,7 @@ async def toolbox_exception_handler(request: Request, exc: ToolboxException):
 
 # 挂载路由模块
 app.include_router(health_router, prefix="/api/v1")
-app.include_router(document_router, prefix="/api/v1")
-app.include_router(pdf_ops_router, prefix="/api/v1")
+app.include_router(document_api_router, prefix="/api/v1")
 app.include_router(editor_router, prefix="/api/v1")
 app.include_router(image_router, prefix="/api/v1")
 

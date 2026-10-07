@@ -25,6 +25,25 @@
 
 **XC_OmniBox** is a modern, high-performance desktop productivity and multimedia toolbox built with Electron, Next.js (React), and FastAPI (Python hybrid engine). Designed from the ground up for privacy-conscious developers, content creators, and office professionals, XC_OmniBox guarantees **100% local offline processing, zero cloud data transfer, zero vendor lock-in, and instant latency-free responsiveness**.
 
+## 🌟 What's New in v1.5.2
+
+- 📑 **Document Studio Resilience & Precision Editing**:
+  - **In-Place Visual PDF Editor Restored**: Fixed top-level viewport mounting, fully restoring in-place text search & redaction, highlight boxes, annotations, signature stamps, text insertions, and page reordering/rotation/deletion.
+  - **Null-Pointer Defense for Scanned PDFs**: Fortified against empty block arrays, completely preventing blank white screen crashes on scanned/image-only PDFs.
+- 🖼️ **Image Pipeline Industrial Hardening & Quality Protection**:
+  - **HEIC Serial Transcoding & Low-Memory Shield**: Reduced concurrency to 1 to eliminate memory spikes and freezing; added instant thumbnail previews and case-insensitive extension support (`.HEIC`).
+  - **Image Compression Anti-Bloat Guard**: Enforced strict size comparison ensuring compressed output never exceeds input file size; preserved PNG alpha transparency avoiding pure black backgrounds.
+  - **Aspect-Ratio Preserved Resizing**: Added proportional letterbox/pillarbox padding and center crop modes, preventing forced aspect distortion during batch operations.
+  - **Adaptive Dynamic Watermarking**: Text font sizes and tile densities now automatically scale with image dimensions, eliminating tiny or blown-out watermarks across mixed resolutions.
+  - **ICO Export Fix & Alpha Transparency**: Fixed placeholder broken icons in ICO output and ensured format conversions keep transparency intact for WebP/AVIF.
+- 📊 **Spreadsheet Studio Enhancements & Crash Prevention**:
+  - **Adaptive Header Row Index (Rows 1-5)**: Seamlessly supports complex Chinese office spreadsheets with multi-column merged title banners.
+  - **Multi-Sheet Detection & Selector**: Automatically probes workbook sheet count and provides an intuitive sheet dropdown.
+  - **High-Cardinality OOM Protection**: Asynchronously calculates unique key count before splitting; triggers prominent warnings and confirmation locks when unique keys exceed 100 to prevent browser crashes.
+  - **Excel-Compliant Worksheet Sanitization**: Strips forbidden characters (`[ ] : * ? / \ '`) and enforces 31-character limits to prevent Excel workbook corruption alerts.
+- 🧩 **Modular Architecture Refactoring**:
+  - Split `ImageToolbox.tsx` and `AudioToolbox.tsx` into modular sub-tab component trees, greatly improving maintainability and component lifecycle efficiency.
+
 ---
 
 ## 🌟 What's New in v1.5.1

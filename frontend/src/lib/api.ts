@@ -180,13 +180,15 @@ export async function addWatermark(
   file: File,
   text: string,
   opacity: number = 0.3,
-  angle: number = 45
+  angle: number = 45,
+  layout: "center" | "tile" = "center"
 ): Promise<{ blob: Blob; filename: string }> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("watermark_text", text);
   formData.append("opacity", String(opacity));
   formData.append("angle", String(angle));
+  formData.append("layout", layout);
 
   const res = await apiFetch(`${API_BASE}/pdf/watermark`, {
     method: "POST",

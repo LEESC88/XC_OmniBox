@@ -59,12 +59,16 @@ export default function PdfOrganizeStudio({
   const [renderingPages, setRenderingPages] = useState<boolean>(true);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [zoomedItem, setZoomedItem] = useState<{ page: PageItem; index: number } | null>(null);
+  const [recentlyDeleted, setRecentlyDeleted] = useState<{ item: PageItem; index: number } | null>(null);
+  const [visibleCount, setVisibleCount] = useState<number>(36);
 
   // 解析并渲染整篇文档缩略图
   useEffect(() => {
     let isCancelled = false;
     setRenderingPages(true);
     setRenderError(null);
+    setRecentlyDeleted(null);
+    setVisibleCount(36);
 
     renderPdfPages(file, 85, undefined, false)
       .then((res) => {
@@ -134,9 +138,20 @@ export default function PdfOrganizeStudio({
     setPages(next);
   };
 
-  // 剔除单页
+  // 剔除单页 (防呆支持撤销)
   const deletePage = (index: number) => {
+    const deleted = pages[index];
+    setRecentlyDeleted({ item: deleted, index });
     setPages(pages.filter((_, i) => i !== index));
+  };
+
+  // 撤销剔除单页
+  const handleUndoDelete = () => {
+    if (!recentlyDeleted) return;
+    const next = [...pages];
+    next.splice(recentlyDeleted.index, 0, recentlyDeleted.item);
+    setPages(next);
+    setRecentlyDeleted(null);
   };
 
   // 全局顺时针旋转 +90°
@@ -279,10 +294,32 @@ export default function PdfOrganizeStudio({
         </div>
       )}
 
+      {/* 撤销删除操作浮层 */}
+      {recentlyDeleted && (
+        <div className="p-3 bg-amber-500/15 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-3 text-xs text-amber-900 dark:text-amber-200 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <span>
+              {lang === "en"
+                ? `Removed page (Original #${recentlyDeleted.item.originalIndex + 1})`
+                : `已从调度序列中剔除页面 (原第 ${recentlyDeleted.item.originalIndex + 1} 页)`}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleUndoDelete}
+            className="py-1 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold transition-colors shadow-2xs"
+          >
+            {lang === "en" ? "Undo Restore" : "撤销恢复"}
+          </button>
+        </div>
+      )}
+
       {/* 页面网格画板 */}
       {!renderingPages && pages.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
-          {pages.map((p, idx) => {
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
+            {pages.slice(0, visibleCount).map((p, idx) => {
             const hasRotation = p.rotation !== 0;
             return (
               <div
@@ -378,6 +415,29 @@ export default function PdfOrganizeStudio({
               </div>
             );
           })}
+          </div>
+
+          {/* 大文档分页加载更多按钮 */}
+          {pages.length > visibleCount && (
+            <div className="flex items-center justify-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((prev) => prev + 36)}
+                className="py-2 px-4 rounded-xl btn-3d-secondary text-xs font-bold shadow-2xs hover:border-orange-400"
+              >
+                {lang === "en"
+                  ? `Load Next 36 Pages (${visibleCount} of ${pages.length} shown)`
+                  : `加载后续 36 页缩略图 (已显示 ${visibleCount} / ${pages.length} 页)`}
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisibleCount(pages.length)}
+                className="py-2 px-3 text-xs text-coconut-600 dark:text-darkbg-muted hover:text-orange-600 underline font-medium"
+              >
+                {lang === "en" ? "Show All Pages" : "展开全部页面"}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

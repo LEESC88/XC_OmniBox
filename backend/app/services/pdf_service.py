@@ -118,11 +118,13 @@ class PdfService:
         watermark_text: str,
         opacity: float = 0.3,
         font_size: int = 36,
-        angle: int = 45
+        angle: int = 45,
+        layout: str = "center"
     ) -> Path:
         """
         为 PDF 每页添加自定义半透明文字倾斜水印
         支持纯中文、中英混排、纯英文、数字符号，杜绝任何乱码、菱形方块或省略点问题
+        支持 center (居中单水印) 与 tile (满屏防截屏平铺水印) 两种排版
         """
         try:
             import pymupdf
@@ -155,6 +157,7 @@ class PdfService:
             opacity = max(0.05, min(1.0, opacity))
             text_len = font.text_length(watermark_text, fontsize=font_size)
             mat = pymupdf.Matrix(angle)
+            is_tile = str(layout).lower().strip() == "tile"
 
             for page in doc:
                 if font_file:
@@ -163,18 +166,38 @@ class PdfService:
                     page.insert_font(fontname="wm_font", fontbuffer=font_buffer)
 
                 rect = page.rect
-                center_point = pymupdf.Point(rect.width / 2, rect.height / 2)
-                start_pt = pymupdf.Point(center_point.x - text_len / 2, center_point.y + font_size * 0.35)
 
-                page.insert_text(
-                    start_pt,
-                    watermark_text,
-                    fontname="wm_font",
-                    fontsize=font_size,
-                    morph=(center_point, mat),
-                    color=(0.5, 0.5, 0.5),
-                    fill_opacity=opacity
-                )
+                if is_tile:
+                    # 满屏平铺水印：自适应计算行距与列距
+                    step_x = max(180, int(text_len * 1.5))
+                    step_y = max(130, int(font_size * 4.5))
+                    for y in range(int(step_y * 0.4), int(rect.height), step_y):
+                        for x in range(int(step_x * 0.4), int(rect.width), step_x):
+                            pt = pymupdf.Point(x, y)
+                            start_pt = pymupdf.Point(pt.x - text_len / 2, pt.y + font_size * 0.35)
+                            page.insert_text(
+                                start_pt,
+                                watermark_text,
+                                fontname="wm_font",
+                                fontsize=font_size,
+                                morph=(pt, mat),
+                                color=(0.5, 0.5, 0.5),
+                                fill_opacity=opacity
+                            )
+                else:
+                    # 居中单水印
+                    center_point = pymupdf.Point(rect.width / 2, rect.height / 2)
+                    start_pt = pymupdf.Point(center_point.x - text_len / 2, center_point.y + font_size * 0.35)
+
+                    page.insert_text(
+                        start_pt,
+                        watermark_text,
+                        fontname="wm_font",
+                        fontsize=font_size,
+                        morph=(center_point, mat),
+                        color=(0.5, 0.5, 0.5),
+                        fill_opacity=opacity
+                    )
 
             # 字体子集化压缩，将嵌入字体体积大幅度瘦身
             try:
@@ -366,3 +389,57 @@ class PdfService:
             return output_path
         except Exception as e:
             raise FileProcessingException(f"页面编排处理失败: {str(e)}")
+
+    @staticmethod
+    def pdf_to_word(
+        pdf_path: Path,
+        output_docx_path: Path,
+        start_page: int = 0,
+        end_page: Optional[int] = None
+    ) -> Path:
+        """
+        Convert PDF to editable Word (.docx) layout using pdf2docx engine.
+        Extracts formatted text paragraphs, styling, table borders, and embedded images.
+        :param pdf_path: Input PDF file path
+        :param output_docx_path: Output Word docx file path
+        :param start_page: Starting page index (0-based)
+        :param end_page: Ending page index (None indicates till end of document)
+        :return: Path to generated docx file
+        """
+        try:
+            from pdf2docx import Converter
+
+            cv = Converter(str(pdf_path))
+            try:
+                cv.convert(str(output_docx_path), start=start_page, end=end_page)
+            finally:
+                cv.close()
+
+            if not output_docx_path.exists() or output_docx_path.stat().st_size == 0:
+                raise FileProcessingException("生成的 Word 文件为空或未生成")
+
+            return output_docx_path
+
+        except ImportError:
+            raise FileProcessingException("缺失核心组件 pdf2docx，请安装 requirements.txt 依赖")
+        except Exception as e:
+            raise FileProcessingException(f"PDF 转 Word 处理失败: {str(e)}")
+
+
+class PdfToWordService:
+    """Backward compatibility wrapper delegating to PdfService.pdf_to_word."""
+
+    @staticmethod
+    def convert(
+        pdf_path: Path,
+        output_docx_path: Path,
+        start_page: int = 0,
+        end_page: Optional[int] = None
+    ) -> Path:
+        return PdfService.pdf_to_word(
+            pdf_path=pdf_path,
+            output_docx_path=output_docx_path,
+            start_page=start_page,
+            end_page=end_page
+        )
+
