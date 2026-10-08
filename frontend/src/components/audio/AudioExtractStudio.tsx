@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Film,
   Download,
@@ -8,6 +8,10 @@ import {
   UploadCloud,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
+  Play,
+  Pause,
+  Clock,
   ShieldCheck,
 } from "lucide-react";
 import {
@@ -35,6 +39,9 @@ export default function AudioExtractStudio({
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [videoDuration, setVideoDuration] = useState(0);
+  const [hasAudioTrack, setHasAudioTrack] = useState(true);
+  const [isPlayingClip, setIsPlayingClip] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [extractRangeMode, setExtractRangeMode] = useState<"full" | "clip">("full");
   const [extractStartTime, setExtractStartTime] = useState(0);
   const [extractEndTime, setExtractEndTime] = useState(0);
@@ -54,6 +61,33 @@ export default function AudioExtractStudio({
     };
   }, [videoPreviewUrl, extractResult?.url]);
 
+  // Video clip preview monitor
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleTimeUpdate = () => {
+      if (isPlayingClip && video.currentTime >= extractEndTime) {
+        video.pause();
+        setIsPlayingClip(false);
+      }
+    };
+
+    const handleEndedOrPause = () => {
+      setIsPlayingClip(false);
+    };
+
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    video.addEventListener("pause", handleEndedOrPause);
+    video.addEventListener("ended", handleEndedOrPause);
+
+    return () => {
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("pause", handleEndedOrPause);
+      video.removeEventListener("ended", handleEndedOrPause);
+    };
+  }, [isPlayingClip, extractEndTime]);
+
   // Handle incoming file
   useEffect(() => {
     if (isActive && incomingFile) {
@@ -67,19 +101,63 @@ export default function AudioExtractStudio({
     if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
     setVideoPreviewUrl(URL.createObjectURL(file));
     setExtractResult(null);
+    setError(null);
     setIsProcessing(true);
     setProgressMsg(lang === "en" ? "Analyzing video soundtrack..." : "正在分析视频音频流与时长...");
     try {
       const buf = await decodeAudioFile(file);
+      if (!buf || buf.duration <= 0) {
+        throw new Error(lang === "en" ? "Empty or silent audio track detected" : "未检测到有效声音轨道");
+      }
+      setHasAudioTrack(true);
       setVideoDuration(buf.duration);
       setExtractStartTime(0);
       setExtractEndTime(+buf.duration.toFixed(1));
     } catch (err: any) {
       console.warn("Could not pre-decode video audio", err);
+      setHasAudioTrack(false);
+      setVideoDuration(0);
+      setError(
+        lang === "en"
+          ? "No playable audio track found in this video file (it may be a muted video or the audio codec is unsupported)."
+          : "该视频未检测到可播放的有效声轨（可能为静音视频或音频编码格式不支持），已阻断提取。"
+      );
     } finally {
       setIsProcessing(false);
       setProgressMsg("");
     }
+  };
+
+  const togglePlayClip = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isPlayingClip) {
+      video.pause();
+      setIsPlayingClip(false);
+    } else {
+      video.currentTime = Math.max(0, Math.min(extractStartTime, videoDuration));
+      video.play().then(() => {
+        setIsPlayingClip(true);
+      }).catch((err) => {
+        console.warn("Auto-play failed:", err);
+      });
+    }
+  };
+
+  const handleSetStartTimeFromVideo = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const cur = +video.currentTime.toFixed(1);
+    setExtractStartTime(Math.max(0, Math.min(cur, Math.max(0, extractEndTime - 0.5))));
+  };
+
+  const handleSetEndTimeFromVideo = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const cur = +video.currentTime.toFixed(1);
+    const validCur = Math.min(videoDuration > 0 ? videoDuration : cur, cur);
+    setExtractEndTime(Math.max(extractStartTime + 0.5, validCur));
   };
 
   const handleExecuteExtract = async () => {
@@ -218,10 +296,22 @@ export default function AudioExtractStudio({
             {videoPreviewUrl && (
               <div className="rounded-2xl overflow-hidden bg-black/90 max-h-64 flex items-center justify-center border border-coconut-200 dark:border-darkbg-border">
                 <video
+                  ref={videoRef}
                   src={videoPreviewUrl}
                   controls
                   className="w-full max-h-64 object-contain"
                 />
+              </div>
+            )}
+
+            {!hasAudioTrack && (
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl flex items-center space-x-2 text-xs">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>
+                  {lang === "en"
+                    ? "Notice: This video has no valid audio track. Audio extraction is disabled."
+                    : "提示：该视频未检测到有效声音轨道（纯静音视频或编码不兼容），提取已自动阻断。"}
+                </span>
               </div>
             )}
 
@@ -255,18 +345,40 @@ export default function AudioExtractStudio({
 
               {extractRangeMode === "clip" && videoDuration > 0 && (
                 <div className="space-y-2 pt-2 border-t border-coconut-100 dark:border-darkbg-border">
-                  <div className="flex justify-between text-xs text-coconut-700 dark:text-darkbg-muted font-mono">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-coconut-700 dark:text-darkbg-muted font-mono">
                     <span>{lang === "en" ? "Start: " : "起点: "}{formatDuration(extractStartTime)}</span>
-                    <span className="text-toast-500 font-bold">
-                      {lang === "en" ? "Clip Length: " : "截取时长: "}{formatDuration(Math.max(0, extractEndTime - extractStartTime))}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-toast-500 font-bold">
+                        {lang === "en" ? "Clip: " : "截取: "}{formatDuration(Math.max(0, extractEndTime - extractStartTime))}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={togglePlayClip}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-sans font-medium bg-coconut-200/70 dark:bg-darkbg-elevated text-coconut-800 dark:text-darkbg-text hover:bg-toast-500/20 active:scale-95 transition-all"
+                        title={lang === "en" ? "Preview this clip in video player" : "在播放器中试听截取区间"}
+                      >
+                        {isPlayingClip ? <Pause className="w-3 h-3 text-toast-500" /> : <Play className="w-3 h-3 text-toast-500" />}
+                        <span>{isPlayingClip ? (lang === "en" ? "Pause" : "暂停") : (lang === "en" ? "Preview Clip" : "区间试听")}</span>
+                      </button>
+                    </div>
                     <span>{lang === "en" ? "End: " : "终点: "}{formatDuration(extractEndTime)}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">
-                        {lang === "en" ? "Start (seconds)" : "开始秒数"}
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted">
+                          {lang === "en" ? "Start (seconds)" : "开始秒数"}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleSetStartTimeFromVideo}
+                          className="text-[10px] text-toast-600 dark:text-toast-400 hover:underline flex items-center gap-0.5"
+                          title={lang === "en" ? "Sync from video current playhead" : "吸附视频当前播放点"}
+                        >
+                          <Clock className="w-2.5 h-2.5" />
+                          <span>{lang === "en" ? "Current Time" : "设为当前时刻"}</span>
+                        </button>
+                      </div>
                       <input
                         type="number"
                         min="0"
@@ -278,9 +390,20 @@ export default function AudioExtractStudio({
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">
-                        {lang === "en" ? "End (seconds)" : "结束秒数"}
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted">
+                          {lang === "en" ? "End (seconds)" : "结束秒数"}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleSetEndTimeFromVideo}
+                          className="text-[10px] text-toast-600 dark:text-toast-400 hover:underline flex items-center gap-0.5"
+                          title={lang === "en" ? "Sync from video current playhead" : "吸附视频当前播放点"}
+                        >
+                          <Clock className="w-2.5 h-2.5" />
+                          <span>{lang === "en" ? "Current Time" : "设为当前时刻"}</span>
+                        </button>
+                      </div>
                       <input
                         type="number"
                         min={extractStartTime + 0.5}
@@ -318,9 +441,9 @@ export default function AudioExtractStudio({
 
               <button
                 onClick={handleExecuteExtract}
-                disabled={isProcessing}
+                disabled={isProcessing || !hasAudioTrack || !!error}
                 className={`px-6 py-3 rounded-2xl text-xs font-bold flex items-center space-x-2 transition-all ${
-                  isProcessing
+                  isProcessing || !hasAudioTrack || !!error
                     ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
                     : "btn-3d-sunset text-white"
                 }`}

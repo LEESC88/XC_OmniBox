@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Volume2,
   Sparkles,
@@ -8,8 +8,12 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  Play,
+  Square,
+  VolumeX,
 } from "lucide-react";
 import {
+  getAudioContext,
   decodeAudioFile,
   adjustVolumeAndNormalize,
   enhanceVoiceClarity,
@@ -35,15 +39,104 @@ export default function AudioVolumeStudio({
   const [volumeFile, setVolumeFile] = useState<File | null>(null);
   const [volumeBuffer, setVolumeBuffer] = useState<AudioBuffer | null>(null);
   const [volumeMode, setVolumeMode] = useState<"normalize" | "gain">("normalize");
-  const [gainPercent, setGainPercent] = useState(150);
+  const [gainPercent, setGainPercent] = useState(100);
+  const [outputFormat, setOutputFormat] = useState<"mp3" | "wav">("mp3");
   const [filterRumble, setFilterRumble] = useState(true);
   const [boostPresence, setBoostPresence] = useState(true);
   const [compressDynamics, setCompressDynamics] = useState(true);
   const [volumeResult, setVolumeResult] = useState<{ blob: Blob; filename: string; duration: number; url: string } | null>(null);
 
-  // Clean up Object URL
+  // Live A/B preview state
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [previewAB, setPreviewAB] = useState<"effect" | "original">("effect");
+  const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+
+  const getTargetGain = (
+    ab: "effect" | "original",
+    mode: "normalize" | "gain",
+    gain: number,
+    buf: AudioBuffer | null
+  ) => {
+    if (ab === "original") return 1.0;
+    if (mode === "gain") return Math.max(0, gain / 100);
+    if (!buf) return 1.0;
+    let peak = 0.0001;
+    for (let c = 0; c < buf.numberOfChannels; c++) {
+      const data = buf.getChannelData(c);
+      const step = Math.max(1, Math.floor(data.length / 5000));
+      for (let i = 0; i < data.length; i += step) {
+        const v = Math.abs(data[i]);
+        if (v > peak) peak = v;
+      }
+    }
+    return Math.min(10.0, 0.98 / peak);
+  };
+
+  const stopPreview = () => {
+    if (sourceNodeRef.current) {
+      try {
+        sourceNodeRef.current.stop();
+        sourceNodeRef.current.disconnect();
+      } catch {}
+      sourceNodeRef.current = null;
+    }
+    setIsPlaying(false);
+  };
+
+  const startPreview = (abMode = previewAB) => {
+    if (!volumeBuffer) return;
+    stopPreview();
+    const ctx = getAudioContext();
+    if (ctx.state === "suspended") {
+      ctx.resume();
+    }
+    const source = ctx.createBufferSource();
+    source.buffer = volumeBuffer;
+    const gainNode = ctx.createGain();
+    const targetGain = getTargetGain(abMode, volumeMode, gainPercent, volumeBuffer);
+    gainNode.gain.setValueAtTime(targetGain, ctx.currentTime);
+    source.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    source.onended = () => {
+      setIsPlaying(false);
+    };
+    source.start(0);
+    sourceNodeRef.current = source;
+    gainNodeRef.current = gainNode;
+    setIsPlaying(true);
+  };
+
+  const togglePreview = () => {
+    if (isPlaying) {
+      stopPreview();
+    } else {
+      startPreview(previewAB);
+    }
+  };
+
+  const switchPreviewAB = (target: "effect" | "original") => {
+    setPreviewAB(target);
+    if (gainNodeRef.current && isPlaying) {
+      const ctx = getAudioContext();
+      const g = getTargetGain(target, volumeMode, gainPercent, volumeBuffer);
+      gainNodeRef.current.gain.setValueAtTime(g, ctx.currentTime);
+    }
+  };
+
+  // Sync live gain changes while playing
+  useEffect(() => {
+    if (gainNodeRef.current && isPlaying && previewAB === "effect") {
+      const ctx = getAudioContext();
+      const g = getTargetGain("effect", volumeMode, gainPercent, volumeBuffer);
+      gainNodeRef.current.gain.setValueAtTime(g, ctx.currentTime);
+    }
+  }, [gainPercent, volumeMode, isPlaying, previewAB, volumeBuffer]);
+
+  // Clean up Object URL and audio playback on unmount
   useEffect(() => {
     return () => {
+      stopPreview();
       if (volumeResult?.url) {
         URL.revokeObjectURL(volumeResult.url);
       }
@@ -59,6 +152,7 @@ export default function AudioVolumeStudio({
   }, [isActive, incomingFile]);
 
   const handleVolumeFileSelected = async (file: File) => {
+    stopPreview();
     setVolumeFile(file);
     setVolumeResult(null);
     setIsProcessing(true);
@@ -93,7 +187,7 @@ export default function AudioVolumeStudio({
         });
       }
 
-      const { blob, ext } = await exportAudioBuffer(adjusted, "mp3", 320);
+      const { blob, ext } = await exportAudioBuffer(adjusted, outputFormat, 320);
       const baseName = volumeFile.name.replace(/\.[^/.]+$/, "");
       const tag = isNorm ? "normalized" : `gain_${gainPercent}pct`;
       setVolumeResult({
@@ -141,12 +235,22 @@ export default function AudioVolumeStudio({
         {!volumeBuffer ? (
           <div
             onClick={() => document.getElementById("volume-upload-input")?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const f = e.dataTransfer.files?.[0];
+              if (f) handleVolumeFileSelected(f);
+            }}
             className="border-2 border-dashed border-coconut-300 dark:border-darkbg-border hover:border-coconut-500 dark:hover:border-palm-500 rounded-3xl p-10 text-center cursor-pointer transition-all bg-coconut-50/40 dark:bg-darkbg-card"
           >
             <input
               id="volume-upload-input"
               type="file"
-              accept="audio/*"
+              accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac,.wma"
               onChange={(e) => {
                 if (e.target.files && e.target.files[0]) {
                   handleVolumeFileSelected(e.target.files[0]);
@@ -204,19 +308,28 @@ export default function AudioVolumeStudio({
                 }`}
               >
                 <div className="flex justify-between items-center font-bold text-sm text-coconut-900 dark:text-darkbg-text">
-                  <span>{lang === "en" ? "Manual Gain Boost" : "手动强力增益放大"}</span>
-                  <span className="font-mono text-coconut-900 dark:text-toast-400 font-bold">{gainPercent}%</span>
+                  <span>{lang === "en" ? "Manual Volume Adjustment" : "手动音量调节 (衰减与增益)"}</span>
+                  <span className="font-mono text-coconut-900 dark:text-toast-400 font-bold text-xs sm:text-sm">
+                    {gainPercent}% {gainPercent < 100 ? (lang === "en" ? "(Attenuate)" : "(降低衰减)") : gainPercent === 100 ? (lang === "en" ? "(Original)" : "(原始保持)") : (lang === "en" ? "(Boosted)" : "(增益放大)")}
+                  </span>
                 </div>
                 <input
                   type="range"
-                  min="100"
+                  min="0"
                   max="300"
-                  step="10"
+                  step="5"
                   value={gainPercent}
                   onChange={(e) => setGainPercent(parseInt(e.target.value))}
                   disabled={volumeMode !== "gain"}
                   className="w-full mt-3 h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-palm-400"
                 />
+                <div className="flex justify-between text-[10px] text-coconut-500 dark:text-darkbg-muted mt-1 font-mono">
+                  <span>0% (静音)</span>
+                  <span>50% (-6dB)</span>
+                  <span>100% (原声)</span>
+                  <span>200% (+6dB)</span>
+                  <span>300% (+9.5dB)</span>
+                </div>
               </label>
             </div>
 
@@ -280,7 +393,85 @@ export default function AudioVolumeStudio({
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
+            {/* Live A/B Comparison Player */}
+            <div className="p-4 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  onClick={togglePreview}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all active:scale-95 ${
+                    isPlaying
+                      ? "bg-rose-500 text-white shadow-sm"
+                      : "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 shadow-sm"
+                  }`}
+                >
+                  {isPlaying ? (
+                    <>
+                      <Square className="w-3.5 h-3.5 fill-current" />
+                      <span>{lang === "en" ? "Stop Preview" : "停止试听"}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>{lang === "en" ? "Preview Live Audio" : "实时试听播放"}</span>
+                    </>
+                  )}
+                </button>
+
+                <div className="flex items-center bg-coconut-200/60 dark:bg-darkbg-elevated p-1 rounded-xl text-xs">
+                  <button
+                    type="button"
+                    onClick={() => switchPreviewAB("effect")}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                      previewAB === "effect"
+                        ? "bg-white dark:bg-zinc-800 text-coconut-900 dark:text-darkbg-text shadow-xs"
+                        : "text-coconut-600 dark:text-darkbg-muted"
+                    }`}
+                  >
+                    {lang === "en" ? "B: Processed" : "B: 效果音"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchPreviewAB("original")}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                      previewAB === "original"
+                        ? "bg-white dark:bg-zinc-800 text-coconut-900 dark:text-darkbg-text shadow-xs"
+                        : "text-coconut-600 dark:text-darkbg-muted"
+                    }`}
+                  >
+                    {lang === "en" ? "A: Original" : "A: 原始原声"}
+                  </button>
+                </div>
+              </div>
+
+              <span className="text-[11px] text-coconut-500 dark:text-darkbg-muted font-mono">
+                {isPlaying
+                  ? (previewAB === "effect" ? "🎧 试听中: 调节后增益效果" : "🎧 试听中: 原始未处理音质")
+                  : "💡 支持播放中即时 A/B 无缝切换对比"}
+              </span>
+            </div>
+
+            {/* Export and Format Selector */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+              <div className="flex items-center space-x-2.5 text-sm">
+                <span className="text-coconut-900 dark:text-darkbg-text font-bold text-xs sm:text-sm">
+                  {lang === "en" ? "Export Format:" : "导出格式:"}
+                </span>
+                {(["mp3", "wav"] as const).map((fmt) => (
+                  <button
+                    key={fmt}
+                    onClick={() => setOutputFormat(fmt)}
+                    className={`px-3 py-1.5 rounded-xl font-bold uppercase transition-all active:scale-95 text-xs ${
+                      outputFormat === fmt
+                        ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 shadow-sm"
+                        : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:dark:text-darkbg-text border border-transparent dark:border-darkbg-border"
+                    }`}
+                  >
+                    {fmt === "mp3" ? "MP3 (320k)" : "WAV (无损)"}
+                  </button>
+                ))}
+              </div>
+
               <button
                 onClick={handleExecuteVolume}
                 disabled={isProcessing}
@@ -298,7 +489,7 @@ export default function AudioVolumeStudio({
                 ) : (
                   <>
                     <Volume2 className="w-4 h-4" />
-                    <span>{lang === "en" ? "Enhance Audio" : "开始增强处理"}</span>
+                    <span>{lang === "en" ? "Enhance & Export" : "开始处理并导出"}</span>
                   </>
                 )}
               </button>

@@ -53,6 +53,11 @@ export default function AudioTrimStudio({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [loopSelection, setLoopSelection] = useState(false);
+  const loopSelectionRef = useRef(false);
+  useEffect(() => {
+    loopSelectionRef.current = loopSelection;
+  }, [loopSelection]);
+
   const activeSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const playStartTimeRef = useRef(0);
   const playStartOffsetRef = useRef(0);
@@ -62,17 +67,18 @@ export default function AudioTrimStudio({
   const [isDraggingHandle, setIsDraggingHandle] = useState<"start" | "end" | null>(null);
 
   const stopPlayback = () => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
     if (activeSourceRef.current) {
       try {
+        activeSourceRef.current.onended = null;
         activeSourceRef.current.stop();
       } catch (e) {}
       activeSourceRef.current = null;
     }
     setIsPlaying(false);
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = null;
-    }
   };
 
   // Edge Case 1: Stop playback and clean up audio node whenever tab is deactivated or component unmounts
@@ -124,45 +130,41 @@ export default function AudioTrimStudio({
     }
   };
 
-  // Play/pause selected range
-  const togglePlaySelection = () => {
+  const startPlaybackAt = (offset: number) => {
     if (!trimBuffer) return;
-
-    if (isPlaying) {
-      stopPlayback();
-      return;
-    }
 
     const ctx = getAudioContext();
     if (ctx.state === "suspended") {
       ctx.resume();
     }
 
+    stopPlayback();
+
     const source = ctx.createBufferSource();
     source.buffer = trimBuffer;
     source.connect(ctx.destination);
 
-    const offset = currentTime >= startTime && currentTime < endTime ? currentTime : startTime;
-    const duration = endTime - offset;
+    const validOffset = offset >= startTime && offset < endTime ? offset : startTime;
+    const duration = endTime - validOffset;
 
-    source.start(0, offset, duration);
+    source.start(0, validOffset, duration);
     activeSourceRef.current = source;
     playStartTimeRef.current = ctx.currentTime;
-    playStartOffsetRef.current = offset;
+    playStartOffsetRef.current = validOffset;
     setIsPlaying(true);
 
     source.onended = () => {
-      if (loopSelection) {
+      if (loopSelectionRef.current) {
         setCurrentTime(startTime);
-        togglePlaySelection();
+        startPlaybackAt(startTime);
       } else {
-        setIsPlaying(false);
+        stopPlayback();
         setCurrentTime(startTime);
       }
     };
 
     const updatePlayhead = () => {
-      if (!isPlaying && !activeSourceRef.current) return;
+      if (!activeSourceRef.current) return;
       const elapsed = ctx.currentTime - playStartTimeRef.current;
       const cur = playStartOffsetRef.current + elapsed;
       if (cur <= endTime) {
@@ -173,6 +175,18 @@ export default function AudioTrimStudio({
       }
     };
     animFrameRef.current = requestAnimationFrame(updatePlayhead);
+  };
+
+  // Play/pause selected range
+  const togglePlaySelection = () => {
+    if (!trimBuffer) return;
+
+    if (isPlaying) {
+      stopPlayback();
+    } else {
+      const offset = currentTime >= startTime && currentTime < endTime ? currentTime : startTime;
+      startPlaybackAt(offset);
+    }
   };
 
   // Render waveform onto Canvas
@@ -234,8 +248,8 @@ export default function AudioTrimStudio({
     }
   }, [trimBuffer, peaks, startTime, endTime, currentTime]);
 
-  // Waveform mouse drag handlers
-  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // Waveform pointer drag handlers with setPointerCapture to prevent losing drag focus
+  const handleCanvasPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!canvasRef.current || !trimBuffer) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -245,17 +259,26 @@ export default function AudioTrimStudio({
     const startX = (startTime / duration) * width;
     const endX = (endTime / duration) * width;
 
-    if (Math.abs(clickX - startX) < 14) {
+    if (Math.abs(clickX - startX) < 18) {
       setIsDraggingHandle("start");
-    } else if (Math.abs(clickX - endX) < 14) {
+      try {
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {}
+    } else if (Math.abs(clickX - endX) < 18) {
       setIsDraggingHandle("end");
+      try {
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {}
     } else {
       const clickTime = Math.max(0, Math.min(duration, (clickX / width) * duration));
       setCurrentTime(clickTime);
+      if (isPlaying) {
+        startPlaybackAt(clickTime);
+      }
     }
   };
 
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleCanvasPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDraggingHandle || !canvasRef.current || !trimBuffer) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const moveX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
@@ -268,8 +291,13 @@ export default function AudioTrimStudio({
     }
   };
 
-  const handleCanvasMouseUp = () => {
-    setIsDraggingHandle(null);
+  const handleCanvasPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (isDraggingHandle) {
+      setIsDraggingHandle(null);
+      try {
+        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {}
+    }
   };
 
   // Export trimmed audio
@@ -478,10 +506,11 @@ export default function AudioTrimStudio({
             <div className="relative w-full h-36 bg-[#0E0C0A] rounded-2xl overflow-hidden cursor-crosshair border border-coconut-900/60 dark:border-darkbg-border shadow-inner">
               <canvas
                 ref={canvasRef}
-                onMouseDown={handleCanvasMouseDown}
-                onMouseMove={handleCanvasMouseMove}
-                onMouseUp={handleCanvasMouseUp}
-                className="w-full h-full"
+                onPointerDown={handleCanvasPointerDown}
+                onPointerMove={handleCanvasPointerMove}
+                onPointerUp={handleCanvasPointerUp}
+                onPointerCancel={handleCanvasPointerUp}
+                className="w-full h-full touch-none select-none"
               />
             </div>
             <p className="text-xs text-coconut-600 dark:text-darkbg-muted text-center leading-relaxed">

@@ -10,6 +10,7 @@ import {
   Archive,
   Sparkles,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import {
   decodeAudioFile,
@@ -64,10 +65,35 @@ export default function AudioConvertStudio({
     };
   }, []);
 
+  const isAudioFile = (file: File) => {
+    if (file.type && file.type.startsWith("audio/")) return true;
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    return ["mp3", "wav", "m4a", "flac", "aac", "ogg", "wma", "aiff", "opus"].includes(ext || "");
+  };
+
+  const handleAddConvertFiles = (newFiles: FileList | File[]) => {
+    const list = Array.from(newFiles);
+    const valid = list.filter(isAudioFile);
+    if (valid.length < list.length) {
+      setError(
+        lang === "en"
+          ? `Ignored ${list.length - valid.length} non-audio files. Only audio files are supported.`
+          : `已自动过滤 ${list.length - valid.length} 个非音频文件，仅支持音频格式。`
+      );
+    }
+    if (valid.length > 0) {
+      setConvertFiles((prev) => [...prev, ...valid]);
+    }
+  };
+
   // Edge Case 2: Ingest incomingFile safely
   useEffect(() => {
     if (isActive && incomingFile) {
-      setConvertFiles((prev) => [...prev, incomingFile]);
+      if (isAudioFile(incomingFile)) {
+        setConvertFiles((prev) => [...prev, incomingFile]);
+      } else {
+        setError(lang === "en" ? "Transferred file is not an audio file" : "传入文件不是有效音频格式");
+      }
       onIncomingFileHandled?.();
     }
   }, [isActive, incomingFile]);
@@ -240,11 +266,15 @@ export default function AudioConvertStudio({
       {/* Drag & drop upload area */}
       <div
         onClick={() => document.getElementById("audio-convert-upload")?.click()}
-        onDragOver={(e) => e.preventDefault()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         onDrop={(e) => {
           e.preventDefault();
+          e.stopPropagation();
           if (e.dataTransfer.files) {
-            setConvertFiles((prev) => [...prev, ...Array.from(e.dataTransfer.files)]);
+            handleAddConvertFiles(e.dataTransfer.files);
           }
         }}
         className="group relative overflow-hidden border-2 border-dashed border-[#D2BCAB]/70 dark:border-[#4D392E]/60 hover:border-amber-500/70 dark:hover:border-amber-500/70 bg-gradient-to-b from-[#FBF8F4]/80 to-[#F5ECE1]/60 dark:from-[#211713]/70 dark:to-[#18110D]/70 hover:from-[#FFFDF9] hover:to-[#FDF4EB] dark:hover:from-[#291D17] dark:hover:to-[#1F1511] rounded-3xl p-8 sm:p-11 text-center cursor-pointer transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-amber-900/5 select-none"
@@ -254,10 +284,10 @@ export default function AudioConvertStudio({
           id="audio-convert-upload"
           type="file"
           multiple
-          accept="audio/*"
+          accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac,.wma"
           onChange={(e) => {
             if (e.target.files) {
-              setConvertFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+              handleAddConvertFiles(e.target.files);
             }
           }}
           className="hidden"
@@ -336,7 +366,19 @@ export default function AudioConvertStudio({
                 <div className="truncate text-xs font-semibold text-coconut-900 dark:text-darkbg-text pr-2">
                   {f.name}
                 </div>
-                <span className="text-[10px] text-coconut-600 dark:text-darkbg-muted font-mono">{formatBytes(f.size)}</span>
+                <div className="flex items-center space-x-1.5 shrink-0">
+                  <span className="text-[10px] text-coconut-600 dark:text-darkbg-muted font-mono">{formatBytes(f.size)}</span>
+                  {!isProcessing && (
+                    <button
+                      type="button"
+                      onClick={() => setConvertFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="p-1 rounded-md hover:bg-coconut-200/80 dark:hover:bg-darkbg-hover text-coconut-400 hover:text-rose-500 transition-colors"
+                      title={lang === "en" ? "Remove this file" : "移除此文件"}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

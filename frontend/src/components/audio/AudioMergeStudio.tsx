@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Combine,
   ArrowUp,
@@ -10,12 +10,15 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  Play,
+  Square,
 } from "lucide-react";
 import {
   decodeAudioFile,
   concatAudioBuffers,
   exportAudioBuffer,
   formatDuration,
+  getAudioContext,
 } from "@/lib/audioProcessor";
 import { formatBytes } from "@/lib/imageProcessor";
 import { downloadBlob } from "@/lib/api";
@@ -35,18 +38,44 @@ export default function AudioMergeStudio({
   const [progressMsg, setProgressMsg] = useState("");
 
   const [mergeTracks, setMergeTracks] = useState<MergeTrack[]>([]);
+  const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
+  const trackSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const [mergeFormat, setMergeFormat] = useState<"mp3" | "wav">("mp3");
   const [mergeKbps, setMergeKbps] = useState(320);
   const [mergeResult, setMergeResult] = useState<{ blob: Blob; filename: string; duration: number; url: string } | null>(null);
 
-  // Clean up Object URL
+  // Clean up Object URL & Audio Source
   useEffect(() => {
     return () => {
+      trackSourceRef.current?.stop();
       if (mergeResult?.url) {
         URL.revokeObjectURL(mergeResult.url);
       }
     };
   }, [mergeResult?.url]);
+
+  const togglePlayTrack = (track: MergeTrack) => {
+    if (playingTrackId === track.id) {
+      trackSourceRef.current?.stop();
+      trackSourceRef.current = null;
+      setPlayingTrackId(null);
+      return;
+    }
+    trackSourceRef.current?.stop();
+    if (!track.buffer) return;
+    const ctx = getAudioContext();
+    if (ctx.state === "suspended") ctx.resume();
+    const src = ctx.createBufferSource();
+    src.buffer = track.buffer;
+    src.connect(ctx.destination);
+    src.onended = () => {
+      setPlayingTrackId(null);
+      trackSourceRef.current = null;
+    };
+    src.start(0);
+    trackSourceRef.current = src;
+    setPlayingTrackId(track.id);
+  };
 
   // Handle incoming file
   useEffect(() => {
@@ -192,7 +221,7 @@ export default function AudioMergeStudio({
             id="merge-upload-input"
             type="file"
             multiple
-            accept="audio/*"
+            accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac,.wma"
             onChange={(e) => handleAddMergeTracks(e.target.files)}
             className="hidden"
           />
@@ -207,11 +236,25 @@ export default function AudioMergeStudio({
         {mergeTracks.length === 0 ? (
           <div
             onClick={() => document.getElementById("merge-upload-input")?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (e.dataTransfer.files) {
+                handleAddMergeTracks(e.dataTransfer.files);
+              }
+            }}
             className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center cursor-pointer transition-all bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85"
           >
             <Combine className="w-8 h-8 text-coconut-400 dark:text-darkbg-muted mx-auto mb-2" />
-            <div className="text-xs text-coconut-600 dark:text-darkbg-muted">
-              {lang === "en" ? "Click to add two or more audio clips to merge" : "点击添加两段或多段音频开始拼接"}
+            <div className="text-sm font-semibold text-coconut-800 dark:text-darkbg-text mb-1">
+              {lang === "en" ? "Drag or click to add audio clips to merge" : "点击或拖拽添加两段或多段音频开始拼接"}
+            </div>
+            <div className="text-xs text-coconut-500 dark:text-darkbg-muted">
+              {lang === "en" ? "Supports MP3, WAV, AAC, M4A, FLAC, OGG" : "支持 MP3, WAV, AAC, M4A, FLAC, OGG 等常见格式"}
             </div>
           </div>
         ) : (
@@ -221,12 +264,28 @@ export default function AudioMergeStudio({
                 key={track.id}
                 className="flex items-center justify-between p-3 bg-coconut-50/70 dark:bg-darkbg-subtle border border-coconut-200/70 dark:border-darkbg-border rounded-2xl"
               >
-                <div className="flex items-center space-x-3">
-                  <span className="w-5 h-5 rounded-full bg-coconut-200/80 dark:bg-darkbg-elevated text-coconut-800 dark:text-darkbg-text font-bold text-xs flex items-center justify-center">
+                <div className="flex items-center space-x-3 truncate pr-2">
+                  <span className="w-5 h-5 rounded-full bg-coconut-200/80 dark:bg-darkbg-elevated text-coconut-800 dark:text-darkbg-text font-bold text-xs flex items-center justify-center shrink-0">
                     {idx + 1}
                   </span>
-                  <div>
-                    <div className="text-xs font-semibold text-coconut-900 dark:text-darkbg-text">{track.name}</div>
+                  <button
+                    type="button"
+                    onClick={() => togglePlayTrack(track)}
+                    title={playingTrackId === track.id ? (lang === "en" ? "Stop" : "停止") : (lang === "en" ? "Audition Track" : "试听此音轨")}
+                    className={`w-7 h-7 rounded-xl flex items-center justify-center transition-all shrink-0 ${
+                      playingTrackId === track.id
+                        ? "bg-amber-500 text-white shadow-xs animate-pulse"
+                        : "bg-coconut-200/70 dark:bg-darkbg-card hover:bg-coconut-300 dark:hover:bg-darkbg-hover text-coconut-800 dark:text-darkbg-text"
+                    }`}
+                  >
+                    {playingTrackId === track.id ? (
+                      <Square className="w-3.5 h-3.5 fill-current" />
+                    ) : (
+                      <Play className="w-3.5 h-3.5 ml-0.5 fill-current" />
+                    )}
+                  </button>
+                  <div className="truncate">
+                    <div className="text-xs font-semibold text-coconut-900 dark:text-darkbg-text truncate">{track.name}</div>
                     <div className="text-[10px] text-coconut-600 dark:text-darkbg-muted font-mono">
                       {lang === "en" ? "Duration: " : "时长: "}
                       {formatDuration(track.duration || 0)} · {lang === "en" ? "Size: " : "大小: "}
@@ -235,7 +294,7 @@ export default function AudioMergeStudio({
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-1 shrink-0">
                   <button
                     disabled={idx === 0}
                     onClick={() => {
@@ -265,7 +324,13 @@ export default function AudioMergeStudio({
                     <ArrowDown className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => setMergeTracks((prev) => prev.filter((_, i) => i !== idx))}
+                    onClick={() => {
+                      if (playingTrackId === track.id) {
+                        trackSourceRef.current?.stop();
+                        setPlayingTrackId(null);
+                      }
+                      setMergeTracks((prev) => prev.filter((_, i) => i !== idx));
+                    }}
                     className="p-1 text-rose-400 hover:text-rose-600 ml-2"
                     title={lang === "en" ? "Remove" : "移除"}
                   >
@@ -274,6 +339,25 @@ export default function AudioMergeStudio({
                 </div>
               </div>
             ))}
+
+            {/* 追加拖拽区 */}
+            <div
+              onClick={() => document.getElementById("merge-upload-input")?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.dataTransfer.files) {
+                  handleAddMergeTracks(e.dataTransfer.files);
+                }
+              }}
+              className="p-3 border border-dashed border-coconut-300/80 dark:border-darkbg-border hover:border-amber-500/80 rounded-2xl text-center text-xs text-coconut-600 dark:text-darkbg-muted cursor-pointer transition-all hover:bg-coconut-50/50 dark:hover:bg-darkbg-subtle"
+            >
+              + {lang === "en" ? "Drag or click to append more audio tracks" : "拖入或点击追加更多音频片段"}
+            </div>
 
             <div className="flex items-center justify-between pt-4 border-t border-coconut-100 dark:border-darkbg-border">
               <div className="text-xs text-coconut-600 dark:text-darkbg-muted font-mono">
@@ -297,9 +381,9 @@ export default function AudioMergeStudio({
 
                 <button
                   onClick={handleExecuteMerge}
-                  disabled={isProcessing}
+                  disabled={isProcessing || mergeTracks.length < 2}
                   className={`px-6 py-2.5 rounded-2xl text-xs font-bold flex items-center space-x-1.5 transition-all ${
-                    isProcessing
+                    isProcessing || mergeTracks.length < 2
                       ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
                       : "btn-3d-sunset text-white"
                   }`}
@@ -308,6 +392,11 @@ export default function AudioMergeStudio({
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       <span>{lang === "en" ? "Merging..." : "正在合并中..."}</span>
+                    </>
+                  ) : mergeTracks.length < 2 ? (
+                    <>
+                      <Combine className="w-4 h-4" />
+                      <span>{lang === "en" ? "Need at least 2 tracks" : "请至少添加 2 段音频"}</span>
                     </>
                   ) : (
                     <>

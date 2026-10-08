@@ -1,14 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Clock,
   Download,
   Loader2,
   CheckCircle2,
   AlertCircle,
+  Play,
+  Square,
+  Sparkles,
 } from "lucide-react";
 import {
+  getAudioContext,
   decodeAudioFile,
   changeAudioSpeed,
   reverseAudioBuffer,
@@ -39,9 +43,62 @@ export default function AudioSpeedStudio({
   const [speedKbps, setSpeedKbps] = useState(320);
   const [speedResult, setSpeedResult] = useState<{ blob: Blob; filename: string; duration: number; url: string } | null>(null);
 
-  // Clean up Object URL
+  // Live preview state
+  const [isPlaying, setIsPlaying] = useState(false);
+  const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
+
+  const stopPreview = () => {
+    if (sourceNodeRef.current) {
+      try {
+        sourceNodeRef.current.stop();
+        sourceNodeRef.current.disconnect();
+      } catch {}
+      sourceNodeRef.current = null;
+    }
+    setIsPlaying(false);
+  };
+
+  const startPreview = () => {
+    if (!speedBuffer) return;
+    stopPreview();
+    const ctx = getAudioContext();
+    if (ctx.state === "suspended") {
+      ctx.resume();
+    }
+    const source = ctx.createBufferSource();
+    source.buffer = speedIsReversed ? reverseAudioBuffer(speedBuffer) : speedBuffer;
+    source.playbackRate.setValueAtTime(speedPlaybackRate, ctx.currentTime);
+    source.connect(ctx.destination);
+    source.onended = () => {
+      setIsPlaying(false);
+    };
+    source.start(0);
+    sourceNodeRef.current = source;
+    setIsPlaying(true);
+  };
+
+  const togglePreview = () => {
+    if (isPlaying) {
+      stopPreview();
+    } else {
+      startPreview();
+    }
+  };
+
+  // Sync playback rate immediately if playing
+  useEffect(() => {
+    if (sourceNodeRef.current && isPlaying && !speedIsReversed) {
+      const ctx = getAudioContext();
+      sourceNodeRef.current.playbackRate.setValueAtTime(speedPlaybackRate, ctx.currentTime);
+    } else if (isPlaying && speedIsReversed) {
+      startPreview();
+    }
+  }, [speedPlaybackRate, speedIsReversed]);
+
+  // Clean up Object URL and preview playback
   useEffect(() => {
     return () => {
+      stopPreview();
       if (speedResult?.url) {
         URL.revokeObjectURL(speedResult.url);
       }
@@ -57,6 +114,7 @@ export default function AudioSpeedStudio({
   }, [isActive, incomingFile]);
 
   const handleSpeedFileSelected = async (file: File) => {
+    stopPreview();
     setSpeedFile(file);
     setSpeedResult(null);
     setIsProcessing(true);
@@ -132,12 +190,22 @@ export default function AudioSpeedStudio({
         {!speedBuffer ? (
           <div
             onClick={() => document.getElementById("speed-upload-input")?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const f = e.dataTransfer.files?.[0];
+              if (f) handleSpeedFileSelected(f);
+            }}
             className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center cursor-pointer transition-all bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85"
           >
             <input
               id="speed-upload-input"
               type="file"
-              accept="audio/*"
+              accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac,.wma"
               onChange={(e) => {
                 if (e.target.files && e.target.files[0]) {
                   handleSpeedFileSelected(e.target.files[0]);
@@ -179,7 +247,11 @@ export default function AudioSpeedStudio({
             {/* Speed rate controls */}
             <div className="space-y-3 p-4 bg-coconut-50/60 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border">
               <div className="flex justify-between items-center text-xs sm:text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                <span>{lang === "en" ? "Playback Speed / Tempo:" : "播放倍速调节:"}</span>
+                <span>
+                  {lang === "en"
+                    ? "Playback Speed / Tempo (Resampling: pitch shifts with speed):"
+                    : "播放倍速调节（重采样：音调随倍速自然联动变化）:"}
+                </span>
                 <span className="font-mono text-sm font-bold text-toast-500">{speedPlaybackRate.toFixed(2)}x</span>
               </div>
 
@@ -209,9 +281,9 @@ export default function AudioSpeedStudio({
                 className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-coconut-700 dark:accent-palm-400"
               />
               <div className="flex justify-between text-[10px] text-coconut-600 dark:text-darkbg-muted font-mono">
-                <span>0.5x ({lang === "en" ? "Slow" : "慢速"})</span>
-                <span>1.0x ({lang === "en" ? "Original" : "原速"})</span>
-                <span>2.0x ({lang === "en" ? "Fast" : "快速"})</span>
+                <span>0.5x ({lang === "en" ? "Slow & Lower Pitch" : "0.5x 慢速降调"})</span>
+                <span>1.0x ({lang === "en" ? "Original" : "1.0x 原速标准"})</span>
+                <span>2.0x ({lang === "en" ? "Fast & Higher Pitch" : "2.0x 快速升调"})</span>
               </div>
             </div>
 
@@ -234,6 +306,42 @@ export default function AudioSpeedStudio({
                 </div>
               </div>
             </label>
+
+            {/* Live Speed / Reverse Preview Player */}
+            <div className="p-4 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  onClick={togglePreview}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all active:scale-95 ${
+                    isPlaying
+                      ? "bg-rose-500 text-white shadow-sm"
+                      : "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 shadow-sm"
+                  }`}
+                >
+                  {isPlaying ? (
+                    <>
+                      <Square className="w-3.5 h-3.5 fill-current" />
+                      <span>{lang === "en" ? "Stop Preview" : "停止试听"}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>{lang === "en" ? "Preview Live Audio" : "实时效果试听"}</span>
+                    </>
+                  )}
+                </button>
+                <span className="text-xs font-mono font-bold text-toast-500">
+                  {speedPlaybackRate.toFixed(2)}x {speedIsReversed ? (lang === "en" ? "· Reversed" : "· 倒放") : ""}
+                </span>
+              </div>
+
+              <span className="text-[11px] text-coconut-500 dark:text-darkbg-muted font-mono">
+                {isPlaying
+                  ? "⚡ 即时生效，拖动滑块可无缝变速试听"
+                  : "💡 导出前先试听确认倍速与变调效果"}
+              </span>
+            </div>
 
             {/* Export format & Action button */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
