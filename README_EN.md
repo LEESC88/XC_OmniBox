@@ -25,6 +25,25 @@
 
 **XC_OmniBox** is a modern, high-performance desktop productivity and multimedia toolbox built with Electron, Next.js (React), and FastAPI (Python hybrid engine). Designed from the ground up for privacy-conscious developers, content creators, and office professionals, XC_OmniBox guarantees **100% local offline processing, zero cloud data transfer, zero vendor lock-in, and instant latency-free responsiveness**.
 
+## 🌟 What's New in v1.5.4
+
+- 🎵 **Audio Studio Comprehensive UX Optimization & Defensive Hardening**:
+  - **Global Drag-and-Drop Restoration**: Added full `onDragOver`/`onDrop` event listeners to Audio Merge, Volume Adjust, Tempo/Speed, and Karaoke studios, preventing unwanted browser redirects and enabling drag-and-drop file appending.
+  - **Audio Trim Pointer Capture & Smooth Loop**: Integrated pointer capture on waveform trimmer handles to prevent cursor slipping out of bounds; resolved premature cleanup closure in loop playback for seamless repetition.
+  - **Audio Converter Granular Queue & Filtering**: Added single-item removal buttons to conversion queue cards; pre-filters non-audio formats with clear error guidance.
+  - **Audio Merge Track Previews & State Guard**: Added individual preview play/pause controls for each queued audio track; disabled merging action with clear guide when fewer than 2 tracks are present.
+  - **Video Audio Extractor Sync Markers & Mute Defense**: Pre-detects and blocks silent/audio-less video tracks; added one-click playhead timestamp snapping and synchronized video clip preview.
+  - **Volume Adjust 0%-300% Range & Live A/B Comparison**: Expanded gain slider to 0%-300% (supporting attenuation and muting); added WAV/MP3 format picker; integrated instant zero-latency A/B preview comparing original and processed audio.
+  - **Audio Speed Resampling Notice & Instant Preview**: Explicitly notes resampling pitch shift behavior; added zero-latency live preview for speed adjustments and reversed audio.
+  - **Karaoke Vocal Remover Mono Blocking & Live Monitoring**: Detects and halts processing on mono tracks with informative notices; added real-time accompaniment preview with dynamic bass preservation control.
+- 🤖 **AI Studio Critical Fixes & Algorithmic Upgrades**:
+  - **Inpaint Canvas Coordinate Alignment & Alpha Channel Protection**: Eliminated letterbox coordinate offsets; introduced a physical cursor follower; preserved Alpha channels to prevent transparent PNG backgrounds turning black.
+  - **Searchable Dual-Layer PDF Full-Color Fidelity**: Decoupled OCR grayscale preprocessing from the visible background image, preserving pristine original full-color quality; added cross-tool transfer support.
+  - **Smart Matting BFS Edge Flood-Fill Algorithm**: Upgraded to 4-connectivity BFS boundary expansion, preventing light-colored clothing and dental details from accidental cut-out; unified background color switching state with export blobs.
+  - **Subtitle Precision Playback Truncation**: Single-segment subtitle previews now automatically halt precisely at their end timestamps.
+
+---
+
 ## 🌟 What's New in v1.5.3
 
 - 🗂️ **Daily Utilities Deep Optimization & Reliability Hardening**:
