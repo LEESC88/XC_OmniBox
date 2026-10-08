@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveBatchFiles: (payload) => ipcRenderer.invoke('files:save-batch', payload),
   scanFolder: (payload) => ipcRenderer.invoke('files:scan-folder', payload),
   organizeExecute: (payload) => ipcRenderer.invoke('files:organize-execute', payload),
+  showItemInFolder: (filePath) => ipcRenderer.invoke('files:show-item-in-folder', filePath),
   trashItems: (payload) => ipcRenderer.invoke('files:trash-items', payload),
   readFileHash: (payload) => ipcRenderer.invoke('files:read-file-hash', payload),
   restartBackend: () => ipcRenderer.invoke('backend:restart'),

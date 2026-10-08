@@ -601,6 +601,15 @@ function setupSettingsIPC() {
 
     for (const task of tasks) {
       try {
+        const sourceResolved = path.resolve(task.sourcePath);
+        const targetResolved = path.resolve(task.targetPath);
+
+        // 如果源文件已在目标路径（已完成归类），跳过避免自身冲突改名
+        if (sourceResolved === targetResolved) {
+          executed.push({ source: task.sourcePath, target: task.targetPath, skipped: true });
+          continue;
+        }
+
         const targetDir = path.dirname(task.targetPath);
         if (!fs.existsSync(targetDir)) {
           fs.mkdirSync(targetDir, { recursive: true });
@@ -610,8 +619,16 @@ function setupSettingsIPC() {
         let count = 1;
         const parsed = path.parse(task.targetPath);
         while (fs.existsSync(finalTarget)) {
+          if (path.resolve(finalTarget) === sourceResolved) {
+            break;
+          }
           finalTarget = path.join(parsed.dir, `${parsed.name} (${count})${parsed.ext}`);
           count++;
+        }
+
+        if (path.resolve(finalTarget) === sourceResolved) {
+          executed.push({ source: task.sourcePath, target: finalTarget, skipped: true });
+          continue;
         }
 
         fs.renameSync(task.sourcePath, finalTarget);
@@ -622,6 +639,14 @@ function setupSettingsIPC() {
     }
 
     return { success: executed.length > 0 || errors.length === 0, count: executed.length, successCount: executed.length, errorCount: errors.length, executed, errors };
+  });
+
+  ipcMain.handle('files:show-item-in-folder', (_e, filePath) => {
+    if (filePath && fs.existsSync(filePath)) {
+      shell.showItemInFolder(filePath);
+      return true;
+    }
+    return false;
   });
 
   ipcMain.handle('files:trash-items', async (_e, { paths }) => {

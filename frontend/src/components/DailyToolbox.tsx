@@ -298,6 +298,30 @@ export default function DailyToolbox({
     }
   };
 
+  // 监听全局剪贴板粘贴 (Ctrl+V) 解码二维码图片
+  useEffect(() => {
+    if (activeTab !== "qrcode" || qrMode !== "scan") return;
+
+    const handleWindowPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === "file" && item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            handleScanQrFile(file);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener("paste", handleWindowPaste);
+    return () => window.removeEventListener("paste", handleWindowPaste);
+  }, [activeTab, qrMode]);
+
   // =======================================================
   // 3. 文本 Diff 状态 (文章与文本对比)
   // =======================================================
@@ -368,6 +392,7 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
   const [organizeFolderPath, setOrganizeFolderPath] = useState<string>("");
   const [organizeFiles, setOrganizeFiles] = useState<FileItemMeta[]>([]);
   const [organizeRule, setOrganizeRule] = useState<OrganizeRuleType>("by-type");
+  const [organizeOnlyTopLevel, setOrganizeOnlyTopLevel] = useState<boolean>(true);
   const [isScanningOrganize, setIsScanningOrganize] = useState<boolean>(false);
   const [isExecutingOrganize, setIsExecutingOrganize] = useState<boolean>(false);
   const [organizeSuccessMsg, setOrganizeSuccessMsg] = useState<string | null>(null);
@@ -375,8 +400,10 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
   const organizeFolderInputRef = useRef<HTMLInputElement>(null);
 
   const organizePlan = React.useMemo(() => {
-    return generateOrganizePlan(organizeFiles, organizeRule, organizeFolderPath);
-  }, [organizeFiles, organizeRule, organizeFolderPath]);
+    return generateOrganizePlan(organizeFiles, organizeRule, organizeFolderPath, {
+      onlyTopLevel: organizeOnlyTopLevel,
+    });
+  }, [organizeFiles, organizeRule, organizeFolderPath, organizeOnlyTopLevel]);
 
   const filteredOrganizePlan = React.useMemo(() => {
     if (!organizeSearch.trim()) return organizePlan;
@@ -596,6 +623,35 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
       }
       return next;
     });
+  };
+
+  const handleSetDuplicateOriginal = (groupId: string, targetPath: string) => {
+    setDupGroups((prevGroups) =>
+      prevGroups.map((group) => {
+        if (group.id !== groupId) return group;
+        const targetIndex = group.files.findIndex((f) => f.path === targetPath);
+        if (targetIndex <= 0) return group;
+
+        const oldOriginal = group.files[0];
+        const newOriginal = group.files[targetIndex];
+
+        const updatedFiles = [
+          { ...newOriginal, isSuggestedDelete: false },
+          ...group.files.slice(1, targetIndex),
+          { ...oldOriginal, isSuggestedDelete: true },
+          ...group.files.slice(targetIndex + 1),
+        ];
+
+        setDupSelectedPaths((prevSelected) => {
+          const next = new Set(prevSelected);
+          next.delete(newOriginal.path);
+          next.add(oldOriginal.path);
+          return next;
+        });
+
+        return { ...group, files: updatedFiles };
+      })
+    );
   };
 
   const selectAllSuggestedDups = () => {
@@ -888,8 +944,8 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                     </div>
                     <input
                       type="range"
-                      min="0"
-                      max="10"
+                      min="1"
+                      max="30"
                       value={feather}
                       onChange={(e) => setFeather(Number(e.target.value))}
                       className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-palm-600 dark:accent-palm-400"
@@ -1186,6 +1242,25 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                         : "精准找出大小为 0 字节的无效幽灵文件并收纳到隔离目录"}
                     </div>
                   </button>
+                </div>
+
+                {/* 仅整理顶层目录安全开关 */}
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-coconut-100/40 dark:bg-darkbg-subtle border border-coconut-200/60 dark:border-darkbg-border">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="organize-top-level"
+                      checked={organizeOnlyTopLevel}
+                      onChange={(e) => setOrganizeOnlyTopLevel(e.target.checked)}
+                      className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 dark:bg-darkbg-card border-coconut-300 dark:border-darkbg-border cursor-pointer"
+                    />
+                    <label htmlFor="organize-top-level" className="text-xs font-semibold text-coconut-800 dark:text-darkbg-text cursor-pointer">
+                      {lang === "en" ? "Only organize root folder files (preserve existing subdirectories)" : "仅整理根目录顶层文件 (保留并跳过已有子文件夹与系统隐蔽文件)"}
+                    </label>
+                  </div>
+                  <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium hidden sm:inline">
+                    {lang === "en" ? "Safe Mode" : "推荐开启 · 防破坏"}
+                  </span>
                 </div>
               </div>
 
@@ -1569,7 +1644,37 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                                       </div>
                                     </div>
 
-                                    <div className="shrink-0 flex items-center space-x-2">
+                                    <div className="shrink-0 flex items-center space-x-1.5 sm:space-x-2">
+                                      {!isOriginal && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSetDuplicateOriginal(group.id, file.path)}
+                                          className="px-2 py-0.5 rounded text-[10px] font-semibold text-palm-700 dark:text-palm-300 hover:bg-palm-100 dark:hover:bg-palm-950/40 border border-palm-300 dark:border-palm-800 transition-colors"
+                                          title={lang === "en" ? "Set as original to keep" : "将此副本设为保留原件"}
+                                        >
+                                          {lang === "en" ? "Keep this" : "设为原件"}
+                                        </button>
+                                      )}
+                                      {typeof window !== "undefined" && (window as any).electronAPI?.showItemInFolder && file.path && (
+                                        <button
+                                          type="button"
+                                          onClick={() => (window as any).electronAPI.showItemInFolder(file.path)}
+                                          title={lang === "en" ? "Locate in File Explorer" : "在资源管理器中定位"}
+                                          className="p-1 hover:bg-coconut-200/80 dark:hover:bg-darkbg-subtle rounded text-coconut-500 dark:text-darkbg-muted transition-colors"
+                                        >
+                                          <FolderOpen className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                      {typeof window !== "undefined" && (window as any).electronAPI?.openPath && file.path && (
+                                        <button
+                                          type="button"
+                                          onClick={() => (window as any).electronAPI.openPath(file.path)}
+                                          title={lang === "en" ? "Open file" : "打开文件"}
+                                          className="p-1 hover:bg-coconut-200/80 dark:hover:bg-darkbg-subtle rounded text-coconut-500 dark:text-darkbg-muted transition-colors"
+                                        >
+                                          <ExternalLink className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
                                       {isOriginal ? (
                                         <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
                                           {lang === "en" ? "Keep Original" : "保留原件"}
@@ -1692,6 +1797,7 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
 
               {!scanFile ? (
                 <div
+                  tabIndex={0}
                   onClick={() => document.getElementById("qr-scan-upload")?.click()}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
@@ -1700,7 +1806,21 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                       handleScanQrFile(e.dataTransfer.files[0]);
                     }
                   }}
-                  className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center cursor-pointer transition-all bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85"
+                  onPaste={(e) => {
+                    const items = e.clipboardData?.items;
+                    if (!items) return;
+                    for (let i = 0; i < items.length; i++) {
+                      if (items[i].type.startsWith("image/")) {
+                        const file = items[i].getAsFile();
+                        if (file) {
+                          e.preventDefault();
+                          handleScanQrFile(file);
+                          break;
+                        }
+                      }
+                    }
+                  }}
+                  className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center cursor-pointer transition-all bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
                 >
                   <input
                     id="qr-scan-upload"
@@ -1715,10 +1835,10 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                   />
                   <ScanLine className="w-10 h-10 text-toast-500 mx-auto mb-2" />
                   <div className="text-sm sm:text-base font-bold text-coconut-900 dark:text-darkbg-text">
-                    {lang === "en" ? "Click or drag QR code image here" : "点击或拖拽二维码图片至此处解码"}
+                    {lang === "en" ? "Click, drag, or press Ctrl+V to paste QR code" : "点击、拖拽或直接按 Ctrl+V 粘贴二维码图片"}
                   </div>
                   <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
-                    {lang === "en" ? "Supports PNG, JPG, WebP screenshots" : "支持常见截图、照片、PNG、JPG 与 WebP 格式"}
+                    {lang === "en" ? "Supports PNG, JPG, WebP screenshots & clipboard paste" : "支持常见截图、照片、PNG、JPG、WebP 格式与剪贴板截图"}
                   </div>
                 </div>
               ) : (
@@ -2375,25 +2495,39 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                 {diffResult.changes.filter((c) => c.added || c.removed).length} 处修改差异
               </span>
             </div>
-            <div className="p-4 bg-darkbg-canvas rounded-2xl border border-darkbg-border font-mono text-xs sm:text-sm leading-relaxed max-h-80 overflow-y-auto no-scrollbar">
+            <div className="p-4 bg-coconut-100/50 dark:bg-darkbg-canvas rounded-2xl border border-coconut-200/80 dark:border-darkbg-border font-mono text-xs sm:text-sm leading-relaxed max-h-80 overflow-y-auto whitespace-pre-wrap">
               {diffResult.changes.map((part, index) => {
                 if (diffChangesOnly && !part.added && !part.removed) {
                   const linesCount = (part.value.match(/\n/g) || []).length;
                   if (linesCount > 2) {
                     return (
-                      <div key={index} className="py-1 px-3 bg-zinc-800/60 text-zinc-500 rounded my-1 text-center select-none text-[11px]">
+                      <div key={index} className="py-1 px-3 bg-coconut-200/60 dark:bg-zinc-800/60 text-coconut-500 dark:text-zinc-500 rounded my-1 text-center select-none text-[11px] block">
                         ··· 此处跳过 {linesCount} 行未变动条款 ···
                       </div>
                     );
                   }
                 }
-                const color = part.added
-                  ? "bg-emerald-950/80 text-emerald-300 border-l-2 border-emerald-500 pl-2 block my-0.5"
+
+                if (diffMode === "words") {
+                  const wordClass = part.added
+                    ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 px-1 py-0.5 rounded font-semibold inline mx-0.5"
+                    : part.removed
+                    ? "bg-rose-500/20 text-rose-800 dark:text-rose-300 line-through opacity-80 px-1 py-0.5 rounded inline mx-0.5"
+                    : "text-coconut-800 dark:text-darkbg-text inline";
+                  return (
+                    <span key={index} className={wordClass}>
+                      {part.value}
+                    </span>
+                  );
+                }
+
+                const lineClass = part.added
+                  ? "bg-emerald-500/15 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border-l-2 border-emerald-500 pl-2 block my-0.5"
                   : part.removed
-                  ? "bg-rose-950/80 text-rose-300 border-l-2 border-rose-500 pl-2 line-through opacity-80 block my-0.5"
-                  : "text-coconut-300 dark:text-darkbg-muted block my-0.5";
+                  ? "bg-rose-500/15 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border-l-2 border-rose-500 pl-2 line-through opacity-80 block my-0.5"
+                  : "text-coconut-800 dark:text-darkbg-text block my-0.5";
                 return (
-                  <span key={index} className={color}>
+                  <span key={index} className={lineClass}>
                     {part.value}
                   </span>
                 );

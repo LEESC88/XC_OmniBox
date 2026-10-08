@@ -99,19 +99,65 @@ const EXT_CATEGORY_MAP: Record<string, string> = {
   ".css": "代码 (Code)",
 };
 
+const IGNORED_SYSTEM_FILES = new Set([
+  "desktop.ini",
+  "thumbs.db",
+  ".ds_store",
+  "icon\r",
+]);
+
+export interface OrganizePlanOptions {
+  onlyTopLevel?: boolean;
+}
+
+function isInsideSubdirectory(file: FileItemMeta): boolean {
+  if (!file.relPath) return false;
+  const normalized = file.relPath.replace(/\\/g, "/");
+  const segments = normalized.split("/").filter(Boolean);
+  if (file.fileObj && file.relPath.includes("/")) {
+    // 浏览器环境 webkitRelativePath 格式通常为 根目录名/子目录/文件名
+    return segments.length > 2;
+  }
+  return segments.length > 1;
+}
+
 /**
  * 根据规则生成智能归档计划 (Dry Run 试运行)
  */
 export function generateOrganizePlan(
   files: FileItemMeta[],
   rule: OrganizeRuleType,
-  baseFolderPath?: string
+  baseFolderPath?: string,
+  options?: OrganizePlanOptions
 ): OrganizePlanItem[] {
   const plan: OrganizePlanItem[] = [];
 
   for (const file of files) {
+    const lowerName = file.name.toLowerCase();
+    const lowerExt = file.ext.toLowerCase();
+
+    // 1. 过滤系统文件、快捷方式与 Office 临时锁定文件
+    if (
+      IGNORED_SYSTEM_FILES.has(lowerName) ||
+      lowerName.startsWith("~$") ||
+      lowerExt === ".lnk" ||
+      lowerExt === ".url"
+    ) {
+      continue;
+    }
+
+    // 2. 仅整理顶层目录模式：跳过子目录内文件
+    if (options?.onlyTopLevel && isInsideSubdirectory(file)) {
+      continue;
+    }
+
     if (rule === "clean-empty") {
       if (file.size === 0) {
+        const relPath = `_待清理空文件/${file.name}`;
+        // 防碰撞：如果已在目标空文件目录，跳过
+        if (file.relPath && file.relPath.replace(/\\/g, "/").endsWith(relPath)) {
+          continue;
+        }
         plan.push({
           id: `plan_${Math.random().toString(36).substring(2, 9)}`,
           sourcePath: file.path,
@@ -119,8 +165,8 @@ export function generateOrganizePlan(
           size: file.size,
           category: "零字节无效文件 (0 KB)",
           targetSubDir: "_待清理空文件",
-          targetRelativePath: `_待清理空文件/${file.name}`,
-          targetFullPath: baseFolderPath ? `${baseFolderPath}/_待清理空文件/${file.name}` : undefined,
+          targetRelativePath: relPath,
+          targetFullPath: baseFolderPath ? `${baseFolderPath}/${relPath}` : undefined,
           fileObj: file.fileObj,
         });
       }
@@ -144,6 +190,11 @@ export function generateOrganizePlan(
 
     const relPath = `${targetSubDir}/${file.name}`;
     const fullPath = baseFolderPath ? `${baseFolderPath}/${relPath}` : undefined;
+
+    // 防自我碰撞：如果文件已经在目标归档相对路径中，跳过
+    if (file.relPath && file.relPath.replace(/\\/g, "/").endsWith(relPath)) {
+      continue;
+    }
 
     plan.push({
       id: `plan_${Math.random().toString(36).substring(2, 9)}`,

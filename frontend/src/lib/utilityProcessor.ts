@@ -120,25 +120,107 @@ export async function replacePhotoBackground(
   };
   const [targR, targG, targB] = parseHex(targetBgHex);
 
-  // 2. 遍历每个像素，计算欧氏颜色距离与平滑羽化权重
-  for (let i = 0; i < data.length; i += 4) {
+  const w = canvas.width;
+  const h = canvas.height;
+  const safeFeather = Math.max(1, feather);
+  const maxThreshold = tolerance + safeFeather;
+
+  // 2. 预计算所有像素与背景色的色差距离 dist
+  const distArr = new Float32Array(w * h);
+  const isBgVisited = new Uint8Array(w * h);
+
+  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
     const r = data[i];
     const g = data[i + 1];
     const b = data[i + 2];
+    distArr[p] = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+  }
 
-    const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+  // 3. 从四周边框种子向内扩散 (BFS)，保护主体中心（浅色衣服、五官牙齿）不被误穿透
+  const queue = new Int32Array(w * h);
+  let head = 0;
+  let tail = 0;
+
+  // 顶边和底边
+  for (let x = 0; x < w; x++) {
+    const topIdx = x;
+    if (distArr[topIdx] < maxThreshold && !isBgVisited[topIdx]) {
+      isBgVisited[topIdx] = 1;
+      queue[tail++] = topIdx;
+    }
+    const bottomIdx = (h - 1) * w + x;
+    if (distArr[bottomIdx] < maxThreshold && !isBgVisited[bottomIdx]) {
+      isBgVisited[bottomIdx] = 1;
+      queue[tail++] = bottomIdx;
+    }
+  }
+
+  // 左边和右边
+  for (let y = 0; y < h; y++) {
+    const leftIdx = y * w;
+    if (distArr[leftIdx] < maxThreshold && !isBgVisited[leftIdx]) {
+      isBgVisited[leftIdx] = 1;
+      queue[tail++] = leftIdx;
+    }
+    const rightIdx = y * w + (w - 1);
+    if (distArr[rightIdx] < maxThreshold && !isBgVisited[rightIdx]) {
+      isBgVisited[rightIdx] = 1;
+      queue[tail++] = rightIdx;
+    }
+  }
+
+  // 4连通 BFS 漫水扩散
+  while (head < tail) {
+    const curr = queue[head++];
+    const cx = curr % w;
+    const cy = Math.floor(curr / w);
+
+    if (cy > 0) {
+      const up = curr - w;
+      if (!isBgVisited[up] && distArr[up] < maxThreshold) {
+        isBgVisited[up] = 1;
+        queue[tail++] = up;
+      }
+    }
+    if (cy < h - 1) {
+      const down = curr + w;
+      if (!isBgVisited[down] && distArr[down] < maxThreshold) {
+        isBgVisited[down] = 1;
+        queue[tail++] = down;
+      }
+    }
+    if (cx > 0) {
+      const left = curr - 1;
+      if (!isBgVisited[left] && distArr[left] < maxThreshold) {
+        isBgVisited[left] = 1;
+        queue[tail++] = left;
+      }
+    }
+    if (cx < w - 1) {
+      const right = curr + 1;
+      if (!isBgVisited[right] && distArr[right] < maxThreshold) {
+        isBgVisited[right] = 1;
+        queue[tail++] = right;
+      }
+    }
+  }
+
+  // 4. 仅对连通到背景的像素进行颜色置换与羽化
+  for (let p = 0; p < w * h; p++) {
+    if (!isBgVisited[p]) continue; // 人像内部主体（浅色衣服、五官）受到完整连通域保护
+
+    const i = p * 4;
+    const dist = distArr[p];
 
     if (dist < tolerance) {
-      // 完全属于背景色
       data[i] = targR;
       data[i + 1] = targG;
       data[i + 2] = targB;
-    } else if (dist < tolerance + feather) {
-      // 边缘羽化过渡区
-      const ratio = (dist - tolerance) / feather; // 0 (背景) -> 1 (前景)
-      data[i] = Math.round(targR * (1 - ratio) + r * ratio);
-      data[i + 1] = Math.round(targG * (1 - ratio) + g * ratio);
-      data[i + 2] = Math.round(targB * (1 - ratio) + b * ratio);
+    } else {
+      const ratio = (dist - tolerance) / safeFeather; // 0 (背景) -> 1 (前景)
+      data[i] = Math.round(targR * (1 - ratio) + data[i] * ratio);
+      data[i + 1] = Math.round(targG * (1 - ratio) + data[i + 1] * ratio);
+      data[i + 2] = Math.round(targB * (1 - ratio) + data[i + 2] * ratio);
     }
   }
 
@@ -190,27 +272,41 @@ export async function generatePrintSheet(
   ctx.fillStyle = "#FFFFFF";
   ctx.fillRect(0, 0, sheetW, sheetH);
 
-  let rows = 4;
-  let cols = 2; // 默认 2列 × 4行 = 8张 (适合 1寸)
-
-  if (spec.width === ID_SPECS.TWO_INCH.width) {
-    // 2寸：2列 × 2行 = 4张
-    rows = 2;
-    cols = 2;
-  } else if (spec.width === ID_SPECS.ONE_INCH.width) {
-    // 1寸：3列 × 3行 = 9张
-    rows = 3;
-    cols = 3;
-  }
-
   const pw = spec.width;
   const ph = spec.height;
+  const footerH = 60; // 底部预留水印说明文字高度
+  const effectiveH = sheetH - footerH;
 
-  // 计算居中间距
+  // 自适应计算网格行列数，保证间距始终为正数且布局最优化
+  const minGap = 20;
+  let cols = Math.max(1, Math.floor((sheetW - minGap) / (pw + minGap)));
+  let rows = Math.max(1, Math.floor((effectiveH - minGap) / (ph + minGap)));
+
+  // 针对经典标准规格提供冲印界最优体验布局
+  if (spec.width === ID_SPECS.ONE_INCH.width && spec.height === ID_SPECS.ONE_INCH.height) {
+    cols = 3;
+    rows = 3; // 1寸标准 3×3 9张
+  } else if (spec.width === ID_SPECS.TWO_INCH.width && spec.height === ID_SPECS.TWO_INCH.height) {
+    cols = 2;
+    rows = 2; // 2寸标准 2×2 4张
+  } else if (spec.width === ID_SPECS.SMALL_TWO.width && spec.height === ID_SPECS.SMALL_TWO.height) {
+    cols = 2;
+    rows = 2; // 小2寸标准 2×2 4张 (390×567，杜绝负间距超高外溢)
+  }
+
+  // 严格安全收敛：若相纸空间不足以容纳，安全递减行列数
+  while (cols * pw > sheetW - 20 && cols > 1) {
+    cols--;
+  }
+  while (rows * ph > effectiveH - 20 && rows > 1) {
+    rows--;
+  }
+
+  // 计算安全正数居中间距
   const totalPhotosW = cols * pw;
   const totalPhotosH = rows * ph;
-  const gapX = Math.floor((sheetW - totalPhotosW) / (cols + 1));
-  const gapY = Math.floor((sheetH - totalPhotosH) / (rows + 1));
+  const gapX = Math.max(10, Math.floor((sheetW - totalPhotosW) / (cols + 1)));
+  const gapY = Math.max(10, Math.floor((effectiveH - totalPhotosH) / (rows + 1)));
 
   // 绘制照片与裁切辅助线
   for (let r = 0; r < rows; r++) {
@@ -376,25 +472,32 @@ export async function generateCustomQrCode(options: {
         ctx.fillStyle = fgColor;
       }
 
-      // 根据样式绘制
-      const gap = moduleSize * 0.05; // 微小间隙让码点独立
-      const drawSize = moduleSize - gap;
+      // 保护三大寻象定位角 (Finder Patterns: 7x7 modules at 3 corners)
+      const isFinder =
+        (row < 7 && col < 7) ||
+        (row < 7 && col >= moduleCount - 7) ||
+        (row >= moduleCount - 7 && col < 7);
 
-      if (dotStyle === "dot") {
-        // 圆形码点
-        const radius = drawSize / 2;
-        ctx.beginPath();
-        ctx.arc(x + moduleSize / 2, y + moduleSize / 2, radius, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (dotStyle === "rounded") {
-        // 圆角方块
-        const r = drawSize * 0.35;
-        ctx.beginPath();
-        ctx.roundRect(x + gap / 2, y + gap / 2, drawSize, drawSize, r);
-        ctx.fill();
-      } else {
-        // 默认方块
+      // 寻象定位角强制绘制为实心方块，保证扫码器 100% 识别几何特征
+      if (isFinder || dotStyle === "square") {
         ctx.fillRect(x, y, moduleSize, moduleSize);
+      } else {
+        const gap = moduleSize * 0.05; // 微小间隙让内部普通码点独立
+        const drawSize = moduleSize - gap;
+
+        if (dotStyle === "dot") {
+          // 圆形码点
+          const radius = drawSize / 2;
+          ctx.beginPath();
+          ctx.arc(x + moduleSize / 2, y + moduleSize / 2, radius, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (dotStyle === "rounded") {
+          // 圆角方块
+          const r = drawSize * 0.35;
+          ctx.beginPath();
+          ctx.roundRect(x + gap / 2, y + gap / 2, drawSize, drawSize, r);
+          ctx.fill();
+        }
       }
     }
   }

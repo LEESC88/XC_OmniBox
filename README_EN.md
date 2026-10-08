@@ -25,6 +25,19 @@
 
 **XC_OmniBox** is a modern, high-performance desktop productivity and multimedia toolbox built with Electron, Next.js (React), and FastAPI (Python hybrid engine). Designed from the ground up for privacy-conscious developers, content creators, and office professionals, XC_OmniBox guarantees **100% local offline processing, zero cloud data transfer, zero vendor lock-in, and instant latency-free responsiveness**.
 
+## 🌟 What's New in v1.5.3
+
+- 🗂️ **Daily Utilities Deep Optimization & Reliability Hardening**:
+  - **Article Diff Layout Fix**: Resolved broken block wrapping in word-level granular text diffing; redesigned as natural inline flowing typography with seamless light/dark theme adaptation.
+  - **ID Photo Adaptive Print & Flood-Fill Matt**: Automatically calculates grid rows/columns with guaranteed positive padding ($\ge$ 10px) to prevent overlap or canvas clipping; implemented 4-way BFS flood-fill protection for foreground highlights and white clothing; expanded feather slider to 1~30px with zero-division safeguard.
+  - **QR Code Finder Pattern Preservation**: Guaranteed solid 7x7 corner modules even under dot and rounded styles to ensure 100% camera recognition; added clipboard image pasting (`Ctrl+V`) for immediate offline decoding.
+  - **Smart File Organizer Collision Defense**: Added source/target parity checks to prevent repetitive re-organizing and endless `(1)` suffix appending; introduced safe mode for organizing root directory only while skipping system/shortcut files (`desktop.ini`, `Thumbs.db`, `.lnk`, `~$*`).
+  - **Fast Duplicate Cleaner Custom Original Selection**: Added "Keep this as original" button on any duplicate replica to dynamically customize the retention target; added one-click actions to locate in Explorer or open with default applications.
+- 🔄 **Global Version Alignment & Live Update Perception**:
+  - Fixed hardcoded version display in the sidebar "Update Center" card; now fetches dynamically from the Electron runtime environment; aligned all core modules and manifests across the project to `v1.5.3`.
+
+---
+
 ## 🌟 What's New in v1.5.2
 
 - 📑 **Document Studio Resilience & Precision Editing**:

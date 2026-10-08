@@ -601,9 +601,10 @@ export default function Home() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [isDark, setIsDark] = useState<boolean>(false);
 
-  // 客户端自动更新弹窗状态
+  // 客户端自动更新弹窗状态与版本感知
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
+  const [appVersion, setAppVersion] = useState<string>("1.5.3");
 
   // 快捷键指南弹窗状态与全局提示
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
@@ -804,7 +805,13 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window !== "undefined" && (window as any).electronAPI) {
-      const unsubscribe = (window as any).electronAPI.onUpdateStatus(
+      const api = (window as any).electronAPI;
+      if (api.getAppVersion) {
+        api.getAppVersion().then((v: string) => {
+          if (v) setAppVersion(v);
+        }).catch(() => {});
+      }
+      const unsubscribe = api.onUpdateStatus(
         (data: any) => {
           if (data.status === "available" || data.status === "ready") {
             setHasUpdate(true);
@@ -1357,7 +1364,7 @@ export default function Home() {
                     </span>
                   ) : (
                     <span className="text-xs font-mono font-bold text-coconut-600 dark:text-darkbg-muted">
-                      v1.4.1
+                      v{appVersion}
                     </span>
                   )}
                 </div>

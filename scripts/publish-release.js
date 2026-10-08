@@ -149,7 +149,14 @@ async function main() {
 
   let release = releases.find((r) => r.tag_name === tagName);
   const releaseNotes = extractReleaseNotes();
-  const releaseTitle = `XC OmniBox v${version} - 体验与可靠性全面跃升 (PDF原位编辑/图片管线优化/表格防崩溃)`;
+  let releaseTitle = `XC OmniBox v${version} - 日常工坊深度优化与更新版本动态对齐`;
+  try {
+    const readme = fs.readFileSync(path.join(ROOT_DIR, 'README.md'), 'utf-8');
+    const match = readme.match(new RegExp(`## 🌟 v${version}\\s+([^/\\n]+)`));
+    if (match && match[1]) {
+      releaseTitle = `XC OmniBox v${version} - ${match[1].trim()}`;
+    }
+  } catch (_) {}
 
   if (!release) {
     console.log(`[GitHub API] Creating new release for tag ${tagName}...`);
