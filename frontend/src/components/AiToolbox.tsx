@@ -133,6 +133,7 @@ export default function AiToolbox({
   // =========================================================================
   const [bgFile, setBgFile] = useState<File | null>(null);
   const [bgPreviewUrl, setBgPreviewUrl] = useState<string | null>(null);
+  const [bgTransparentBlob, setBgTransparentBlob] = useState<Blob | null>(null);
   const [bgResultBlob, setBgResultBlob] = useState<Blob | null>(null);
   const [bgResultUrl, setBgResultUrl] = useState<string | null>(null);
   const [bgEngine, setBgEngine] = useState<BgRemovalEngine>("ai");
@@ -148,10 +149,51 @@ export default function AiToolbox({
     if (!file) return;
     setBgFile(file);
     setBgPreviewUrl(URL.createObjectURL(file));
+    setBgTransparentBlob(null);
     setBgResultBlob(null);
     setBgResultUrl(null);
     setBgError(null);
     setBgProgress(0);
+  };
+
+  const compositeBgColor = (sourceTransparentBlob: Blob, color: string): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const objUrl = URL.createObjectURL(sourceTransparentBlob);
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            canvas.toBlob((b) => {
+              if (b) {
+                setBgResultBlob(b);
+                setBgResultUrl(URL.createObjectURL(b));
+                resolve(b);
+              } else {
+                resolve(null);
+              }
+            }, "image/png");
+            return;
+          }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          URL.revokeObjectURL(objUrl);
+        }
+        resolve(null);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objUrl);
+        resolve(null);
+      };
+      img.src = objUrl;
+    });
   };
 
   const handleExecuteBgRemoval = async () => {
@@ -162,17 +204,22 @@ export default function AiToolbox({
     setBgStage(lang === "en" ? "Preparing model..." : "正在准备模型...");
 
     try {
-      const blob = await removeBackgroundAI(bgFile, {
+      const transparentBlob = await removeBackgroundAI(bgFile, {
         engine: bgEngine,
-        backgroundColor: selectedBgColor === "transparent" ? null : selectedBgColor,
+        backgroundColor: null,
         onProgress: (pct, stage) => {
           setBgProgress(pct);
           setBgStage(stage);
         },
       });
 
-      setBgResultBlob(blob);
-      setBgResultUrl(URL.createObjectURL(blob));
+      setBgTransparentBlob(transparentBlob);
+      if (selectedBgColor === "transparent") {
+        setBgResultBlob(transparentBlob);
+        setBgResultUrl(URL.createObjectURL(transparentBlob));
+      } else {
+        await compositeBgColor(transparentBlob, selectedBgColor);
+      }
       setBgProgress(100);
       setBgStage(lang === "en" ? "Cutout complete!" : "抠图完成！");
     } catch (err: any) {
@@ -187,34 +234,19 @@ export default function AiToolbox({
     }
   };
 
-  // 更改背景底色后重新合成
+  // 更改背景底色后重新合成 (同步更新 Blob 供下载和跨工具联动)
   const handleChangeBgColor = async (color: string) => {
     setSelectedBgColor(color);
-    if (!bgResultBlob && !bgFile) return;
-    // 如果已经抠好了透明图，实时在画布上合成或重新渲染
-    if (bgResultBlob && color !== "transparent") {
-      try {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
-          const ctx = canvas.getContext("2d")!;
-          ctx.fillStyle = color;
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-          canvas.toBlob((b) => {
-            if (b) {
-              setBgResultUrl(URL.createObjectURL(b));
-            }
-          }, "image/png");
-        };
-        img.src = URL.createObjectURL(bgResultBlob);
-      } catch (e) {
-        console.error(e);
+    const sourceBlob = bgTransparentBlob || bgResultBlob;
+    if (!sourceBlob) return;
+
+    if (color === "transparent") {
+      if (bgTransparentBlob) {
+        setBgResultBlob(bgTransparentBlob);
+        setBgResultUrl(URL.createObjectURL(bgTransparentBlob));
       }
-    } else if (bgResultBlob && color === "transparent") {
-      setBgResultUrl(URL.createObjectURL(bgResultBlob));
+    } else {
+      await compositeBgColor(sourceBlob, color);
     }
   };
 
@@ -388,6 +420,11 @@ export default function AiToolbox({
   const [inpaintCompareSlider, setInpaintCompareSlider] = useState(50);
   const [maskUndoAvailable, setMaskUndoAvailable] = useState(false);
   const [hasDrawnMask, setHasDrawnMask] = useState(false);
+  const [inpaintCursor, setInpaintCursor] = useState<{ x: number; y: number; visible: boolean }>({
+    x: 0,
+    y: 0,
+    visible: false,
+  });
 
   const inpaintImageCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const inpaintMaskCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -472,6 +509,12 @@ export default function AiToolbox({
     const scale = maskCanvas.width / rect.width;
     const actualBrush = brushSize * scale;
 
+    setInpaintCursor({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+      visible: true,
+    });
+
     maskCtx.beginPath();
     maskCtx.arc(pt.x, pt.y, actualBrush / 2, 0, Math.PI * 2);
     maskCtx.fillStyle = "rgba(239, 68, 68, 0.72)";
@@ -505,13 +548,34 @@ export default function AiToolbox({
     setHasDrawnMask(true);
   };
 
+  const handleInpaintPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const maskCanvas = inpaintMaskCanvasRef.current;
+    if (maskCanvas) {
+      const rect = maskCanvas.getBoundingClientRect();
+      setInpaintCursor({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        visible: true,
+      });
+    }
+    if (isDrawingRef.current) {
+      drawInpaint(e);
+    }
+  };
+
   const stopInpaintDrawing = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawingRef.current) return;
-    isDrawingRef.current = false;
-    lastPointRef.current = null;
-    try {
-      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch {}
+    if (isDrawingRef.current) {
+      isDrawingRef.current = false;
+      lastPointRef.current = null;
+      try {
+        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {}
+    }
+  };
+
+  const handleInpaintPointerLeave = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    stopInpaintDrawing(e);
+    setInpaintCursor((prev) => ({ ...prev, visible: false }));
   };
 
   const handleInpaintUndo = () => {
@@ -700,6 +764,7 @@ export default function AiToolbox({
   const [subtitleItems, setSubtitleItems] = useState<SubtitleItem[]>([]);
   const [subtitleCopied, setSubtitleCopied] = useState(false);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const subtitleSegmentEndRef = useRef<number | null>(null);
 
   const handleSubtitleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -722,6 +787,8 @@ export default function AiToolbox({
         handleUpscaleFileSelect({ target: { files: [incomingFile] } } as any);
       } else if (activeTab === "ai-ocr") {
         handleOcrFileSelect({ target: { files: [incomingFile] } } as any);
+      } else if (activeTab === "ai-searchable-pdf") {
+        handleSearchablePdfFileSelect({ target: { files: [incomingFile] } } as any);
       } else if (activeTab === "ai-subtitle") {
         handleSubtitleFileSelect({ target: { files: [incomingFile] } } as any);
       }
@@ -783,10 +850,22 @@ export default function AiToolbox({
     setSubtitleItems((prev) => [...prev, newItem]);
   };
 
-  const handlePlaySubtitleSegment = (start: number) => {
+  const handlePlaySubtitleSegment = (start: number, end: number) => {
     if (!audioPlayerRef.current) return;
+    subtitleSegmentEndRef.current = end;
     audioPlayerRef.current.currentTime = start;
     audioPlayerRef.current.play().catch(() => {});
+  };
+
+  const handleAudioTimeUpdate = () => {
+    if (
+      audioPlayerRef.current &&
+      subtitleSegmentEndRef.current !== null &&
+      audioPlayerRef.current.currentTime >= subtitleSegmentEndRef.current
+    ) {
+      audioPlayerRef.current.pause();
+      subtitleSegmentEndRef.current = null;
+    }
   };
 
   const handleExportSrt = () => {
@@ -1005,7 +1084,19 @@ export default function AiToolbox({
           <div className="lg:col-span-7 space-y-5">
             {/* 上传区域 */}
             {!bgFile ? (
-              <div className="bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center transition-all cursor-pointer relative group">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleBgFileSelect({ target: { files: [file] } } as any);
+                }}
+                className="bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center transition-all cursor-pointer relative group"
+              >
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/bmp"
@@ -1411,7 +1502,19 @@ export default function AiToolbox({
           {/* 右侧工作台 */}
           <div className="lg:col-span-7 coconut-panel p-5 sm:p-6 space-y-4">
             {!inpaintFile ? (
-              <div className="border-2 border-dashed border-coconut-300/80 dark:border-darkbg-border rounded-3xl p-10 flex flex-col items-center justify-center text-center hover:border-orange-500 transition-colors bg-coconut-50/50 dark:bg-darkbg-subtle relative min-h-[380px]">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleInpaintFileSelect({ target: { files: [file] } } as any);
+                }}
+                className="border-2 border-dashed border-coconut-300/80 dark:border-darkbg-border rounded-3xl p-10 flex flex-col items-center justify-center text-center hover:border-orange-500 transition-colors bg-coconut-50/50 dark:bg-darkbg-subtle relative min-h-[380px]"
+              >
                 <input
                   type="file"
                   accept="image/*"
@@ -1469,21 +1572,36 @@ export default function AiToolbox({
                       <span>{lang === "en" ? "Click & drag on the image to paint the red mask over objects to erase" : "🖱️ 提示：按住鼠标或触控在画面上涂抹红色半透明遮罩，标定需要擦除的物体或水印"}</span>
                     </div>
 
-                    <div className="relative w-full rounded-2xl overflow-hidden border border-coconut-200 dark:border-darkbg-border bg-checkerboard flex items-center justify-center min-h-[380px] max-h-[520px]">
-                      {/* 底层原始图画板 */}
-                      <canvas
-                        ref={inpaintImageCanvasRef}
-                        className="max-h-[500px] max-w-full object-contain pointer-events-none block"
-                      />
-                      {/* 顶层交互涂抹蒙版画板 */}
-                      <canvas
-                        ref={inpaintMaskCanvasRef}
-                        onPointerDown={startInpaintDrawing}
-                        onPointerMove={drawInpaint}
-                        onPointerUp={stopInpaintDrawing}
-                        onPointerLeave={stopInpaintDrawing}
-                        className="absolute inset-0 w-full h-full object-contain cursor-crosshair touch-none"
-                      />
+                    <div className="relative w-full rounded-2xl overflow-hidden border border-coconut-200 dark:border-darkbg-border bg-checkerboard flex items-center justify-center min-h-[380px] max-h-[520px] p-2">
+                      {/* 居中等比画布容器：确保底图与蒙版图绝对同像素盒模型 */}
+                      <div className="relative inline-block max-h-[500px] max-w-full overflow-hidden select-none">
+                        {/* 底层原始图画板 */}
+                        <canvas
+                          ref={inpaintImageCanvasRef}
+                          className="max-h-[500px] max-w-full block pointer-events-none"
+                        />
+                        {/* 顶层交互涂抹蒙版画板 */}
+                        <canvas
+                          ref={inpaintMaskCanvasRef}
+                          onPointerDown={startInpaintDrawing}
+                          onPointerMove={handleInpaintPointerMove}
+                          onPointerUp={stopInpaintDrawing}
+                          onPointerLeave={handleInpaintPointerLeave}
+                          className="absolute inset-0 w-full h-full cursor-none touch-none"
+                        />
+                        {/* 笔刷物理尺寸跟随圆环 */}
+                        {inpaintCursor.visible && (
+                          <div
+                            className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-red-500/90 bg-red-500/25 shadow-xs transition-transform duration-75"
+                            style={{
+                              left: `${inpaintCursor.x}px`,
+                              top: `${inpaintCursor.y}px`,
+                              width: `${brushSize}px`,
+                              height: `${brushSize}px`,
+                            }}
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -1710,7 +1828,19 @@ export default function AiToolbox({
           {/* 右侧工作台 */}
           <div className="lg:col-span-7 coconut-panel p-5 sm:p-6 space-y-4">
             {!searchablePdfFile ? (
-              <div className="border-2 border-dashed border-coconut-300/80 dark:border-darkbg-border rounded-3xl p-10 flex flex-col items-center justify-center text-center hover:border-orange-500 transition-colors bg-coconut-50/50 dark:bg-darkbg-subtle relative min-h-[380px]">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleSearchablePdfFileSelect({ target: { files: [file] } } as any);
+                }}
+                className="border-2 border-dashed border-coconut-300/80 dark:border-darkbg-border rounded-3xl p-10 flex flex-col items-center justify-center text-center hover:border-orange-500 transition-colors bg-coconut-50/50 dark:bg-darkbg-subtle relative min-h-[380px]"
+              >
                 <input
                   type="file"
                   accept="image/*"
@@ -1853,6 +1983,7 @@ export default function AiToolbox({
                   ref={audioPlayerRef}
                   controls
                   src={subtitleMediaUrl}
+                  onTimeUpdate={handleAudioTimeUpdate}
                   className="w-full h-8 accent-orange-600"
                 />
               </div>
@@ -1925,7 +2056,19 @@ export default function AiToolbox({
           {/* 右侧工作台 */}
           <div className="lg:col-span-7 coconut-panel p-5 sm:p-6 space-y-4">
             {!subtitleFile ? (
-              <div className="border-2 border-dashed border-coconut-300/80 dark:border-darkbg-border rounded-3xl p-10 flex flex-col items-center justify-center text-center hover:border-orange-500 transition-colors bg-coconut-50/50 dark:bg-darkbg-subtle relative min-h-[380px]">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleSubtitleFileSelect({ target: { files: [file] } } as any);
+                }}
+                className="border-2 border-dashed border-coconut-300/80 dark:border-darkbg-border rounded-3xl p-10 flex flex-col items-center justify-center text-center hover:border-orange-500 transition-colors bg-coconut-50/50 dark:bg-darkbg-subtle relative min-h-[380px]"
+              >
                 <input
                   type="file"
                   accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.mp4,.webm,.mkv"
@@ -2033,7 +2176,7 @@ export default function AiToolbox({
                             <div className="flex items-center gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => handlePlaySubtitleSegment(item.start)}
+                                onClick={() => handlePlaySubtitleSegment(item.start, item.end)}
                                 title={lang === "en" ? "Play this segment" : "试听此片段"}
                                 className="p-1 rounded-lg hover:bg-coconut-100 dark:hover:bg-darkbg-border text-coconut-600 dark:text-darkbg-muted"
                               >
@@ -2170,7 +2313,19 @@ export default function AiToolbox({
           {/* 右侧展示与文字编辑区域 */}
           <div className="lg:col-span-7 space-y-5">
             {!ocrFile ? (
-              <div className="bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center transition-all cursor-pointer relative group">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleOcrFileSelect({ target: { files: [file] } } as any);
+                }}
+                className="bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center transition-all cursor-pointer relative group"
+              >
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/bmp"
@@ -2486,7 +2641,19 @@ export default function AiToolbox({
           {/* 右侧展示与对比工作台 */}
           <div className="lg:col-span-7 space-y-5">
             {!upscaleFile ? (
-              <div className="bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center transition-all cursor-pointer relative group">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleUpscaleFileSelect({ target: { files: [file] } } as any);
+                }}
+                className="bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center transition-all cursor-pointer relative group"
+              >
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/bmp"

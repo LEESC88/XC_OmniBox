@@ -122,9 +122,18 @@ class ImageService:
         AI / 算法图像修复消除笔（去除杂物、路人、水印、划痕）
         参考 IOPaint 工业级算法，基于 OpenCV Telea 与 Navier-Stokes 高速修复
         """
-        # 读取原图
-        pil_img = Image.open(image_path).convert("RGB")
-        img_np = np.array(pil_img)
+        # 读取原图并保留透明通道
+        raw_pil = Image.open(image_path)
+        has_alpha = raw_pil.mode in ("RGBA", "LA") or (raw_pil.mode == "P" and "transparency" in raw_pil.info)
+
+        if has_alpha:
+            rgba_img = raw_pil.convert("RGBA")
+            alpha_channel = np.array(rgba_img.split()[-1])
+            img_np = np.array(rgba_img.convert("RGB"))
+        else:
+            alpha_channel = None
+            img_np = np.array(raw_pil.convert("RGB"))
+
         img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
         # 读取笔刷蒙版
@@ -147,9 +156,14 @@ class ImageService:
         flag = cv2.INPAINT_TELEA if method.lower() == "telea" else cv2.INPAINT_NS
         inpainted_bgr = cv2.inpaint(img_bgr, mask_np, inpaintRadius=max(1, radius), flags=flag)
 
-        # 保存为高保真 PNG
+        # 保存为高保真 PNG (保护透明通道)
         inpainted_rgb = cv2.cvtColor(inpainted_bgr, cv2.COLOR_BGR2RGB)
-        out_pil = Image.fromarray(inpainted_rgb)
+        if has_alpha and alpha_channel is not None:
+            out_rgba = np.dstack((inpainted_rgb, alpha_channel))
+            out_pil = Image.fromarray(out_rgba, mode="RGBA")
+        else:
+            out_pil = Image.fromarray(inpainted_rgb, mode="RGB")
+
         out_pil.save(output_path, format="PNG")
 
         return output_path

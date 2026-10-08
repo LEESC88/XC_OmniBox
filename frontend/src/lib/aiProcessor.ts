@@ -133,22 +133,98 @@ async function removeBackgroundChromaFallback(
 
         const tolerance = 42;
         const feather = 26;
+        const maxDist = tolerance + feather;
 
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
+        // BFS 边缘连通漫水：仅消除从图片四周边界连通的背景区域，保护主体内部的浅色/白色衣物与饰品
+        const totalPixels = w * h;
+        const visited = new Uint8Array(totalPixels);
+        const queue = new Int32Array(totalPixels);
+        let head = 0;
+        let tail = 0;
 
-          // 人眼感官亮度与色度加权距离
-          const dist = Math.sqrt(
+        const getColorDist = (idx4: number) => {
+          const r = data[idx4];
+          const g = data[idx4 + 1];
+          const b = data[idx4 + 2];
+          return Math.sqrt(
             0.299 * (r - bgR) ** 2 + 0.587 * (g - bgG) ** 2 + 0.114 * (b - bgB) ** 2
           );
+        };
 
-          if (dist < tolerance) {
-            data[i + 3] = 0; // 完全透明
-          } else if (dist < tolerance + feather) {
-            const factor = (dist - tolerance) / feather;
-            data[i + 3] = Math.round(data[i + 3] * factor); // 边缘平滑羽化
+        // 将四边边界匹配背景色的像素作为种子点注入队列
+        for (let x = 0; x < w; x++) {
+          const topIdx = x;
+          if (getColorDist(topIdx * 4) <= maxDist) {
+            visited[topIdx] = 1;
+            queue[tail++] = topIdx;
+          }
+          const btmIdx = (h - 1) * w + x;
+          if (visited[btmIdx] === 0 && getColorDist(btmIdx * 4) <= maxDist) {
+            visited[btmIdx] = 1;
+            queue[tail++] = btmIdx;
+          }
+        }
+
+        for (let y = 0; y < h; y++) {
+          const leftIdx = y * w;
+          if (visited[leftIdx] === 0 && getColorDist(leftIdx * 4) <= maxDist) {
+            visited[leftIdx] = 1;
+            queue[tail++] = leftIdx;
+          }
+          const rightIdx = y * w + (w - 1);
+          if (visited[rightIdx] === 0 && getColorDist(rightIdx * 4) <= maxDist) {
+            visited[rightIdx] = 1;
+            queue[tail++] = rightIdx;
+          }
+        }
+
+        // 4-邻域 BFS 漫水扩散
+        while (head < tail) {
+          const curr = queue[head++];
+          const cx = curr % w;
+          const cy = (curr / w) | 0;
+
+          if (cy > 0) {
+            const nIdx = curr - w;
+            if (visited[nIdx] === 0 && getColorDist(nIdx * 4) <= maxDist) {
+              visited[nIdx] = 1;
+              queue[tail++] = nIdx;
+            }
+          }
+          if (cy < h - 1) {
+            const nIdx = curr + w;
+            if (visited[nIdx] === 0 && getColorDist(nIdx * 4) <= maxDist) {
+              visited[nIdx] = 1;
+              queue[tail++] = nIdx;
+            }
+          }
+          if (cx > 0) {
+            const nIdx = curr - 1;
+            if (visited[nIdx] === 0 && getColorDist(nIdx * 4) <= maxDist) {
+              visited[nIdx] = 1;
+              queue[tail++] = nIdx;
+            }
+          }
+          if (cx < w - 1) {
+            const nIdx = curr + 1;
+            if (visited[nIdx] === 0 && getColorDist(nIdx * 4) <= maxDist) {
+              visited[nIdx] = 1;
+              queue[tail++] = nIdx;
+            }
+          }
+        }
+
+        // 根据连通标记与色度距离平滑调整透明度
+        for (let p = 0; p < totalPixels; p++) {
+          if (visited[p] === 1) {
+            const idx4 = p * 4;
+            const dist = getColorDist(idx4);
+            if (dist < tolerance) {
+              data[idx4 + 3] = 0;
+            } else {
+              const factor = (dist - tolerance) / feather;
+              data[idx4 + 3] = Math.round(data[idx4 + 3] * Math.max(0, Math.min(1, factor)));
+            }
           }
         }
 
@@ -645,11 +721,17 @@ export async function generateSearchablePdf(
   }
 
   try {
-    if (onProgress) onProgress(45, "正在进行图像文本自适应对比度预处理...");
-    const preprocessedUrl = await preprocessImageForOcr(imageSource);
-
-    if (onProgress) onProgress(65, "AI 正在识别字形拓扑并计算像素坐标对齐...");
-    const ret = await cachedWorker.recognize(preprocessedUrl, {}, { pdf: true });
+    if (onProgress) onProgress(50, "AI 正在识别字形拓扑并计算像素坐标对齐...");
+    const visualSourceUrl =
+      typeof imageSource === "string" ? imageSource : URL.createObjectURL(imageSource);
+    let ret;
+    try {
+      ret = await cachedWorker.recognize(visualSourceUrl, {}, { pdf: true });
+    } finally {
+      if (typeof imageSource !== "string") {
+        URL.revokeObjectURL(visualSourceUrl);
+      }
+    }
 
     const rawText = ret.data.text || "";
     const pdfData = ret.data.pdf;
