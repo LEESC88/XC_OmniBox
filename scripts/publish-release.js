@@ -71,15 +71,18 @@ function httpsRequest(url, options = {}, bodyBuffer = null) {
 
 function extractReleaseNotes() {
   try {
-    const readme = fs.readFileSync(path.join(ROOT_DIR, 'README.md'), 'utf-8');
+    const changelogPath = fs.existsSync(path.join(ROOT_DIR, 'CHANGELOG.md'))
+      ? path.join(ROOT_DIR, 'CHANGELOG.md')
+      : path.join(ROOT_DIR, 'README.md');
+    const content = fs.readFileSync(changelogPath, 'utf-8');
     const marker = `## 🌟 v${version}`;
-    const startIdx = readme.indexOf(marker);
+    const startIdx = content.indexOf(marker);
     if (startIdx !== -1) {
-      const endIdx = readme.indexOf('---', startIdx);
+      const endIdx = content.indexOf('---', startIdx);
       if (endIdx !== -1) {
-        return readme.substring(startIdx, endIdx).trim();
+        return content.substring(startIdx, endIdx).trim();
       }
-      return readme.substring(startIdx, startIdx + 1500).trim();
+      return content.substring(startIdx, startIdx + 1500).trim();
     }
   } catch (_) {}
   return `Release v${version} of XC_OmniBox`;
@@ -149,10 +152,13 @@ async function main() {
 
   let release = releases.find((r) => r.tag_name === tagName);
   const releaseNotes = extractReleaseNotes();
-  let releaseTitle = `XC OmniBox v${version} - 日常工坊深度优化与更新版本动态对齐`;
+  let releaseTitle = `XC OmniBox v${version}`;
   try {
-    const readme = fs.readFileSync(path.join(ROOT_DIR, 'README.md'), 'utf-8');
-    const match = readme.match(new RegExp(`## 🌟 v${version}\\s+([^/\\n]+)`));
+    const changelogPath = fs.existsSync(path.join(ROOT_DIR, 'CHANGELOG.md'))
+      ? path.join(ROOT_DIR, 'CHANGELOG.md')
+      : path.join(ROOT_DIR, 'README.md');
+    const content = fs.readFileSync(changelogPath, 'utf-8');
+    const match = content.match(new RegExp(`## 🌟 v${version}\\s+([^/\\n]+)`));
     if (match && match[1]) {
       releaseTitle = `XC OmniBox v${version} - ${match[1].trim()}`;
     }

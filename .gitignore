@@ -56,3 +56,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.tsbuildinfo
+
+# 6. AI Agent Skills
+.agents/skills/
+skills-lock.json

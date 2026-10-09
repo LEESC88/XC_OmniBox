@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "XC_OmniBox Desktop Architecture",
+    "subtitle": "Local-First Desktop Hybrid: Electron Host, Next.js 14 Frontend, Client DSP & FastAPI Engine",
+    "output": "docs/assets/architecture/architecture.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "Desktop User", "sublabel": "Windows x64 UI", "icon": "person", "pos": [40, 260], "size": [130, 64] },
+    
+    { "id": "electron-main", "type": "backend", "label": "Electron Main", "sublabel": "Lifecycle & Supervisor", "tag": "Main Process", "icon": "backend", "pos": [230, 150], "size": [150, 64] },
+    { "id": "electron-preload", "type": "security", "label": "Preload Bridge", "sublabel": "Context Isolation API", "tag": "IPC Sandbox", "icon": "security", "pos": [230, 260], "size": [150, 64] },
+    { "id": "auto-updater", "type": "cloud", "label": "Auto Updater", "sublabel": "electron-updater NSIS", "tag": "Release Channel", "icon": "cloud", "pos": [230, 370], "size": [150, 64] },
+
+    { "id": "fe-router", "type": "frontend", "label": "Next.js UI Shell", "sublabel": "React 18 & Tailwind", "tag": "SPA Router", "icon": "frontend", "pos": [450, 150], "size": [150, 64] },
+    { "id": "fe-canvas", "type": "frontend", "label": "Canvas DSP Engine", "sublabel": "2D Context & Workers", "tag": "BFS Flood-Fill", "icon": "frontend", "pos": [450, 260], "size": [150, 64] },
+    { "id": "fe-webaudio", "type": "frontend", "label": "Web Audio API", "sublabel": "AudioContext & DSP", "tag": "Live A/B Preview", "icon": "frontend", "pos": [450, 370], "size": [150, 64] },
+
+    { "id": "studio-doc", "type": "frontend", "label": "Document Studio", "sublabel": "In-Place PDF Editor", "tag": "PDF/Word Engine", "icon": "briefcase", "pos": [670, 150], "size": [150, 64] },
+    { "id": "studio-media", "type": "frontend", "label": "Media & AI Studios", "sublabel": "Audio, Image & Inpaint", "tag": "13 Offline Tools", "icon": "active", "pos": [670, 260], "size": [150, 64] },
+    { "id": "studio-util", "type": "frontend", "label": "Daily & Table Studios", "sublabel": "Text Diff & CSV Viewer", "tag": "10 Offline Tools", "icon": "flag", "pos": [670, 370], "size": [150, 64] },
+
+    { "id": "api-gateway", "type": "backend", "label": "FastAPI Gateway", "sublabel": "127.0.0.1:8000 Uvicorn", "tag": "Local REST", "icon": "backend", "pos": [890, 260], "size": [150, 64] },
+    
+    { "id": "py-doc-engine", "type": "backend", "label": "Document Core", "sublabel": "PyMuPDF & pdf2docx", "tag": "300+ DPI Fidelity", "icon": "database", "pos": [1110, 150], "size": [150, 64] },
+    { "id": "py-cv-engine", "type": "backend", "label": "Vision & OCR Core", "sublabel": "OpenCV & Tesseract", "tag": "Local AI Models", "icon": "database", "pos": [1110, 370], "size": [150, 64] },
+
+    { "id": "local-fs", "type": "database", "label": "Local File System", "sublabel": "100% Offline Sandbox", "tag": "Zero Cloud", "icon": "database", "pos": [1330, 260], "size": [150, 64] },
+    { "id": "github-releases", "type": "cloud", "label": "GitHub Releases", "sublabel": "Installer & Blockmaps", "tag": "v1.5.4 Tag", "icon": "cloud", "pos": [1330, 370], "size": [150, 64] }
+  ],
+  "boundaries": [
+    { "kind": "security-group", "label": "Electron Desktop Shell", "wraps": ["electron-main", "electron-preload", "auto-updater"] },
+    { "kind": "region", "label": "Next.js Client Presentation & Studios", "wraps": ["fe-router", "fe-canvas", "fe-webaudio", "studio-doc", "studio-media", "studio-util"] },
+    { "kind": "region", "label": "Embedded Python 3.11 Microservice", "wraps": ["api-gateway", "py-doc-engine", "py-cv-engine"] }
+  ],
+  "connections": [
+    { "id": "user-interaction", "from": "user", "to": "fe-router", "label": "User Input", "variant": "emphasis" },
+    { "id": "user-window", "from": "user", "to": "electron-preload", "label": "OS Events", "variant": "default" },
+    { "id": "preload-to-main", "from": "electron-preload", "to": "electron-main", "label": "ipcRenderer", "variant": "security" },
+    { "id": "main-spawns-api", "from": "electron-main", "to": "api-gateway", "label": "Process Supervisor", "variant": "default", "fromSide": "top", "toSide": "top" },
+    { "id": "updater-to-github", "from": "auto-updater", "to": "github-releases", "label": "Check Updates", "variant": "dashed", "fromSide": "bottom", "toSide": "bottom" },
+    
+    { "id": "fe-to-doc", "from": "fe-router", "to": "studio-doc", "label": "Document Tab" },
+    { "id": "fe-to-media", "from": "fe-router", "to": "studio-media", "label": "Media Tab" },
+    { "id": "fe-to-util", "from": "fe-router", "to": "studio-util", "label": "Utility Tab" },
+
+    { "id": "media-to-webaudio", "from": "studio-media", "to": "fe-webaudio", "label": "Audio DSP", "fromSide": "bottom", "toSide": "right" },
+    { "id": "media-to-canvas", "from": "studio-media", "to": "fe-canvas", "label": "Canvas Pixel", "fromSide": "left", "toSide": "right" },
+
+    { "id": "doc-to-api", "from": "studio-doc", "to": "api-gateway", "label": "Local REST", "variant": "emphasis" },
+    { "id": "media-to-api", "from": "studio-media", "to": "api-gateway", "label": "OCR & Inpaint", "variant": "emphasis" },
+
+    { "id": "api-to-pydoc", "from": "api-gateway", "to": "py-doc-engine", "label": "Doc Task" },
+    { "id": "api-to-pycv", "from": "api-gateway", "to": "py-cv-engine", "label": "Vision Task" },
+
+    { "id": "doc-to-fs", "from": "py-doc-engine", "to": "local-fs", "label": "Document I/O", "variant": "default" },
+    { "id": "cv-to-fs", "from": "py-cv-engine", "to": "local-fs", "label": "Image Cache", "variant": "default" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "100% Local-First Architecture",
+      "items": [
+        "Zero external cloud server dependency; all compute happens in local sandbox",
+        "Embedded Python 3.11 engine supervised and managed via Electron IPC lifecycle",
+        "Client-side DSP powered by HTML5 Canvas 2D, Web Workers, and Web Audio API"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Comprehensive Studio Workspaces",
+      "items": [
+        "Document Studio: In-place visual PDF editor & 300+ DPI fidelity converter",
+        "Media & AI Studio: Lossless image compressor, Web Audio DSP, and offline OCR",
+        "Daily & Table Studio: Anti-OOM chunked CSV/Excel viewer, text diffing, and QR code tools"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Enterprise Security & Native Distribution",
+      "items": [
+        "Context-isolated Electron preload bridge preventing Node.js injection vulnerabilities",
+        "FastAPI locked to loopback interface (127.0.0.1) with strict CORS origin verification",
+        "Automated release pipeline publishing NSIS installer & delta blockmaps to GitHub"
+      ]
+    }
+  ]
+}

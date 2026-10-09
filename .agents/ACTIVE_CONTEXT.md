@@ -1,16 +1,15 @@
 # Active Architecture Memory
 
-## 1. 状态与交付
-- 后端回归测试: `pytest backend/tests` (23/23 pass)
-- 前端编译类型检查: `npx tsc --noEmit` (100% pass)
-- 音频工坊 (Audio Studio) 全量 7 款工具全生命周期优化已闭环完成。
+## 1. 当前步骤
+- 完成 Archify 架构图设计与高精度双主题矢量/PNG导出 (`docs/assets/architecture-*.png`, `docs/architecture.html`)。
+- 解耦版本发布日志至 `CHANGELOG.md` 与 `CHANGELOG_ZH.md`，主 README 保持纯粹产品介绍。
+- `README.md` 设为主英文，`README_ZH.md` 保持中文镜像。
+- 更新 `scripts/publish-release.js` 支持直接读取 `CHANGELOG.md`。
 
-## 2. 音频工坊 (Audio Studio) 修复与优化清单
-1. **全局拖拽断裂修复 (T0)**: 拼接/音量/倍速/消伴奏 4 款工具拖拽上传事件全覆盖，杜绝页面跳转。
-2. **音频剪辑滑块脱靶与循环卡死修复 (T1)**: `setPointerCapture` 锁定鼠标交互，`loopSelectionRef` 消除循环闭包停顿。
-3. **音频转码单文件移除与前置过滤 (T1)**: 队列卡片新增单项删除，前置过滤拦截非法格式并友好提示。
-4. **音频拼接单轨试听与状态约束 (T1)**: 待拼队列支持独立试听；音轨 < 2 时禁用操作并引导。
-5. **视频提音频声画打点与静音阻断 (T1)**: 前置拦截无声轨视频；时间戳一键吸附视频播放点并支持区间精准试听。
-6. **音量调节 0-300% 衰减与实时 A/B 对比 (T1)**: 拓展衰减调节，支持 WAV/MP3 格式切换与毫秒级原声/效果 A/B 试听。
-7. **倍速变调明确与即时试听 (T1)**: 标注重采样变调特性，提供即时动态调速试听播放器。
-8. **消伴奏单声道阻断与实时预览 (T1)**: 检测 `channels < 2` 阻断并提示，提供低频调节实时伴奏试听。
+## 2. 核心架构与资产
+- 架构分层: Electron 桌面宿主 / Web Audio DSP 前端 / FastAPI 本地微服务 / 本地文件沙箱
+- 资产输出: `.archify/architecture.json`, `docs/assets/architecture-{dark,light}.png`, `docs/architecture.html`
+- 发布机制: `scripts/publish-release.js` 优先提取 `CHANGELOG.md` 对应版本块，回退至 `README.md`
+
+## 3. 待处理边界情况
+- 每次后续版本发布同步更新 `CHANGELOG.md` 及 `CHANGELOG_ZH.md`。
