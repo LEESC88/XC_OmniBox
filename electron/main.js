@@ -1,11 +1,9 @@
 const { app, BrowserWindow, dialog, protocol, Tray, Menu, shell, ipcMain, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const http = require('http');
 const crypto = require('crypto');
-const { spawn } = require('child_process');
-const treeKill = require('tree-kill');
 const { initUpdater } = require('./updater');
+const { registerIpcHandlers } = require('./ipcHandlers');
 
 let tray = null;
 let isQuitting = false;
@@ -44,11 +42,7 @@ const MIME_TYPES = {
 };
 
 const isDev = !app.isPackaged || process.env.NODE_ENV === 'development';
-const BACKEND_PORT = 18520;
 let mainWindow = null;
-let backendProcess = null;
-let restartAttempts = 0;
-const MAX_RESTART_ATTEMPTS = 5;
 
 // ================= 全局持久化设置管理 =================
 function getConfigFilePath() {
@@ -86,9 +80,11 @@ function saveDesktopConfig(newConfig) {
 }
 
 function getTempDirPath() {
-  return isDev
-    ? path.join(__dirname, '../backend/dist/omni-backend/temp')
-    : path.join(process.resourcesPath, 'backend/temp');
+  const dir = path.join(app.getPath('userData'), 'temp');
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  return dir;
 }
 
 function getFolderSize(dirPath) {
@@ -127,135 +123,7 @@ function clearFolder(dirPath) {
 }
 
 // 检查后端是否已就绪
-function waitForBackend(url, maxRetries = 30, interval = 500) {
-  return new Promise((resolve) => {
-    let attempts = 0;
-    const check = () => {
-      attempts++;
-      http.get(url, (res) => {
-        if (res.statusCode === 200) {
-          resolve(true);
-        } else if (attempts < maxRetries) {
-          setTimeout(check, interval);
-        } else {
-          resolve(false);
-        }
-      }).on('error', () => {
-        if (attempts < maxRetries) {
-          setTimeout(check, interval);
-        } else {
-          resolve(false);
-        }
-      });
-    };
-    check();
-  });
-}
 
-// 启动 Python 后端服务
-function startBackendService() {
-  const venvPython = path.join(__dirname, '../backend/venv/Scripts/python.exe');
-  const backendExecutable = isDev
-    ? path.join(__dirname, '../backend/dist/omni-backend/omni-backend.exe')
-    : path.join(process.resourcesPath, 'backend', 'omni-backend.exe');
-
-  try {
-    if (isDev && fs.existsSync(venvPython)) {
-      console.log(`[Electron Main Dev] Spawning live backend with venv python: ${venvPython}`);
-      backendProcess = spawn(venvPython, ['-m', 'uvicorn', 'app.main:app', '--port', String(BACKEND_PORT), '--host', '127.0.0.1'], {
-        cwd: path.join(__dirname, '../backend'),
-        windowsHide: true,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-    } else {
-      console.log(`[Electron Main] Spawning backend from: ${backendExecutable}`);
-      backendProcess = spawn(backendExecutable, ['--port', String(BACKEND_PORT), '--host', '127.0.0.1'], {
-        windowsHide: true,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-    }
-
-    if (backendProcess.stdout) {
-      backendProcess.stdout.on('data', (chunk) => {
-        console.log(`[Backend Log] ${chunk.toString().trim()}`);
-      });
-    }
-
-    if (backendProcess.stderr) {
-      backendProcess.stderr.on('data', (chunk) => {
-        const text = chunk.toString().trim();
-        if (/^INFO:\s*/.test(text) || text.startsWith('INFO:')) {
-          console.log(`[Backend Log] ${text}`);
-        } else {
-          console.error(`[Backend Error] ${text}`);
-        }
-      });
-    }
-
-    backendProcess.on('exit', (code, signal) => {
-      console.log(`[Backend Process Exited] code=${code}, signal=${signal}`);
-      backendProcess = null;
-      if (!isQuitting) {
-        if (restartAttempts < MAX_RESTART_ATTEMPTS) {
-          restartAttempts++;
-          console.warn(`[Supervisor] Python backend crashed! Triggering auto-restart (${restartAttempts}/${MAX_RESTART_ATTEMPTS}) in 1s...`);
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('backend:status', { status: 'recovering', attempt: restartAttempts });
-          }
-          setTimeout(() => {
-            restartBackendService();
-          }, 1000);
-        } else {
-          console.error('[Supervisor] Max restart attempts exceeded for Python backend.');
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('backend:status', { status: 'failed', error: 'Max auto-restarts exceeded' });
-          }
-        }
-      }
-    });
-  } catch (err) {
-    console.error('[Electron Main] Failed to spawn backend process:', err);
-  }
-}
-
-// 自动自愈重启 Python 后端服务
-async function restartBackendService() {
-  if (isQuitting) return false;
-  console.log('[Supervisor] Executing Python backend self-healing sequence...');
-  stopBackendService();
-  await new Promise((r) => setTimeout(r, 600));
-  startBackendService();
-  const healthy = await waitForBackend(`http://127.0.0.1:${BACKEND_PORT}/api/v1/health`, 20, 400);
-  if (healthy) {
-    console.log('[Supervisor] Python backend recovered and verified healthy!');
-    restartAttempts = 0;
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('backend:status', { status: 'healthy', recovered: true });
-    }
-    return true;
-  } else {
-    console.error('[Supervisor] Backend recovery failed to respond to health check in time.');
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('backend:status', { status: 'unhealthy', error: 'Health check timed out' });
-    }
-    return false;
-  }
-}
-
-// 彻底终止后端进程树，防止后台残留
-function stopBackendService() {
-  if (backendProcess && backendProcess.pid) {
-    console.log(`[Electron Main] Killing backend process PID=${backendProcess.pid}`);
-    try {
-      treeKill(backendProcess.pid, 'SIGKILL');
-    } catch (e) {
-      try {
-        spawn('taskkill', ['/pid', String(backendProcess.pid), '/T', '/F']);
-      } catch (_) {}
-    }
-    backendProcess = null;
-  }
-}
 
 function createTray() {
   if (tray) return;
@@ -499,189 +367,6 @@ function setupSettingsIPC() {
       return false;
     }
   });
-
-  ipcMain.handle('files:save-batch', async (_e, { files, targetFolder }) => {
-    let outDir = targetFolder || desktopConfig.customExportPath;
-    if (!outDir) {
-      try {
-        outDir = app.getPath('downloads');
-      } catch (_) {
-        outDir = process.cwd();
-      }
-    }
-    if (!fs.existsSync(outDir)) {
-      fs.mkdirSync(outDir, { recursive: true });
-    }
-    const savedPaths = [];
-    for (const f of files) {
-      const sanitizedName = path.basename(f.name);
-      let filePath = path.join(outDir, sanitizedName);
-      let count = 1;
-      const parsed = path.parse(sanitizedName);
-      while (fs.existsSync(filePath)) {
-        filePath = path.join(outDir, `${parsed.name}_(${count})${parsed.ext}`);
-        count++;
-      }
-      const buffer = Buffer.from(f.buffer);
-      await fs.promises.writeFile(filePath, buffer);
-      savedPaths.push(filePath);
-    }
-    return { success: true, folder: outDir, count: savedPaths.length };
-  });
-
-  ipcMain.handle('backend:restart', async () => {
-    return await restartBackendService();
-  });
-
-  ipcMain.handle('backend:check-health', async () => {
-    try {
-      const res = await new Promise((resolve) => {
-        const req = http.get(`http://127.0.0.1:${BACKEND_PORT}/api/v1/health`, (response) => {
-          resolve(response.statusCode === 200);
-        });
-        req.on('error', () => resolve(false));
-        req.setTimeout(1500, () => {
-          req.destroy();
-          resolve(false);
-        });
-      });
-      return res;
-    } catch (_) {
-      return false;
-    }
-  });
-
-  // ========== 第二期：目录极速扫描与安全归档 / 排重 IPC 管道 ==========
-  ipcMain.handle('files:scan-folder', async (_e, { folderPath, maxDepth = 10 }) => {
-    if (!folderPath || !fs.existsSync(folderPath)) {
-      throw new Error('指定文件夹路径不存在或无权访问');
-    }
-
-    const results = [];
-    function walk(currentDir, depth) {
-      if (depth > maxDepth) return;
-      let entries = [];
-      try {
-        entries = fs.readdirSync(currentDir, { withFileTypes: true });
-      } catch (_) {
-        return;
-      }
-
-      for (const entry of entries) {
-        const fullPath = path.join(currentDir, entry.name);
-        try {
-          if (entry.isDirectory()) {
-            // 跳过常见忽略目录
-            if (['.git', 'node_modules', '$RECYCLE.BIN', 'System Volume Information'].includes(entry.name)) {
-              continue;
-            }
-            walk(fullPath, depth + 1);
-          } else if (entry.isFile()) {
-            const stat = fs.statSync(fullPath);
-            results.push({
-              path: fullPath,
-              name: entry.name,
-              size: stat.size,
-              mtime: stat.mtimeMs,
-              ext: path.extname(entry.name).toLowerCase(),
-              relPath: path.relative(folderPath, fullPath),
-            });
-          }
-        } catch (_) {}
-      }
-    }
-
-    walk(folderPath, 0);
-    return { success: true, files: results, count: results.length };
-  });
-
-  ipcMain.handle('files:organize-execute', async (_e, { tasks }) => {
-    const executed = [];
-    const errors = [];
-
-    for (const task of tasks) {
-      try {
-        const sourceResolved = path.resolve(task.sourcePath);
-        const targetResolved = path.resolve(task.targetPath);
-
-        // 如果源文件已在目标路径（已完成归类），跳过避免自身冲突改名
-        if (sourceResolved === targetResolved) {
-          executed.push({ source: task.sourcePath, target: task.targetPath, skipped: true });
-          continue;
-        }
-
-        const targetDir = path.dirname(task.targetPath);
-        if (!fs.existsSync(targetDir)) {
-          fs.mkdirSync(targetDir, { recursive: true });
-        }
-        // 如果目标文件已存在，自动生成带 (1), (2) 的不冲突文件名
-        let finalTarget = task.targetPath;
-        let count = 1;
-        const parsed = path.parse(task.targetPath);
-        while (fs.existsSync(finalTarget)) {
-          if (path.resolve(finalTarget) === sourceResolved) {
-            break;
-          }
-          finalTarget = path.join(parsed.dir, `${parsed.name} (${count})${parsed.ext}`);
-          count++;
-        }
-
-        if (path.resolve(finalTarget) === sourceResolved) {
-          executed.push({ source: task.sourcePath, target: finalTarget, skipped: true });
-          continue;
-        }
-
-        fs.renameSync(task.sourcePath, finalTarget);
-        executed.push({ source: task.sourcePath, target: finalTarget });
-      } catch (err) {
-        errors.push({ source: task.sourcePath, error: err.message });
-      }
-    }
-
-    return { success: executed.length > 0 || errors.length === 0, count: executed.length, successCount: executed.length, errorCount: errors.length, executed, errors };
-  });
-
-  ipcMain.handle('files:show-item-in-folder', (_e, filePath) => {
-    if (filePath && fs.existsSync(filePath)) {
-      shell.showItemInFolder(filePath);
-      return true;
-    }
-    return false;
-  });
-
-  ipcMain.handle('files:trash-items', async (_e, { paths }) => {
-    let trashedCount = 0;
-    const errors = [];
-
-    for (const p of paths) {
-      try {
-        if (fs.existsSync(p)) {
-          await shell.trashItem(p);
-          trashedCount++;
-        }
-      } catch (err) {
-        errors.push({ path: p, error: err.message });
-      }
-    }
-
-    return { success: true, count: trashedCount, trashedCount, errorCount: errors.length, errors };
-  });
-
-  ipcMain.handle('files:read-file-hash', async (_e, { filePath, partialBytes }) => {
-    if (!fs.existsSync(filePath)) {
-      throw new Error('文件不存在');
-    }
-
-    return new Promise((resolve, reject) => {
-      const hash = crypto.createHash('md5');
-      const streamOptions = partialBytes ? { start: 0, end: partialBytes - 1 } : {};
-      const stream = fs.createReadStream(filePath, streamOptions);
-
-      stream.on('data', (chunk) => hash.update(chunk));
-      stream.on('end', () => resolve(hash.digest('hex')));
-      stream.on('error', (err) => reject(err));
-    });
-  });
 }
 
 // 单例锁：防止用户重复打开多个客户端实例
@@ -700,6 +385,7 @@ if (!gotTheLock) {
   app.whenReady().then(async () => {
     loadDesktopConfig();
     setupSettingsIPC();
+    registerIpcHandlers({ getDesktopConfig: () => desktopConfig });
 
     // 注册自定义 app:// 协议处理器
     protocol.handle('app', async (request) => {
@@ -745,17 +431,13 @@ if (!gotTheLock) {
       }
     });
 
-    // 1. 窗口与托盘秒开：不再等待 Python 后端冷启动就绪，实现 300ms 极速呈现
+    // 1. 窗口与托盘秒开
     createWindow();
     createTray();
 
-    // 2. 并行异步拉起 Python 后端，不阻塞 UI 渲染与用户交互
-    startBackendService();
-    waitForBackend(`http://127.0.0.1:${BACKEND_PORT}/api/v1/health`, 30, 400).then((healthy) => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('backend:status', { status: healthy ? 'healthy' : 'unhealthy' });
-      }
-    });
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('backend:status', { status: 'healthy' });
+    }
 
     // 监听文件导出/下载：支持指定固定目录与完成后自动在资源管理器定位
     session.defaultSession.on('will-download', (_event, item) => {
@@ -778,7 +460,6 @@ if (!gotTheLock) {
   });
 
   app.on('window-all-closed', () => {
-    stopBackendService();
     if (process.platform !== 'darwin') {
       app.quit();
     }
@@ -786,11 +467,9 @@ if (!gotTheLock) {
 
   app.on('before-quit', () => {
     isQuitting = true;
-    stopBackendService();
   });
 
   app.on('will-quit', () => {
     isQuitting = true;
-    stopBackendService();
   });
 }

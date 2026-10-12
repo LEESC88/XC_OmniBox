@@ -10,11 +10,6 @@ export const TOOL_TRANSLATIONS: Record<
   { name: string; desc: string; badge?: string }
 > = {
   // Document
-  "pdf-edit": {
-    name: "In-Place PDF Editor",
-    desc: "1:1 layout typography and in-place layer editing",
-    badge: "Word-like",
-  },
   "pdf-to-word": {
     name: "PDF to Word (Reverse)",
     desc: "High-fidelity extraction of tables and formatted layouts",
@@ -120,14 +115,9 @@ export const TOOL_TRANSLATIONS: Record<
     badge: "Voice Boost",
   },
   "speed": {
-    name: "Audio Speed & Reverse",
-    desc: "0.5x ~ 2.0x tempo adjustment & fun audio reverse playback",
-    badge: "Tempo/Reverse",
-  },
-  "karaoke": {
-    name: "Karaoke BGM & Vocal Cut",
-    desc: "Extract background accompaniment via center-channel cancellation",
-    badge: "Karaoke",
+    name: "Audio Speed Adjustment",
+    desc: "0.5x ~ 2.0x tempo adjustment with natural resampling pitch shift",
+    badge: "Speed",
   },
 
   // Utilities
@@ -157,36 +147,16 @@ export const TOOL_TRANSLATIONS: Record<
     badge: "Article Diff",
   },
 
-  // AI
-  "ai-bg-remove": {
-    name: "AI Hair-Level Cutout",
-    desc: "Pixel-perfect portrait cutout with complex backgrounds",
-    badge: "AI Cutout",
-  },
-  "ai-inpaint": {
-    name: "AI Magic Eraser / Inpaint",
-    desc: "Erase unwanted objects, passersby, watermarks & blemishes with smart inpainting",
-    badge: "Inpaint",
+  // Scanning & Text
+  "ai-ocr": {
+    name: "Offline Text Extraction (OCR)",
+    desc: "High-accuracy text recognition for documents, books, and receipts",
+    badge: "Multi-lang",
   },
   "ai-searchable-pdf": {
     name: "Searchable PDF Maker",
     desc: "Inject invisible searchable text layer into scanned images/PDFs for instant text search & copy",
     badge: "Dual-Layer PDF",
-  },
-  "ai-subtitle": {
-    name: "Audio/Video Subtitle Studio",
-    desc: "Offline audio energy VAD segmentation, millisecond timestamp alignment, 1-click SRT/VTT export",
-    badge: "Subtitles",
-  },
-  "ai-ocr": {
-    name: "AI Text Extraction (OCR)",
-    desc: "High-accuracy text recognition for documents, books, and receipts",
-    badge: "Multi-lang",
-  },
-  "ai-upscale": {
-    name: "AI Image Upscaler",
-    desc: "2x / 4x super-resolution reconstruction and edge sharpening",
-    badge: "Super-Res",
   },
 
   // Spreadsheet
@@ -208,7 +178,7 @@ export const CATEGORY_TRANSLATIONS: Record<string, string> = {
   image: "Image & Visual",
   audio: "Audio & Sound",
   utilities: "Everyday Utilities",
-  ai: "AI Magic Studio",
+  ai: "Scanning & Text Workshop",
 };
 
 // UI 通用完整字典
@@ -227,7 +197,7 @@ export const UI_DICTIONARY = {
       image: "图片",
       audio: "音频",
       utilities: "日常",
-      ai: "AI工坊",
+      ai: "扫描与文字",
     },
 
     spreadsheet: {
@@ -476,8 +446,8 @@ export const UI_DICTIONARY = {
       engineComDesc: "依托本机已安装的 Microsoft Office，300+ DPI 打印级无损矢量输出",
       engineLo: "LibreOffice 独立引擎",
       engineLoDesc: "开源跨平台解析核心，适合未安装正版 Office 的电脑",
-      backendPortTitle: "后端专属服务端口",
-      backendPortDesc: "当前监听端口：18520（专属安全独立通道，杜绝与 8000 端口冲突）",
+      backendPortTitle: "进程内原生架构",
+      backendPortDesc: "运行模式：Electron 纯进程内原生调用（免网络端口，零端口冲突风险）",
       runningNormally: "正常运行中",
 
       // About
@@ -592,7 +562,7 @@ export const UI_DICTIONARY = {
       image: "Image",
       audio: "Audio",
       utilities: "Utilities",
-      ai: "AI Studio",
+      ai: "Scan & Text",
     },
 
     spreadsheet: {
@@ -841,8 +811,8 @@ export const UI_DICTIONARY = {
       engineComDesc: "Utilizes installed Microsoft Office for 300+ DPI print-grade lossless vector rendering",
       engineLo: "LibreOffice Headless Engine",
       engineLoDesc: "Open-source cross-platform engine, ideal when Office is not installed",
-      backendPortTitle: "Dedicated Backend Service Port",
-      backendPortDesc: "Currently listening on port: 18520 (Secure isolated channel, avoiding port conflicts)",
+      backendPortTitle: "In-Process Native Architecture",
+      backendPortDesc: "Operating Mode: Pure Electron In-Process Native (Port-free, zero port conflict risk)",
       runningNormally: "Running Normally",
 
       // About

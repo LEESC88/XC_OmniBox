@@ -3,7 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
   platform: process.platform,
-  backendPort: 18520,
+  inProcess: true,
+  invoke: (channel, payload) => ipcRenderer.invoke(channel, payload),
 
   // 检查更新
   checkForUpdates: () => ipcRenderer.invoke('app:check-for-updates'),

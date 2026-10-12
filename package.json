@@ -1,25 +1,32 @@
 {
   "name": "xc-omnibox",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "description": "XC_OmniBox (XC 万象箱) - 全能多媒体创作效率桌面客户端",
   "author": "LEESC88",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
-    "dev": "concurrently \"npm --prefix frontend run dev\" \"run_backend.bat\"",
+    "dev": "npm --prefix frontend run dev",
     "dev:electron": "concurrently -k \"npm --prefix frontend run dev\" \"wait-on tcp:3000 && electron .\"",
     "build:frontend": "npm --prefix frontend run build",
-    "build:backend": "backend\\venv\\Scripts\\python.exe backend/build_backend.py",
-    "dist": "npm run build:frontend && npm run build:backend && electron-builder",
+    "dist": "npm run build:frontend && electron-builder",
     "dist:fast": "npm run build:frontend && electron-builder",
     "pack": "npm run build:frontend && electron-builder --dir",
     "release:publish": "node scripts/publish-release.js"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.11",
+    "@pdf-lib/fontkit": "^1.1.1",
+    "@pdfsmaller/pdf-encrypt-lite": "^1.2.0",
+    "archiver": "^8.0.0",
     "electron-updater": "^6.8.9",
-    "tree-kill": "^1.2.2"
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^3.11.174",
+    "sharp": "^0.35.5",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.12.2",
     "concurrently": "^10.0.5",
     "electron": "^44.4.3",
     "electron-builder": "^26.15.3",
@@ -31,19 +38,16 @@
     "directories": {
       "output": "release"
     },
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node",
+      "**/@img/sharp-win32-x64/**",
+      "**/@napi-rs/canvas-win32-x64-msvc/**"
+    ],
     "files": [
       "electron/**/*",
       "frontend/out/**/*",
       "resources/**/*"
-    ],
-    "extraResources": [
-      {
-        "from": "backend/dist/omni-backend",
-        "to": "backend",
-        "filter": [
-          "**/*"
-        ]
-      }
     ],
     "publish": [
       {

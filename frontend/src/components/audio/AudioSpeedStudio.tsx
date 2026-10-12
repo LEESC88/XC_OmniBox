@@ -15,7 +15,6 @@ import {
   getAudioContext,
   decodeAudioFile,
   changeAudioSpeed,
-  reverseAudioBuffer,
   exportAudioBuffer,
   formatDuration,
 } from "@/lib/audioProcessor";
@@ -38,7 +37,6 @@ export default function AudioSpeedStudio({
   const [speedFile, setSpeedFile] = useState<File | null>(null);
   const [speedBuffer, setSpeedBuffer] = useState<AudioBuffer | null>(null);
   const [speedPlaybackRate, setSpeedPlaybackRate] = useState<number>(1.25);
-  const [speedIsReversed, setSpeedIsReversed] = useState<boolean>(false);
   const [speedFormat, setSpeedFormat] = useState<"mp3" | "wav">("mp3");
   const [speedKbps, setSpeedKbps] = useState(320);
   const [speedResult, setSpeedResult] = useState<{ blob: Blob; filename: string; duration: number; url: string } | null>(null);
@@ -66,7 +64,7 @@ export default function AudioSpeedStudio({
       ctx.resume();
     }
     const source = ctx.createBufferSource();
-    source.buffer = speedIsReversed ? reverseAudioBuffer(speedBuffer) : speedBuffer;
+    source.buffer = speedBuffer;
     source.playbackRate.setValueAtTime(speedPlaybackRate, ctx.currentTime);
     source.connect(ctx.destination);
     source.onended = () => {
@@ -87,13 +85,11 @@ export default function AudioSpeedStudio({
 
   // Sync playback rate immediately if playing
   useEffect(() => {
-    if (sourceNodeRef.current && isPlaying && !speedIsReversed) {
+    if (sourceNodeRef.current && isPlaying) {
       const ctx = getAudioContext();
       sourceNodeRef.current.playbackRate.setValueAtTime(speedPlaybackRate, ctx.currentTime);
-    } else if (isPlaying && speedIsReversed) {
-      startPreview();
     }
-  }, [speedPlaybackRate, speedIsReversed]);
+  }, [speedPlaybackRate, isPlaying]);
 
   // Clean up Object URL and preview playback
   useEffect(() => {
@@ -133,17 +129,14 @@ export default function AudioSpeedStudio({
   const handleExecuteSpeed = async () => {
     if (!speedBuffer || !speedFile) return;
     setIsProcessing(true);
-    setProgressMsg(lang === "en" ? "Applying speed adjustment & rendering..." : "正在进行离线硬件级音频倍速与倒放渲染...");
+    setProgressMsg(lang === "en" ? "Applying speed adjustment & rendering..." : "正在进行离线硬件级音频倍速渲染...");
     setError(null);
 
     try {
-      let processed = await changeAudioSpeed(speedBuffer, speedPlaybackRate);
-      if (speedIsReversed) {
-        processed = reverseAudioBuffer(processed);
-      }
+      const processed = await changeAudioSpeed(speedBuffer, speedPlaybackRate);
       const { blob, ext } = await exportAudioBuffer(processed, speedFormat, speedKbps);
       const baseName = speedFile.name.replace(/\.[^/.]+$/, "");
-      const tag = `${speedPlaybackRate}x${speedIsReversed ? "_reversed" : ""}`;
+      const tag = `${speedPlaybackRate}x`;
       const outputFilename = `${baseName}_${tag}.${ext}`;
       setSpeedResult({
         blob,
@@ -152,7 +145,7 @@ export default function AudioSpeedStudio({
         url: URL.createObjectURL(blob),
       });
     } catch (err: any) {
-      setError((lang === "en" ? "Speed change failed: " : "音频变速/倒放失败: ") + err.message);
+      setError((lang === "en" ? "Speed change failed: " : "音频变速失败: ") + err.message);
     } finally {
       setIsProcessing(false);
       setProgressMsg("");
@@ -178,12 +171,12 @@ export default function AudioSpeedStudio({
       <div className="coconut-panel p-5 sm:p-6 space-y-5">
         <div>
           <h3 className="text-base font-bold text-coconut-900 dark:text-darkbg-text">
-            {lang === "en" ? "Audio Speed & Reverse Playback" : "音频变速变调与倒放处理"}
+            {lang === "en" ? "Audio Speed Adjustment" : "音频变速变调调节"}
           </h3>
           <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
             {lang === "en"
-              ? "Change tempo/playback speed (0.5x to 2.0x) or reverse the entire audio for creative sound design and meme effects."
-              : "支持 0.5x 到 2.0x 任意倍速调节，或将整首歌曲/人声从尾到头逆向倒放，制作趣味反向音效。"}
+              ? "Change tempo/playback speed (0.5x to 2.0x) with hardware-accelerated offline audio processing."
+              : "支持 0.5x 到 2.0x 任意倍速调节，纯本地离线硬件加速重采样。"}
           </p>
         </div>
 
@@ -215,7 +208,7 @@ export default function AudioSpeedStudio({
             />
             <Clock className="w-10 h-10 text-toast-500 mx-auto mb-2" />
             <div className="text-sm sm:text-base font-bold text-coconut-900 dark:text-darkbg-text">
-              {lang === "en" ? "Click or drag audio file here for speed/reverse" : "点击或拖拽上传音频调节倍速/倒放"}
+              {lang === "en" ? "Click or drag audio file here for speed adjustment" : "点击或拖拽上传音频调节倍速"}
             </div>
             <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
               {lang === "en" ? "Supports MP3, WAV, AAC, OGG, FLAC and more" : "支持 MP3, WAV, AAC, OGG, FLAC 等主流音频格式"}
@@ -287,27 +280,7 @@ export default function AudioSpeedStudio({
               </div>
             </div>
 
-            {/* Reverse playback option */}
-            <label className="flex items-center space-x-3 p-4 rounded-2xl bg-coconut-50/60 dark:bg-darkbg-subtle border border-coconut-200/60 dark:border-darkbg-border cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={speedIsReversed}
-                onChange={(e) => setSpeedIsReversed(e.target.checked)}
-                className="rounded accent-palm-600 dark:accent-palm-400 w-4 h-4"
-              />
-              <div>
-                <div className="text-xs sm:text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                  {lang === "en" ? "Reverse Audio (Play Backwards)" : "音频完全倒放 (Reverse Audio)"}
-                </div>
-                <div className="text-[11px] text-coconut-600 dark:text-darkbg-muted mt-0.5">
-                  {lang === "en"
-                    ? "Inverts the entire audio timeline from end to beginning. Can be combined with speed changes."
-                    : "将整段音频时间轴从结尾逆向颠倒至开头，适合趣味搞怪、解密音效或反转倒放效果制作。"}
-                </div>
-              </div>
-            </label>
-
-            {/* Live Speed / Reverse Preview Player */}
+            {/* Live Speed Preview Player */}
             <div className="p-4 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center space-x-3">
                 <button
@@ -332,7 +305,7 @@ export default function AudioSpeedStudio({
                   )}
                 </button>
                 <span className="text-xs font-mono font-bold text-toast-500">
-                  {speedPlaybackRate.toFixed(2)}x {speedIsReversed ? (lang === "en" ? "· Reversed" : "· 倒放") : ""}
+                  {speedPlaybackRate.toFixed(2)}x
                 </span>
               </div>
 
@@ -381,7 +354,7 @@ export default function AudioSpeedStudio({
                 ) : (
                   <>
                     <Clock className="w-4 h-4" />
-                    <span>{lang === "en" ? "Render Speed / Reverse" : "开始倍速/倒放处理"}</span>
+                    <span>{lang === "en" ? "Render Speed" : "开始倍速处理"}</span>
                   </>
                 )}
               </button>
@@ -396,7 +369,7 @@ export default function AudioSpeedStudio({
           <div className="flex items-center justify-between pb-3 border-b border-coconut-100 dark:border-darkbg-border">
             <div className="flex items-center space-x-2 text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
               <CheckCircle2 className="w-4 h-4" />
-              <span>{lang === "en" ? "Speed / Reverse Processing Complete!" : "倍速/倒放音频生成完成！"}</span>
+              <span>{lang === "en" ? "Speed Processing Complete!" : "倍速音频生成完成！"}</span>
             </div>
             <div className="flex items-center space-x-2">
               <SendToButton

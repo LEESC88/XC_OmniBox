@@ -30,7 +30,6 @@ import {
 } from "lucide-react";
 
 import Dropzone from "@/components/Dropzone";
-import InPlacePdfEditor from "@/components/InPlacePdfEditor";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
 import PdfMergeStudio from "@/components/pdf/PdfMergeStudio";
 import PdfSplitStudio from "@/components/pdf/PdfSplitStudio";
@@ -56,7 +55,6 @@ import {
 } from "@/lib/api";
 
 export type DocTabType =
-  | "pdf-edit"
   | "pdf-to-word"
   | "word-to-pdf"
   | "pdf-merge"
@@ -72,12 +70,6 @@ export interface DocumentToolboxProps {
   onTabChange?: (tab: DocTabType) => void;
   incomingFiles?: File[];
   onIncomingFilesHandled?: () => void;
-  onOpenEditor?: (data: {
-    file: File;
-    title: string;
-    numPages: number;
-    pages: any[];
-  }) => void;
 }
 
 export default function DocumentToolbox({
@@ -85,13 +77,12 @@ export default function DocumentToolbox({
   onTabChange,
   incomingFiles,
   onIncomingFilesHandled,
-  onOpenEditor,
 }: DocumentToolboxProps) {
   const { lang, t } = useI18n();
 
   // Active sub-tab state
   const [activeTab, setActiveTab] = useState<DocTabType>(
-    currentTab || "pdf-edit",
+    currentTab || "pdf-to-word",
   );
 
   // File queue & execution status states
@@ -124,15 +115,6 @@ export default function DocumentToolbox({
     "light" | "standard" | "high"
   >("high");
 
-  // In-place PDF editor state
-  const [editorData, setEditorData] = useState<{
-    file: File;
-    title: string;
-    numPages: number;
-    pages: any[];
-  } | null>(null);
-  const [parsingEditor, setParsingEditor] = useState(false);
-
   // PDF to Word thumbnail preview state
   const [pdfToWordThumb, setPdfToWordThumb] = useState<{
     url?: string;
@@ -156,7 +138,6 @@ export default function DocumentToolbox({
       setFiles([]);
       setError(null);
       setSuccessMsg(null);
-      setEditorData(null);
       setExecutionResult(null);
     }
   }, [currentTab]);
@@ -205,50 +186,12 @@ export default function DocumentToolbox({
     setFiles([]);
     setError(null);
     setSuccessMsg(null);
-    setEditorData(null);
     setExecutionResult(null);
     setProtectPassword("");
     setConfirmPassword("");
     setStartPage(0);
     setEndPage(null);
     onTabChange?.(tabId);
-  };
-
-  // Launch 1:1 In-Place PDF Editor
-  const handleStartEditor = async () => {
-    if (files.length === 0) {
-      setError(
-        lang === "en"
-          ? "Please select a PDF file first"
-          : "请先上传需要编辑的 PDF 文件",
-      );
-      return;
-    }
-    setParsingEditor(true);
-    setError(null);
-    try {
-      const data = await renderPdfPages(files[0]);
-      const edData = {
-        file: files[0],
-        title: data.title || files[0].name.replace(/\.[^/.]+$/, ""),
-        numPages: data.numPages,
-        pages: data.pages,
-      };
-      if (onOpenEditor) {
-        onOpenEditor(edData);
-      } else {
-        setEditorData(edData);
-      }
-    } catch (err: any) {
-      setError(
-        err.message ||
-          (lang === "en"
-            ? "Failed to parse original PDF"
-            : "解析原版 PDF 失败"),
-      );
-    } finally {
-      setParsingEditor(false);
-    }
   };
 
   // Action button label resolution
@@ -577,12 +520,6 @@ export default function DocumentToolbox({
   // Tab definitions with localized labels and badges
   const docTabs = [
     {
-      id: "pdf-edit",
-      label: lang === "en" ? "In-Place PDF Editor" : "PDF 在线原位编辑",
-      icon: Edit3,
-      badge: lang === "en" ? "Word-like" : "Word级",
-    },
-    {
       id: "pdf-to-word",
       label: lang === "en" ? "PDF to Word (Reverse)" : "PDF 逆向转 Word",
       icon: FileText,
@@ -638,139 +575,16 @@ export default function DocumentToolbox({
     },
   ];
 
-  // Fullscreen In-Place PDF Editor mode
-  if (activeTab === "pdf-edit" && editorData) {
-    return (
-      <div className="fixed inset-0 z-50 bg-coconut-100/60 dark:bg-darkbg-canvas flex flex-col p-2 sm:p-4">
-        <InPlacePdfEditor
-          originalFile={editorData.file}
-          docTitle={editorData.title}
-          numPages={editorData.numPages}
-          pages={editorData.pages}
-          onExit={() => setEditorData(null)}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {/* 10 Document & PDF Horizontal Sub-tabs Nav */}
+      {/* 9 Document & PDF Horizontal Sub-tabs Nav */}
       <ScrollableTabNav
         tabs={docTabs}
         activeTab={activeTab}
         onTabChange={(id) => handleTabSelect(id as DocTabType)}
       />
 
-      {/* PDF Online In-Place Editor Card */}
-      {activeTab === "pdf-edit" ? (
-        <div className="coconut-panel p-6 sm:p-8 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-            <div className="flex items-start sm:items-center gap-3.5">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-orange-500/25 flex items-center justify-center text-white flex-shrink-0">
-                <Edit3 className="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center flex-wrap gap-2">
-                  <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                    {t.pdfEdit.title}
-                  </h3>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 tracking-wider uppercase">
-                    {t.pdfEdit.badge || "1:1 原版锁定"}
-                  </span>
-                </div>
-                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                  {t.pdfEdit.desc}
-                </p>
-              </div>
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span>{t.pdfEdit.privacyGuarantee || "100% 本地沙盒 · 零云端上传"}</span>
-            </div>
-          </div>
-
-          <Dropzone
-            accept=".pdf"
-            multiple={false}
-            selectedFiles={files}
-            onFilesSelected={setFiles}
-            onClear={() => setFiles([])}
-            title={t.pdfEdit.dropzoneTitle}
-            hint={t.pdfEdit.dropzoneHint}
-            badge={t.pdfEdit.badge || "1:1 原版锁定"}
-          />
-
-          {/* Three Feature Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FAF1E8]/60 dark:bg-[#251E1A]/60 border border-[#D2BCAB]/50 dark:border-[#4D392E]/60 space-y-1.5 transition-all hover:border-amber-500/40">
-              <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                <div className="w-6 h-6 rounded-lg bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                  <Type className="w-3.5 h-3.5" />
-                </div>
-                <span>{t.pdfEdit.feature1Title || "原位文字修改"}</span>
-              </div>
-              <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted leading-relaxed pl-8">
-                {t.pdfEdit.feature1Desc || "1:1 锁定版面字符坐标，排版零位移直接覆写修改"}
-              </p>
-            </div>
-
-            <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FAF1E8]/60 dark:bg-[#251E1A]/60 border border-[#D2BCAB]/50 dark:border-[#4D392E]/60 space-y-1.5 transition-all hover:border-orange-500/40">
-              <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                <div className="w-6 h-6 rounded-lg bg-orange-500/10 dark:bg-orange-500/20 flex items-center justify-center text-orange-600 dark:text-orange-400">
-                  <Eraser className="w-3.5 h-3.5" />
-                </div>
-                <span>{t.pdfEdit.feature2Title || "无痕遮盖涂抹"}</span>
-              </div>
-              <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted leading-relaxed pl-8">
-                {t.pdfEdit.feature2Desc || "像素级白底与色块覆盖，精准隐藏敏感机密信息"}
-              </p>
-            </div>
-
-            <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FAF1E8]/60 dark:bg-[#251E1A]/60 border border-[#D2BCAB]/50 dark:border-[#4D392E]/60 space-y-1.5 transition-all hover:border-rose-500/40">
-              <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                <div className="w-6 h-6 rounded-lg bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400">
-                  <Layers className="w-3.5 h-3.5" />
-                </div>
-                <span>{t.pdfEdit.feature3Title || "图层增补与批注"}</span>
-              </div>
-              <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted leading-relaxed pl-8">
-                {t.pdfEdit.feature3Desc || "自由插入新文本框、印章签名、批注便签与高亮图层"}
-              </p>
-            </div>
-          </div>
-
-          {error && (
-            <div className="p-3.5 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-2.5 text-toast-700 dark:text-toast-300 text-xs">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 text-toast-500" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <button
-            onClick={handleStartEditor}
-            disabled={parsingEditor}
-            className={`w-full py-4 px-6 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 transition-all duration-300 ${
-              parsingEditor
-                ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
-                : "btn-3d-sunset text-white cursor-pointer group shadow-lg"
-            }`}
-          >
-            {parsingEditor ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>{t.pdfEdit.parsing}</span>
-              </>
-            ) : (
-              <>
-                <Edit3 className="w-5 h-5 text-amber-100 group-hover:scale-110 transition-transform" />
-                <span>{t.pdfEdit.launchBtn}</span>
-                <ArrowRight className="w-4 h-4 opacity-75 group-hover:translate-x-1 transition-transform" />
-              </>
-            )}
-          </button>
-        </div>
-      ) : activeTab === "pdf-merge" ? (
+      {activeTab === "pdf-merge" ? (
         /* PDF Multi-File Merge Studio */
         files.length > 0 ? (
           <div className="coconut-panel p-6 sm:p-8">

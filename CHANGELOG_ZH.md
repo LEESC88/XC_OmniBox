@@ -6,6 +6,20 @@
 
 ---
 
+## 🌟 v1.5.5 纯进程内原生架构与安装包极致精简
+
+- ⚡ **Electron 纯进程内原生架构重构（彻底告别 Python 与外部网络端口）**：
+  - **彻底移除 Python 守护进程与 18520 端口轮询**：全面移除后台外部子进程启动、端口探测与 PyInstaller 构建包。所有后台计算任务全面平移为 Node.js 进程内 IPC 通道，内存级直连调用，杜绝任何外部端口冲突与启动等待。
+  - **Node.js 核心服务层全面接管**：自研构建 `documentService`（基于 `pdf-lib`、`sharp`、`archiver`、`@pdfsmaller/pdf-encrypt-lite` 及 Windows 原生 Word COM 接口）、`imageService`（基于 `sharp` 高性能图像转换、ICO图标生成与 EXIF 清理）、`spreadsheetService`（基于 `xlsx` 流式多表合并与智能拆分）以及 `utilityService`（目录极速归档与三级哈希去重）。
+  - **纯 Node.js 高保真 PDF 页面渲染**：集成 `@napi-rs/canvas` 与 `pdfjs-dist`，免编译、免 Python 即可毫秒级高保真提取物理文字块坐标与渲染高清缩略图。
+- 📦 **安装包体积骤减 83%（137 MB vs 原 820 MB）**：
+  - 清理所有臃肿的 Python 运行时环境，启用 ASAR 固化与原生模块 `asarUnpack` 精准解包，Windows NSIS 安装包体积从原本的 **~820 MB** 大幅缩减至 **137.1 MB**。
+- 🧹 **工具矩阵精简瘦身与分类规范**：
+  - 彻底下线 6 款玩具级与重度依赖外部 Python 算法的工具（PDF 在线文字编辑、人声提取伴奏、智能消除笔、无损放大、视频断句字幕、智能抠图）。
+  - 【AI 智能工坊】更名为【扫描与文字工坊】，保留核心实用工具（离线文字提取、双层可搜索 PDF）。
+
+---
+
 ## 🌟 v1.5.4 音频工坊体验闭环与 AI 视觉边界加固
 
 - 🎵 **音频工坊全量工具体验优化与防御闭环**：

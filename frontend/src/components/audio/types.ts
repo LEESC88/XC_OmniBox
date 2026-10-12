@@ -1,4 +1,4 @@
-export type AudioToolTab = "trim" | "convert" | "merge" | "extract" | "volume" | "speed" | "karaoke";
+export type AudioToolTab = "trim" | "convert" | "merge" | "extract" | "volume" | "speed";
 
 export interface MergeTrack {
   id: string;

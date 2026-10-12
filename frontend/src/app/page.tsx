@@ -55,7 +55,6 @@ import {
 } from "lucide-react";
 import CoconutLogo from "@/components/CoconutLogo";
 import DocumentToolbox, { DocTabType } from "@/components/DocumentToolbox";
-import InPlacePdfEditor from "@/components/InPlacePdfEditor";
 import SpreadsheetToolbox, { SpreadsheetTab } from "@/components/SpreadsheetToolbox";
 import ImageToolbox from "@/components/ImageToolbox";
 import AudioToolbox from "@/components/AudioToolbox";
@@ -95,8 +94,7 @@ type AudioTabType =
   | "merge"
   | "extract"
   | "volume"
-  | "speed"
-  | "karaoke";
+  | "speed";
 type DailyTabType = "idphoto" | "organize" | "duplicate" | "qrcode" | "diff";
 type SpreadsheetTabType = "sheet-merge" | "sheet-split";
 type ModuleType = "document" | "spreadsheet" | "image" | "audio" | "utilities" | "ai";
@@ -122,15 +120,6 @@ const TOOLS_REGISTRY: {
     module: "document",
     icon: FileText,
     tools: [
-      {
-        id: "pdf-edit",
-        module: "document",
-        name: "PDF 在线原位编辑",
-        desc: "1:1 原版排版就地改字与图层修改",
-        badge: "Word级",
-        icon: Edit3,
-        keywords: ["pdf", "编辑", "改字", "修改", "word"],
-      },
       {
         id: "pdf-to-word",
         module: "document",
@@ -353,20 +342,11 @@ const TOOLS_REGISTRY: {
       {
         id: "speed",
         module: "audio",
-        name: "音频倍速与倒放",
-        desc: "0.5x~2.0x 变速不变调与短视频趣味倒放",
-        badge: "倍速/倒放",
+        name: "音频调速",
+        desc: "0.5x~2.0x 变速与重采样自然联动调节",
+        badge: "音频调速",
         icon: Clock,
-        keywords: ["变速", "倍速", "倒放", "快放", "慢放"],
-      },
-      {
-        id: "karaoke",
-        module: "audio",
-        name: "卡拉OK伴奏提取",
-        desc: "中央声道人声消除与低音保留，一键做伴奏",
-        badge: "一键伴奏",
-        icon: Mic,
-        keywords: ["伴奏", "消人声", "卡拉ok", "ktv", "人声提取"],
+        keywords: ["变速", "倍速", "快放", "慢放", "调速"],
       },
     ],
   },
@@ -423,27 +403,18 @@ const TOOLS_REGISTRY: {
     ],
   },
   {
-    category: "AI 智能工坊",
+    category: "扫描与文字工坊",
     module: "ai",
-    icon: Sparkles,
+    icon: FileSearch,
     tools: [
       {
-        id: "ai-bg-remove",
+        id: "ai-ocr",
         module: "ai",
-        name: "AI 发丝级智能抠图",
-        desc: "逐像素分离人像与复杂背景，支持一键证件照换底排版",
-        badge: "AI抠图",
-        icon: Sparkles,
-        keywords: ["抠图", "去除背景", "透明底", "人像", "发丝", "ai"],
-      },
-      {
-        id: "ai-inpaint",
-        module: "ai",
-        name: "AI 消除笔 / 去水印",
-        desc: "智能涂抹消除画面杂物、路人、水印与瑕疵，边缘平滑修补",
-        badge: "智能涂抹",
-        icon: Eraser,
-        keywords: ["消除", "去水印", "橡皮擦", "涂抹", "擦除", "inpaint", "ai"],
+        name: "离线文字提取 (OCR)",
+        desc: "高精提取中英文、书籍、发票及表格字形，支持一键复制与 TXT 导出",
+        badge: "多语言",
+        icon: FileText,
+        keywords: ["ocr", "文字提取", "识别", "扫描", "文字识别"],
       },
       {
         id: "ai-searchable-pdf",
@@ -459,35 +430,7 @@ const TOOLS_REGISTRY: {
           "ocr",
           "复制文字",
           "pdf",
-          "ai",
         ],
-      },
-      {
-        id: "ai-subtitle",
-        module: "ai",
-        name: "音视频智能断句字幕",
-        desc: "离线硬件级音频能量切片，毫秒对齐语音时间轴，一键导出 SRT/VTT 字幕",
-        badge: "字幕提取",
-        icon: Captions,
-        keywords: ["字幕", "断句", "vad", "srt", "vtt", "音频", "视频", "ai"],
-      },
-      {
-        id: "ai-ocr",
-        module: "ai",
-        name: "AI 文字提取 (OCR)",
-        desc: "高精提取中英文、书籍、发票及表格字形，支持一键复制与 TXT 导出",
-        badge: "多语言",
-        icon: FileText,
-        keywords: ["ocr", "文字提取", "识别", "扫描", "文字识别", "ai"],
-      },
-      {
-        id: "ai-upscale",
-        module: "ai",
-        name: "AI 模糊图片高清修复",
-        desc: "2x / 4x 超分辨率重建与边缘锐化，让低清模糊图焕发新生",
-        badge: "超分辨率",
-        icon: Maximize2,
-        keywords: ["超清", "修复", "高清", "放大", "清晰度", "降噪", "ai"],
       },
     ],
   },
@@ -514,20 +457,14 @@ export default function Home() {
   };
   const [expandedModule, setExpandedModule] = useState<ModuleType | null>(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
-  const [activeDocTab, setActiveDocTab] = useState<DocTabType>("pdf-edit");
-  const [editorData, setEditorData] = useState<{
-    file: File;
-    title: string;
-    numPages: number;
-    pages: any[];
-  } | null>(null);
+  const [activeDocTab, setActiveDocTab] = useState<DocTabType>("pdf-to-word");
   const [activeImageTab, setActiveImageTab] =
     useState<ImageTabType>("compress");
   const [activeAudioTab, setActiveAudioTab] = useState<AudioTabType>("trim");
   const [activeDailyTab, setActiveDailyTab] = useState<DailyTabType>("idphoto");
   const [activeSpreadsheetTab, setActiveSpreadsheetTab] =
     useState<SpreadsheetTabType>("sheet-merge");
-  const [activeAiTab, setActiveAiTab] = useState<AiTabType>("ai-bg-remove");
+  const [activeAiTab, setActiveAiTab] = useState<AiTabType>("ai-ocr");
   const [incomingDocFiles, setIncomingDocFiles] = useState<File[]>([]);
   const [incomingIdPhotoFile, setIncomingIdPhotoFile] = useState<File | null>(
     null,
@@ -604,7 +541,7 @@ export default function Home() {
   // 客户端自动更新弹窗状态与版本感知
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
-  const [appVersion, setAppVersion] = useState<string>("1.5.4");
+  const [appVersion, setAppVersion] = useState<string>("1.5.5");
 
   // 快捷键指南弹窗状态与全局提示
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
@@ -927,25 +864,6 @@ export default function Home() {
             : activeModule === "utilities"
               ? allTools.find((t) => t.id === activeDailyTab)
               : allTools.find((t) => t.id === activeAiTab);
-
-  // 如果处于在线编辑工作台模式，全屏展示 A4 拟真编辑器 (零布局位移、无遮挡)
-  if (
-    activeModule === "document" &&
-    activeDocTab === "pdf-edit" &&
-    editorData
-  ) {
-    return (
-      <main className="h-screen w-screen overflow-hidden bg-coconut-100/60 dark:bg-darkbg-canvas flex flex-col p-2 sm:p-4">
-        <InPlacePdfEditor
-          originalFile={editorData.file}
-          docTitle={editorData.title}
-          numPages={editorData.numPages}
-          pages={editorData.pages}
-          onExit={() => setEditorData(null)}
-        />
-      </main>
-    );
-  }
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-transparent text-coconut-900 dark:text-darkbg-text subpixel-antialiased">
@@ -1505,7 +1423,6 @@ export default function Home() {
                 onTabChange={setActiveDocTab}
                 incomingFiles={incomingDocFiles}
                 onIncomingFilesHandled={() => setIncomingDocFiles([])}
-                onOpenEditor={setEditorData}
               />
             </div>
           )}
@@ -1560,7 +1477,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* AI 创意工坊 (Keep-Alive 存活驻留) */}
+          {/* 扫描与文字工坊 (Keep-Alive 存活驻留) */}
           {(visitedModules.has("ai") || activeModule === "ai") && (
             <div className={activeModule === "ai" ? "block animate-fade-in" : "hidden"}>
               <AiToolbox
@@ -1568,11 +1485,6 @@ export default function Home() {
                 onTabChange={setActiveAiTab}
                 incomingFile={incomingAiFile}
                 onIncomingFileHandled={() => setIncomingAiFile(null)}
-                onNavigateToIdPhoto={(photoFile) => {
-                  setIncomingIdPhotoFile(photoFile);
-                  setActiveModule("utilities");
-                  setActiveDailyTab("idphoto");
-                }}
               />
             </div>
           )}

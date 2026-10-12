@@ -6,6 +6,21 @@ For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
 ---
 
+## 🌟 v1.5.5 Pure In-Process Electron Architecture & Slim Standalone Package
+
+- ⚡ **Pure In-Process Native Architecture (Zero Python / Zero External Ports)**:
+  - **Eliminated Python & Port 18520**: Completely removed Python daemon, PyInstaller builds, venv overhead, and localhost port 18520 polling. All business capabilities now run directly inside Node.js Electron main process with 100% in-memory IPC channels.
+  - **Node.js Core Service Layer**: Implemented `documentService` (`pdf-lib`, `sharp`, `archiver`, `@pdfsmaller/pdf-encrypt-lite`, Windows COM Word automation), `imageService` (`sharp` high-performance formats/ICO/EXIF stripper), `spreadsheetService` (`xlsx` stream/buffer multi-table merge & column splitter), and `utilityService` (deep directory organizer, hash duplicate cleaner).
+  - **Native High-Fidelity PDF Page Rendering**: Introduced pure Node.js in-process `@napi-rs/canvas` + `pdfjs-dist` rendering engine for crisp multi-DPI thumbnails and physical text boundary extraction without any external C++ or Python runtime.
+- 📦 **Package Size Slashing (137 MB vs 820 MB)**:
+  - Cleaned up obsolete dependencies and heavy binaries. NSIS installer shrunk by **83%** (from ~820 MB down to **137.1 MB**).
+  - Enabled ASAR packaging with targeted `asarUnpack` for native modules (`sharp`, `@napi-rs/canvas`).
+- 🧹 **Tool Catalog Pruning & Rebranding**:
+  - Pruned toy-grade tools (`pdf-edit`, `karaoke`, `ai-inpaint`, `ai-upscale`, `ai-subtitle`, `ai-bg-remove`).
+  - Rebranded AI workshop to "Scanning & Text Workshop" (Offline OCR, Searchable PDF).
+
+---
+
 ## 🌟 v1.5.4 Audio Studio UX Polish & AI Visual Edge-Case Fortification
 
 - 🎵 **Audio Studio Comprehensive UX Optimization & Defensive Hardening**:

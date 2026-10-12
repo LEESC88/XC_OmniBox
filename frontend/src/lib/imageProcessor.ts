@@ -1,5 +1,5 @@
 import JSZip from "jszip";
-import { API_BASE } from "./api";
+import { convertImage } from "./api";
 
 // 格式化文件大小
 export function formatBytes(bytes: number, decimals: number = 1): string {
@@ -247,23 +247,9 @@ export async function convertFormat(
     }
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("target_format", "avif");
-      formData.append("quality", String(Math.round(quality * 100)));
-      formData.append("fill_bg", fillBackground);
-
-      const res = await fetch(`${API_BASE}/image/convert`, {
-        method: "POST",
-        body: formData,
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        const baseName = file.name.replace(/\.[^/.]+$/, "");
-        return { blob, filename: `${baseName}.avif` };
-      }
+      return await convertImage(file, "avif", Math.round(quality * 100), fillBackground);
     } catch (e: any) {
-      console.warn("Backend AVIF conversion error:", e);
+      console.warn("Desktop AVIF conversion error:", e);
     }
 
     throw new Error("当前浏览器环境与后端未能完成 AVIF 编码，建议选择 WebP 格式");

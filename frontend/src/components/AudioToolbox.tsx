@@ -20,7 +20,6 @@ import {
   AudioExtractStudio,
   AudioVolumeStudio,
   AudioSpeedStudio,
-  AudioKaraokeStudio,
 } from "@/components/audio";
 
 export type { AudioToolTab };
@@ -89,15 +88,9 @@ export default function AudioToolbox({
           },
           {
             id: "speed",
-            label: lang === "en" ? "Tempo & Reverse" : "音频变速与倒放",
+            label: lang === "en" ? "Tempo Adjustment" : "音频调速",
             icon: Clock,
-            badge: lang === "en" ? "0.5x~2.0x / Reverse" : "趣味逆放/倍速",
-          },
-          {
-            id: "karaoke",
-            label: lang === "en" ? "Vocal Remover" : "伴奏提取消人声",
-            icon: Mic,
-            badge: lang === "en" ? "Center Cancellation" : "立体声相位抵消",
+            badge: lang === "en" ? "0.5x~2.0x" : "0.5x~2.0x 调速",
           },
         ]}
         activeTab={activeTab}
@@ -149,19 +142,10 @@ export default function AudioToolbox({
         />
       </div>
 
-      {/* 6. Speed & Reverse Playback Studio */}
+      {/* 6. Speed Studio */}
       <div className={activeTab === "speed" ? "block" : "hidden"}>
         <AudioSpeedStudio
           isActive={activeTab === "speed"}
-          incomingFile={incomingFile}
-          onIncomingFileHandled={onIncomingFileHandled}
-        />
-      </div>
-
-      {/* 7. Karaoke Accompaniment Separation Studio */}
-      <div className={activeTab === "karaoke" ? "block" : "hidden"}>
-        <AudioKaraokeStudio
-          isActive={activeTab === "karaoke"}
           incomingFile={incomingFile}
           onIncomingFileHandled={onIncomingFileHandled}
         />

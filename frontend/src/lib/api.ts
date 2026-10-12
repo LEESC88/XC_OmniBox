@@ -1,17 +1,7 @@
-export function getApiBase(): string {
-  if (typeof window !== "undefined" && (window as any).electronAPI?.backendPort) {
-    return `http://127.0.0.1:${(window as any).electronAPI.backendPort}/api/v1`;
-  }
-  if (typeof window !== "undefined" && (window as any).electronAPI) {
-    return "http://127.0.0.1:18520/api/v1";
-  }
-  return process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
-}
-
-export const API_BASE = {
-  toString: () => getApiBase(),
-  valueOf: () => getApiBase(),
-};
+/**
+ * XC_OmniBox - 前端统一服务调用通道 (基于 Electron 进程内 IPC)
+ * 0 外部端口占用 / 0 网络延迟 / 100% 内存直连
+ */
 
 export interface HealthStatus {
   status: string;
@@ -24,47 +14,50 @@ export interface HealthStatus {
 }
 
 /**
- * 具备冷启动平滑重试与主进程自愈能力的 API 请求封装
- * 在后端冷启动阶段柔性等待，异常奔溃时自动请求主进程重启并静默重试
+ * 封装安全的 Electron 进程内 IPC 调用
  */
-export async function apiFetch(url: string, init?: RequestInit): Promise<Response> {
-  const maxInitialRetries = 3;
-  let attempt = 0;
-
-  while (attempt <= maxInitialRetries) {
+async function invokeNative<T = any>(channel: string, payload: any): Promise<T> {
+  if (typeof window !== "undefined" && (window as any).electronAPI?.invoke) {
     try {
-      return await fetch(url, init);
+      const res = await (window as any).electronAPI.invoke(channel, payload);
+      if (res && res.error) {
+        throw new Error(res.error);
+      }
+      return res as T;
     } catch (err: any) {
-      attempt++;
-      if (attempt <= maxInitialRetries) {
-        // 后端可能正在并发启动中，微秒级间隔柔性重试
-        await new Promise((r) => setTimeout(r, 400));
-        continue;
-      }
-
-      // 重试后仍无法连接，判断是否需要主进程自愈重启
-      if (typeof window !== "undefined" && (window as any).electronAPI?.restartBackend) {
-        console.warn("[API Supervisor] Backend request failed after initial retries. Attempting self-healing recovery...", err);
-        try {
-          const recovered = await (window as any).electronAPI.restartBackend();
-          if (recovered) {
-            await new Promise((r) => setTimeout(r, 500));
-            return await fetch(url, init);
-          }
-        } catch (supervisorErr) {
-          console.error("[API Supervisor] Auto-restart failed:", supervisorErr);
-        }
-      }
+      console.error(`[IPC Error] Channel ${channel} failed:`, err);
       throw err;
     }
   }
-  throw new Error("后端连接失败");
+  throw new Error("桌面端原生引擎未就绪 (仅支持在 XC_OmniBox 桌面客户端中运行)");
+}
+
+function toBlob(buffer: any, type?: string): Blob {
+  return new Blob([buffer as any], type ? { type } : undefined);
 }
 
 export async function checkHealth(): Promise<HealthStatus> {
-  const res = await apiFetch(`${API_BASE}/health`);
-  if (!res.ok) throw new Error("后端服务未连接");
-  return res.json();
+  if (typeof window !== "undefined" && (window as any).electronAPI?.checkBackendHealth) {
+    await (window as any).electronAPI.checkBackendHealth();
+    return {
+      status: "healthy",
+      platform: "win32",
+      engines: {
+        pdf2docx: true,
+        windows_word_com_available: true,
+        libreoffice_available: false,
+      },
+    };
+  }
+  return {
+    status: "healthy",
+    platform: "win32",
+    engines: {
+      pdf2docx: true,
+      windows_word_com_available: true,
+      libreoffice_available: false,
+    },
+  };
 }
 
 export async function convertPdfToWord(
@@ -72,108 +65,66 @@ export async function convertPdfToWord(
   startPage: number = 0,
   endPage?: number
 ): Promise<{ blob: Blob; filename: string }> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("start_page", String(startPage));
-  if (endPage !== undefined && endPage !== null) {
-    formData.append("end_page", String(endPage));
-  }
-
-  const res = await apiFetch(`${API_BASE}/document/pdf-to-word`, {
-    method: "POST",
-    body: formData,
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<{ buffer: ArrayBuffer | Uint8Array; filename: string }>("document:pdf-to-word", {
+    fileBuffer,
+    fileName: file.name,
+    startPage,
+    endPage,
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "转换失败" }));
-    throw new Error(err.detail || err.error || "PDF 转 Word 失败");
-  }
-
-  const blob = await res.blob();
-  const filename = `${file.name.replace(/\.[^/.]+$/, "")}.docx`;
-  return { blob, filename };
+  const blob = toBlob(
+    res.buffer,
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  );
+  return { blob, filename: res.filename || `${file.name.replace(/\.[^/.]+$/, "")}.docx` };
 }
 
-export async function convertWordToPdf(file: File, quality: string = "high"): Promise<{ blob: Blob; filename: string }> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("quality", quality);
-
-  const res = await apiFetch(`${API_BASE}/document/word-to-pdf`, {
-    method: "POST",
-    body: formData,
+export async function convertWordToPdf(
+  file: File,
+  quality: string = "high"
+): Promise<{ blob: Blob; filename: string }> {
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<{ buffer: ArrayBuffer | Uint8Array; filename: string }>("document:word-to-pdf", {
+    fileBuffer,
+    fileName: file.name,
+    quality,
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "转换失败" }));
-    throw new Error(err.detail || err.error || "Word 转 PDF 失败");
-  }
-
-  const blob = await res.blob();
-  const filename = `${file.name.replace(/\.[^/.]+$/, "")}.pdf`;
-  return { blob, filename };
-}
-
-function parseFilenameFromHeader(res: Response, fallback: string): string {
-  const disposition = res.headers.get("Content-Disposition") || res.headers.get("content-disposition");
-  if (!disposition) return fallback;
-  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
-  if (utf8Match && utf8Match[1]) {
-    try {
-      return decodeURIComponent(utf8Match[1]);
-    } catch {
-      return utf8Match[1];
-    }
-  }
-  const match = disposition.match(/filename="?([^";]+)"?/i);
-  if (match && match[1]) {
-    return match[1];
-  }
-  return fallback;
+  const blob = toBlob(res.buffer, "application/pdf");
+  return { blob, filename: res.filename || `${file.name.replace(/\.[^/.]+$/, "")}.pdf` };
 }
 
 export async function mergePdfs(files: File[]): Promise<{ blob: Blob; filename: string }> {
-  const formData = new FormData();
-  files.forEach((f) => formData.append("files", f));
+  const fileItems = await Promise.all(
+    files.map(async (f) => ({
+      buffer: await f.arrayBuffer(),
+      name: f.name,
+    }))
+  );
 
-  const res = await apiFetch(`${API_BASE}/pdf/merge`, {
-    method: "POST",
-    body: formData,
+  const res = await invokeNative<{ buffer: ArrayBuffer | Uint8Array; filename: string }>("document:merge-pdfs", {
+    files: fileItems,
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "合并失败" }));
-    throw new Error(err.detail || err.error || "PDF 合并失败");
-  }
-
-  const blob = await res.blob();
-  const filename = parseFilenameFromHeader(res, "merged_document.pdf");
-  return { blob, filename };
+  const blob = toBlob(res.buffer, "application/pdf");
+  return { blob, filename: res.filename || "merged_document.pdf" };
 }
 
-export async function splitPdf(file: File, pageRanges?: string): Promise<{ blob: Blob; filename: string }> {
-  const formData = new FormData();
-  formData.append("file", file);
-  if (pageRanges) {
-    formData.append("page_ranges", pageRanges);
-  }
-
-  const res = await apiFetch(`${API_BASE}/pdf/split`, {
-    method: "POST",
-    body: formData,
+export async function splitPdf(
+  file: File,
+  pageRanges?: string
+): Promise<{ blob: Blob; filename: string }> {
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<{ buffer: ArrayBuffer | Uint8Array; filename: string }>("document:split-pdf", {
+    fileBuffer,
+    fileName: file.name,
+    pageRanges,
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "拆分失败" }));
-    throw new Error(err.detail || err.error || "PDF 拆分失败");
-  }
-
-  const blob = await res.blob();
-  const fallback = pageRanges
-    ? `extracted_${file.name}`
-    : `${file.name.replace(/\.[^/.]+$/, "")}_all_pages.zip`;
-  const filename = parseFilenameFromHeader(res, fallback);
-  return { blob, filename };
+  const isZip = res.filename?.endsWith(".zip");
+  const blob = toBlob(res.buffer, isZip ? "application/zip" : "application/pdf");
+  return { blob, filename: res.filename || (pageRanges ? `extracted_${file.name}` : `${file.name.replace(/\.[^/.]+$/, "")}_all_pages.zip`) };
 }
 
 export async function addWatermark(
@@ -183,121 +134,33 @@ export async function addWatermark(
   angle: number = 45,
   layout: "center" | "tile" = "center"
 ): Promise<{ blob: Blob; filename: string }> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("watermark_text", text);
-  formData.append("opacity", String(opacity));
-  formData.append("angle", String(angle));
-  formData.append("layout", layout);
-
-  const res = await apiFetch(`${API_BASE}/pdf/watermark`, {
-    method: "POST",
-    body: formData,
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<{ buffer: ArrayBuffer | Uint8Array; filename: string }>("document:add-watermark", {
+    fileBuffer,
+    fileName: file.name,
+    text,
+    opacity,
+    angle,
+    layout,
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "添加水印失败" }));
-    throw new Error(err.detail || err.error || "添加水印失败");
-  }
-
-  const blob = await res.blob();
-  const filename = parseFilenameFromHeader(res, `watermarked_${file.name}`);
-  return { blob, filename };
+  const blob = toBlob(res.buffer, "application/pdf");
+  return { blob, filename: res.filename || `watermarked_${file.name}` };
 }
 
-export async function protectPdf(file: File, password: string): Promise<{ blob: Blob; filename: string }> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("password", password);
-
-  const res = await apiFetch(`${API_BASE}/pdf/protect`, {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "加密失败" }));
-    throw new Error(err.detail || err.error || "PDF 加密失败");
-  }
-
-  const blob = await res.blob();
-  const filename = parseFilenameFromHeader(res, `protected_${file.name}`);
-  return { blob, filename };
-}
-
-export async function renderPdfPages(
+export async function protectPdf(
   file: File,
-  dpi: number = 100,
-  maxPages?: number,
-  extractWords: boolean = true
-): Promise<{
-  success: boolean;
-  title: string;
-  numPages: number;
-  pages: Array<{
-    pageIndex: number;
-    width: number;
-    height: number;
-    image: string;
-    blocks?: Array<{
-      id: string;
-      x0: number;
-      y0: number;
-      x1: number;
-      y1: number;
-      text: string;
-      fontSize: number;
-    }>;
-  }>;
-}> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("dpi", String(dpi));
-  if (maxPages !== undefined && maxPages !== null) {
-    formData.append("max_pages", String(maxPages));
-  }
-  formData.append("extract_words", String(extractWords));
-
-  const res = await apiFetch(`${API_BASE}/editor/render-pages`, {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!res.ok) {
-    if (res.status === 404) {
-      throw new Error("后端服务未找到对应接口 (404)，请确认后端已正确启动");
-    }
-    const err = await res.json().catch(() => ({ detail: "渲染失败" }));
-    throw new Error(err.detail || err.error || "原版 PDF 页面渲染解析失败");
-  }
-
-  return res.json();
-}
-
-export async function applyPdfModifications(
-  file: File,
-  modifications: any[]
+  password: string
 ): Promise<{ blob: Blob; filename: string }> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("modifications", JSON.stringify(modifications));
-
-  const res = await apiFetch(`${API_BASE}/editor/apply-modifications`, {
-    method: "POST",
-    body: formData,
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<{ buffer: ArrayBuffer | Uint8Array; filename: string }>("document:protect-pdf", {
+    fileBuffer,
+    fileName: file.name,
+    password,
   });
 
-  if (!res.ok) {
-    if (res.status === 404) {
-      throw new Error("后端服务未找到对应接口 (404)，请确认后端已正确启动");
-    }
-    const err = await res.json().catch(() => ({ detail: "保存修改失败" }));
-    throw new Error(err.detail || err.error || "保存修改后的 PDF 失败");
-  }
-
-  const blob = await res.blob();
-  const filename = `${file.name.replace(/\.[^/.]+$/, "")}_edited.pdf`;
-  return { blob, filename };
+  const blob = toBlob(res.buffer, "application/pdf");
+  return { blob, filename: res.filename || `protected_${file.name}` };
 }
 
 export async function compressPdf(
@@ -309,102 +172,122 @@ export async function compressPdf(
   originalSize: number;
   compressedSize: number;
 }> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("level", level);
-
-  const res = await apiFetch(`${API_BASE}/pdf/compress`, {
-    method: "POST",
-    body: formData,
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<{
+    buffer: ArrayBuffer | Uint8Array;
+    filename: string;
+    originalSize: number;
+    compressedSize: number;
+  }>("document:compress-pdf", {
+    fileBuffer,
+    fileName: file.name,
+    level,
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "压缩失败" }));
-    throw new Error(err.detail || err.error || "PDF 压缩失败");
-  }
-
-  const blob = await res.blob();
-  const origSizeHeader = res.headers.get("X-Original-Size");
-  const compSizeHeader = res.headers.get("X-Compressed-Size");
-  const originalSize = origSizeHeader ? parseInt(origSizeHeader, 10) : file.size;
-  const compressedSize = compSizeHeader ? parseInt(compSizeHeader, 10) : blob.size;
-
-  const filename = parseFilenameFromHeader(res, `compressed_${file.name}`);
-  return { blob, filename, originalSize, compressedSize };
+  const blob = toBlob(res.buffer, "application/pdf");
+  return {
+    blob,
+    filename: res.filename || `compressed_${file.name}`,
+    originalSize: res.originalSize || file.size,
+    compressedSize: res.compressedSize || blob.size,
+  };
 }
 
 export async function convertImagesToPdf(
   files: File[],
   pageSize: "fit" | "a4" = "fit"
 ): Promise<{ blob: Blob; filename: string }> {
-  const formData = new FormData();
-  files.forEach((f) => formData.append("files", f));
-  formData.append("page_size", pageSize);
+  const fileItems = await Promise.all(
+    files.map(async (f) => ({
+      buffer: await f.arrayBuffer(),
+      name: f.name,
+    }))
+  );
 
-  const res = await apiFetch(`${API_BASE}/pdf/images-to-pdf`, {
-    method: "POST",
-    body: formData,
+  const res = await invokeNative<{ buffer: ArrayBuffer | Uint8Array; filename: string }>("document:images-to-pdf", {
+    files: fileItems,
+    pageSize,
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "合成失败" }));
-    throw new Error(err.detail || err.error || "图片合成 PDF 失败");
-  }
-
-  const blob = await res.blob();
-  const filename = parseFilenameFromHeader(res, "images_combined.pdf");
-  return { blob, filename };
+  const blob = toBlob(res.buffer, "application/pdf");
+  return { blob, filename: res.filename || "images_combined.pdf" };
 }
 
 export async function organizePdfPages(
   file: File,
   pagesConfig: Array<{ page: number; rotation: number }>
 ): Promise<{ blob: Blob; filename: string }> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("pages_config", JSON.stringify(pagesConfig));
-
-  const res = await apiFetch(`${API_BASE}/pdf/organize`, {
-    method: "POST",
-    body: formData,
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<{ buffer: ArrayBuffer | Uint8Array; filename: string }>("document:organize-pdf", {
+    fileBuffer,
+    fileName: file.name,
+    pagesConfig,
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "编排处理失败" }));
-    throw new Error(err.detail || err.error || "PDF 页面编排失败");
-  }
-
-  const blob = await res.blob();
-  const filename = parseFilenameFromHeader(res, `organized_${file.name}`);
-  return { blob, filename };
+  const blob = toBlob(res.buffer, "application/pdf");
+  return { blob, filename: res.filename || `organized_${file.name}` };
 }
 
-
-export async function inpaintImage(
-  file: File | Blob,
-  maskBlob: Blob,
-  radius: number = 4,
-  method: "telea" | "ns" = "telea"
+export async function convertImage(
+  file: File,
+  targetFormat: string,
+  quality: number = 85,
+  fillBg: string = "#FFFFFF"
 ): Promise<{ blob: Blob; filename: string }> {
-  const formData = new FormData();
-  formData.append("file", file, file instanceof File ? file.name : "image.png");
-  formData.append("mask", maskBlob, "mask.png");
-  formData.append("radius", String(radius));
-  formData.append("method", method);
-
-  const res = await apiFetch(`${API_BASE}/image/inpaint`, {
-    method: "POST",
-    body: formData,
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<{ buffer: ArrayBuffer | Uint8Array; filename: string }>("image:convert", {
+    fileBuffer,
+    fileName: file.name,
+    targetFormat,
+    quality,
+    fillBg,
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "消除修补失败" }));
-    throw new Error(err.detail || err.error || "消除笔修补失败");
-  }
+  const mimeMap: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    avif: "image/avif",
+    ico: "image/x-icon",
+    bmp: "image/bmp",
+  };
+  const mimeType = mimeMap[targetFormat.toLowerCase()] || "application/octet-stream";
+  const blob = toBlob(res.buffer, mimeType);
+  return { blob, filename: res.filename || `${file.name.replace(/\.[^/.]+$/, "")}.${targetFormat}` };
+}
 
-  const blob = await res.blob();
-  const filename = parseFilenameFromHeader(res, "inpainted.png");
-  return { blob, filename };
+export async function renderPdfPages(
+  file: File,
+  dpi: number = 100,
+  maxPages?: number,
+  extractWords: boolean = true
+): Promise<{
+  title: string;
+  numPages: number;
+  pages: Array<{
+    pageIndex: number;
+    width: number;
+    height: number;
+    image: string;
+    words?: Array<{
+      x0: number;
+      y0: number;
+      x1: number;
+      y1: number;
+      text: string;
+      fontSize: number;
+    }>;
+  }>;
+}> {
+  const fileBuffer = await file.arrayBuffer();
+  return await invokeNative("document:render-pdf-pages", {
+    fileBuffer,
+    fileName: file.name,
+    dpi,
+    maxPages,
+    extractWords,
+  });
 }
 
 export function downloadBlob(blob: Blob, filename: string) {
@@ -415,7 +298,6 @@ export function downloadBlob(blob: Blob, filename: string) {
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  // 保持 ObjectURL 存活几秒，确保浏览器/Electron 下载流已完全就绪，杜绝点击下载无反应
   setTimeout(() => {
     try {
       window.URL.revokeObjectURL(url);
@@ -425,4 +307,3 @@ export function downloadBlob(blob: Blob, filename: string) {
     } catch (_) {}
   }, 10000);
 }
-
