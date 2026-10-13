@@ -55,6 +55,21 @@ export const TOOL_TRANSLATIONS: Record<
     desc: "AES encryption, authorized password unlocking & privacy metadata scrubbing",
     badge: "Encrypt/Unlock",
   },
+  "pdf-sign-redact": {
+    name: "PDF Sign, Annotate & Redact",
+    desc: "Irreversible physical redaction, transparent seal/signature overlay & text notes",
+    badge: "Anti-extract",
+  },
+  "pdf-to-images": {
+    name: "PDF to Long Image & Slices",
+    desc: "300DPI lossless page slices (ZIP) or stitched ultra-clear long image",
+    badge: "300DPI",
+  },
+  "pdf-nup": {
+    name: "Multi-Page N-Up Imposition",
+    desc: "Vector 2-Up, 4-Up, 6-Up, or 9-Up A4 imposition for invoices and handouts",
+    badge: "N-Up Print",
+  },
 
   // Image
   "compress": {

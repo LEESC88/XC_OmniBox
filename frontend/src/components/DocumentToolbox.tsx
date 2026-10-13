@@ -30,6 +30,8 @@ import {
   Unlock,
   FileSearch,
   Sparkles,
+  ShieldAlert,
+  LayoutGrid,
 } from "lucide-react";
 
 import Dropzone from "@/components/Dropzone";
@@ -40,6 +42,7 @@ import PdfWatermarkStudio from "@/components/pdf/PdfWatermarkStudio";
 import PdfCompressStudio from "@/components/pdf/PdfCompressStudio";
 import ImagesToPdfStudio from "@/components/pdf/ImagesToPdfStudio";
 import PdfOrganizeStudio from "@/components/pdf/PdfOrganizeStudio";
+import PdfSignRedactStudio from "@/components/PdfSignRedactStudio";
 import AiToolbox from "@/components/AiToolbox";
 
 import { useI18n } from "@/lib/i18n";
@@ -56,6 +59,8 @@ import {
   convertImagesToPdf,
   organizePdfPages,
   renderPdfPages,
+  pdfToImages,
+  nupPdf,
   downloadBlob,
 } from "@/lib/api";
 
@@ -65,6 +70,9 @@ export type DocTabType =
   | "pdf-merge"
   | "pdf-split"
   | "pdf-organize"
+  | "pdf-sign-redact"
+  | "pdf-to-images"
+  | "pdf-nup"
   | "pdf-watermark"
   | "pdf-compress"
   | "images-to-pdf"
@@ -120,6 +128,14 @@ export default function DocumentToolbox({
   const [confirmPassword, setConfirmPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
+  const [imgExportMode, setImgExportMode] = useState<"long-image" | "zip">("long-image");
+  const [imgExportFormat, setImgExportFormat] = useState<"png" | "jpg">("png");
+  const [imgExportDpi, setImgExportDpi] = useState<150 | 200 | 300>(300);
+  const [imgPageRanges, setImgPageRanges] = useState<string>("");
+  const [nupPagesPerSheet, setNupPagesPerSheet] = useState<2 | 4 | 6 | 9>(4);
+  const [nupOrientation, setNupOrientation] = useState<"auto" | "portrait" | "landscape">("auto");
+  const [nupDrawBorder, setNupDrawBorder] = useState<boolean>(true);
+  const [nupMarginPt, setNupMarginPt] = useState<number>(24);
   const [conversionQuality, setConversionQuality] = useState<
     "light" | "standard" | "high"
   >("high");
@@ -340,6 +356,24 @@ export default function DocumentToolbox({
           resultBlob = res.blob;
           resultFilename = res.filename;
         }
+      } else if (activeTab === "pdf-to-images") {
+        const res = await pdfToImages(files[0], {
+          mode: imgExportMode,
+          format: imgExportFormat,
+          dpi: imgExportDpi,
+          pageRanges: imgPageRanges.trim(),
+        });
+        resultBlob = res.blob;
+        resultFilename = res.filename;
+      } else if (activeTab === "pdf-nup") {
+        const res = await nupPdf(files[0], {
+          pagesPerSheet: nupPagesPerSheet,
+          orientation: nupOrientation,
+          drawBorder: nupDrawBorder,
+          marginPt: nupMarginPt,
+        });
+        resultBlob = res.blob;
+        resultFilename = res.filename;
       } else {
         throw new Error(t.common.errorOccurred);
       }
@@ -563,6 +597,24 @@ export default function DocumentToolbox({
       label: lang === "en" ? "PDF Page Organizer" : "PDF 页面可视化调度",
       icon: Layers,
       badge: lang === "en" ? "Canvas" : "画板",
+    },
+    {
+      id: "pdf-sign-redact",
+      label: lang === "en" ? "PDF Sign & Redact" : "PDF 签章批注与涂黑脱敏",
+      icon: ShieldAlert,
+      badge: lang === "en" ? "Redact" : "物理脱敏",
+    },
+    {
+      id: "pdf-to-images",
+      label: lang === "en" ? "PDF to Long Image & Slices" : "PDF 转高清长图与切片",
+      icon: ImageIcon,
+      badge: lang === "en" ? "300DPI" : "长图/切片",
+    },
+    {
+      id: "pdf-nup",
+      label: lang === "en" ? "Multi-Page N-Up" : "PDF 多页合一缩印拼版",
+      icon: LayoutGrid,
+      badge: lang === "en" ? "N-Up" : "发票合打",
     },
     {
       id: "pdf-watermark",
@@ -1001,6 +1053,476 @@ export default function DocumentToolbox({
             />
           </div>
         )
+      ) : activeTab === "pdf-sign-redact" ? (
+        files.length > 0 ? (
+          <PdfSignRedactStudio
+            file={files[0]}
+            onReset={() => {
+              setFiles([]);
+              setExecutionResult(null);
+              setSuccessMsg(null);
+              setError(null);
+            }}
+          />
+        ) : (
+          <div className="coconut-panel p-6 sm:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-rose-600 to-orange-600 shadow-md shadow-rose-500/25 flex items-center justify-center text-white flex-shrink-0">
+                  <ShieldAlert className="w-5 h-5 sm:w-6 sm:h-6" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center flex-wrap gap-2">
+                    <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                      {lang === "en"
+                        ? "PDF Sign, Annotate & Physical Redact"
+                        : "PDF 签章、批注与物理涂黑脱敏"}
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-rose-500/10 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30">
+                      {lang === "en" ? "Irreversible Redact" : "防复制穿透 · 手写签章"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                    {lang === "en"
+                      ? "Drag on any PDF page to physically redact sensitive regions (destroying underlying text coordinates), stamp transparent seals, or draw signatures."
+                      : "对标 Stirling-PDF 工业级标准：支持拉框物理涂黑敏感机密（彻底销毁底层文字坐标杜绝复制穿透）、加盖透明公章/手写签名与中文批注。"}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <Dropzone
+              accept=".pdf"
+              multiple={false}
+              selectedFiles={files}
+              onFilesSelected={setFiles}
+              onClear={() => setFiles([])}
+              title={
+                lang === "en"
+                  ? "Drop PDF file to launch Sign & Redact Canvas"
+                  : "拖入待签章或涂黑脱敏的 PDF 文件，进入可视化画布"
+              }
+              hint={
+                lang === "en"
+                  ? "100% Local In-Process Rendering · Zero Cloud Upload"
+                  : "100% 本地进程内处理 · 敏感合同与凭证零外传"
+              }
+            />
+          </div>
+        )
+      ) : activeTab === "pdf-to-images" ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-5 coconut-panel p-5 sm:p-6 space-y-5">
+            <div className="flex items-center gap-3 pb-3 border-b border-coconut-200/80 dark:border-darkbg-border">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-sm">
+                <ImageIcon className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-coconut-950 dark:text-darkbg-text">
+                  {lang === "en"
+                    ? "PDF to Long Image & Slices"
+                    : "PDF 转高清长图与切片导出"}
+                </h3>
+                <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted">
+                  {lang === "en"
+                    ? "300 DPI Rasterization + Auto Volume Protection"
+                    : "300 DPI 印刷级光栅化 · 超长文档自动分卷防爆存"}
+                </p>
+              </div>
+            </div>
+
+            {/* 导出模式：一图流长图 vs 逐页切片 ZIP */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-coconut-900 dark:text-darkbg-text">
+                {lang === "en" ? "Export Mode" : "导出拼接模式"}
+              </label>
+              <div className="grid grid-cols-2 gap-2 p-1 bg-coconut-100/80 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/80 dark:border-darkbg-border">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImgExportMode("long-image");
+                    setExecutionResult(null);
+                  }}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+                    imgExportMode === "long-image"
+                      ? "bg-white dark:bg-darkbg-card text-orange-700 dark:text-orange-300 shadow-sm"
+                      : "text-coconut-600 dark:text-darkbg-muted"
+                  }`}
+                >
+                  {lang === "en" ? "Stitched Long Image" : "纵向一图流超清长图"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImgExportMode("zip");
+                    setExecutionResult(null);
+                  }}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+                    imgExportMode === "zip"
+                      ? "bg-white dark:bg-darkbg-card text-orange-700 dark:text-orange-300 shadow-sm"
+                      : "text-coconut-600 dark:text-darkbg-muted"
+                  }`}
+                >
+                  {lang === "en" ? "Batch Slices (ZIP)" : "逐页高清切片 (ZIP)"}
+                </button>
+              </div>
+            </div>
+
+            {/* 图像格式与 DPI */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-coconut-900 dark:text-darkbg-text mb-1.5">
+                  {lang === "en" ? "Image Format" : "输出图像格式"}
+                </label>
+                <select
+                  value={imgExportFormat}
+                  onChange={(e) => setImgExportFormat(e.target.value as "png" | "jpg")}
+                  className="w-full text-xs p-3 rounded-xl bg-white dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border font-bold"
+                >
+                  <option value="png">PNG (无损字迹锐利)</option>
+                  <option value="jpg">JPG (MozJPEG 体积轻巧)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-coconut-900 dark:text-darkbg-text mb-1.5">
+                  {lang === "en" ? "Render DPI" : "渲染清晰度 (DPI)"}
+                </label>
+                <select
+                  value={imgExportDpi}
+                  onChange={(e) => setImgExportDpi(Number(e.target.value) as 150 | 200 | 300)}
+                  className="w-full text-xs p-3 rounded-xl bg-white dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border font-bold"
+                >
+                  <option value={300}>300 DPI (印刷级超清)</option>
+                  <option value={200}>200 DPI (高清均衡)</option>
+                  <option value={150}>150 DPI (快速轻巧)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* 可选页码范围 */}
+            <div>
+              <label className="block text-xs font-bold text-coconut-900 dark:text-darkbg-text mb-1.5">
+                {lang === "en"
+                  ? "Page Ranges (Optional, e.g. 1-5, 8)"
+                  : "指定导出页码范围（选填，留空导出全部页）"}
+              </label>
+              <input
+                type="text"
+                value={imgPageRanges}
+                onChange={(e) => setImgPageRanges(e.target.value)}
+                placeholder={lang === "en" ? "e.g. 1-3, 5 (leave blank for all)" : "例如：1-5, 8（留空默认转换全部页面）"}
+                className="w-full text-xs p-3 rounded-xl bg-white dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border outline-none"
+              />
+            </div>
+
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-[11px] text-amber-900 dark:text-amber-200 leading-relaxed">
+              {lang === "en"
+                ? "🛡️ Overflow Protection: When stitched height exceeds 15,500px, pages are automatically split into lossless volumes and packaged into a ZIP."
+                : "🛡️ 高度溢出分卷保护：若文档页数较多导致长图总高超过 15,500px 安全上限，系统将自动无损切分为多卷长图并打包为 ZIP，彻底杜绝黑图与内存溢出。"}
+            </div>
+          </div>
+
+          <div className="lg:col-span-7 coconut-panel p-5 sm:p-6 space-y-5">
+            <Dropzone
+              accept=".pdf"
+              multiple={false}
+              selectedFiles={files}
+              onFilesSelected={setFiles}
+              onClear={() => setFiles([])}
+              title={
+                lang === "en"
+                  ? "Drop PDF file to convert to Long Image or Slices"
+                  : "拖入待转长图或高清切片的 PDF 文件"
+              }
+              hint={
+                lang === "en"
+                  ? "Powered by pdfjs-dist + libvips sharp"
+                  : "基于 pdfjs-dist 与 C++ libvips (sharp) 极速合成"
+              }
+            />
+
+            {error && (
+              <div className="p-3 bg-toast-50 border border-toast-200 rounded-2xl flex items-center gap-2 text-toast-700 text-xs">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 text-toast-500" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {executionResult ? (
+              <div className="p-5 bg-accent-subtle border border-accent-border rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 truncate">
+                    <div className="w-10 h-10 rounded-xl bg-accent-gradient text-white flex items-center justify-center flex-shrink-0">
+                      <FileCheck className="w-5 h-5" />
+                    </div>
+                    <div className="truncate">
+                      <h4 className="text-sm font-bold text-coconut-950 dark:text-white truncate">
+                        {executionResult.filename}
+                      </h4>
+                      <p className="text-xs text-orange-800 dark:text-amber-300 font-mono">
+                        {formatBytes(executionResult.size)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    data-download-result="true"
+                    onClick={() => downloadBlob(executionResult.blob, executionResult.filename)}
+                    className="flex-1 py-3 px-4 rounded-xl btn-3d-sunset text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>{lang === "en" ? "Download Now" : "立即下载保存"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFiles([]);
+                      setExecutionResult(null);
+                      setSuccessMsg(null);
+                      setError(null);
+                    }}
+                    className="py-3 px-4 rounded-xl btn-3d-secondary font-bold text-xs sm:text-sm flex items-center gap-1.5"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>{lang === "en" ? "Reset" : "继续转换"}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                data-primary-action="true"
+                onClick={handleExecute}
+                disabled={loading || files.length === 0}
+                className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                  loading || files.length === 0
+                    ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 cursor-not-allowed border border-coconut-200"
+                    : "btn-3d-sunset text-white cursor-pointer"
+                }`}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>
+                      {lang === "en" ? "Rendering & Stitching..." : "正在高精光栅化与拼接..."}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon className="w-4 h-4 text-amber-200" />
+                    <span>
+                      {imgExportMode === "long-image"
+                        ? lang === "en"
+                          ? "Generate Ultra-Clear Long Image"
+                          : "立即合成一图流超清长图"
+                        : lang === "en"
+                          ? "Export High-DPI Slices (ZIP)"
+                          : "立即导出高清图片切片包 (ZIP)"}
+                    </span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      ) : activeTab === "pdf-nup" ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-5 coconut-panel p-5 sm:p-6 space-y-5">
+            <div className="flex items-center gap-3 pb-3 border-b border-coconut-200/80 dark:border-darkbg-border">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white flex items-center justify-center shadow-sm">
+                <LayoutGrid className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-coconut-950 dark:text-darkbg-text">
+                  {lang === "en"
+                    ? "Multi-Page N-Up Imposition"
+                    : "PDF 多页合一缩印拼版 (N-Up)"}
+                </h3>
+                <p className="text-[11px] text-coconut-600 dark:text-darkbg-muted">
+                  {lang === "en"
+                    ? "Lossless Vector Imposition for Invoices & Handouts"
+                    : "电子发票、课件讲义与凭证多页缩印单张 A4 神器"}
+                </p>
+              </div>
+            </div>
+
+            {/* 每张 A4 缩印页数 */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-coconut-900 dark:text-darkbg-text">
+                {lang === "en" ? "Pages Per A4 Sheet" : "单张 A4 纸拼合页数"}
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {([2, 4, 6, 9] as const).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => {
+                      setNupPagesPerSheet(n);
+                      setExecutionResult(null);
+                    }}
+                    className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all ${
+                      nupPagesPerSheet === n
+                        ? "bg-accent-gradient text-white border-transparent shadow-sm"
+                        : "bg-white dark:bg-darkbg-subtle text-coconut-800 dark:text-darkbg-text border-coconut-200 dark:border-darkbg-border"
+                    }`}
+                  >
+                    {n} {lang === "en" ? "Up" : "合 1"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 纸张方向与页边距 */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-coconut-900 dark:text-darkbg-text mb-1.5">
+                  {lang === "en" ? "A4 Orientation" : "A4 纸张方向"}
+                </label>
+                <select
+                  value={nupOrientation}
+                  onChange={(e) =>
+                    setNupOrientation(e.target.value as "auto" | "portrait" | "landscape")
+                  }
+                  className="w-full text-xs p-3 rounded-xl bg-white dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border font-bold"
+                >
+                  <option value="auto">智能推荐 (2/6横 · 4/9竖)</option>
+                  <option value="portrait">A4 纵向 (Portrait)</option>
+                  <option value="landscape">A4 横向 (Landscape)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-coconut-900 dark:text-darkbg-text mb-1.5">
+                  {lang === "en" ? "Sheet Margin (pt)" : "页边距留白 (pt)"}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={60}
+                  value={nupMarginPt}
+                  onChange={(e) => setNupMarginPt(Number(e.target.value) || 0)}
+                  className="w-full text-xs p-3 rounded-xl bg-white dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            {/* 绘制细灰裁切边框线 */}
+            <label className="flex items-center gap-2.5 p-3 rounded-2xl bg-coconut-100/60 dark:bg-darkbg-subtle border border-coconut-200/70 dark:border-darkbg-border cursor-pointer">
+              <input
+                type="checkbox"
+                checked={nupDrawBorder}
+                onChange={(e) => setNupDrawBorder(e.target.checked)}
+                className="rounded border-coconut-300 text-orange-600 focus:ring-orange-500"
+              />
+              <div className="text-xs font-bold text-coconut-900 dark:text-darkbg-text">
+                {lang === "en"
+                  ? "Draw subtle gray cell borders & cut lines"
+                  : "绘制细灰子页分割边框（便于财务发票裁剪与讲义分栏）"}
+              </div>
+            </label>
+          </div>
+
+          <div className="lg:col-span-7 coconut-panel p-5 sm:p-6 space-y-5">
+            <Dropzone
+              accept=".pdf"
+              multiple={false}
+              selectedFiles={files}
+              onFilesSelected={setFiles}
+              onClear={() => setFiles([])}
+              title={
+                lang === "en"
+                  ? "Drop multi-page PDF (or merged invoices) for N-Up imposition"
+                  : "拖入多页 PDF（或合并后的电子发票/课件）进行 N 合 1 缩印"
+              }
+              hint={
+                lang === "en"
+                  ? "100% Lossless Vector Scaling via pdf-lib embedPage"
+                  : "基于 pdf-lib embedPage 矢量级无损缩放，放大 800% 依然锐利"
+              }
+            />
+
+            {error && (
+              <div className="p-3 bg-toast-50 border border-toast-200 rounded-2xl flex items-center gap-2 text-toast-700 text-xs">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 text-toast-500" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {executionResult ? (
+              <div className="p-5 bg-accent-subtle border border-accent-border rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 truncate">
+                    <div className="w-10 h-10 rounded-xl bg-accent-gradient text-white flex items-center justify-center flex-shrink-0">
+                      <FileCheck className="w-5 h-5" />
+                    </div>
+                    <div className="truncate">
+                      <h4 className="text-sm font-bold text-coconut-950 dark:text-white truncate">
+                        {executionResult.filename}
+                      </h4>
+                      <p className="text-xs text-orange-800 dark:text-amber-300 font-mono">
+                        {formatBytes(executionResult.size)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    data-download-result="true"
+                    onClick={() => downloadBlob(executionResult.blob, executionResult.filename)}
+                    className="flex-1 py-3 px-4 rounded-xl btn-3d-sunset text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>{lang === "en" ? "Download N-Up PDF" : "立即下载拼版后 PDF"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFiles([]);
+                      setExecutionResult(null);
+                      setSuccessMsg(null);
+                      setError(null);
+                    }}
+                    className="py-3 px-4 rounded-xl btn-3d-secondary font-bold text-xs sm:text-sm flex items-center gap-1.5"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>{lang === "en" ? "Reset" : "继续拼版"}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                data-primary-action="true"
+                onClick={handleExecute}
+                disabled={loading || files.length === 0}
+                className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                  loading || files.length === 0
+                    ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 cursor-not-allowed border border-coconut-200"
+                    : "btn-3d-sunset text-white cursor-pointer"
+                }`}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>
+                      {lang === "en" ? "Imposing Vector Pages..." : "正在执行矢量多页拼版..."}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <LayoutGrid className="w-4 h-4 text-amber-200" />
+                    <span>
+                      {lang === "en"
+                        ? `Generate ${nupPagesPerSheet}-Up A4 PDF`
+                        : `立即生成 ${nupPagesPerSheet} 合 1 标准 A4 拼版 PDF`}
+                    </span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
       ) : activeTab === "ai-ocr" || activeTab === "ai-searchable-pdf" ? (
         <AiToolbox
           currentTab={activeTab}

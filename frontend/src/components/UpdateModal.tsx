@@ -32,7 +32,7 @@ export default function UpdateModal({
 }) {
   const { t, lang } = useI18n();
   const [updateState, setUpdateState] = useState<UpdateInfo>({ status: "idle" });
-  const [currentVersion, setCurrentVersion] = useState<string>("1.6.1");
+  const [currentVersion, setCurrentVersion] = useState<string>("1.6.2");
   const [isElectron, setIsElectron] = useState(false);
 
   useEffect(() => {

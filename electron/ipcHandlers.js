@@ -87,6 +87,18 @@ function registerIpcHandlers(options = {}) {
     return await getDocumentService().generateSearchablePdf(payload);
   });
 
+  ipcMain.handle('document:sign-and-redact', async (_e, payload) => {
+    return await getDocumentService().signAndRedactPdf(payload, emitProgress(_e));
+  });
+
+  ipcMain.handle('document:pdf-to-images', async (_e, payload) => {
+    return await getDocumentService().pdfToImages(payload, emitProgress(_e));
+  });
+
+  ipcMain.handle('document:nup-pdf', async (_e, payload) => {
+    return await getDocumentService().nupPdf(payload, emitProgress(_e));
+  });
+
   // ==================== 图像服务 (ImageService) ====================
   ipcMain.handle('image:compress', async (_e, payload) => {
     return await getImageService().compressImage(payload);

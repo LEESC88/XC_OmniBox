@@ -247,6 +247,142 @@ export async function organizePdfPages(
   return { blob, filename: res.filename || `organized_${file.name}` };
 }
 
+export interface PdfSignRedactOperation {
+  id?: string;
+  pageIndex: number;
+  type: "redact" | "stamp" | "annotation";
+  xRatio: number;
+  yRatio: number;
+  wRatio: number;
+  hRatio: number;
+  color?: string;
+  text?: string;
+  fontSize?: number;
+  imageBase64?: string;
+}
+
+export async function signAndRedactPdf(
+  file: File,
+  operations: PdfSignRedactOperation[],
+  dpi: number = 200
+): Promise<{
+  blob: Blob;
+  filename: string;
+  totalPages: number;
+  redactedPageCount: number;
+}> {
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<{
+    buffer: ArrayBuffer | Uint8Array;
+    filename: string;
+    totalPages: number;
+    redactedPageCount: number;
+  }>("document:sign-and-redact", {
+    fileBuffer,
+    fileName: file.name,
+    operations,
+    dpi,
+  });
+
+  const blob = toBlob(res.buffer, "application/pdf");
+  return {
+    blob,
+    filename: res.filename || `signed_${file.name}`,
+    totalPages: res.totalPages || 1,
+    redactedPageCount: res.redactedPageCount || 0,
+  };
+}
+
+export async function pdfToImages(
+  file: File,
+  options: {
+    mode: "zip" | "long-image";
+    format?: "png" | "jpg";
+    dpi?: number;
+    quality?: number;
+    pageRanges?: string;
+  }
+): Promise<{
+  blob: Blob;
+  filename: string;
+  pageCount: number;
+  volumeCount: number;
+  isMultiPart: boolean;
+}> {
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<{
+    buffer: ArrayBuffer | Uint8Array;
+    filename: string;
+    pageCount: number;
+    volumeCount: number;
+    isMultiPart: boolean;
+  }>("document:pdf-to-images", {
+    fileBuffer,
+    fileName: file.name,
+    mode: options.mode,
+    format: options.format || "png",
+    dpi: options.dpi || 300,
+    quality: options.quality || 92,
+    pageRanges: options.pageRanges || "",
+  });
+
+  const isZip = res.filename.toLowerCase().endsWith(".zip");
+  const mime = isZip
+    ? "application/zip"
+    : options.format === "jpg"
+      ? "image/jpeg"
+      : "image/png";
+  const blob = toBlob(res.buffer, mime);
+  return {
+    blob,
+    filename: res.filename,
+    pageCount: res.pageCount || 1,
+    volumeCount: res.volumeCount || 1,
+    isMultiPart: Boolean(res.isMultiPart),
+  };
+}
+
+export async function nupPdf(
+  file: File,
+  options: {
+    pagesPerSheet: 2 | 4 | 6 | 9;
+    orientation?: "auto" | "portrait" | "landscape";
+    drawBorder?: boolean;
+    marginPt?: number;
+  }
+): Promise<{
+  blob: Blob;
+  filename: string;
+  inputPages: number;
+  outputSheets: number;
+  pagesPerSheet: number;
+}> {
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<{
+    buffer: ArrayBuffer | Uint8Array;
+    filename: string;
+    inputPages: number;
+    outputSheets: number;
+    pagesPerSheet: number;
+  }>("document:nup-pdf", {
+    fileBuffer,
+    fileName: file.name,
+    pagesPerSheet: options.pagesPerSheet,
+    orientation: options.orientation || "auto",
+    drawBorder: options.drawBorder ?? true,
+    marginPt: options.marginPt ?? 24,
+  });
+
+  const blob = toBlob(res.buffer, "application/pdf");
+  return {
+    blob,
+    filename: res.filename || `nup_${file.name}`,
+    inputPages: res.inputPages || 1,
+    outputSheets: res.outputSheets || 1,
+    pagesPerSheet: res.pagesPerSheet || options.pagesPerSheet,
+  };
+}
+
 export async function convertImage(
   file: File,
   targetFormat: string,
@@ -326,6 +462,14 @@ export function onTaskProgress(callback: (event: TaskProgressEvent) => void): ()
   return () => {};
 }
 
+export function formatBytes(bytes: number): string {
+  if (!bytes || bytes <= 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+}
+
 export function downloadBlob(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -343,3 +487,4 @@ export function downloadBlob(blob: Blob, filename: string) {
     } catch (_) {}
   }, 10000);
 }
+

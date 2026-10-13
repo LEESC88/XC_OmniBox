@@ -6,6 +6,19 @@ For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
 ---
 
+## 🌟 v1.6.2 Stirling-PDF Grade PDF Processing Suite (Physical Redaction & Sign, 300DPI Long Image, Multi-Page N-Up)
+
+- 🛡️ **Tool A: PDF Sign, Annotate & Physical Redaction (`pdf-sign-redact`)**:
+  - **Irreversible Physical Redaction (Anti-Copy / Anti-Extract)**: `DocumentService.signAndRedactPdf` rasterizes any page containing `'redact'` regions at 200 DPI via `pdfjs-dist` + `@napi-rs/canvas`, burns opaque solid blocks directly into the pixel buffer, and replaces the original PDF page stream—100% physically destroying underlying sensitive text coordinates so nothing can be copied or extracted, while keeping non-redacted pages 100% lossless vector.
+  - **Interactive Seal, Handwritten Signature Pad & Text Notes**: Added `PdfSignRedactStudio.tsx` supporting box-drag redaction, transparent PNG company seal upload, built-in handwritten signature canvas pad, and CJK-enabled custom text annotations.
+- 🖼️ **Tool B: PDF to High-DPI Long Image & Slices (`pdf-to-images`)**:
+  - **300DPI Raster Slices & Seamless Vertical Long Image**: Added `DocumentService.pdfToImages` to export PDF pages as batch high-DPI PNG/JPG slices (`ZIP`) or stitch pages vertically via `sharp` into a single ultra-clear long image.
+  - **Height Overflow Volume Protection**: Enforces a `MAX_VOLUME_HEIGHT = 15500px` safety ceiling per stitched image, automatically splitting ultra-long documents into multi-volume long images inside a ZIP archive to prevent `libvips` and Node.js Buffer overflows.
+- 📐 **Tool C: Multi-Page N-Up Vector Imposition (`pdf-nup`)**:
+  - **Lossless Vector 2-Up / 4-Up / 6-Up / 9-Up A4 Layout**: Added `DocumentService.nupPdf` using `pdf-lib`'s `embedPage()` to impose multiple invoices or lecture slides onto a single portrait/landscape A4 sheet with customizable page margins and subtle gray cell grid borders.
+
+---
+
 ## 🌟 v1.6.1 Service-Level Lazy Loading (Zero Cold-Start Blocking) & 5-Workshop Consolidation
 
 - ⚡ **Service-Level Lazy Loading (`Lazy Require / Getter` Pattern — 150–200ms Faster Cold Start)**:
