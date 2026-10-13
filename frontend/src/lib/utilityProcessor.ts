@@ -782,6 +782,16 @@ export async function decodeQrCodeFromImage(file: File): Promise<{
   text: string;
   format: string;
 } | null> {
+  if (typeof window !== "undefined" && (window as any).electronAPI?.invoke) {
+    try {
+      const imageBuffer = await file.arrayBuffer();
+      const res = await (window as any).electronAPI.invoke("utility:qr-decode", { imageBuffer });
+      if (res && res.data) {
+        return { text: res.data, format: "QR_CODE" };
+      }
+    } catch (_) {}
+  }
+
   const img = await loadImageFromFile(file);
   const canvas = document.createElement("canvas");
   canvas.width = img.naturalWidth;

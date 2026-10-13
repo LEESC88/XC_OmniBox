@@ -45,4 +45,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('backend:status', listener);
     return () => ipcRenderer.removeListener('backend:status', listener);
   },
+  // 监听大文件/批量任务进度流 (Progress Stream)
+  onTaskProgress: (callback) => {
+    const listener = (_event, data) => callback(data);
+    ipcRenderer.on('task:progress', listener);
+    return () => ipcRenderer.removeListener('task:progress', listener);
+  },
 });

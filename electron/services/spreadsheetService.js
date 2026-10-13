@@ -45,6 +45,7 @@ class SpreadsheetService {
       fileName,
       sheetNames,
       activeSheet,
+      headers: headerRow,
       totalRows,
       totalCols,
       headerColumns,
@@ -53,47 +54,72 @@ class SpreadsheetService {
   }
 
   /**
-   * 多表格智能合并与自动对齐
+   * 多表格智能合并与自动对齐 (单次解析优化 + 实时进度流)
    */
-  static async mergeSheets({
-    files,
-    mode = 'union',
-    appendSourceCol = true,
-    sourceColName = '来源文件',
-    deduplicate = false,
-    headerRowIndex = 0,
-    targetSheetName,
-  }) {
+  static async mergeSheets(
+    {
+      files,
+      mode = 'union',
+      appendSourceCol = true,
+      sourceColName = '来源文件',
+      deduplicate = false,
+      headerRowIndex = 0,
+      targetSheetName,
+    },
+    onProgress
+  ) {
     if (!files || files.length === 0) {
       throw new Error('请至少提供一个待合并表格');
     }
 
-    const fileProbes = [];
-    for (let i = 0; i < files.length; i++) {
+    const total = files.length;
+    const parsedTables = [];
+
+    for (let i = 0; i < total; i++) {
       const f = files[i];
-      const p = await SpreadsheetService.probeSpreadsheet({
-        fileBuffer: f.buffer,
-        fileName: f.name,
-        headerRowIndex,
-        targetSheetName,
+      if (onProgress) {
+        onProgress({
+          task: 'spreadsheet:merge',
+          current: i + 1,
+          total,
+          percent: Math.round(((i + 0.5) / total) * 45),
+          message: `正在读取并解析表格 (${i + 1}/${total}): ${f.name || ''}`,
+        });
+      }
+      const buffer = Buffer.isBuffer(f.buffer) ? f.buffer : Buffer.from(f.buffer);
+      const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true, dense: true });
+      if (!wb.SheetNames || wb.SheetNames.length === 0) continue;
+      const sheetName = targetSheetName && wb.SheetNames.includes(targetSheetName)
+        ? targetSheetName
+        : wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false });
+      const fileHeader = (rawRows[headerRowIndex] || []).map((c) => String(c ?? '').trim());
+      parsedTables.push({
+        name: f.name || `table_${i + 1}.xlsx`,
+        rawRows,
+        fileHeader,
+        validColumns: fileHeader.map((colName, colIdx) => ({
+          index: colIdx,
+          name: colName || `第 ${colIdx + 1} 列`,
+        })),
       });
-      fileProbes.push(p);
     }
 
     let unifiedHeaders = [];
     if (mode === 'union') {
       const headerSet = new Set();
-      for (const p of fileProbes) {
-        p.headerColumns.forEach((c) => {
+      for (const p of parsedTables) {
+        p.validColumns.forEach((c) => {
           if (c.name) headerSet.add(c.name);
         });
       }
       unifiedHeaders = Array.from(headerSet);
     } else {
-      if (fileProbes.length > 0) {
-        let intersection = fileProbes[0].headerColumns.map((c) => c.name).filter(Boolean);
-        for (let i = 1; i < fileProbes.length; i++) {
-          const currentHeaders = new Set(fileProbes[i].headerColumns.map((c) => c.name));
+      if (parsedTables.length > 0) {
+        let intersection = parsedTables[0].validColumns.map((c) => c.name).filter(Boolean);
+        for (let i = 1; i < parsedTables.length; i++) {
+          const currentHeaders = new Set(parsedTables[i].validColumns.map((c) => c.name));
           intersection = intersection.filter((h) => currentHeaders.has(h));
         }
         unifiedHeaders = intersection;
@@ -111,23 +137,24 @@ class SpreadsheetService {
     const seenRowSignatures = new Set();
     let totalMergedRowsCount = 0;
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const buffer = Buffer.isBuffer(file.buffer) ? file.buffer : Buffer.from(file.buffer);
-      const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true, dense: true });
-      const sheetName = targetSheetName && wb.SheetNames.includes(targetSheetName)
-        ? targetSheetName
-        : wb.SheetNames[0];
-      const ws = wb.Sheets[sheetName];
-      const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false });
+    for (let i = 0; i < parsedTables.length; i++) {
+      const pt = parsedTables[i];
+      if (onProgress) {
+        onProgress({
+          task: 'spreadsheet:merge',
+          current: i + 1,
+          total: parsedTables.length,
+          percent: 45 + Math.round(((i + 1) / parsedTables.length) * 45),
+          message: `正在对齐并归并数据行 (${i + 1}/${parsedTables.length}): ${pt.name}`,
+        });
+      }
 
-      const fileHeader = (rawRows[headerRowIndex] || []).map((c) => String(c ?? '').trim());
       const colMap = {};
       unifiedHeaders.forEach((uh) => {
-        colMap[uh] = fileHeader.indexOf(uh);
+        colMap[uh] = pt.fileHeader.indexOf(uh);
       });
 
-      const dataRows = rawRows.slice(headerRowIndex + 1);
+      const dataRows = pt.rawRows.slice(headerRowIndex + 1);
       for (const row of dataRows) {
         const isAllBlank = row.every((c) => c === '' || c === null || c === undefined);
         if (isAllBlank) continue;
@@ -144,7 +171,7 @@ class SpreadsheetService {
         }
 
         if (appendSourceCol) {
-          alignedRow.push(file.name);
+          alignedRow.push(pt.name);
         }
 
         mergedRows.push(alignedRow);
@@ -160,26 +187,42 @@ class SpreadsheetService {
     const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const outFilename = `合并汇总_${files.length}个文件_${timestamp}.xlsx`;
 
+    if (onProgress) {
+      onProgress({
+        task: 'spreadsheet:merge',
+        current: total,
+        total,
+        percent: 100,
+        message: `合并完成，共汇总 ${totalMergedRowsCount} 行数据！`,
+      });
+    }
+
     return {
       buffer: outBuffer,
       filename: outFilename,
+      totalMergedRows: totalMergedRowsCount,
       totalRowsMerged: totalMergedRowsCount,
+      columnCount: unifiedHeaders.length,
+      headers: unifiedHeaders,
       filesCount: files.length,
     };
   }
 
   /**
-   * 表格按列值智能拆分 (单表或 ZIP 打包)
+   * 表格按列值智能拆分 (单表或 ZIP 打包，含非法工作表字符清洗与实时进度流)
    */
-  static async splitSheet({
-    fileBuffer,
-    fileName = 'table.xlsx',
-    splitColIndex = 0,
-    headerRowIndex = 0,
-    targetSheetName,
-    includeHeader = true,
-    prefixWithOriginalName = true,
-  }) {
+  static async splitSheet(
+    {
+      fileBuffer,
+      fileName = 'table.xlsx',
+      splitColIndex = 0,
+      headerRowIndex = 0,
+      targetSheetName,
+      includeHeader = true,
+      prefixWithOriginalName = true,
+    },
+    onProgress
+  ) {
     const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
     const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true, dense: true });
     const sheetName = targetSheetName && wb.SheetNames.includes(targetSheetName)
@@ -194,15 +237,17 @@ class SpreadsheetService {
 
     const headerRow = rawRows[headerRowIndex] || [];
     const dataRows = rawRows.slice(headerRowIndex + 1);
+    const baseFileName = fileName.replace(/\.[^/.]+$/, '');
 
     const groups = {};
     for (const r of dataRows) {
       const isBlank = r.every((c) => c === '' || c === null || c === undefined);
       if (isBlank) continue;
       const rawVal = r[splitColIndex];
+      // 过滤文件名及 Excel 工作表名禁止的特殊字符 (: \ / ? * [ ] " < > |)
       const key = (rawVal === undefined || rawVal === null || String(rawVal).trim() === '')
         ? '未分类'
-        : String(rawVal).trim().replace(/[\\/:*?"<>|]/g, '_');
+        : String(rawVal).trim().replace(/[\\/:*?"<>|\[\]]/g, '_');
 
       if (!groups[key]) groups[key] = [];
       groups[key].push(r);
@@ -213,26 +258,48 @@ class SpreadsheetService {
       throw new Error('未在指定拆分列中找到有效分类值');
     }
 
-    const baseFileName = fileName.replace(/\.[^/.]+$/, '');
-
-    // 单个分组直接导出 .xlsx
-    if (groupKeys.length === 1) {
-      const key = groupKeys[0];
+    const items = [];
+    for (let i = 0; i < groupKeys.length; i++) {
+      const key = groupKeys[i];
+      if (onProgress) {
+        onProgress({
+          task: 'spreadsheet:split',
+          current: i + 1,
+          total: groupKeys.length,
+          percent: Math.round(((i + 1) / groupKeys.length) * 85),
+          message: `正在生成分组子表 (${i + 1}/${groupKeys.length}): ${key}`,
+        });
+      }
       const newWb = XLSX.utils.book_new();
       const sheetData = includeHeader ? [headerRow, ...groups[key]] : groups[key];
       const newWs = XLSX.utils.aoa_to_sheet(sheetData);
-      XLSX.utils.book_append_sheet(newWb, newWs, key.slice(0, 30));
-      const outBuffer = XLSX.write(newWb, { bookType: 'xlsx', type: 'buffer' });
-      const outName = prefixWithOriginalName ? `${baseFileName}_${key}.xlsx` : `${key}.xlsx`;
+      const safeSheetName = key.slice(0, 30) || 'Sheet1';
+      XLSX.utils.book_append_sheet(newWb, newWs, safeSheetName);
+      const fileBuf = XLSX.write(newWb, { bookType: 'xlsx', type: 'buffer' });
+      const singleName = prefixWithOriginalName ? `${baseFileName}_${key}.xlsx` : `${key}.xlsx`;
+      items.push({
+        key,
+        filename: singleName,
+        rowCount: groups[key].length,
+        buffer: fileBuf,
+      });
+    }
+
+    if (groupKeys.length === 1) {
+      if (onProgress) {
+        onProgress({ task: 'spreadsheet:split', current: 1, total: 1, percent: 100, message: '拆分完成！' });
+      }
       return {
-        buffer: outBuffer,
-        filename: outName,
+        items,
+        buffer: items[0].buffer,
+        filename: items[0].filename,
+        zipBuffer: items[0].buffer,
+        zipFilename: items[0].filename,
         groupsCount: 1,
         groupNames: groupKeys,
       };
     }
 
-    // 多个分组打包为 ZIP
     return new Promise(async (resolve, reject) => {
       try {
         const archive = new ZipArchive({ zlib: { level: 9 } });
@@ -240,23 +307,25 @@ class SpreadsheetService {
 
         archive.on('data', (c) => chunks.push(c));
         archive.on('end', () => {
+          const zipBuffer = Buffer.concat(chunks);
+          const zipFilename = `${baseFileName}_按列拆分_${groupKeys.length}个文件.zip`;
+          if (onProgress) {
+            onProgress({ task: 'spreadsheet:split', current: groupKeys.length, total: groupKeys.length, percent: 100, message: '拆分打包完成！' });
+          }
           resolve({
-            buffer: Buffer.concat(chunks),
-            filename: `${baseFileName}_按列拆分_${groupKeys.length}个文件.zip`,
+            items,
+            buffer: zipBuffer,
+            filename: zipFilename,
+            zipBuffer,
+            zipFilename,
             groupsCount: groupKeys.length,
             groupNames: groupKeys,
           });
         });
         archive.on('error', (err) => reject(err));
 
-        for (const key of groupKeys) {
-          const newWb = XLSX.utils.book_new();
-          const sheetData = includeHeader ? [headerRow, ...groups[key]] : groups[key];
-          const newWs = XLSX.utils.aoa_to_sheet(sheetData);
-          XLSX.utils.book_append_sheet(newWb, newWs, key.slice(0, 30));
-          const fileBuf = XLSX.write(newWb, { bookType: 'xlsx', type: 'buffer' });
-          const singleName = prefixWithOriginalName ? `${baseFileName}_${key}.xlsx` : `${key}.xlsx`;
-          archive.append(fileBuf, { name: singleName });
+        for (const item of items) {
+          archive.append(item.buffer, { name: item.filename });
         }
 
         await archive.finalize();
@@ -295,6 +364,10 @@ class SpreadsheetService {
     groups.sort((a, b) => b.count - a.count);
 
     return {
+      totalRows: dataRows.length,
+      distinctCount: groups.length,
+      sampleKeys: groups.slice(0, 10),
+      isHighCardinality: groups.length > 100,
       groups,
       totalGroups: groups.length,
       activeSheet: sheetName,

@@ -290,6 +290,23 @@ export async function renderPdfPages(
   });
 }
 
+export interface TaskProgressEvent {
+  task: string;
+  current: number;
+  total: number;
+  percent: number;
+}
+
+/**
+ * 订阅主进程大文件/批量长任务实时进度流 (Progress Stream)
+ */
+export function onTaskProgress(callback: (event: TaskProgressEvent) => void): () => void {
+  if (typeof window !== "undefined" && (window as any).electronAPI?.onTaskProgress) {
+    return (window as any).electronAPI.onTaskProgress(callback);
+  }
+  return () => {};
+}
+
 export function downloadBlob(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement("a");

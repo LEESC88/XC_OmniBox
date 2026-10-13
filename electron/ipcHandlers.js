@@ -3,9 +3,18 @@ const DocumentService = require('./services/documentService');
 const ImageService = require('./services/imageService');
 const SpreadsheetService = require('./services/spreadsheetService');
 const UtilityService = require('./services/utilityService');
+const AudioService = require('./services/audioService');
 
 function registerIpcHandlers(options = {}) {
   const getDesktopConfig = options.getDesktopConfig || (() => ({}));
+  const emitProgress = (event) => (progressData) => {
+    try {
+      if (event && event.sender && !event.sender.isDestroyed()) {
+        event.sender.send('task:progress', progressData);
+      }
+    } catch (_) {}
+  };
+
   // ==================== 文档服务 (DocumentService) ====================
   ipcMain.handle('document:pdf-to-word', async (_e, payload) => {
     return await DocumentService.pdfToWord(payload);
@@ -16,7 +25,7 @@ function registerIpcHandlers(options = {}) {
   });
 
   ipcMain.handle('document:merge-pdfs', async (_e, payload) => {
-    return await DocumentService.mergePdfs(payload);
+    return await DocumentService.mergePdfs(payload, emitProgress(_e));
   });
 
   ipcMain.handle('document:split-pdf', async (_e, payload) => {
@@ -32,11 +41,11 @@ function registerIpcHandlers(options = {}) {
   });
 
   ipcMain.handle('document:compress-pdf', async (_e, payload) => {
-    return await DocumentService.compressPdf(payload);
+    return await DocumentService.compressPdf(payload, emitProgress(_e));
   });
 
   ipcMain.handle('document:images-to-pdf', async (_e, payload) => {
-    return await DocumentService.imagesToPdf(payload);
+    return await DocumentService.imagesToPdf(payload, emitProgress(_e));
   });
 
   ipcMain.handle('document:organize-pdf', async (_e, payload) => {
@@ -47,7 +56,15 @@ function registerIpcHandlers(options = {}) {
     return await DocumentService.renderPdfPages(payload);
   });
 
+  ipcMain.handle('document:searchable-pdf', async (_e, payload) => {
+    return await DocumentService.generateSearchablePdf(payload);
+  });
+
   // ==================== 图像服务 (ImageService) ====================
+  ipcMain.handle('image:compress', async (_e, payload) => {
+    return await ImageService.compressImage(payload);
+  });
+
   ipcMain.handle('image:convert', async (_e, payload) => {
     return await ImageService.convertImage(payload);
   });
@@ -60,17 +77,33 @@ function registerIpcHandlers(options = {}) {
     return await ImageService.stripExif(payload);
   });
 
+  ipcMain.handle('image:watermark', async (_e, payload) => {
+    return await ImageService.applyWatermark(payload);
+  });
+
+  ipcMain.handle('image:bundle-zip', async (_e, payload) => {
+    return await ImageService.bundleZip(payload, emitProgress(_e));
+  });
+
+  ipcMain.handle('image:ocr-preprocess', async (_e, payload) => {
+    return await ImageService.preprocessForOcr(payload);
+  });
+
+  ipcMain.handle('image:enhance', async (_e, payload) => {
+    return await ImageService.enhanceImage(payload);
+  });
+
   // ==================== 表格服务 (SpreadsheetService) ====================
   ipcMain.handle('spreadsheet:probe', async (_e, payload) => {
     return await SpreadsheetService.probeSpreadsheet(payload);
   });
 
   ipcMain.handle('spreadsheet:merge', async (_e, payload) => {
-    return await SpreadsheetService.mergeSheets(payload);
+    return await SpreadsheetService.mergeSheets(payload, emitProgress(_e));
   });
 
   ipcMain.handle('spreadsheet:split', async (_e, payload) => {
-    return await SpreadsheetService.splitSheet(payload);
+    return await SpreadsheetService.splitSheet(payload, emitProgress(_e));
   });
 
   ipcMain.handle('spreadsheet:probe-split', async (_e, payload) => {
@@ -110,6 +143,79 @@ function registerIpcHandlers(options = {}) {
       ...payload,
       defaultPath: config.customExportPath,
     });
+  });
+
+  ipcMain.handle('files:find-duplicates', async (_e, payload) => {
+    return await UtilityService.findDuplicates(payload, emitProgress(_e));
+  });
+
+  ipcMain.handle('files:generate-organize-plan', (_e, payload) => {
+    return UtilityService.generateOrganizePlan(payload);
+  });
+
+  ipcMain.handle('files:export-organized-zip', async (_e, payload) => {
+    return await UtilityService.exportOrganizedZip(payload);
+  });
+
+  ipcMain.handle('utility:text-diff', (_e, payload) => {
+    return UtilityService.computeTextDiff(payload);
+  });
+
+  ipcMain.handle('utility:qr-generate', async (_e, payload) => {
+    return await UtilityService.generateQrCode(payload);
+  });
+
+  ipcMain.handle('utility:qr-decode', async (_e, payload) => {
+    return await UtilityService.decodeQrCode(payload);
+  });
+
+  ipcMain.handle('utility:calc-hash', (_e, payload) => {
+    return UtilityService.calculateHash(payload);
+  });
+
+  ipcMain.handle('utility:convert-rmb', (_e, payload) => {
+    return UtilityService.convertNumberToChineseRMB(payload);
+  });
+
+  ipcMain.handle('utility:parse-id-card', (_e, payload) => {
+    return UtilityService.validateAndParseChineseId(payload);
+  });
+
+  // ==================== 音频服务 (AudioService) ====================
+  ipcMain.handle('audio:export', async (_e, payload) => {
+    return await AudioService.exportAudio(payload);
+  });
+
+  ipcMain.handle('audio:trim', (_e, payload) => {
+    return AudioService.trimAudio(payload);
+  });
+
+  ipcMain.handle('audio:concat', (_e, payload) => {
+    return AudioService.concatAudio(payload);
+  });
+
+  ipcMain.handle('audio:adjust-volume', (_e, payload) => {
+    return AudioService.adjustVolumeAndNormalize(payload);
+  });
+
+  ipcMain.handle('audio:change-speed', (_e, payload) => {
+    return AudioService.changeSpeed(payload);
+  });
+
+  ipcMain.handle('audio:enhance-voice', (_e, payload) => {
+    return AudioService.enhanceVoiceClarity(payload);
+  });
+
+  ipcMain.handle('audio:reverse', (_e, payload) => {
+    return AudioService.reverseAudio(payload);
+  });
+
+  ipcMain.handle('audio:extract-karaoke', (_e, payload) => {
+    return AudioService.extractKaraoke(payload);
+  });
+
+  ipcMain.handle('audio:extract-peaks', (_e, payload) => {
+    return AudioService.extractPeaks(payload);
   });
 
   // ==================== 后端健康检查兼容 ====================

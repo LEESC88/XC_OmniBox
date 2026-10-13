@@ -1,5 +1,7 @@
-import * as XLSX from "xlsx";
-import JSZip from "jszip";
+/**
+ * XC_OmniBox - 表格处理服务调度层
+ * 严格遵循前后端分离守则：前端仅负责入参收集与结果接收，底层 XLSX 计算 100% 运行于后端 Node.js 进程内
+ */
 
 export interface SheetProbeResult {
   fileName: string;
@@ -55,303 +57,144 @@ export interface SplitProbeGroupResult {
   isHighCardinality: boolean; // > 100 个分组提示高危 OOM 风险
 }
 
+async function invokeNative<T = any>(channel: string, payload: any): Promise<T> {
+  if (typeof window !== "undefined" && (window as any).electronAPI?.invoke) {
+    try {
+      const res = await (window as any).electronAPI.invoke(channel, payload);
+      if (res && res.error) {
+        throw new Error(res.error);
+      }
+      return res as T;
+    } catch (err: any) {
+      console.error(`[IPC Error] Channel ${channel} failed:`, err);
+      throw err;
+    }
+  }
+  throw new Error("桌面端原生服务未就绪 (仅支持在桌面客户端中运行)");
+}
+
+function toBlob(buffer: any, type: string = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"): Blob {
+  return new Blob([buffer as any], { type });
+}
+
 /**
- * 极速探测 Excel/CSV 文件的表头与基础结构（采样前 5 行预览）
+ * 极速探测 Excel/CSV 文件的表头与基础结构（后端 Node.js 高速处理）
  */
 export async function probeSpreadsheet(
   file: File,
   headerRowIndex: number = 0,
   targetSheetName?: string
 ): Promise<SheetProbeResult> {
-  const arrayBuffer = await file.arrayBuffer();
-  const workbook = XLSX.read(arrayBuffer, { type: "array", cellDates: true, dense: true });
-  
-  const sheetNames = workbook.SheetNames || [];
-  if (sheetNames.length === 0) {
-    throw new Error(`文件 "${file.name}" 中未发现有效工作表 (Worksheet)`);
-  }
-
-  const activeSheetName = (targetSheetName && sheetNames.includes(targetSheetName))
-    ? targetSheetName
-    : sheetNames[0];
-  const worksheet = workbook.Sheets[activeSheetName];
-  if (!worksheet) {
-    throw new Error(`无法读取文件 "${file.name}" 的工作表 "${activeSheetName}"`);
-  }
-
-  // 读取为二维数组 (最大采样前 30 行以减少内存开销)
-  const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, {
-    header: 1,
-    defval: "",
-    blankrows: false,
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<any>("spreadsheet:probe", {
+    fileBuffer,
+    fileName: file.name,
+    headerRowIndex,
+    targetSheetName,
   });
-
-  if (rows.length === 0) {
-    return {
-      fileName: file.name,
-      sheetNames,
-      activeSheet: activeSheetName,
-      headers: [],
-      totalRows: 0,
-      previewRows: [],
-    };
-  }
-
-  const safeHeaderIdx = Math.min(headerRowIndex, rows.length - 1);
-  const rawHeaders = rows[safeHeaderIdx] || [];
-  const headers = rawHeaders.map((h, i) => (h !== undefined && h !== null && String(h).trim() !== "" ? String(h).trim() : `第${i + 1}列`));
-
-  // 截取前 5 行数据作为预览
-  const dataRows = rows.slice(safeHeaderIdx + 1);
-  const previewRows = dataRows.slice(0, 5);
 
   return {
     fileName: file.name,
-    sheetNames,
-    activeSheet: activeSheetName,
-    headers,
-    totalRows: dataRows.length,
-    previewRows,
+    sheetNames: res.sheetNames || [],
+    activeSheet: res.activeSheet || "",
+    headers: res.headers || (res.headerColumns || []).map((c: any) => c.name),
+    totalRows: res.totalRows || 0,
+    previewRows: res.previewRows || [],
   };
 }
 
 /**
- * 多 Excel 文件智能纵向拼合 (Smart Union/Intersection Merge)
+ * 多表格智能合并（后端 Node.js 高速处理，彻底避免前端内存溢出）
  */
 export async function mergeSpreadsheets(
   files: File[],
   config: MergeConfig,
   onProgress?: (progress: { current: number; total: number; currentFile: string }) => void
 ): Promise<MergeResult> {
-  if (files.length === 0) {
-    throw new Error("请至少选择一个待合并的 Excel 文件");
+  if (onProgress && files.length > 0) {
+    onProgress({ current: 1, total: files.length, currentFile: files[0].name });
   }
 
-  // 1. 探针所有文件的表头
-  const probes: SheetProbeResult[] = [];
-  for (let i = 0; i < files.length; i++) {
-    onProgress?.({ current: i + 1, total: files.length, currentFile: `正在扫描表头: ${files[i].name}` });
-    const p = await probeSpreadsheet(files[i], config.headerRowIndex, config.targetSheetName);
-    probes.push(p);
-  }
+  const fileItems = await Promise.all(
+    files.map(async (f) => ({
+      buffer: await f.arrayBuffer(),
+      name: f.name,
+    }))
+  );
 
-  // 2. 计算最终输出的列头列表 (Master Headers)
-  let masterHeaders: string[] = [];
-  if (config.mode === "intersection") {
-    // 交集模式：所有文件共有的列
-    masterHeaders = probes[0].headers.filter((h) => probes.every((p) => p.headers.includes(h)));
-    if (masterHeaders.length === 0) {
-      throw new Error("所选文件之间没有完全一致的公共列头，请切换为「并集对齐模式」进行容错合并");
-    }
-  } else {
-    // 并集模式：按出现顺序拼接所有不重复的列
-    const set = new Set<string>();
-    for (const p of probes) {
-      p.headers.forEach((h) => set.add(h));
-    }
-    masterHeaders = Array.from(set);
-  }
-
-  // 是否追加来源文件列
-  const actualHeaders = [...masterHeaders];
-  if (config.appendSourceCol) {
-    const colName = config.sourceColName?.trim() || "来源文件名";
-    actualHeaders.push(colName);
-  }
-
-  const seenRowHashes = new Set<string>();
-  const mergedRows: any[][] = [actualHeaders];
-
-  // 3. 逐个读取并映射数据行
-  for (let fileIdx = 0; fileIdx < files.length; fileIdx++) {
-    const file = files[fileIdx];
-    onProgress?.({ current: fileIdx + 1, total: files.length, currentFile: `正在合并数据: ${file.name}` });
-
-    const arrayBuffer = await file.arrayBuffer();
-    const wb = XLSX.read(arrayBuffer, { type: "array", cellDates: true, dense: true });
-    const targetSheet = (config.targetSheetName && wb.SheetNames.includes(config.targetSheetName))
-      ? config.targetSheetName
-      : wb.SheetNames[0];
-    const ws = wb.Sheets[targetSheet];
-    if (!ws) continue;
-
-    const rawRows: any[][] = XLSX.utils.sheet_to_json(ws, {
-      header: 1,
-      defval: "",
-      blankrows: false,
-    });
-
-    const fileHeaders = probes[fileIdx].headers;
-    const dataRows = rawRows.slice(config.headerRowIndex + 1);
-
-    for (const row of dataRows) {
-      // 过滤完全空白的行
-      const isBlank = row.every((c) => c === undefined || c === null || String(c).trim() === "");
-      if (isBlank) continue;
-
-      // 按照 masterHeaders 的位置对齐重排单元格
-      const alignedRow: any[] = masterHeaders.map((targetCol) => {
-        const colIdx = fileHeaders.indexOf(targetCol);
-        if (colIdx >= 0 && colIdx < row.length) {
-          return row[colIdx];
-        }
-        return ""; // 缺失列填补空字符串
-      });
-
-      // 追加来源文件名
-      if (config.appendSourceCol) {
-        alignedRow.push(file.name);
-      }
-
-      // 整行去重校验
-      if (config.deduplicate) {
-        const rowHash = JSON.stringify(alignedRow);
-        if (seenRowHashes.has(rowHash)) {
-          continue; // 跳过重复行
-        }
-        seenRowHashes.add(rowHash);
-      }
-
-      mergedRows.push(alignedRow);
-    }
-  }
-
-  // 4. 构建输出工作簿
-  const outputWb = XLSX.utils.book_new();
-  const outputWs = XLSX.utils.aoa_to_sheet(mergedRows);
-
-  // 自动设置列宽 (自适应最长字符)
-  outputWs["!cols"] = actualHeaders.map((h, i) => {
-    let maxLen = h.length;
-    for (let r = 1; r < Math.min(mergedRows.length, 50); r++) {
-      const cellVal = mergedRows[r][i];
-      if (cellVal !== undefined && cellVal !== null) {
-        maxLen = Math.max(maxLen, String(cellVal).length);
-      }
-    }
-    return { wch: Math.min(Math.max(maxLen + 3, 10), 45) };
+  const res = await invokeNative<any>("spreadsheet:merge", {
+    files: fileItems,
+    mode: config.mode,
+    appendSourceCol: config.appendSourceCol,
+    sourceColName: config.sourceColName,
+    deduplicate: config.deduplicate,
+    headerRowIndex: config.headerRowIndex,
+    targetSheetName: config.targetSheetName,
   });
 
-  XLSX.utils.book_append_sheet(outputWb, outputWs, "合并汇总");
+  if (onProgress) {
+    onProgress({ current: files.length, total: files.length, currentFile: files[files.length - 1]?.name || "" });
+  }
 
-  const outBuffer = XLSX.write(outputWb, { bookType: "xlsx", type: "array" });
-  const blob = new Blob([outBuffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-
-  const timestamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
-  const outFilename = `合并汇总_${files.length}个文件_${timestamp}.xlsx`;
-
+  const blob = toBlob(res.buffer);
   return {
     blob,
-    filename: outFilename,
-    totalMergedRows: mergedRows.length - 1,
-    columnCount: actualHeaders.length,
-    headers: actualHeaders,
+    filename: res.filename,
+    totalMergedRows: res.totalMergedRows || res.totalRowsMerged || 0,
+    columnCount: res.columnCount || (res.headers ? res.headers.length : 0),
+    headers: res.headers || [],
   };
 }
 
 /**
- * 单 Excel 大表按指定列字段快速拆分 (Smart Column Splitter)
+ * 单 Excel 大表按指定列字段快速拆分（后端 Node.js 流式拆分）
  */
 export async function splitSpreadsheet(
   file: File,
   config: SplitConfig,
   onProgress?: (progress: { current: number; total: number; currentKey: string }) => void
 ): Promise<SplitResult> {
-  const arrayBuffer = await file.arrayBuffer();
-  const wb = XLSX.read(arrayBuffer, { type: "array", cellDates: true, dense: true });
-  const sheetName = (config.targetSheetName && wb.SheetNames.includes(config.targetSheetName))
-    ? config.targetSheetName
-    : wb.SheetNames[0];
-  const ws = wb.Sheets[sheetName];
-  if (!ws) {
-    throw new Error(`无法读取表格工作表 "${sheetName}" 的内容`);
+  if (onProgress) {
+    onProgress({ current: 1, total: 1, currentKey: "初始化拆分" });
   }
 
-  const rawRows: any[][] = XLSX.utils.sheet_to_json(ws, {
-    header: 1,
-    defval: "",
-    blankrows: false,
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<any>("spreadsheet:split", {
+    fileBuffer,
+    fileName: file.name,
+    splitColIndex: config.splitColumnIndex,
+    headerRowIndex: config.headerRowIndex,
+    targetSheetName: config.targetSheetName,
+    includeHeader: config.includeHeader,
+    prefixWithOriginalName: config.prefixWithOriginalName,
   });
 
-  const safeHeaderIdx = Math.min(config.headerRowIndex, Math.max(0, rawRows.length - 1));
-  if (rawRows.length <= safeHeaderIdx + 1) {
-    throw new Error("表格中没有足够的数据行供拆分");
+  const items: SplitResultItem[] = (res.items || []).map((it: any) => ({
+    key: it.key,
+    filename: it.filename,
+    rowCount: it.rowCount,
+    blob: toBlob(it.buffer),
+  }));
+
+  if (onProgress && items.length > 0) {
+    onProgress({ current: items.length, total: items.length, currentKey: items[items.length - 1]?.key || "" });
   }
 
-  const headers = rawRows[safeHeaderIdx] || [];
-  const dataRows = rawRows.slice(safeHeaderIdx + 1);
-
-  // 按照指定列进行分组
-  const groups = new Map<string, any[][]>();
-
-  for (const row of dataRows) {
-    let keyValue = row[config.splitColumnIndex];
-    let keyStr = keyValue !== undefined && keyValue !== null ? String(keyValue).trim() : "";
-    // 过滤 Windows 文件名与 Excel 工作表非法字符: \ / : * ? " < > | [ ] '
-    keyStr = keyStr.replace(/[\\/:*?"<>|[\]']/g, "_").trim();
-    if (keyStr === "") {
-      keyStr = "未分类_空值";
-    }
-
-    if (!groups.has(keyStr)) {
-      groups.set(keyStr, []);
-    }
-    groups.get(keyStr)!.push(row);
-  }
-
-  const baseFileName = file.name.replace(/\.[^/.]+$/, "");
-  const zip = new JSZip();
-  const resultItems: SplitResultItem[] = [];
-  const totalKeys = groups.size;
-
-  let currentIdx = 0;
-  for (const [key, rows] of Array.from(groups.entries())) {
-    currentIdx++;
-    onProgress?.({ current: currentIdx, total: totalKeys, currentKey: key });
-
-    const newWb = XLSX.utils.book_new();
-    const sheetData = config.includeHeader ? [headers, ...rows] : rows;
-    const newWs = XLSX.utils.aoa_to_sheet(sheetData);
-
-    // Excel 工作表名限制：最长 31 字符，且不能包含 \ / ? * [ ] :
-    let safeSheetName = key.replace(/[\\/:*?[\]']/g, "_").trim().slice(0, 31);
-    if (!safeSheetName) safeSheetName = "Sheet1";
-    XLSX.utils.book_append_sheet(newWb, newWs, safeSheetName);
-
-    const outBuffer = XLSX.write(newWb, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([outBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-
-    const itemFilename = config.prefixWithOriginalName
-      ? `${baseFileName}_${key}.xlsx`
-      : `${key}.xlsx`;
-
-    resultItems.push({
-      key,
-      filename: itemFilename,
-      rowCount: rows.length,
-      blob,
-    });
-
-    zip.file(itemFilename, outBuffer);
-  }
-
-  // 打包为 Zip
-  const zipBlob = await zip.generateAsync({ type: "blob" });
-  const zipFilename = `${baseFileName}_拆分导出_${resultItems.length}个文件.zip`;
+  const isZip = res.zipFilename ? res.zipFilename.endsWith(".zip") : res.filename.endsWith(".zip");
+  const zipBlob = toBlob(
+    res.zipBuffer || res.buffer,
+    isZip ? "application/zip" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
 
   return {
-    items: resultItems,
+    items,
     zipBlob,
-    zipFilename,
+    zipFilename: res.zipFilename || res.filename,
   };
 }
 
 /**
- * 探测指定列的唯一分组统计（用于拆分前风险评估与防 OOM 卡死）
+ * 拆分前探测指定列的分组数量与基数预警（后端极速采样）
  */
 export async function probeSplitGroups(
   file: File,
@@ -359,50 +202,18 @@ export async function probeSplitGroups(
   headerRowIndex: number = 0,
   targetSheetName?: string
 ): Promise<SplitProbeGroupResult> {
-  const arrayBuffer = await file.arrayBuffer();
-  const wb = XLSX.read(arrayBuffer, { type: "array", cellDates: true, dense: true });
-  const sheetName = (targetSheetName && wb.SheetNames.includes(targetSheetName))
-    ? targetSheetName
-    : wb.SheetNames[0];
-  const ws = wb.Sheets[sheetName];
-  if (!ws) {
-    throw new Error("无法读取工作表内容");
-  }
-
-  const rawRows: any[][] = XLSX.utils.sheet_to_json(ws, {
-    header: 1,
-    defval: "",
-    blankrows: false,
-  });
-
-  const safeHeaderIdx = Math.min(headerRowIndex, Math.max(0, rawRows.length - 1));
-  const dataRows = rawRows.slice(safeHeaderIdx + 1);
-  const groupCounts = new Map<string, number>();
-
-  for (const row of dataRows) {
-    const isBlank = row.every((c) => c === undefined || c === null || String(c).trim() === "");
-    if (isBlank) continue;
-
-    let val = row[splitColIndex];
-    let key = val !== undefined && val !== null ? String(val).trim() : "";
-    key = key.replace(/[\\/:*?"<>|[\]']/g, "_").trim();
-    if (!key) key = "未分类_空值";
-    groupCounts.set(key, (groupCounts.get(key) || 0) + 1);
-  }
-
-  const distinctCount = groupCounts.size;
-  const sampleKeys: { key: string; count: number }[] = [];
-  let idx = 0;
-  groupCounts.forEach((count, k) => {
-    if (idx++ < 8) {
-      sampleKeys.push({ key: k, count });
-    }
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<any>("spreadsheet:probe-split", {
+    fileBuffer,
+    splitColIndex,
+    headerRowIndex,
+    targetSheetName,
   });
 
   return {
-    totalRows: dataRows.length,
-    distinctCount,
-    sampleKeys,
-    isHighCardinality: distinctCount > 100,
+    totalRows: res.totalRows || 0,
+    distinctCount: res.distinctCount || 0,
+    sampleKeys: res.sampleKeys || (res.groups || []).slice(0, 10),
+    isHighCardinality: Boolean(res.isHighCardinality),
   };
 }
