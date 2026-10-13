@@ -27,6 +27,9 @@ import {
   X,
   Eye,
   EyeOff,
+  Unlock,
+  FileSearch,
+  Sparkles,
 } from "lucide-react";
 
 import Dropzone from "@/components/Dropzone";
@@ -37,6 +40,7 @@ import PdfWatermarkStudio from "@/components/pdf/PdfWatermarkStudio";
 import PdfCompressStudio from "@/components/pdf/PdfCompressStudio";
 import ImagesToPdfStudio from "@/components/pdf/ImagesToPdfStudio";
 import PdfOrganizeStudio from "@/components/pdf/PdfOrganizeStudio";
+import AiToolbox from "@/components/AiToolbox";
 
 import { useI18n } from "@/lib/i18n";
 import { formatBytes } from "@/lib/imageProcessor";
@@ -47,6 +51,7 @@ import {
   splitPdf,
   addWatermark,
   protectPdf,
+  unlockPdf,
   compressPdf,
   convertImagesToPdf,
   organizePdfPages,
@@ -63,7 +68,9 @@ export type DocTabType =
   | "pdf-watermark"
   | "pdf-compress"
   | "images-to-pdf"
-  | "pdf-protect";
+  | "pdf-protect"
+  | "ai-ocr"
+  | "ai-searchable-pdf";
 
 export interface DocumentToolboxProps {
   currentTab?: DocTabType;
@@ -107,6 +114,8 @@ export default function DocumentToolbox({
   );
   const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.3);
   const [watermarkAngle, setWatermarkAngle] = useState<number>(45);
+  const [protectMode, setProtectMode] = useState<"encrypt" | "unlock">("encrypt");
+  const [cleanMetadata, setCleanMetadata] = useState<boolean>(true);
   const [protectPassword, setProtectPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -303,28 +312,34 @@ export default function DocumentToolbox({
         resultBlob = res.blob;
         resultFilename = res.filename;
       } else if (activeTab === "pdf-protect") {
-        if (!protectPassword.trim()) {
-          throw new Error(
-            lang === "en" ? "Please enter a protection password" : "请先输入保护密码",
-          );
+        if (protectMode === "encrypt") {
+          if (!protectPassword.trim()) {
+            throw new Error(
+              lang === "en" ? "Please enter a protection password" : "请先输入保护密码",
+            );
+          }
+          if (protectPassword.length < 4) {
+            throw new Error(
+              lang === "en"
+                ? "Password must be at least 4 characters"
+                : "密码长度不能少于 4 位",
+            );
+          }
+          if (protectPassword !== confirmPassword) {
+            throw new Error(
+              lang === "en"
+                ? "Passwords do not match, please verify"
+                : "两次输入的密码不一致，请重新检查确认",
+            );
+          }
+          const res = await protectPdf(files[0], protectPassword, cleanMetadata);
+          resultBlob = res.blob;
+          resultFilename = res.filename;
+        } else {
+          const res = await unlockPdf(files[0], protectPassword.trim(), cleanMetadata);
+          resultBlob = res.blob;
+          resultFilename = res.filename;
         }
-        if (protectPassword.length < 4) {
-          throw new Error(
-            lang === "en"
-              ? "Password must be at least 4 characters"
-              : "密码长度不能少于 4 位",
-          );
-        }
-        if (protectPassword !== confirmPassword) {
-          throw new Error(
-            lang === "en"
-              ? "Passwords do not match, please verify"
-              : "两次输入的密码不一致，请重新检查确认",
-          );
-        }
-        const res = await protectPdf(files[0], protectPassword);
-        resultBlob = res.blob;
-        resultFilename = res.filename;
       } else {
         throw new Error(t.common.errorOccurred);
       }
@@ -569,15 +584,27 @@ export default function DocumentToolbox({
     },
     {
       id: "pdf-protect",
-      label: lang === "en" ? "PDF Password Protection" : "文档密码权限保护",
+      label: lang === "en" ? "PDF Encrypt & Unlock" : "PDF 加密解密与权限管理",
       icon: Lock,
-      badge: lang === "en" ? "Security" : "安全",
+      badge: lang === "en" ? "Encrypt/Unlock" : "加密/解密",
+    },
+    {
+      id: "ai-ocr",
+      label: lang === "en" ? "Offline OCR Text" : "离线文字提取 (OCR)",
+      icon: Sparkles,
+      badge: lang === "en" ? "Offline" : "离线引擎",
+    },
+    {
+      id: "ai-searchable-pdf",
+      label: lang === "en" ? "Dual-Layer Searchable PDF" : "双层可搜索 PDF 制作",
+      icon: FileSearch,
+      badge: lang === "en" ? "Dual-Layer" : "双层合成",
     },
   ];
 
   return (
     <div className="space-y-6">
-      {/* 9 Document & PDF Horizontal Sub-tabs Nav */}
+      {/* 11 Document & Text Workshop Horizontal Sub-tabs Nav */}
       <ScrollableTabNav
         tabs={docTabs}
         activeTab={activeTab}
@@ -974,35 +1001,115 @@ export default function DocumentToolbox({
             />
           </div>
         )
+      ) : activeTab === "ai-ocr" || activeTab === "ai-searchable-pdf" ? (
+        <AiToolbox
+          currentTab={activeTab}
+          onTabChange={(id) => handleTabSelect(id as DocTabType)}
+          incomingFile={files[0] || null}
+          onIncomingFileHandled={() => setFiles([])}
+          hideSubTabs={true}
+        />
       ) : activeTab === "pdf-protect" ? (
-        /* PDF AES Password Protection Dual-Column Studio */
+        /* PDF Encrypt, Unlock & Permission Management Dual-Column Studio */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <div className="lg:col-span-5 coconut-panel p-5 sm:p-6 space-y-5">
             <div className="flex items-center gap-3 pb-3 border-b border-coconut-200/80 dark:border-darkbg-border">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-600 to-red-700 shadow-sm flex items-center justify-center text-white flex-shrink-0">
-                <Lock className="w-5 h-5" />
+              <div
+                className={`w-10 h-10 rounded-xl shadow-sm flex items-center justify-center text-white flex-shrink-0 ${
+                  protectMode === "encrypt"
+                    ? "bg-gradient-to-br from-rose-600 to-red-700"
+                    : "bg-gradient-to-br from-emerald-600 to-teal-700"
+                }`}
+              >
+                {protectMode === "encrypt" ? (
+                  <Lock className="w-5 h-5" />
+                ) : (
+                  <Unlock className="w-5 h-5" />
+                )}
               </div>
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-coconut-950 dark:text-darkbg-text">
-                    {t.pdfProtect.title}
+                    {lang === "en"
+                      ? "PDF Encrypt & Unlock Studio"
+                      : "PDF 加密解密与权限管理"}
                   </h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30">
-                    AES 工业级加密
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                      protectMode === "encrypt"
+                        ? "bg-rose-500/10 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30"
+                        : "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                    }`}
+                  >
+                    {protectMode === "encrypt"
+                      ? lang === "en"
+                        ? "AES Encrypt"
+                        : "AES 工业级加密"
+                      : lang === "en"
+                        ? "Unlock & Scrub"
+                        : "权限解除/脱敏"}
                   </span>
                 </div>
               </div>
             </div>
 
+            {/* 模式切换器：加密上锁 vs 密码解除与权限净化 */}
+            <div className="grid grid-cols-2 gap-2 p-1 bg-coconut-100/80 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/80 dark:border-darkbg-border">
+              <button
+                type="button"
+                onClick={() => {
+                  setProtectMode("encrypt");
+                  setError(null);
+                  setSuccessMsg(null);
+                  setExecutionResult(null);
+                }}
+                className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                  protectMode === "encrypt"
+                    ? "bg-white dark:bg-darkbg-card text-rose-700 dark:text-rose-300 shadow-sm border border-rose-500/20"
+                    : "text-coconut-600 dark:text-darkbg-muted hover:text-coconut-900"
+                }`}
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>{lang === "en" ? "Encrypt & Lock" : "加密上锁保护"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setProtectMode("unlock");
+                  setError(null);
+                  setSuccessMsg(null);
+                  setExecutionResult(null);
+                }}
+                className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                  protectMode === "unlock"
+                    ? "bg-white dark:bg-darkbg-card text-emerald-700 dark:text-emerald-300 shadow-sm border border-emerald-500/20"
+                    : "text-coconut-600 dark:text-darkbg-muted hover:text-coconut-900"
+                }`}
+              >
+                <Unlock className="w-3.5 h-3.5" />
+                <span>{lang === "en" ? "Unlock & Strip" : "解密与权限解除"}</span>
+              </button>
+            </div>
+
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-coconut-900 dark:text-darkbg-text mb-1.5">
-                  {t.pdfProtect.label}
+                  {protectMode === "encrypt"
+                    ? t.pdfProtect.label
+                    : lang === "en"
+                      ? "Document Password (Optional for Owner-Locked PDF)"
+                      : "已知打开密码（仅移除打印/复制权限限制可留空）"}
                 </label>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
-                    placeholder={t.pdfProtect.placeholder}
+                    placeholder={
+                      protectMode === "encrypt"
+                        ? t.pdfProtect.placeholder
+                        : lang === "en"
+                          ? "Enter password if required to open"
+                          : "若文档有打开密码请输入，仅解除编辑/打印锁可留空"
+                    }
                     value={protectPassword}
                     onChange={(e) => setProtectPassword(e.target.value)}
                     className="w-full text-sm p-3.5 pr-11 bg-white/80 dark:bg-darkbg-subtle border border-[#CBB09C] dark:border-darkbg-border rounded-2xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-coconut-950 dark:text-darkbg-text font-medium"
@@ -1022,72 +1129,104 @@ export default function DocumentToolbox({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-coconut-900 dark:text-darkbg-text mb-1.5">
-                  {lang === "en" ? "Confirm Password" : "确认加密密码"}
-                </label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder={
-                      lang === "en"
-                        ? "Re-enter the same password"
-                        : "请再次输入相同的密码核对"
-                    }
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className={`w-full text-sm p-3.5 pr-11 bg-white/80 dark:bg-darkbg-subtle border rounded-2xl outline-none focus:ring-2 transition-all font-medium text-coconut-950 dark:text-darkbg-text ${
-                      confirmPassword && protectPassword !== confirmPassword
-                        ? "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
-                        : "border-[#CBB09C] dark:border-darkbg-border focus:ring-orange-500/20 focus:border-orange-500"
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword((prev) => !prev)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-coconut-500 hover:text-coconut-800 dark:hover:text-darkbg-text transition-colors p-1"
-                    title={showConfirmPassword ? "隐藏密码" : "显示明文"}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
+              {protectMode === "encrypt" && (
+                <div>
+                  <label className="block text-xs font-bold text-coconut-900 dark:text-darkbg-text mb-1.5">
+                    {lang === "en" ? "Confirm Password" : "确认加密密码"}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder={
+                        lang === "en"
+                          ? "Re-enter the same password"
+                          : "请再次输入相同的密码核对"
+                      }
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className={`w-full text-sm p-3.5 pr-11 bg-white/80 dark:bg-darkbg-subtle border rounded-2xl outline-none focus:ring-2 transition-all font-medium text-coconut-950 dark:text-darkbg-text ${
+                        confirmPassword && protectPassword !== confirmPassword
+                          ? "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
+                          : "border-[#CBB09C] dark:border-darkbg-border focus:ring-orange-500/20 focus:border-orange-500"
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-coconut-500 hover:text-coconut-800 dark:hover:text-darkbg-text transition-colors p-1"
+                      title={showConfirmPassword ? "隐藏密码" : "显示明文"}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
 
-                {confirmPassword && protectPassword !== confirmPassword && (
-                  <p className="text-[11px] font-bold text-rose-500 mt-1.5 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    <span>
+                  {confirmPassword && protectPassword !== confirmPassword && (
+                    <p className="text-[11px] font-bold text-rose-500 mt-1.5 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      <span>
+                        {lang === "en"
+                          ? "Passwords do not match"
+                          : "两次输入的密码不一致"}
+                      </span>
+                    </p>
+                  )}
+                  {protectPassword && protectPassword.length < 4 && (
+                    <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400 mt-1.5">
                       {lang === "en"
-                        ? "Passwords do not match"
-                        : "两次输入的密码不一致"}
-                    </span>
-                  </p>
-                )}
-                {protectPassword && protectPassword.length < 4 && (
-                  <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400 mt-1.5">
-                    {lang === "en"
-                      ? "Password must be at least 4 characters"
-                      : "建议密码长度不少于 4 位字符"}
-                  </p>
-                )}
-              </div>
+                        ? "Password must be at least 4 characters"
+                        : "建议密码长度不少于 4 位字符"}
+                    </p>
+                  )}
+                </div>
+              )}
 
-              {/* 不可逆加密安全预警卡片 */}
+              {/* 隐私元数据清理开关 */}
+              <label className="flex items-start gap-2.5 p-3 rounded-2xl bg-coconut-100/60 dark:bg-darkbg-subtle border border-coconut-200/70 dark:border-darkbg-border cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={cleanMetadata}
+                  onChange={(e) => setCleanMetadata(e.target.checked)}
+                  className="mt-0.5 rounded border-coconut-300 text-orange-600 focus:ring-orange-500"
+                />
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-coconut-900 dark:text-darkbg-text">
+                    {lang === "en"
+                      ? "Scrub Hidden Privacy Metadata"
+                      : "同步抹除文档隐藏隐私元数据"}
+                  </div>
+                  <div className="text-[11px] text-coconut-600 dark:text-darkbg-muted leading-relaxed">
+                    {lang === "en"
+                      ? "Clears Author, Title, Producer, Creator and Subject tags."
+                      : "自动清空作者 (Author)、制作软件 (Creator/Producer) 与主题记录。"}
+                  </div>
+                </div>
+              </label>
+
+              {/* 安全提示卡片 */}
               <div className="p-3 bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/30 rounded-2xl flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-200">
                 <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
                   <div className="font-bold">
-                    {lang === "en"
-                      ? "Permanent Security Notice"
-                      : "不可逆加密提醒"}
+                    {protectMode === "encrypt"
+                      ? lang === "en"
+                        ? "Permanent Security Notice"
+                        : "不可逆加密提醒"
+                      : lang === "en"
+                        ? "Authorized Unlock Notice"
+                        : "本地无痕解密说明"}
                   </div>
                   <div className="text-[11px] leading-relaxed text-amber-900/80 dark:text-amber-300/80">
-                    {lang === "en"
-                      ? "Please write down or record your password carefully. Encrypted PDFs cannot be recovered without it."
-                      : "请务必妥善记录设置的密码。文档完成 AES 加密后，无任何找回后门。"}
+                    {protectMode === "encrypt"
+                      ? lang === "en"
+                        ? "Please write down or record your password carefully. Encrypted PDFs cannot be recovered without it."
+                        : "请务必妥善记录设置的密码。文档完成 AES 加密后，无任何找回后门。"
+                      : lang === "en"
+                        ? "Removes owner print/copy locks or decrypts password-protected PDFs with your known password locally."
+                        : "支持一键移除所有者打印/复制权限锁，或凭已知密码将受保护 PDF 转为无密码自由文档。"}
                   </div>
                 </div>
               </div>
@@ -1171,7 +1310,13 @@ export default function DocumentToolbox({
                     className="py-3 px-4 rounded-xl btn-3d-secondary font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    <span>{t.pdfProtect.encryptAnother}</span>
+                    <span>
+                      {protectMode === "encrypt"
+                        ? t.pdfProtect.encryptAnother
+                        : lang === "en"
+                          ? "Unlock Another"
+                          : "继续解锁其他文档"}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1181,18 +1326,20 @@ export default function DocumentToolbox({
                 disabled={
                   loading ||
                   files.length === 0 ||
-                  !protectPassword.trim() ||
-                  !confirmPassword.trim() ||
-                  protectPassword !== confirmPassword ||
-                  protectPassword.length < 4
+                  (protectMode === "encrypt" &&
+                    (!protectPassword.trim() ||
+                      !confirmPassword.trim() ||
+                      protectPassword !== confirmPassword ||
+                      protectPassword.length < 4))
                 }
                 className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
                   loading ||
                   files.length === 0 ||
-                  !protectPassword.trim() ||
-                  !confirmPassword.trim() ||
-                  protectPassword !== confirmPassword ||
-                  protectPassword.length < 4
+                  (protectMode === "encrypt" &&
+                    (!protectPassword.trim() ||
+                      !confirmPassword.trim() ||
+                      protectPassword !== confirmPassword ||
+                      protectPassword.length < 4))
                     ? "bg-coconut-100 dark:bg-darkbg-subtle text-coconut-400 dark:text-darkbg-muted cursor-not-allowed border border-coconut-200 dark:border-darkbg-border"
                     : "btn-3d-sunset text-white cursor-pointer"
                 }`}
@@ -1202,10 +1349,19 @@ export default function DocumentToolbox({
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span>{t.pdfProtect.processing}</span>
                   </>
-                ) : (
+                ) : protectMode === "encrypt" ? (
                   <>
                     <Lock className="w-4 h-4 text-amber-200" />
                     <span>{t.pdfProtect.launchBtn}</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="w-4 h-4 text-amber-200" />
+                    <span>
+                      {lang === "en"
+                        ? "Unlock & Export Clean PDF"
+                        : "立即解除密码与权限限制"}
+                    </span>
                   </>
                 )}
               </button>

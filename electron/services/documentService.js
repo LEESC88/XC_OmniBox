@@ -4,25 +4,40 @@ const os = require('os');
 const { execSync } = require('child_process');
 const { PDFDocument, rgb, degrees } = require('pdf-lib');
 const fontkit = require('@pdf-lib/fontkit');
-const sharp = require('sharp');
 const { ZipArchive } = require('archiver');
 const { encryptPDF } = require('@pdfsmaller/pdf-encrypt-lite');
 
-// Initialize pdfjs-dist with @napi-rs/canvas polyfills for in-process rendering
-const canvasModule = require('@napi-rs/canvas');
-if (typeof global.DOMMatrix === 'undefined') {
-  global.DOMMatrix = canvasModule.DOMMatrix;
+// 按需懒加载重型 C++/WASM 渲染模块 (sharp, @napi-rs/canvas, pdfjs-dist)
+let _sharp = null;
+let _canvasModule = null;
+let _pdfjs = null;
+
+function getSharp() {
+  if (!_sharp) _sharp = require('sharp');
+  return _sharp;
 }
-if (typeof global.Path2D === 'undefined') {
-  global.Path2D = canvasModule.Path2D;
+
+function getCanvasModule() {
+  if (!_canvasModule) {
+    _canvasModule = require('@napi-rs/canvas');
+    if (typeof global.DOMMatrix === 'undefined') global.DOMMatrix = _canvasModule.DOMMatrix;
+    if (typeof global.Path2D === 'undefined') global.Path2D = _canvasModule.Path2D;
+    if (typeof global.ImageData === 'undefined') global.ImageData = _canvasModule.ImageData;
+  }
+  return _canvasModule;
 }
-if (typeof global.ImageData === 'undefined') {
-  global.ImageData = canvasModule.ImageData;
+
+function getPdfjs() {
+  if (!_pdfjs) {
+    getCanvasModule();
+    _pdfjs = require('pdfjs-dist/legacy/build/pdf.js');
+  }
+  return _pdfjs;
 }
 
 class NapiCanvasFactory {
   create(width, height) {
-    const canvas = canvasModule.createCanvas(Math.max(1, Math.ceil(width)), Math.max(1, Math.ceil(height)));
+    const canvas = getCanvasModule().createCanvas(Math.max(1, Math.ceil(width)), Math.max(1, Math.ceil(height)));
     const context = canvas.getContext('2d');
     return { canvas, context };
   }
@@ -41,8 +56,6 @@ class NapiCanvasFactory {
     }
   }
 }
-
-const pdfjs = require('pdfjs-dist/legacy/build/pdf.js');
 
 class DocumentService {
   static _cachedCjkFontBytes = null;
@@ -290,18 +303,118 @@ class DocumentService {
   }
 
   /**
-   * PDF 密码保护
+   * PDF 密码加密与权限保护 (支持同步抹除文档隐私元数据)
    */
-  static async protectPdf({ fileBuffer, fileName = 'document.pdf', password }) {
+  static async protectPdf({ fileBuffer, fileName = 'document.pdf', password, ownerPassword, cleanMetadata = false }) {
     if (!password) {
       throw new Error('请设置保护密码');
     }
-    const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
-    const encryptedBytes = await encryptPDF(buffer, password, password);
+    let buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
+
+    if (cleanMetadata) {
+      try {
+        const doc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+        doc.setTitle('');
+        doc.setAuthor('');
+        doc.setSubject('');
+        doc.setKeywords([]);
+        doc.setProducer('');
+        doc.setCreator('');
+        buffer = Buffer.from(await doc.save({ useObjectStreams: true }));
+      } catch (_) {}
+    }
+
+    const encryptedBytes = await encryptPDF(buffer, password, ownerPassword || password);
 
     return {
       buffer: Buffer.from(encryptedBytes),
       filename: `protected_${fileName}`,
+    };
+  }
+
+  /**
+   * PDF 密码解除、权限解锁与隐私元数据清理
+   */
+  static async unlockPdf({ fileBuffer, fileName = 'document.pdf', password = '', cleanMetadata = false }) {
+    const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
+
+    // 1. 先尝试通过 pdf-lib 直接无损解除权限锁与复制页面
+    try {
+      const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+      const unlockedDoc = await PDFDocument.create();
+      const indices = srcDoc.getPageIndices();
+      if (indices.length > 0) {
+        const copied = await unlockedDoc.copyPages(srcDoc, indices);
+        for (const p of copied) unlockedDoc.addPage(p);
+      }
+      if (cleanMetadata) {
+        unlockedDoc.setTitle('');
+        unlockedDoc.setAuthor('');
+        unlockedDoc.setSubject('');
+        unlockedDoc.setKeywords([]);
+        unlockedDoc.setProducer('');
+        unlockedDoc.setCreator('');
+      }
+      const outBytes = await unlockedDoc.save({ useObjectStreams: true });
+      // 如果原文件受打开密码加密，pdf-lib 忽略加密复制出的流可能无法正常解析，若有传入 password 则走 pdfjs 验证
+      if (!password) {
+        return {
+          buffer: Buffer.from(outBytes),
+          filename: `unlocked_${fileName}`,
+        };
+      }
+    } catch (_) {
+      // 若 pdf-lib 直接拷贝失败（如强流加密），进入下方 pdfjs 解密重绘管线
+    }
+
+    // 2. 使用 pdfjs-dist 验证密码并解密渲染页面重构为无密码 PDF
+    const canvasFactory = new NapiCanvasFactory();
+    let pdfDoc;
+    try {
+      const loadingTask = getPdfjs().getDocument({
+        data: new Uint8Array(buffer),
+        password: password || undefined,
+        useSystemFonts: true,
+        disableFontFace: false,
+        canvasFactory,
+      });
+      pdfDoc = await loadingTask.promise;
+    } catch (err) {
+      throw new Error('密码错误或该文档受加密保护，请输入正确的打开密码');
+    }
+
+    const rebuiltDoc = await PDFDocument.create();
+    const scale = 150 / 72;
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      const page = await pdfDoc.getPage(i);
+      const origViewport = page.getViewport({ scale: 1.0 });
+      const renderViewport = page.getViewport({ scale });
+      const { canvas, context: ctx } = canvasFactory.create(renderViewport.width, renderViewport.height);
+      await page.render({ canvasContext: ctx, viewport: renderViewport, canvasFactory }).promise;
+      const pngBytes = canvas.toBuffer('image/png');
+      const embeddedImg = await rebuiltDoc.embedPng(pngBytes);
+      const newPage = rebuiltDoc.addPage([origViewport.width, origViewport.height]);
+      newPage.drawImage(embeddedImg, {
+        x: 0,
+        y: 0,
+        width: origViewport.width,
+        height: origViewport.height,
+      });
+    }
+
+    if (cleanMetadata) {
+      rebuiltDoc.setTitle('');
+      rebuiltDoc.setAuthor('');
+      rebuiltDoc.setSubject('');
+      rebuiltDoc.setKeywords([]);
+      rebuiltDoc.setProducer('');
+      rebuiltDoc.setCreator('');
+    }
+
+    const finalBytes = await rebuiltDoc.save({ useObjectStreams: true });
+    return {
+      buffer: Buffer.from(finalBytes),
+      filename: `unlocked_${fileName}`,
     };
   }
 
@@ -372,7 +485,7 @@ class DocumentService {
       const buffer = Buffer.isBuffer(f.buffer) ? f.buffer : Buffer.from(f.buffer);
 
       // 通过 sharp 统一转为标准 PNG，解决各种奇特图片编码与色彩空间
-      const pngBuffer = await sharp(buffer).rotate().png().toBuffer();
+      const pngBuffer = await getSharp()(buffer).rotate().png().toBuffer();
       const embeddedImg = await doc.embedPng(pngBuffer);
       const imgWidth = embeddedImg.width;
       const imgHeight = embeddedImg.height;
@@ -443,7 +556,7 @@ class DocumentService {
   static async renderPdfPages({ fileBuffer, fileName = 'document.pdf', dpi = 100, maxPages, extractWords = false }) {
     const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
     const canvasFactory = new NapiCanvasFactory();
-    const loadingTask = pdfjs.getDocument({
+    const loadingTask = getPdfjs().getDocument({
       data: new Uint8Array(buffer),
       useSystemFonts: true,
       disableFontFace: false,
@@ -690,7 +803,7 @@ class DocumentService {
       }
 
       // 纯 Node.js pdfjs 文本提取 + OpenXML 组装兜底引擎
-      const loadingTask = pdfjs.getDocument({
+      const loadingTask = getPdfjs().getDocument({
         data: new Uint8Array(buffer),
         useSystemFonts: true,
       });
@@ -736,7 +849,7 @@ class DocumentService {
     scaleRatio = 1.0,
   }) {
     const buffer = Buffer.isBuffer(imageBuffer) ? imageBuffer : Buffer.from(imageBuffer);
-    const pngBuffer = await sharp(buffer).rotate().png().toBuffer();
+    const pngBuffer = await getSharp()(buffer).rotate().png().toBuffer();
 
     const doc = await PDFDocument.create();
     doc.registerFontkit(fontkit);

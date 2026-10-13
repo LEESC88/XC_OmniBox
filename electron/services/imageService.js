@@ -1,5 +1,26 @@
-const sharp = require('sharp');
-const { ZipArchive } = require('archiver');
+let _sharp = null;
+function getSharp() {
+  if (!_sharp) {
+    _sharp = require('sharp');
+  }
+  return _sharp;
+}
+const sharp = new Proxy(function () {}, {
+  apply(_target, thisArg, argArray) {
+    return getSharp().apply(thisArg, argArray);
+  },
+  get(_target, prop) {
+    return getSharp()[prop];
+  },
+});
+
+let _ZipArchive = null;
+function getZipArchive() {
+  if (!_ZipArchive) {
+    _ZipArchive = require('archiver').ZipArchive;
+  }
+  return _ZipArchive;
+}
 
 class ImageService {
   /**
@@ -404,6 +425,7 @@ class ImageService {
     }
     return new Promise((resolve, reject) => {
       try {
+        const ZipArchive = getZipArchive();
         const archive = new ZipArchive({ zlib: { level: 9 } });
         const chunks = [];
 

@@ -2,8 +2,15 @@ const { app, BrowserWindow, dialog, protocol, Tray, Menu, shell, ipcMain, sessio
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { initUpdater } = require('./updater');
 const { registerIpcHandlers } = require('./ipcHandlers');
+
+let _updaterModule = null;
+function getUpdater() {
+  if (!_updaterModule) {
+    _updaterModule = require('./updater');
+  }
+  return _updaterModule;
+}
 
 let tray = null;
 let isQuitting = false;
@@ -267,8 +274,10 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // 初始化自动更新监听
-  initUpdater(mainWindow);
+  // 初始化自动更新监听（延迟至下一事件循环按需加载 electron-updater，零阻塞首屏）
+  setImmediate(() => {
+    getUpdater().initUpdater(mainWindow);
+  });
 }
 
 // 注册设置相关的 IPC 通道

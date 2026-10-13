@@ -34,6 +34,7 @@ export interface AiToolboxProps {
   onTabChange?: (tab: AiTabType) => void;
   incomingFile?: File | null;
   onIncomingFileHandled?: () => void;
+  hideSubTabs?: boolean;
 }
 
 export default function AiToolbox({
@@ -41,6 +42,7 @@ export default function AiToolbox({
   onTabChange,
   incomingFile,
   onIncomingFileHandled,
+  hideSubTabs = false,
 }: AiToolboxProps) {
   const { lang } = useI18n();
   const [activeTab, setActiveTab] = useState<AiTabType>(currentTab);
@@ -212,24 +214,26 @@ export default function AiToolbox({
   return (
     <div className="space-y-6">
       {/* 顶部标签切换 */}
-      <ScrollableTabNav
-        tabs={[
-          {
-            id: "ai-ocr",
-            label: lang === "en" ? "Offline Text OCR" : "离线文字提取 (OCR)",
-            icon: FileText,
-            badge: lang === "en" ? "Multi-language" : "多语言",
-          },
-          {
-            id: "ai-searchable-pdf",
-            label: lang === "en" ? "Searchable PDF" : "双层可搜索 PDF 制作",
-            icon: FileSearch,
-            badge: lang === "en" ? "Dual-Layer" : "双层PDF",
-          },
-        ]}
-        activeTab={activeTab}
-        onTabChange={(id) => handleTabChange(id as AiTabType)}
-      />
+      {!hideSubTabs && (
+        <ScrollableTabNav
+          tabs={[
+            {
+              id: "ai-ocr",
+              label: lang === "en" ? "Offline Text OCR" : "离线文字提取 (OCR)",
+              icon: FileText,
+              badge: lang === "en" ? "Multi-language" : "多语言",
+            },
+            {
+              id: "ai-searchable-pdf",
+              label: lang === "en" ? "Searchable PDF" : "双层可搜索 PDF 制作",
+              icon: FileSearch,
+              badge: lang === "en" ? "Dual-Layer" : "双层PDF",
+            },
+          ]}
+          activeTab={activeTab}
+          onTabChange={(id) => handleTabChange(id as AiTabType)}
+        />
+      )}
 
       {/* 模块 1: 离线 OCR 文字提取 */}
       {activeTab === "ai-ocr" && (

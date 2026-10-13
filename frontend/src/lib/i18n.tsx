@@ -51,9 +51,9 @@ export const TOOL_TRANSLATIONS: Record<
     badge: "Canvas",
   },
   "pdf-protect": {
-    name: "PDF Password Protection",
-    desc: "High-grade AES encryption to restrict viewing & printing",
-    badge: "Security",
+    name: "PDF Encrypt & Unlock Studio",
+    desc: "AES encryption, authorized password unlocking & privacy metadata scrubbing",
+    badge: "Encrypt/Unlock",
   },
 
   // Image
@@ -173,12 +173,11 @@ export const TOOL_TRANSLATIONS: Record<
 };
 
 export const CATEGORY_TRANSLATIONS: Record<string, string> = {
-  document: "Document & PDF",
+  document: "Document & Text Workshop",
   spreadsheet: "Spreadsheet & Data",
   image: "Image & Visual",
   audio: "Audio & Sound",
   utilities: "Everyday Utilities",
-  ai: "Scanning & Text Workshop",
 };
 
 // UI 通用完整字典
@@ -192,12 +191,11 @@ export const UI_DICTIONARY = {
     noResults: "未找到相关工具",
 
     modules: {
-      document: "文档",
+      document: "文档与文字",
       spreadsheet: "表格",
       image: "图片",
       audio: "音频",
       utilities: "日常",
-      ai: "扫描与文字",
     },
 
     spreadsheet: {
@@ -557,12 +555,11 @@ export const UI_DICTIONARY = {
     noResults: "No tools found",
 
     modules: {
-      document: "Document",
+      document: "Docs & Text",
       spreadsheet: "Sheets",
       image: "Image",
       audio: "Audio",
       utilities: "Utilities",
-      ai: "Scan & Text",
     },
 
     spreadsheet: {

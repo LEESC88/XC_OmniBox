@@ -1,5 +1,23 @@
-const XLSX = require('xlsx');
-const { ZipArchive } = require('archiver');
+let _XLSX = null;
+function getXlsx() {
+  if (!_XLSX) {
+    _XLSX = require('xlsx');
+  }
+  return _XLSX;
+}
+const XLSX = new Proxy({}, {
+  get(_target, prop) {
+    return getXlsx()[prop];
+  },
+});
+
+let _ZipArchive = null;
+function getZipArchive() {
+  if (!_ZipArchive) {
+    _ZipArchive = require('archiver').ZipArchive;
+  }
+  return _ZipArchive;
+}
 
 class SpreadsheetService {
   /**
@@ -302,6 +320,7 @@ class SpreadsheetService {
 
     return new Promise(async (resolve, reject) => {
       try {
+        const ZipArchive = getZipArchive();
         const archive = new ZipArchive({ zlib: { level: 9 } });
         const chunks = [];
 

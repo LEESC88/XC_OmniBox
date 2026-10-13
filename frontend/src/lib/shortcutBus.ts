@@ -48,8 +48,8 @@ export const SHORTCUTS_LIST: ShortcutItem[] = [
     key: "Ctrl + 1 ~ 5",
     labelZh: "快速切换主模块",
     labelEn: "Switch Module",
-    descZh: "1: 文档 | 2: 图像 | 3: 音频 | 4: 实用 | 5: AI",
-    descEn: "1: Docs | 2: Image | 3: Audio | 4: Daily | 5: AI",
+    descZh: "1: 文档与文字 | 2: 表格 | 3: 图片 | 4: 音频 | 5: 日常",
+    descEn: "1: Docs & Text | 2: Sheets | 3: Image | 4: Audio | 5: Utils",
     category: "nav",
   },
   {

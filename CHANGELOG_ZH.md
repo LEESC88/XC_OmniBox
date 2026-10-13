@@ -6,6 +6,17 @@
 
 ---
 
+## 🌟 v1.6.1 服务级按需懒加载（压榨 150-200ms 冷启动阻塞）与 5 大高密度工坊收敛
+
+- ⚡ **服务级按需懒加载（Lazy Require / Getter 模式，冷启动提速 150-200ms）**：
+  - **消除主进程顶层同步二进制加载**：彻底移除 `electron/ipcHandlers.js`、`electron/main.js` 及 `electron/services/*` 顶部对 `sharp`、`@napi-rs/canvas`、`pdfjs-dist`、`xlsx`、`archiver`、`electron-updater` 等重型 C++/二进制库的同步 `require`。
+  - **IPC 首次触发动态实例化**：各后端服务（`DocumentService`、`ImageService`、`SpreadsheetService`、`UtilityService`、`AudioService`）仅在对应 IPC 通道首次被调用时按需加载，主窗口与系统托盘实现零阻塞秒开，同时保持全部 IPC 契约 100% 兼容。
+- 🗂️ **6 大分类收敛为 5 大高密度工坊 & 加密解密一体强化**：
+  - **收编【文档与文字工坊】**：将原孤立的【扫描与文字工坊】（`离线文字提取 (OCR)` 与 `双层可搜索 PDF 制作`）完整并入【文档与文字工坊】（共 11 项高密度工具），清理侧边栏冗余分类图标与无效路由。
+  - **升级【PDF 加密解密与权限管理】**：整合 AES 加密上锁、已知密码解除/所有者打印复制权限解锁（`document:unlock-pdf`）与隐藏隐私元数据（作者/软件/标题）一键抹除。
+
+---
+
 ## 🌟 v1.6.0 前后端绝对隔离架构、中文双层可搜索 PDF 与超大媒体引擎优化
 
 - 🏗️ **100% 后端优先服务层收口 (`electron/services/`)**：

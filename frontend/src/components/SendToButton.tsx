@@ -91,7 +91,7 @@ export default function SendToButton({
       desc: "高精提取中英文、书籍发票文字",
       descEn: "Extract text from images & receipts",
       icon: FileText,
-      target: { module: "ai", tab: "ai-ocr" },
+      target: { module: "document", tab: "ai-ocr" },
     },
     {
       label: "双层可搜索 PDF 制作",
@@ -99,7 +99,7 @@ export default function SendToButton({
       desc: "注入底层透明文字排版层",
       descEn: "Inject invisible searchable text layer",
       icon: FileSearch,
-      target: { module: "ai", tab: "ai-searchable-pdf" },
+      target: { module: "document", tab: "ai-searchable-pdf" },
     },
     {
       label: "批量水印工坊",

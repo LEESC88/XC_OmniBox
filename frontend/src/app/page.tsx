@@ -59,7 +59,6 @@ import SpreadsheetToolbox, { SpreadsheetTab } from "@/components/SpreadsheetTool
 import ImageToolbox from "@/components/ImageToolbox";
 import AudioToolbox from "@/components/AudioToolbox";
 import DailyToolbox from "@/components/DailyToolbox";
-import AiToolbox, { AiTabType } from "@/components/AiToolbox";
 import UpdateModal from "@/components/UpdateModal";
 import SettingsModal from "@/components/SettingsModal";
 import ShortcutsModal from "@/components/ShortcutsModal";
@@ -97,7 +96,7 @@ type AudioTabType =
   | "speed";
 type DailyTabType = "idphoto" | "organize" | "duplicate" | "qrcode" | "diff";
 type SpreadsheetTabType = "sheet-merge" | "sheet-split";
-type ModuleType = "document" | "spreadsheet" | "image" | "audio" | "utilities" | "ai";
+type ModuleType = "document" | "spreadsheet" | "image" | "audio" | "utilities";
 
 interface ToolItem {
   id: string;
@@ -116,7 +115,7 @@ const TOOLS_REGISTRY: {
   tools: ToolItem[];
 }[] = [
   {
-    category: "文档处理与 PDF",
+    category: "文档与文字工坊",
     module: "document",
     icon: FileText,
     tools: [
@@ -195,11 +194,36 @@ const TOOLS_REGISTRY: {
       {
         id: "pdf-protect",
         module: "document",
-        name: "文档密码权限保护",
-        desc: "AES 高强度加密限制阅读打印",
-        badge: "安全",
+        name: "PDF 加密解密与权限管理",
+        desc: "AES 工业级加密上锁、已知密码解除限制与隐私元数据一键抹除",
+        badge: "加密/解密",
         icon: Lock,
-        keywords: ["pdf", "密码", "加密", "保护", "权限"],
+        keywords: ["pdf", "密码", "加密", "解密", "解锁", "保护", "权限"],
+      },
+      {
+        id: "ai-ocr",
+        module: "document",
+        name: "离线文字提取 (OCR)",
+        desc: "高精提取中英文、书籍、发票及表格字形，支持一键复制与 TXT 导出",
+        badge: "多语言",
+        icon: Sparkles,
+        keywords: ["ocr", "文字提取", "识别", "扫描", "文字识别"],
+      },
+      {
+        id: "ai-searchable-pdf",
+        module: "document",
+        name: "双层可搜索 PDF 制作",
+        desc: "将扫描件/图像注入底层透明文字排版层，实现极速检索与精准划词复制",
+        badge: "双层PDF",
+        icon: FileSearch,
+        keywords: [
+          "可搜索pdf",
+          "双层pdf",
+          "扫描件",
+          "ocr",
+          "复制文字",
+          "pdf",
+        ],
       },
     ],
   },
@@ -402,38 +426,6 @@ const TOOLS_REGISTRY: {
       },
     ],
   },
-  {
-    category: "扫描与文字工坊",
-    module: "ai",
-    icon: FileSearch,
-    tools: [
-      {
-        id: "ai-ocr",
-        module: "ai",
-        name: "离线文字提取 (OCR)",
-        desc: "高精提取中英文、书籍、发票及表格字形，支持一键复制与 TXT 导出",
-        badge: "多语言",
-        icon: FileText,
-        keywords: ["ocr", "文字提取", "识别", "扫描", "文字识别"],
-      },
-      {
-        id: "ai-searchable-pdf",
-        module: "ai",
-        name: "双层可搜索 PDF 制作",
-        desc: "将扫描件/图像注入底层透明文字排版层，实现极速检索与精准划词复制",
-        badge: "双层PDF",
-        icon: FileSearch,
-        keywords: [
-          "可搜索pdf",
-          "双层pdf",
-          "扫描件",
-          "ocr",
-          "复制文字",
-          "pdf",
-        ],
-      },
-    ],
-  },
 ];
 
 export default function Home() {
@@ -464,7 +456,6 @@ export default function Home() {
   const [activeDailyTab, setActiveDailyTab] = useState<DailyTabType>("idphoto");
   const [activeSpreadsheetTab, setActiveSpreadsheetTab] =
     useState<SpreadsheetTabType>("sheet-merge");
-  const [activeAiTab, setActiveAiTab] = useState<AiTabType>("ai-ocr");
   const [incomingDocFiles, setIncomingDocFiles] = useState<File[]>([]);
   const [incomingIdPhotoFile, setIncomingIdPhotoFile] = useState<File | null>(
     null,
@@ -472,7 +463,6 @@ export default function Home() {
   const [incomingSpreadsheetFiles, setIncomingSpreadsheetFiles] = useState<File[]>([]);
   const [incomingImageFiles, setIncomingImageFiles] = useState<File[]>([]);
   const [incomingAudioFile, setIncomingAudioFile] = useState<File | null>(null);
-  const [incomingAiFile, setIncomingAiFile] = useState<File | null>(null);
   const [incomingDiffText, setIncomingDiffText] = useState<{
     text: string;
     side: "original" | "modified";
@@ -481,32 +471,28 @@ export default function Home() {
   // 跨工具总线监听：无损内存零拷贝流转
   useEffect(() => {
     const unsubscribe = toolBus.subscribe(({ target, payload }) => {
-      setActiveModule(target.module);
-      if (target.module === "spreadsheet") {
+      const normalizedModule: ModuleType =
+        target.module === "ai" ? "document" : (target.module as ModuleType);
+      setActiveModule(normalizedModule);
+      if (normalizedModule === "spreadsheet") {
         setActiveSpreadsheetTab(target.tab as SpreadsheetTabType);
         const f = blobToFile(payload.blob || payload.file, payload.filename);
         if (f) {
           setIncomingSpreadsheetFiles([f]);
         }
-      } else if (target.module === "image") {
+      } else if (normalizedModule === "image") {
         setActiveImageTab(target.tab as ImageTabType);
         const f = blobToFile(payload.blob || payload.file, payload.filename);
         if (f) {
           setIncomingImageFiles([f]);
         }
-      } else if (target.module === "audio") {
+      } else if (normalizedModule === "audio") {
         setActiveAudioTab(target.tab as AudioTabType);
         const f = blobToFile(payload.blob || payload.file, payload.filename);
         if (f) {
           setIncomingAudioFile(f);
         }
-      } else if (target.module === "ai") {
-        setActiveAiTab(target.tab as AiTabType);
-        const f = blobToFile(payload.blob || payload.file, payload.filename);
-        if (f) {
-          setIncomingAiFile(f);
-        }
-      } else if (target.module === "utilities") {
+      } else if (normalizedModule === "utilities") {
         setActiveDailyTab(target.tab as DailyTabType);
         if (target.tab === "idphoto") {
           const f = blobToFile(payload.blob || payload.file, payload.filename);
@@ -519,7 +505,7 @@ export default function Home() {
             side: target.targetSide || "original",
           });
         }
-      } else if (target.module === "document") {
+      } else if (normalizedModule === "document") {
         setActiveDocTab(target.tab as DocTabType);
         const f = blobToFile(payload.blob || payload.file, payload.filename);
         if (f) {
@@ -541,7 +527,7 @@ export default function Home() {
   // 客户端自动更新弹窗状态与版本感知
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
-  const [appVersion, setAppVersion] = useState<string>("1.6.0");
+  const [appVersion, setAppVersion] = useState<string>("1.6.1");
 
   // 快捷键指南弹窗状态与全局提示
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
@@ -601,10 +587,10 @@ export default function Home() {
           e.preventDefault();
           const moduleMap: Record<string, ModuleType> = {
             "1": "document",
-            "2": "image",
-            "3": "audio",
-            "4": "utilities",
-            "5": "ai",
+            "2": "spreadsheet",
+            "3": "image",
+            "4": "audio",
+            "5": "utilities",
           };
           const targetMod = moduleMap[e.key];
           if (targetMod) {
@@ -685,12 +671,15 @@ export default function Home() {
                     ? "Image pasted into Image Studio"
                     : "已从剪贴板接收图片至图像工坊"
                 );
-              } else if (activeModule === "ai") {
-                setIncomingAiFile(namedFile);
+              } else if (
+                activeModule === "document" &&
+                (activeDocTab === "ai-ocr" || activeDocTab === "ai-searchable-pdf")
+              ) {
+                setIncomingDocFiles([namedFile]);
                 showToast(
                   lang === "en"
-                    ? "Image pasted into AI Studio"
-                    : "已从剪贴板接收图片至 AI 创意工坊"
+                    ? "Image pasted into OCR / Searchable PDF Studio"
+                    : "已从剪贴板接收图片至文档与文字工坊"
                 );
               } else if (activeModule === "utilities" && activeDailyTab === "idphoto") {
                 setIncomingIdPhotoFile(namedFile);
@@ -839,14 +828,9 @@ export default function Home() {
       setActiveAudioTab(item.id as AudioTabType);
     } else if (item.module === "utilities") {
       setActiveDailyTab(item.id as DailyTabType);
-    } else if (item.module === "ai") {
-      setActiveAiTab(item.id as AiTabType);
     }
     setMobileMenuOpen(false);
   };
-
-
-
 
   const allTools = toolsRegistry.flatMap((g) => g.tools);
 
@@ -861,9 +845,7 @@ export default function Home() {
           ? allTools.find((t) => t.id === activeImageTab)
           : activeModule === "audio"
             ? allTools.find((t) => t.id === activeAudioTab)
-            : activeModule === "utilities"
-              ? allTools.find((t) => t.id === activeDailyTab)
-              : allTools.find((t) => t.id === activeAiTab);
+            : allTools.find((t) => t.id === activeDailyTab);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-transparent text-coconut-900 dark:text-darkbg-text subpixel-antialiased">
@@ -958,22 +940,22 @@ export default function Home() {
                   lang === "en"
                     ? group.module === "document"
                       ? "Docs"
-                      : group.module === "image"
-                        ? "Image"
-                        : group.module === "audio"
-                          ? "Audio"
-                          : group.module === "utilities"
-                            ? "Utils"
-                            : "AI"
+                      : group.module === "spreadsheet"
+                        ? "Sheet"
+                        : group.module === "image"
+                          ? "Image"
+                          : group.module === "audio"
+                            ? "Audio"
+                            : "Utils"
                     : group.module === "document"
                       ? "文档"
-                      : group.module === "image"
-                        ? "图片"
-                        : group.module === "audio"
-                          ? "音频"
-                          : group.module === "utilities"
-                            ? "日常"
-                            : "AI工坊";
+                      : group.module === "spreadsheet"
+                        ? "表格"
+                        : group.module === "image"
+                          ? "图片"
+                          : group.module === "audio"
+                            ? "音频"
+                            : "日常";
 
                 return (
                   <button
@@ -1077,8 +1059,7 @@ export default function Home() {
                             (t.module === "image" && activeImageTab === t.id) ||
                             (t.module === "audio" && activeAudioTab === t.id) ||
                             (t.module === "utilities" &&
-                              activeDailyTab === t.id) ||
-                            (t.module === "ai" && activeAiTab === t.id));
+                              activeDailyTab === t.id));
 
                         return (
                           <button
@@ -1357,7 +1338,6 @@ export default function Home() {
               { id: "image", label: t.modules.image, icon: ImageIcon },
               { id: "audio", label: t.modules.audio, icon: Music },
               { id: "utilities", label: t.modules.utilities, icon: Wrench },
-              { id: "ai", label: t.modules.ai, icon: Sparkles },
             ].map((m) => {
               const Icon = m.icon;
               const isCur = activeModule === m.id;
@@ -1415,7 +1395,7 @@ export default function Home() {
             );
           })()}
 
-          {/* 文档处理与 PDF (Keep-Alive 存活驻留：访问过则保留 DOM，0ms 瞬切且不丢失工作现场) */}
+          {/* 文档与文字工坊 (Keep-Alive 存活驻留：访问过则保留 DOM，0ms 瞬切且不丢失工作现场) */}
           {(visitedModules.has("document") || activeModule === "document") && (
             <div className={activeModule === "document" ? "block animate-fade-in" : "hidden"}>
               <DocumentToolbox
@@ -1473,18 +1453,6 @@ export default function Home() {
                 onInitialPhotoHandled={() => setIncomingIdPhotoFile(null)}
                 incomingDiffText={incomingDiffText}
                 onIncomingDiffHandled={() => setIncomingDiffText(null)}
-              />
-            </div>
-          )}
-
-          {/* 扫描与文字工坊 (Keep-Alive 存活驻留) */}
-          {(visitedModules.has("ai") || activeModule === "ai") && (
-            <div className={activeModule === "ai" ? "block animate-fade-in" : "hidden"}>
-              <AiToolbox
-                currentTab={activeAiTab}
-                onTabChange={setActiveAiTab}
-                incomingFile={incomingAiFile}
-                onIncomingFileHandled={() => setIncomingAiFile(null)}
               />
             </div>
           )}

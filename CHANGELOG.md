@@ -6,6 +6,17 @@ For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
 ---
 
+## 🌟 v1.6.1 Service-Level Lazy Loading (Zero Cold-Start Blocking) & 5-Workshop Consolidation
+
+- ⚡ **Service-Level Lazy Loading (`Lazy Require / Getter` Pattern — 150–200ms Faster Cold Start)**:
+  - **Eliminated Top-Level Synchronous Native Binary Loads**: Removed all top-level `require` calls for heavy C++/WASM/parsing dependencies (`sharp`, `@napi-rs/canvas`, `pdfjs-dist`, `xlsx`, `archiver`, `electron-updater`) in `electron/ipcHandlers.js`, `electron/main.js`, and `electron/services/*`.
+  - **On-Demand Singleton Instantiation**: Services (`DocumentService`, `ImageService`, `SpreadsheetService`, `UtilityService`, `AudioService`) and native binaries are now loaded strictly on first IPC invocation, while `registerIpcHandlers` and all IPC channel signatures remain 100% compatible.
+- 🗂️ **5 High-Density Workshops Consolidation**:
+  - **Merged Scanning & Text into Document & Text Workshop (`文档与文字工坊`)**: Consolidated `Offline OCR Text Extraction (ai-ocr)` and `Dual-Layer Searchable PDF Maker (ai-searchable-pdf)` into the unified `Document & Text Workshop` (11 tools total), pruning the isolated 6th category and empty sidebar routes.
+  - **Unified PDF Encrypt, Unlock & Permission Studio (`PDF 加密解密与权限管理`)**: Upgraded `pdf-protect` into a dual-mode studio supporting both AES encryption and authorized password unlocking / owner permission removal (`document:unlock-pdf`), plus one-click hidden privacy metadata scrubbing (`Author`, `Title`, `Producer`, `Creator`).
+
+---
+
 ## 🌟 v1.6.0 Strict Backend-First Architecture, CJK Searchable PDF & Ultra-Large Media Engine
 
 - 🏗️ **100% Backend-First Service Consolidation (`electron/services/`)**:

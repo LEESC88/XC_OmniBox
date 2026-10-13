@@ -150,17 +150,36 @@ export async function addWatermark(
 
 export async function protectPdf(
   file: File,
-  password: string
+  password: string,
+  cleanMetadata: boolean = false
 ): Promise<{ blob: Blob; filename: string }> {
   const fileBuffer = await file.arrayBuffer();
   const res = await invokeNative<{ buffer: ArrayBuffer | Uint8Array; filename: string }>("document:protect-pdf", {
     fileBuffer,
     fileName: file.name,
     password,
+    cleanMetadata,
   });
 
   const blob = toBlob(res.buffer, "application/pdf");
   return { blob, filename: res.filename || `protected_${file.name}` };
+}
+
+export async function unlockPdf(
+  file: File,
+  password: string = "",
+  cleanMetadata: boolean = false
+): Promise<{ blob: Blob; filename: string }> {
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<{ buffer: ArrayBuffer | Uint8Array; filename: string }>("document:unlock-pdf", {
+    fileBuffer,
+    fileName: file.name,
+    password,
+    cleanMetadata,
+  });
+
+  const blob = toBlob(res.buffer, "application/pdf");
+  return { blob, filename: res.filename || `unlocked_${file.name}` };
 }
 
 export async function compressPdf(
