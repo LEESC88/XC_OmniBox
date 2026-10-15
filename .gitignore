@@ -42,3 +42,4 @@ Thumbs.db
 .agents/skills/
 skills-lock.json
 .build_temp/
+scratch/

@@ -394,3 +394,105 @@ export async function extractOfficeMedia(file: File): Promise<ExtractMediaResult
   };
 }
 
+export interface PdfInspectItem {
+  id: string;
+  str: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fontSize: number;
+  fontName?: string;
+  vx: number;
+  vy: number;
+  vw: number;
+  vh: number;
+}
+
+export interface PdfInspectPage {
+  pageIndex: number;
+  pageNumber: number;
+  width: number;
+  height: number;
+  viewWidth: number;
+  viewHeight: number;
+  image: string;
+  items: PdfInspectItem[];
+}
+
+export interface PdfInspectResult {
+  success: boolean;
+  fileName: string;
+  numPages: number;
+  pages: PdfInspectPage[];
+}
+
+export interface PdfTextPatch {
+  id: string;
+  pageIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  originalText?: string;
+  newText: string;
+  fontFamily?: "sans" | "hei" | "kai" | "fang" | "song" | "serif" | "helvetica" | "times" | "courier";
+  fontSize?: number;
+  colorHex?: string;
+  bgHex?: string;
+  autoFit?: boolean;
+  padding?: number;
+}
+
+export interface PdfApplyPatchesResult {
+  success: boolean;
+  blob: Blob;
+  filename: string;
+  patchCount: number;
+}
+
+/**
+ * 探测与高保真解析 PDF 每一页文字块与版面几何坐标
+ */
+export async function inspectPdfForEdit(
+  file: File,
+  options?: { dpi?: number; maxPages?: number }
+): Promise<PdfInspectResult> {
+  const fileBuffer = await file.arrayBuffer();
+  return await invokeNative<PdfInspectResult>("document:inspect-pdf-for-edit", {
+    fileBuffer,
+    fileName: file.name,
+    dpi: options?.dpi || 120,
+    maxPages: options?.maxPages || 50,
+  });
+}
+
+/**
+ * 执行 PDF 原地文字修正与排版自适应重绘
+ */
+export async function applyPdfTextPatches(
+  file: File,
+  patches: PdfTextPatch[]
+): Promise<PdfApplyPatchesResult> {
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<{
+    success: boolean;
+    buffer: Uint8Array | ArrayBuffer;
+    filename: string;
+    patchCount: number;
+  }>("document:apply-text-patches", {
+    fileBuffer,
+    fileName: file.name,
+    patches,
+  });
+
+  const blob = new Blob([res.buffer as any], { type: "application/pdf" });
+  return {
+    success: res.success,
+    blob,
+    filename: res.filename,
+    patchCount: res.patchCount,
+  };
+}
+
+

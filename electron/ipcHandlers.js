@@ -91,6 +91,15 @@ function registerIpcHandlers(options = {}) {
     return await getDocumentService().extractOfficeMedia(payload, emitProgress(_e));
   });
 
+  ipcMain.handle('document:inspect-pdf-for-edit', async (_e, payload) => {
+    return await getDocumentService().inspectPdfText(payload);
+  });
+
+  ipcMain.handle('document:apply-text-patches', async (_e, payload) => {
+    return await getDocumentService().applyPdfTextPatches(payload);
+  });
+
+
   // ==================== 图像服务 (ImageService) ====================
   ipcMain.handle('image:compress', async (_e, payload) => {
     return await getImageService().compressImage(payload);

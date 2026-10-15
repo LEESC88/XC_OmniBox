@@ -42,6 +42,7 @@ import PdfCompressStudio from "@/components/pdf/PdfCompressStudio";
 import ImagesToPdfStudio from "@/components/pdf/ImagesToPdfStudio";
 import PdfOrganizeStudio from "@/components/pdf/PdfOrganizeStudio";
 import OfficeMediaExtractStudio from "@/components/document/OfficeMediaExtractStudio";
+import PdfInplaceTextStudio from "@/components/document/PdfInplaceTextStudio";
 import AiToolbox from "@/components/AiToolbox";
 
 import { useI18n } from "@/lib/i18n";
@@ -71,6 +72,7 @@ export type DocTabType =
   | "pdf-compress"
   | "images-to-pdf"
   | "pdf-protect"
+  | "pdf-inplace-edit"
   | "office-media-extract"
   | "ai-ocr"
   | "ai-searchable-pdf";
@@ -592,6 +594,12 @@ export default function DocumentToolbox({
       badge: lang === "en" ? "Encrypt/Unlock" : "加密/解密",
     },
     {
+      id: "pdf-inplace-edit",
+      label: lang === "en" ? "PDF In-place Text Fix" : "PDF 局部文字原地修正",
+      icon: Edit3,
+      badge: lang === "en" ? "In-place" : "原地涂改",
+    },
+    {
       id: "office-media-extract",
       label: lang === "en" ? "Office Media Extractor" : "Office 媒体资产提取",
       icon: FolderArchive,
@@ -1010,6 +1018,11 @@ export default function DocumentToolbox({
             />
           </div>
         )
+      ) : activeTab === "pdf-inplace-edit" ? (
+        <PdfInplaceTextStudio
+          incomingFile={files[0] || undefined}
+          onFileClear={() => setFiles([])}
+        />
       ) : activeTab === "office-media-extract" ? (
         <OfficeMediaExtractStudio
           initialFile={files[0] || null}

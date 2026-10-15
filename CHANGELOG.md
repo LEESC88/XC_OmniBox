@@ -4,6 +4,16 @@ All notable updates and releases for **XC_OmniBox** will be documented in this f
 
 For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
+## 🌟 v1.6.3 1.6.3
+
+- 🎯 **PDF In-place Text Fix (P0 Killer Feature)**:
+  - **100% Layout & Stamp Integrity**: Solves typos, signature dates, and invoice/contract amounts in-place without error-prone PDF-to-Word conversions.
+  - **Dual-Mode Fixer Engine (Inspired by Stirling-PDF / GenOffice)**:
+    - **Global Search & Replace**: Batch find keywords and swap text across pages in seconds.
+    - **Visual Click-to-Edit Studio**: Hover & click any word block on the high-definition canvas to edit in-place with instant preview, font style selection, and size/color adjustments.
+  - **Auto-Fit Typography Protection**: Dynamically measures text advance width and shrinks font size when replacements are longer, preventing text overlap.
+  - **Strict Backend-First Architecture**: Parsing, font embedding, and vector re-rendering run entirely within the Node.js backend.
+
 ---
 
 ## 🌟 v1.6.2 1.6.2

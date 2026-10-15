@@ -202,6 +202,15 @@ const TOOLS_REGISTRY: {
         keywords: ["pdf", "密码", "加密", "解密", "解锁", "保护", "权限"],
       },
       {
+        id: "pdf-inplace-edit",
+        module: "document",
+        name: "PDF 局部文字原地修正",
+        desc: "合同/账单/简历错字日期金额原地涂白重绘修正，100% 保持原版面与矢量印章",
+        badge: "杀手级",
+        icon: Edit3,
+        keywords: ["pdf", "修改文字", "原地修改", "错别字", "替换", "合同", "账单", "金额", "日期", "edit", "fix"],
+      },
+      {
         id: "office-media-extract",
         module: "document",
         name: "Office 媒体资产提取",

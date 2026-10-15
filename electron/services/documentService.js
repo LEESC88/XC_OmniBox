@@ -1124,6 +1124,260 @@ class DocumentService {
       zipFilename,
     };
   }
+
+  /**
+   * PDF 局部文字原地修正前置探测：提取高精度版面文字元素与各页超清渲染图
+   */
+  static async inspectPdfText({ fileBuffer, fileName = 'document.pdf', dpi = 120, maxPages = 50 }) {
+    if (!fileBuffer || (Buffer.isBuffer(fileBuffer) && fileBuffer.length === 0)) {
+      throw new Error('未接收到有效的 PDF 文档数据');
+    }
+    const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
+    const canvasFactory = new NapiCanvasFactory();
+    const loadingTask = DocumentService.getDocumentTask(buffer, { canvasFactory });
+    let doc = null;
+    try {
+      doc = await loadingTask.promise;
+    } catch (err) {
+      throw new Error(`PDF 解析失败: ${err.message || '文件损坏或受密码保护'}`);
+    }
+
+    const numPages = doc.numPages;
+    const limit = maxPages ? Math.min(numPages, Number(maxPages)) : numPages;
+    const scale = (Number(dpi) || 120) / 72;
+    const pages = [];
+
+    for (let i = 1; i <= limit; i++) {
+      const page = await doc.getPage(i);
+      const viewport = page.getViewport({ scale });
+      const { canvas, context: ctx } = canvasFactory.create(viewport.width, viewport.height);
+
+      await page.render({
+        canvasContext: ctx,
+        viewport,
+        canvasFactory,
+      }).promise;
+
+      const imgBase64 = `data:image/png;base64,${canvas.toBuffer('image/png').toString('base64')}`;
+
+      const textContent = await page.getTextContent();
+      const items = [];
+      let itemIdx = 0;
+
+      for (const item of (textContent.items || [])) {
+        const rawStr = item.str;
+        if (!rawStr || !rawStr.trim()) continue;
+
+        const x = Math.round(item.transform[4] * 10) / 10;
+        const y = Math.round(item.transform[5] * 10) / 10;
+        const width = Math.max(2, Math.round(item.width * 10) / 10);
+        const height = Math.max(6, Math.round((item.height || Math.hypot(item.transform[0], item.transform[1]) || 12) * 10) / 10);
+        const fontSize = Math.round((item.height || Math.hypot(item.transform[0], item.transform[1]) || 12) * 10) / 10;
+
+        // 计算 Viewport 视口坐标（左上角为原点），便于前端 1:1 精确定位覆盖
+        const [vx, vyBaseline] = viewport.convertToViewportPoint(x, y);
+        const vw = Math.max(4, Math.round(width * scale * 10) / 10);
+        const vh = Math.max(8, Math.round(height * scale * 10) / 10);
+        const vy = Math.round((vyBaseline - vh * 0.85) * 10) / 10;
+
+        items.push({
+          id: `p${i - 1}_i${itemIdx++}`,
+          str: rawStr,
+          x,
+          y,
+          width,
+          height,
+          fontSize,
+          fontName: item.fontName || '',
+          vx,
+          vy,
+          vw,
+          vh,
+        });
+      }
+
+      pages.push({
+        pageIndex: i - 1,
+        pageNumber: i,
+        width: Math.round(page.view[2] - page.view[0]),
+        height: Math.round(page.view[3] - page.view[1]),
+        viewWidth: Math.round(viewport.width),
+        viewHeight: Math.round(viewport.height),
+        image: imgBase64,
+        items,
+      });
+    }
+
+    return {
+      success: true,
+      fileName,
+      numPages,
+      pages,
+    };
+  }
+
+  /**
+   * PDF 局部文字原地修正执行引擎：精细遮白原印迹 + 原字形嵌入重绘 + 边界自适应防溢出
+   */
+  static async applyPdfTextPatches({ fileBuffer, fileName = 'document.pdf', patches = [] }) {
+    if (!fileBuffer || (Buffer.isBuffer(fileBuffer) && fileBuffer.length === 0)) {
+      throw new Error('未接收到有效的 PDF 文档数据');
+    }
+    const rawPatches = Array.isArray(patches) ? patches : typeof patches === 'string' ? JSON.parse(patches) : [];
+    if (!rawPatches || rawPatches.length === 0) {
+      throw new Error('请至少指定 1 处需要原地修正的文字补丁');
+    }
+
+    const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
+    const pdfDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+    pdfDoc.registerFontkit(fontkit);
+
+    const parseHex = (hex) => {
+      if (!hex || typeof hex !== 'string') return rgb(0, 0, 0);
+      const clean = hex.replace('#', '').trim();
+      if (clean.length === 3) {
+        return rgb(
+          parseInt(clean[0] + clean[0], 16) / 255,
+          parseInt(clean[1] + clean[1], 16) / 255,
+          parseInt(clean[2] + clean[2], 16) / 255
+        );
+      }
+      if (clean.length === 6) {
+        return rgb(
+          parseInt(clean.substring(0, 2), 16) / 255,
+          parseInt(clean.substring(2, 4), 16) / 255,
+          parseInt(clean.substring(4, 6), 16) / 255
+        );
+      }
+      return rgb(0, 0, 0);
+    };
+
+    // 字体懒加载缓存
+    const fontCache = new Map();
+    const loadFont = async (family) => {
+      const famKey = (family || 'sans').toLowerCase();
+      if (fontCache.has(famKey)) return fontCache.get(famKey);
+
+      let font = null;
+      if (famKey === 'helvetica' || famKey === 'arial') {
+        const { StandardFonts } = require('pdf-lib');
+        font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      } else if (famKey === 'times') {
+        const { StandardFonts } = require('pdf-lib');
+        font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+      } else if (famKey === 'courier') {
+        const { StandardFonts } = require('pdf-lib');
+        font = await pdfDoc.embedFont(StandardFonts.Courier);
+      } else {
+        // CJK 字体映射
+        const fontPathMap = {
+          sans: 'C:/Windows/Fonts/simhei.ttf',
+          hei: 'C:/Windows/Fonts/simhei.ttf',
+          kai: 'C:/Windows/Fonts/simkai.ttf',
+          fang: 'C:/Windows/Fonts/simfang.ttf',
+          song: 'C:/Windows/Fonts/simsun.ttc',
+          serif: 'C:/Windows/Fonts/simsun.ttc',
+        };
+        const targetPath = fontPathMap[famKey] || 'C:/Windows/Fonts/simhei.ttf';
+        const fallbackPath = 'C:/Windows/Fonts/simhei.ttf';
+
+        const pathToLoad = fs.existsSync(targetPath) ? targetPath : (fs.existsSync(fallbackPath) ? fallbackPath : null);
+        if (pathToLoad) {
+          try {
+            const fontBytes = fs.readFileSync(pathToLoad);
+            const isTtc = pathToLoad.toLowerCase().endsWith('.ttc');
+            font = await pdfDoc.embedFont(fontBytes, { subset: !isTtc });
+          } catch (e1) {
+            // fallback simhei
+            if (fs.existsSync(fallbackPath)) {
+              try {
+                const fbBytes = fs.readFileSync(fallbackPath);
+                font = await pdfDoc.embedFont(fbBytes, { subset: true });
+              } catch (_) {}
+            }
+          }
+        }
+        if (!font) {
+          const { StandardFonts } = require('pdf-lib');
+          font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        }
+      }
+
+      fontCache.set(famKey, font);
+      return font;
+    };
+
+    const pageCount = pdfDoc.getPageCount();
+
+    for (const patch of rawPatches) {
+      const pageIdx = Number(patch.pageIndex);
+      if (isNaN(pageIdx) || pageIdx < 0 || pageIdx >= pageCount) continue;
+
+      const page = pdfDoc.getPage(pageIdx);
+      const x = Number(patch.x) || 0;
+      const y = Number(patch.y) || 0;
+      const width = Math.max(2, Number(patch.width) || 10);
+      const height = Math.max(4, Number(patch.height) || 12);
+      const newText = typeof patch.newText === 'string' ? patch.newText : '';
+      const bgHex = patch.bgHex !== undefined ? patch.bgHex : '#FFFFFF';
+      const colorHex = patch.colorHex || '#000000';
+      const padding = typeof patch.padding === 'number' ? patch.padding : 1.5;
+      const isBaseline = Boolean(patch.isBaseline !== false); // 默认坐标 y 为基线
+
+      // 1. 涂白遮罩：覆盖原文字印迹
+      if (bgHex && bgHex.toLowerCase() !== 'transparent') {
+        const maskColor = parseHex(bgHex);
+        const maskY = isBaseline ? (y - height * 0.25) - padding : y - padding;
+        const maskH = height + padding * 2;
+        page.drawRectangle({
+          x: x - padding,
+          y: maskY,
+          width: width + padding * 2,
+          height: maskH,
+          color: maskColor,
+        });
+      }
+
+      // 2. 原地绘制新文字
+      if (newText.length > 0) {
+        const font = await loadFont(patch.fontFamily);
+        const textColor = parseHex(colorHex);
+        let targetFontSize = Number(patch.fontSize) > 0 ? Number(patch.fontSize) : Math.max(6, height * 0.85);
+
+        // 自适应排版：若新文字超出原区域，自动微缩字号，保持不侵入邻近排版
+        if (patch.autoFit !== false && width > 4) {
+          try {
+            const measuredWidth = font.widthOfTextAtSize(newText, targetFontSize);
+            if (measuredWidth > width) {
+              const scaled = targetFontSize * (width / measuredWidth);
+              targetFontSize = Math.max(5, scaled);
+            }
+          } catch (_) {}
+        }
+
+        const drawY = isBaseline ? y : y + (height - targetFontSize) / 2 + targetFontSize * 0.15;
+        try {
+          page.drawText(newText, {
+            x,
+            y: drawY,
+            size: targetFontSize,
+            font,
+            color: textColor,
+          });
+        } catch (drawErr) {
+          console.warn('[applyPdfTextPatches] drawText error:', drawErr.message);
+        }
+      }
+    }
+
+    const modifiedBytes = await pdfDoc.save({ useObjectStreams: true });
+    return {
+      success: true,
+      buffer: Buffer.from(modifiedBytes),
+      filename: `fixed_${fileName.replace(/^fixed_/, '')}`,
+      patchCount: rawPatches.length,
+    };
+  }
 }
 
 module.exports = DocumentService;

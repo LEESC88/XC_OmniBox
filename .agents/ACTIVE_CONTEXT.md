@@ -1,16 +1,17 @@
-# Active Context (v1.6.2 Office 媒体资产提取)
+# Active Context (v1.6.3 PDF 局部文字原地修正)
 
 ## 1. 当前进度
-- [x] 后端服务：新增 `DocumentService.extractOfficeMedia`，纯本地无损解构 OpenXML 容器内的原图与媒体文件。
-- [x] 模块化演进：新建 `frontend/src/components/document/OfficeMediaExtractStudio.tsx`，保持功能独立解耦。
-- [x] 前后端契约：打通 `document:extract-media` IPC 通道与实时进度流 `onTaskProgress`。
-- [x] 工坊扩展：【文档与文字工坊】扩充至 12 项高密度工具；完成全量冒烟测试与类型检查。
+- [x] 后端服务：`documentService.js` 实现 `inspectPdfText` 与 `applyPdfTextPatches`。
+- [x] IPC 通道：注册 `document:inspect-pdf-for-edit` 与 `document:apply-text-patches`。
+- [x] 前端模块：新建 `PdfInplaceTextStudio.tsx`，支持双模修正（搜索替换 + 可视点击框选）。
+- [x] 工坊集成：接入 `DocumentToolbox.tsx` 与首页路由导航（共 13 项工具）。
+- [x] 冒烟测试：46 项全量测试与极端边界用例 100% 通过。
 
 ## 2. 核心契约与变更
-- `document:extract-media` -> `{ success, count, totalSize, items, zipBuffer, zipFilename, message }`
-- 前端 `extractOfficeMedia(file)` -> 转换 `zipBuffer` 为标准下载 Blob 并支持缩略图卡片展示。
+- `document:inspect-pdf-for-edit` -> `{ success, fileName, numPages, pages: [{ pageIndex, image, items }] }`
+- `document:apply-text-patches` -> `{ success, buffer, filename, patchCount }`
+- 智能排版自适应：检测字符宽度并动态缩小字号防超界；涂白遮罩消除原印迹。
 
-## 3. 已闭环边界问题
-- 空媒体文档友好拦截（`count: 0` 且友好提示，杜绝抛出空指针）。
-- 损坏或非 Office 文档格式前置校验防御。
-- 自动化序列命名（`01_image1.png`），避免解压后重名文件互相覆盖。
+## 3. 已闭环边界防御
+- TTC 与 TTF 字体子集化兼容：针对 `simhei.ttf`/`simkai.ttf` 启用 `subset:true` 压榨体积，`.ttc` 集合启用 `subset:false` 防崩溃。
+- 无文字项防御与空 Patch 优雅拦截。
