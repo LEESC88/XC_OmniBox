@@ -159,17 +159,8 @@ async function main() {
 
   let release = releases.find((r) => r.tag_name === tagName);
   const releaseNotes = extractReleaseNotes();
-  let releaseTitle = `XC OmniBox v${version}`;
-  try {
-    const changelogPath = fs.existsSync(path.join(ROOT_DIR, 'CHANGELOG.md'))
-      ? path.join(ROOT_DIR, 'CHANGELOG.md')
-      : path.join(ROOT_DIR, 'README.md');
-    const content = fs.readFileSync(changelogPath, 'utf-8');
-    const match = content.match(new RegExp(`## 🌟 v${version}\\s+([^/\\n]+)`));
-    if (match && match[1]) {
-      releaseTitle = `XC OmniBox v${version} - ${match[1].trim()}`;
-    }
-  } catch (_) {}
+  let releaseTitle = process.env.RELEASE_TITLE || version;
+
 
   if (!release) {
     console.log(`[GitHub API] Creating new release for tag ${tagName}...`);

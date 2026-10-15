@@ -30,6 +30,7 @@ import {
   Unlock,
   FileSearch,
   Sparkles,
+  FolderArchive,
 } from "lucide-react";
 
 import Dropzone from "@/components/Dropzone";
@@ -40,6 +41,7 @@ import PdfWatermarkStudio from "@/components/pdf/PdfWatermarkStudio";
 import PdfCompressStudio from "@/components/pdf/PdfCompressStudio";
 import ImagesToPdfStudio from "@/components/pdf/ImagesToPdfStudio";
 import PdfOrganizeStudio from "@/components/pdf/PdfOrganizeStudio";
+import OfficeMediaExtractStudio from "@/components/document/OfficeMediaExtractStudio";
 import AiToolbox from "@/components/AiToolbox";
 
 import { useI18n } from "@/lib/i18n";
@@ -69,6 +71,7 @@ export type DocTabType =
   | "pdf-compress"
   | "images-to-pdf"
   | "pdf-protect"
+  | "office-media-extract"
   | "ai-ocr"
   | "ai-searchable-pdf";
 
@@ -589,6 +592,12 @@ export default function DocumentToolbox({
       badge: lang === "en" ? "Encrypt/Unlock" : "加密/解密",
     },
     {
+      id: "office-media-extract",
+      label: lang === "en" ? "Office Media Extractor" : "Office 媒体资产提取",
+      icon: FolderArchive,
+      badge: lang === "en" ? "Lossless" : "原图解构",
+    },
+    {
       id: "ai-ocr",
       label: lang === "en" ? "Offline OCR Text" : "离线文字提取 (OCR)",
       icon: Sparkles,
@@ -1001,6 +1010,11 @@ export default function DocumentToolbox({
             />
           </div>
         )
+      ) : activeTab === "office-media-extract" ? (
+        <OfficeMediaExtractStudio
+          initialFile={files[0] || null}
+          onClearInitialFile={() => setFiles([])}
+        />
       ) : activeTab === "ai-ocr" || activeTab === "ai-searchable-pdf" ? (
         <AiToolbox
           currentTab={activeTab}

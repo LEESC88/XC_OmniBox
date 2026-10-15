@@ -11,6 +11,12 @@ const { encryptPDF } = require('@pdfsmaller/pdf-encrypt-lite');
 let _sharp = null;
 let _canvasModule = null;
 let _pdfjs = null;
+let _unzipper = null;
+
+function getUnzipper() {
+  if (!_unzipper) _unzipper = require('unzipper');
+  return _unzipper;
+}
 
 function getSharp() {
   if (!_sharp) _sharp = require('sharp');
@@ -987,6 +993,135 @@ class DocumentService {
       buffer: Buffer.from(outBytes),
       filename: `${baseName}_searchable.pdf`,
       text: fullText,
+    };
+  }
+
+  /**
+   * Office 多媒体资产一键无损提取 (Word / PPT / Excel 原图与音视频解构)
+   * 零失真直接抽取 OpenXML 容器内的原始文件流，并统一重新命名与打包为 ZIP
+   */
+  static async extractOfficeMedia({ fileBuffer, fileName = 'document.docx', onProgress }) {
+    const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
+    const unzipper = getUnzipper();
+    let directory;
+    try {
+      directory = await unzipper.Open.buffer(buffer);
+    } catch (err) {
+      throw new Error('无法解析该文件，请确保传入的是有效的 .docx、.pptx、.xlsx 或开放文档格式文件');
+    }
+
+    // 筛选出 media 目录或 Pictures 目录下的具体文件
+    const rawEntries = directory.files.filter((file) => {
+      if (file.type === 'Directory' || file.path.endsWith('/')) return false;
+      return Boolean(file.path.match(/(?:word|ppt|xl)\/media\/|Pictures\//i));
+    });
+
+    const baseName = fileName.replace(/\.[^/.]+$/, '');
+    const zipFilename = `${baseName}_原图素材包.zip`;
+
+    if (rawEntries.length === 0) {
+      if (onProgress) {
+        onProgress({ task: 'document:extract-media', current: 0, total: 0, percent: 100, message: '未在文档中检测到内嵌的独立图片或媒体文件' });
+      }
+      return {
+        success: true,
+        count: 0,
+        totalSize: 0,
+        items: [],
+        zipBuffer: Buffer.alloc(0),
+        zipFilename,
+        message: '文档中未检测到内嵌的独立图片或多媒体素材',
+      };
+    }
+
+    const items = [];
+    const filesToBundle = [];
+    let totalSize = 0;
+
+    for (let i = 0; i < rawEntries.length; i++) {
+      const entry = rawEntries[i];
+      const data = await entry.buffer();
+      const originalName = path.basename(entry.path);
+      const ext = path.extname(originalName).toLowerCase();
+      const cleanExt = ext.replace('.', '') || 'bin';
+      const indexStr = String(i + 1).padStart(2, '0');
+      const safeName = `${indexStr}_${originalName}`;
+
+      let mimeType = 'application/octet-stream';
+      if (['.jpg', '.jpeg'].includes(ext)) mimeType = 'image/jpeg';
+      else if (ext === '.png') mimeType = 'image/png';
+      else if (ext === '.webp') mimeType = 'image/webp';
+      else if (ext === '.svg') mimeType = 'image/svg+xml';
+      else if (ext === '.gif') mimeType = 'image/gif';
+      else if (ext === '.bmp') mimeType = 'image/bmp';
+      else if (ext === '.mp3') mimeType = 'audio/mpeg';
+      else if (ext === '.wav') mimeType = 'audio/wav';
+      else if (ext === '.mp4') mimeType = 'video/mp4';
+
+      let previewUrl = null;
+      // 为常见网页支持的格式生成缩略预览 Base64
+      if (mimeType.startsWith('image/') && !['.emf', '.wmf', '.tiff', '.tif'].includes(ext)) {
+        if (data.length <= 4 * 1024 * 1024) {
+          previewUrl = `data:${mimeType};base64,${data.toString('base64')}`;
+        }
+      }
+
+      totalSize += data.length;
+      items.push({
+        id: `media_${i + 1}`,
+        name: safeName,
+        originalPath: entry.path,
+        size: data.length,
+        mimeType,
+        extension: cleanExt,
+        previewUrl,
+      });
+
+      filesToBundle.push({
+        name: safeName,
+        buffer: data,
+      });
+
+      if (onProgress) {
+        onProgress({
+          task: 'document:extract-media',
+          current: i + 1,
+          total: rawEntries.length,
+          percent: Math.round(((i + 1) / rawEntries.length) * 80),
+          message: `正在提取媒体素材 (${i + 1}/${rawEntries.length}): ${originalName}`,
+        });
+      }
+    }
+
+    // 将所有无损原图打包为 ZIP
+    const outArchive = new ZipArchive({ zlib: { level: 6 } });
+    const zipChunks = [];
+    outArchive.on('data', (c) => zipChunks.push(c));
+
+    for (const f of filesToBundle) {
+      outArchive.append(f.buffer, { name: f.name });
+    }
+    outArchive.finalize();
+    await new Promise((resolve) => outArchive.on('end', resolve));
+    const zipBuffer = Buffer.concat(zipChunks);
+
+    if (onProgress) {
+      onProgress({
+        task: 'document:extract-media',
+        current: rawEntries.length,
+        total: rawEntries.length,
+        percent: 100,
+        message: `成功提取 ${items.length} 个多媒体素材并完成打包！`,
+      });
+    }
+
+    return {
+      success: true,
+      count: items.length,
+      totalSize,
+      items,
+      zipBuffer,
+      zipFilename,
     };
   }
 }

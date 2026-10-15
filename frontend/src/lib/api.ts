@@ -343,3 +343,54 @@ export function downloadBlob(blob: Blob, filename: string) {
     } catch (_) {}
   }, 10000);
 }
+
+export interface ExtractedMediaItem {
+  id: string;
+  name: string;
+  originalPath: string;
+  size: number;
+  mimeType: string;
+  extension: string;
+  previewUrl: string | null;
+}
+
+export interface ExtractMediaResult {
+  success: boolean;
+  count: number;
+  totalSize: number;
+  items: ExtractedMediaItem[];
+  zipBlob: Blob;
+  zipFilename: string;
+  message?: string;
+}
+
+/**
+ * 一键提取 Word/PPT/Excel 开放文档内的全部内嵌无损原图与媒体文件
+ */
+export async function extractOfficeMedia(file: File): Promise<ExtractMediaResult> {
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<{
+    success: boolean;
+    count: number;
+    totalSize: number;
+    items: ExtractedMediaItem[];
+    zipBuffer: Uint8Array | ArrayBuffer;
+    zipFilename: string;
+    message?: string;
+  }>("document:extract-media", {
+    fileBuffer,
+    fileName: file.name,
+  });
+
+  const zipBlob = new Blob([res.zipBuffer as any], { type: "application/zip" });
+  return {
+    success: res.success,
+    count: res.count,
+    totalSize: res.totalSize,
+    items: res.items || [],
+    zipBlob,
+    zipFilename: res.zipFilename,
+    message: res.message,
+  };
+}
+

@@ -87,6 +87,10 @@ function registerIpcHandlers(options = {}) {
     return await getDocumentService().generateSearchablePdf(payload);
   });
 
+  ipcMain.handle('document:extract-media', async (_e, payload) => {
+    return await getDocumentService().extractOfficeMedia(payload, emitProgress(_e));
+  });
+
   // ==================== 图像服务 (ImageService) ====================
   ipcMain.handle('image:compress', async (_e, payload) => {
     return await getImageService().compressImage(payload);

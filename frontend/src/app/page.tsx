@@ -52,6 +52,7 @@ import {
   TableProperties,
   FolderTree,
   CopyCheck,
+  FolderArchive,
 } from "lucide-react";
 import CoconutLogo from "@/components/CoconutLogo";
 import DocumentToolbox, { DocTabType } from "@/components/DocumentToolbox";
@@ -199,6 +200,15 @@ const TOOLS_REGISTRY: {
         badge: "加密/解密",
         icon: Lock,
         keywords: ["pdf", "密码", "加密", "解密", "解锁", "保护", "权限"],
+      },
+      {
+        id: "office-media-extract",
+        module: "document",
+        name: "Office 媒体资产提取",
+        desc: "一键无损批量提取 Word/PPT/Excel 内嵌的原始高清图片与音视频",
+        badge: "原图解构",
+        icon: FolderArchive,
+        keywords: ["word", "ppt", "excel", "提取图片", "图片提取", "原图", "解构", "docx", "pptx", "xlsx", "media"],
       },
       {
         id: "ai-ocr",

@@ -6,6 +6,15 @@ For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
 ---
 
+## 🌟 v1.6.2 1.6.2
+
+- 📦 **Office Media Asset Extractor (Lossless Word / PPT / Excel Media Deconstruction)**:
+  - **Container-Level Lossless Extraction**: Extracts 100% original, uncompressed, uncropped high-resolution images, photos, and embedded audio/video files directly from OpenXML documents (`.docx`, `.pptx`, `.xlsx`, `.odt`).
+  - **Automatic Sequencing & ZIP Packaging**: Automatically renames files according to document occurrence order and packages them into a clean `.zip` archive for one-click downloading.
+  - **Robust Edge Defense**: Gracefully handles media-less documents and provides live progress streaming and secure thumbnail previews.
+
+---
+
 ## 🌟 v1.6.1 Service-Level Lazy Loading (Zero Cold-Start Blocking) & 5-Workshop Consolidation
 
 - ⚡ **Service-Level Lazy Loading (`Lazy Require / Getter` Pattern — 150–200ms Faster Cold Start)**:

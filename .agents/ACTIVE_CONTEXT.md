@@ -1,16 +1,16 @@
-# Active Context (v1.6.1 懒加载提速、工坊收敛与 PDF 乱码修复)
+# Active Context (v1.6.2 Office 媒体资产提取)
 
 ## 1. 当前进度
-- [x] 服务级按需懒加载：消除 `ipcHandlers.js` / `main.js` 顶层同步二进制库阻塞，按需实例化 Service。
-- [x] 工坊收敛：扫描与文字并入【文档与文字工坊】（11工具），升级【PDF 加密解密与权限管理】。
-- [x] 修复 PDF 预览方框乱码：开启 `disableFontFace: true` 矢量光栅化解析，集成 CMap 与系统 CJK 字库。
-- [x] 全量冒烟与极端边界回归：41 项核心功能测试 100% 通过；前端 `tsc` 与 Next.js 静态打包 100% 成功。
+- [x] 后端服务：新增 `DocumentService.extractOfficeMedia`，纯本地无损解构 OpenXML 容器内的原图与媒体文件。
+- [x] 模块化演进：新建 `frontend/src/components/document/OfficeMediaExtractStudio.tsx`，保持功能独立解耦。
+- [x] 前后端契约：打通 `document:extract-media` IPC 通道与实时进度流 `onTaskProgress`。
+- [x] 工坊扩展：【文档与文字工坊】扩充至 12 项高密度工具；完成全量冒烟测试与类型检查。
 
 ## 2. 核心契约与变更
-- `document:unlock-pdf` -> `{ buffer, filename, pageCount }` (密码解密/权限移除/抹除元数据)
-- `document:render-pdf-pages` -> `disableFontFace: true` + CMap 动态寻址 + Windows CJK 字体池注册
-- 保持所有 27 个 IPC Channel 接口签名 100% 不变。
+- `document:extract-media` -> `{ success, count, totalSize, items, zipBuffer, zipFilename, message }`
+- 前端 `extractOfficeMedia(file)` -> 转换 `zipBuffer` 为标准下载 Blob 并支持缩略图卡片展示。
 
 ## 3. 已闭环边界问题
-- Node.js + @napi-rs/canvas 无 DOM 导致的 PDF 内嵌字体 Tofu 方框字乱码缺陷闭环。
-- 41/41 冒烟用例全绿，零异常。
+- 空媒体文档友好拦截（`count: 0` 且友好提示，杜绝抛出空指针）。
+- 损坏或非 Office 文档格式前置校验防御。
+- 自动化序列命名（`01_image1.png`），避免解压后重名文件互相覆盖。
