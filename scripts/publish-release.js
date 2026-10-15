@@ -128,6 +128,13 @@ async function main() {
   const blockmapPath = path.join(releaseDir, `XC_OmniBox-Setup-${version}.exe.blockmap`);
   const ymlPath = path.join(releaseDir, 'latest.yml');
 
+  const buildTemp = path.join(ROOT_DIR, '.build_temp');
+  if (!fs.existsSync(buildTemp)) {
+    fs.mkdirSync(buildTemp, { recursive: true });
+  }
+  process.env.TEMP = buildTemp;
+  process.env.TMP = buildTemp;
+
   // 1. 检查或构建安装包
   if (!fs.existsSync(exePath)) {
     console.log(`[Builder] Installer ${exePath} not found. Running electron-builder...`);

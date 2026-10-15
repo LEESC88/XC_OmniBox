@@ -41,3 +41,4 @@ Thumbs.db
 # 6. AI Agent Skills
 .agents/skills/
 skills-lock.json
+.build_temp/
