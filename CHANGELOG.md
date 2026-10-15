@@ -4,7 +4,7 @@ All notable updates and releases for **XC_OmniBox** will be documented in this f
 
 For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
-## 🌟 v1.6.3 1.6.3
+## 🌟 v1.6.3 PDF In-place Text Fix & Dual-Mode Visual Studio
 
 - 🎯 **PDF In-place Text Fix (P0 Killer Feature)**:
   - **100% Layout & Stamp Integrity**: Solves typos, signature dates, and invoice/contract amounts in-place without error-prone PDF-to-Word conversions.
@@ -16,7 +16,7 @@ For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
 ---
 
-## 🌟 v1.6.2 1.6.2
+## 🌟 v1.6.2 Lossless Office Media Asset Extractor (Word / PPT / Excel Media Deconstruction)
 
 - 📦 **Office Media Asset Extractor (Lossless Word / PPT / Excel Media Deconstruction)**:
   - **Container-Level Lossless Extraction**: Extracts 100% original, uncompressed, uncropped high-resolution images, photos, and embedded audio/video files directly from OpenXML documents (`.docx`, `.pptx`, `.xlsx`, `.odt`).

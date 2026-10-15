@@ -156,9 +156,22 @@ async function main() {
   console.log(`[GitHub API] Querying releases for ${owner}/${repo}...`);
   const listRes = await httpsRequest(`https://api.github.com/repos/${owner}/${repo}/releases`);
   const releases = listRes.json || [];
-
   let release = releases.find((r) => r.tag_name === tagName);
-  let releaseTitle = process.env.RELEASE_TITLE || `XC OmniBox v${version}`;
+  const releaseNotes = extractReleaseNotes();
+  let releaseTitle = `XC OmniBox v${version}`;
+  try {
+    const changelogPath = fs.existsSync(path.join(ROOT_DIR, 'CHANGELOG.md'))
+      ? path.join(ROOT_DIR, 'CHANGELOG.md')
+      : path.join(ROOT_DIR, 'README.md');
+    const content = fs.readFileSync(changelogPath, 'utf-8');
+    const match = content.match(new RegExp(`## 🌟 v${version}\\s+([^/\\n]+)`));
+    if (match && match[1]) {
+      releaseTitle = `XC OmniBox v${version} - ${match[1].trim()}`;
+    }
+  } catch (_) {}
+  if (process.env.RELEASE_TITLE) {
+    releaseTitle = process.env.RELEASE_TITLE;
+  }
 
 
   if (!release) {
