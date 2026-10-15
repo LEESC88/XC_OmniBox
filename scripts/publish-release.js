@@ -158,8 +158,7 @@ async function main() {
   const releases = listRes.json || [];
 
   let release = releases.find((r) => r.tag_name === tagName);
-  const releaseNotes = extractReleaseNotes();
-  let releaseTitle = process.env.RELEASE_TITLE || version;
+  let releaseTitle = process.env.RELEASE_TITLE || `XC OmniBox v${version}`;
 
 
   if (!release) {
