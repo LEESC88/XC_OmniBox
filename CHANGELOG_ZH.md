@@ -6,24 +6,14 @@
 
 ---
 
-## 🌟 v1.6.2 对标 Stirling-PDF 打造 3 款工业级 PDF 页面加工套件（物理脱敏签章、300DPI 转长图、多页合一拼版）
-
-- 🛡️ **工具 A：【PDF 签章、批注与物理涂黑脱敏 (`pdf-sign-redact`)】**：
-  - **不可逆物理涂黑脱敏（防复制穿透）**：后端 `DocumentService.signAndRedactPdf` 对含脱敏选区（`redact`）的页面自动通过 `pdfjs-dist` + `@napi-rs/canvas` 进行 200DPI 底层光栅化重绘，将实心遮挡层与页面像素彻底扁平化融为一体并替换原页面字典，100% 物理销毁底层敏感文本坐标流，杜绝任何选中复制或文本提取穿透；未含脱敏操作的页面则保持 100% 纯矢量无损叠加。
-  - **透明公章/手写签名板与文字批注**：前端新增交互式画板组件 `PdfSignRedactStudio.tsx`，支持在 PDF 任意页面自由拉框涂黑、上传透明 PNG 印章或直接在内置手写签名板上签署合成、以及嵌入支持中文字库的自定义彩色批注。
-- 🖼️ **工具 B：【PDF 转高清长图与切片导出 (`pdf-to-images`)】**：
-  - **300DPI 印刷级切片与一图流拼接**：后端新增 `DocumentService.pdfToImages`，支持将指定页码范围逐页光栅化并打包为高清 PNG/JPG 切片 ZIP，或调用 `sharp` 无缝纵向拼接为一张超清“一图流”长图。
-  - **防爆存高度分卷保护**：内置 `MAX_VOLUME_HEIGHT = 15500px` 硬件编码高度安全阈值，遇到百页超长文档自动按安全高度切分为多卷高清长图并打包为 ZIP，彻底杜绝 Node.js Buffer 或 `libvips` 像素上限溢出。
-- 📐 **工具 C：【多页合一缩印拼版 (`pdf-nup`)】**：
-  - **发票/讲义无损矢量拼版**：后端新增 `DocumentService.nupPdf`，基于 `pdf-lib` 的 `embedPage()` 将 2 页（2x1/1x2）、4 页（2x2）、6 页（2x3/3x2）或 9 页（3x3）无损矢量缩印至单张标准 A4 纸（支持纵向/横向、自定义页边距与细灰网格裁切线）。
-
----
-
 ## 🌟 v1.6.1 服务级按需懒加载（压榨 150-200ms 冷启动阻塞）与 5 大高密度工坊收敛
 
 - ⚡ **服务级按需懒加载（Lazy Require / Getter 模式，冷启动提速 150-200ms）**：
   - **消除主进程顶层同步二进制加载**：彻底移除 `electron/ipcHandlers.js`、`electron/main.js` 及 `electron/services/*` 顶部对 `sharp`、`@napi-rs/canvas`、`pdfjs-dist`、`xlsx`、`archiver`、`electron-updater` 等重型 C++/二进制库的同步 `require`。
   - **IPC 首次触发动态实例化**：各后端服务（`DocumentService`、`ImageService`、`SpreadsheetService`、`UtilityService`、`AudioService`）仅在对应 IPC 通道首次被调用时按需加载，主窗口与系统托盘实现零阻塞秒开，同时保持全部 IPC 契约 100% 兼容。
+- 🐛 **PDF 预览乱码彻底修复（杜绝 Tofu 方框字）**：
+  - **根因溯源**：在 Node.js + `@napi-rs/canvas` 渲染环境下缺少浏览器 DOM 与 CSS `@font-face`，原先 `disableFontFace: false` 导致 PDF.js 向画布发出内嵌子集字体名（如 `g_d2_f1`）的 `ctx.fillText()` 绘制，画布缺失对应字形时退化为方框（`▯▯▯`）。
+  - **闭环修复**：开启 `disableFontFace: true` 强制启用 PDF.js 内部矢量轮廓解析并经由 Path2D 路径光栅化绘制；同时完成 Windows 本地 CJK 系统字库注册与动态 CMap 字符映射，所有内嵌字体、特殊子集编码与中文字符 100% 像素级清晰渲染。
 - 🗂️ **6 大分类收敛为 5 大高密度工坊 & 加密解密一体强化**：
   - **收编【文档与文字工坊】**：将原孤立的【扫描与文字工坊】（`离线文字提取 (OCR)` 与 `双层可搜索 PDF 制作`）完整并入【文档与文字工坊】（共 11 项高密度工具），清理侧边栏冗余分类图标与无效路由。
   - **升级【PDF 加密解密与权限管理】**：整合 AES 加密上锁、已知密码解除/所有者打印复制权限解锁（`document:unlock-pdf`）与隐藏隐私元数据（作者/软件/标题）一键抹除。

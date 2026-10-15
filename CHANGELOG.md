@@ -6,24 +6,14 @@ For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
 ---
 
-## 🌟 v1.6.2 Stirling-PDF Grade PDF Processing Suite (Physical Redaction & Sign, 300DPI Long Image, Multi-Page N-Up)
-
-- 🛡️ **Tool A: PDF Sign, Annotate & Physical Redaction (`pdf-sign-redact`)**:
-  - **Irreversible Physical Redaction (Anti-Copy / Anti-Extract)**: `DocumentService.signAndRedactPdf` rasterizes any page containing `'redact'` regions at 200 DPI via `pdfjs-dist` + `@napi-rs/canvas`, burns opaque solid blocks directly into the pixel buffer, and replaces the original PDF page stream—100% physically destroying underlying sensitive text coordinates so nothing can be copied or extracted, while keeping non-redacted pages 100% lossless vector.
-  - **Interactive Seal, Handwritten Signature Pad & Text Notes**: Added `PdfSignRedactStudio.tsx` supporting box-drag redaction, transparent PNG company seal upload, built-in handwritten signature canvas pad, and CJK-enabled custom text annotations.
-- 🖼️ **Tool B: PDF to High-DPI Long Image & Slices (`pdf-to-images`)**:
-  - **300DPI Raster Slices & Seamless Vertical Long Image**: Added `DocumentService.pdfToImages` to export PDF pages as batch high-DPI PNG/JPG slices (`ZIP`) or stitch pages vertically via `sharp` into a single ultra-clear long image.
-  - **Height Overflow Volume Protection**: Enforces a `MAX_VOLUME_HEIGHT = 15500px` safety ceiling per stitched image, automatically splitting ultra-long documents into multi-volume long images inside a ZIP archive to prevent `libvips` and Node.js Buffer overflows.
-- 📐 **Tool C: Multi-Page N-Up Vector Imposition (`pdf-nup`)**:
-  - **Lossless Vector 2-Up / 4-Up / 6-Up / 9-Up A4 Layout**: Added `DocumentService.nupPdf` using `pdf-lib`'s `embedPage()` to impose multiple invoices or lecture slides onto a single portrait/landscape A4 sheet with customizable page margins and subtle gray cell grid borders.
-
----
-
 ## 🌟 v1.6.1 Service-Level Lazy Loading (Zero Cold-Start Blocking) & 5-Workshop Consolidation
 
 - ⚡ **Service-Level Lazy Loading (`Lazy Require / Getter` Pattern — 150–200ms Faster Cold Start)**:
   - **Eliminated Top-Level Synchronous Native Binary Loads**: Removed all top-level `require` calls for heavy C++/WASM/parsing dependencies (`sharp`, `@napi-rs/canvas`, `pdfjs-dist`, `xlsx`, `archiver`, `electron-updater`) in `electron/ipcHandlers.js`, `electron/main.js`, and `electron/services/*`.
   - **On-Demand Singleton Instantiation**: Services (`DocumentService`, `ImageService`, `SpreadsheetService`, `UtilityService`, `AudioService`) and native binaries are now loaded strictly on first IPC invocation, while `registerIpcHandlers` and all IPC channel signatures remain 100% compatible.
+- 🐛 **PDF Preview Character Corruption Fixed (Tofu Box Defect)**:
+  - **Root Cause**: In Node.js + `@napi-rs/canvas`, there is no browser DOM or CSS `@font-face` runtime. When `disableFontFace: false`, PDF.js issued `ctx.fillText()` calls with embedded subset font names (`g_d2_f1`). Because the canvas fell back to default sans-serif, non-standard PUA/CID glyph codes were rendered as missing-glyph tofu square boxes (`▯▯▯`).
+  - **Definitive Fix**: Switched to `disableFontFace: true` so PDF.js parses embedded vector font outlines in JS and renders them directly via native `Path2D` vector fills; registered Windows CJK system fonts and dynamic binary CMap tables to ensure 100% fidelity on Chinese and Asian scripts.
 - 🗂️ **5 High-Density Workshops Consolidation**:
   - **Merged Scanning & Text into Document & Text Workshop (`文档与文字工坊`)**: Consolidated `Offline OCR Text Extraction (ai-ocr)` and `Dual-Layer Searchable PDF Maker (ai-searchable-pdf)` into the unified `Document & Text Workshop` (11 tools total), pruning the isolated 6th category and empty sidebar routes.
   - **Unified PDF Encrypt, Unlock & Permission Studio (`PDF 加密解密与权限管理`)**: Upgraded `pdf-protect` into a dual-mode studio supporting both AES encryption and authorized password unlocking / owner permission removal (`document:unlock-pdf`), plus one-click hidden privacy metadata scrubbing (`Author`, `Title`, `Producer`, `Creator`).

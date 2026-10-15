@@ -52,8 +52,6 @@ import {
   TableProperties,
   FolderTree,
   CopyCheck,
-  ShieldAlert,
-  LayoutGrid,
 } from "lucide-react";
 import CoconutLogo from "@/components/CoconutLogo";
 import DocumentToolbox, { DocTabType } from "@/components/DocumentToolbox";
@@ -201,33 +199,6 @@ const TOOLS_REGISTRY: {
         badge: "加密/解密",
         icon: Lock,
         keywords: ["pdf", "密码", "加密", "解密", "解锁", "保护", "权限"],
-      },
-      {
-        id: "pdf-sign-redact",
-        module: "document",
-        name: "PDF 签章、批注与物理脱敏",
-        desc: "不可逆底层涂黑抹除敏感字流、透明公章/手写签名合成与文字批注",
-        badge: "防穿透",
-        icon: ShieldAlert,
-        keywords: ["pdf", "签章", "盖章", "签名", "脱敏", "涂黑", "批注", "编辑", "stirling"],
-      },
-      {
-        id: "pdf-to-images",
-        module: "document",
-        name: "PDF 转高清长图与切片",
-        desc: "300DPI 超清逐页切片 ZIP 打包，或一键拼接一图流长图（防溢出分卷）",
-        badge: "300DPI",
-        icon: ImageIcon,
-        keywords: ["pdf", "转图片", "长图", "切片", "导出图片", "png", "jpg"],
-      },
-      {
-        id: "pdf-nup",
-        module: "document",
-        name: "多页合一缩印拼版 (N-Up)",
-        desc: "发票/讲义 2 合 1、4 合 1、9 合 1 矢量无损缩印至单张 A4 纸",
-        badge: "发票拼版",
-        icon: LayoutGrid,
-        keywords: ["pdf", "多页合一", "缩印", "拼版", "发票", "打印", "nup", "4合1", "2合1"],
       },
       {
         id: "ai-ocr",
@@ -556,7 +527,7 @@ export default function Home() {
   // 客户端自动更新弹窗状态与版本感知
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
-  const [appVersion, setAppVersion] = useState<string>("1.6.2");
+  const [appVersion, setAppVersion] = useState<string>("1.6.1");
 
   // 快捷键指南弹窗状态与全局提示
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);

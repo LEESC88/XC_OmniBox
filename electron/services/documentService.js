@@ -23,8 +23,38 @@ function getCanvasModule() {
     if (typeof global.DOMMatrix === 'undefined') global.DOMMatrix = _canvasModule.DOMMatrix;
     if (typeof global.Path2D === 'undefined') global.Path2D = _canvasModule.Path2D;
     if (typeof global.ImageData === 'undefined') global.ImageData = _canvasModule.ImageData;
+    // 预注册 Windows 常用中文字体，确保未内嵌字体的 PDF 与 Canvas 兜底字体正常映射渲染
+    if (_canvasModule.GlobalFonts && process.platform === 'win32') {
+      const winFontCandidates = [
+        'C:/Windows/Fonts/msyh.ttc',
+        'C:/Windows/Fonts/simsun.ttc',
+        'C:/Windows/Fonts/simhei.ttf',
+        'C:/Windows/Fonts/simkai.ttf',
+        'C:/Windows/Fonts/simfang.ttf',
+      ];
+      for (const fp of winFontCandidates) {
+        if (fs.existsSync(fp)) {
+          try {
+            _canvasModule.GlobalFonts.registerFromPath(fp);
+          } catch (_) {}
+        }
+      }
+    }
   }
   return _canvasModule;
+}
+
+function getPdfjsAssetPath(subDir) {
+  try {
+    const pkgPath = require.resolve('pdfjs-dist/package.json');
+    const target = path.join(path.dirname(pkgPath), subDir) + path.sep;
+    if (fs.existsSync(target)) return target;
+  } catch (_) {}
+  const p1 = path.join(__dirname, '../node_modules/pdfjs-dist', subDir) + path.sep;
+  if (fs.existsSync(p1)) return p1;
+  const p2 = path.join(process.resourcesPath || '', 'app.asar.unpacked/node_modules/pdfjs-dist', subDir) + path.sep;
+  if (fs.existsSync(p2)) return p2;
+  return null;
 }
 
 function getPdfjs() {
@@ -58,6 +88,23 @@ class NapiCanvasFactory {
 }
 
 class DocumentService {
+  /**
+   * 构造标准 pdfjs 加载任务，全量配置 CMaps/StandardFonts 并强制 disableFontFace 规避方框乱码
+   */
+  static getDocumentTask(buffer, extraOptions = {}) {
+    const cMapUrl = getPdfjsAssetPath('cmaps');
+    const standardFontDataUrl = getPdfjsAssetPath('standard_fonts');
+
+    return getPdfjs().getDocument({
+      data: new Uint8Array(buffer),
+      cMapUrl: cMapUrl || undefined,
+      cMapPacked: Boolean(cMapUrl),
+      standardFontDataUrl: standardFontDataUrl || undefined,
+      useSystemFonts: true,
+      disableFontFace: true, // 核心：Node.js 环境下无 DOM @font-face，必须设为 true 让 pdfjs 直接按矢量路径渲染字形，彻底消除方框乱码 (Tofu)
+      ...extraOptions,
+    });
+  }
   static _cachedCjkFontBytes = null;
 
   static getSystemCjkFontBytes() {
@@ -371,11 +418,8 @@ class DocumentService {
     const canvasFactory = new NapiCanvasFactory();
     let pdfDoc;
     try {
-      const loadingTask = getPdfjs().getDocument({
-        data: new Uint8Array(buffer),
+      const loadingTask = DocumentService.getDocumentTask(buffer, {
         password: password || undefined,
-        useSystemFonts: true,
-        disableFontFace: false,
         canvasFactory,
       });
       pdfDoc = await loadingTask.promise;
@@ -556,10 +600,7 @@ class DocumentService {
   static async renderPdfPages({ fileBuffer, fileName = 'document.pdf', dpi = 100, maxPages, extractWords = false }) {
     const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
     const canvasFactory = new NapiCanvasFactory();
-    const loadingTask = getPdfjs().getDocument({
-      data: new Uint8Array(buffer),
-      useSystemFonts: true,
-      disableFontFace: false,
+    const loadingTask = DocumentService.getDocumentTask(buffer, {
       canvasFactory,
     });
 
@@ -803,10 +844,7 @@ class DocumentService {
       }
 
       // 纯 Node.js pdfjs 文本提取 + OpenXML 组装兜底引擎
-      const loadingTask = getPdfjs().getDocument({
-        data: new Uint8Array(buffer),
-        useSystemFonts: true,
-      });
+      const loadingTask = DocumentService.getDocumentTask(buffer);
       const pdfDoc = await loadingTask.promise;
       const paragraphs = [];
       for (let i = 1; i <= pdfDoc.numPages; i++) {
@@ -949,696 +987,6 @@ class DocumentService {
       buffer: Buffer.from(outBytes),
       filename: `${baseName}_searchable.pdf`,
       text: fullText,
-    };
-  }
-
-  /**
-   * 辅助方法：解析十六进制颜色为 RGB [0..1] 或 CSS 颜色字符串
-   */
-  static parseHexColor(hex = '#000000') {
-    const clean = String(hex || '#000000').replace('#', '').trim();
-    if (clean.length === 6) {
-      const r = parseInt(clean.slice(0, 2), 16) || 0;
-      const g = parseInt(clean.slice(2, 4), 16) || 0;
-      const b = parseInt(clean.slice(4, 6), 16) || 0;
-      return { r, g, b, pdfRgb: rgb(r / 255, g / 255, b / 255), css: `#${clean}` };
-    }
-    return { r: 0, g: 0, b: 0, pdfRgb: rgb(0, 0, 0), css: '#000000' };
-  }
-
-  /**
-   * 工具 A：PDF 签章、批注与物理涂黑脱敏 (Sign & Redact)
-   * - 包含涂黑脱敏 (redact) 的页面：执行底层光栅化重绘，将敏感区域直接熔合覆写进位图像素并替换原页面指令流，100% 物理销毁底层文字坐标，杜绝复制穿透。
-   * - 仅含签章 (stamp) 或文字批注 (annotation) 的页面：保留原矢量文字流，无损叠加透明 PNG 印章/手写签名与中文矢量批注。
-   */
-  static async signAndRedactPdf(
-    {
-      fileBuffer,
-      fileName = 'document.pdf',
-      operations = [],
-      dpi = 200,
-    },
-    onProgress
-  ) {
-    const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
-    const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
-    const totalPages = srcDoc.getPageCount();
-    if (totalPages === 0) {
-      throw new Error('PDF 文档不包含任何页面');
-    }
-
-    const outDoc = await PDFDocument.create();
-    outDoc.registerFontkit(fontkit);
-
-    // 按页分组操作项 (pageIndex: 0-based)
-    const opsByPage = new Map();
-    for (const op of Array.isArray(operations) ? operations : []) {
-      const pIdx = Number(op.pageIndex);
-      if (Number.isNaN(pIdx) || pIdx < 0 || pIdx >= totalPages) continue;
-      if (!opsByPage.has(pIdx)) opsByPage.set(pIdx, []);
-      opsByPage.get(pIdx).push(op);
-    }
-
-    const anyPageNeedsRasterRedact = Array.from(opsByPage.values()).some((list) =>
-      list.some((op) => op.type === 'redact')
-    );
-
-    let pdfjsDoc = null;
-    const canvasFactory = new NapiCanvasFactory();
-    if (anyPageNeedsRasterRedact) {
-      const loadingTask = getPdfjs().getDocument({
-        data: new Uint8Array(buffer),
-        useSystemFonts: true,
-        disableFontFace: false,
-        canvasFactory,
-      });
-      pdfjsDoc = await loadingTask.promise;
-    }
-
-    let cjkFont = null;
-    const ensureCjkFont = async () => {
-      if (cjkFont) return cjkFont;
-      const fontBytes = DocumentService.getSystemCjkFontBytes();
-      if (fontBytes) {
-        try {
-          cjkFont = await outDoc.embedFont(fontBytes, { subset: true });
-        } catch (_) {}
-      }
-      return cjkFont;
-    };
-
-    const validDpi = Math.max(120, Math.min(300, Number(dpi) || 200));
-    const baseScale = validDpi / 72;
-
-    for (let pIdx = 0; pIdx < totalPages; pIdx++) {
-      const pageOps = opsByPage.get(pIdx) || [];
-      const hasRedact = pageOps.some((op) => op.type === 'redact');
-      const srcPage = srcDoc.getPage(pIdx);
-      const { width: origW, height: origH } = srcPage.getSize();
-
-      if (hasRedact && pdfjsDoc) {
-        // 物理级光栅化脱敏：渲染为高分辨率位图 -> 像素级实心遮盖 + 签章/批注合成 -> 销毁原文本图层
-        const pdfPage = await pdfjsDoc.getPage(pIdx + 1);
-        const rawVp = pdfPage.getViewport({ scale: 1.0 });
-        const maxSide = Math.max(rawVp.width * baseScale, rawVp.height * baseScale);
-        const effectiveScale = maxSide > 3600 ? (3600 / Math.max(rawVp.width, rawVp.height)) : baseScale;
-        const viewport = pdfPage.getViewport({ scale: effectiveScale });
-
-        const canvasAndCtx = canvasFactory.create(viewport.width, viewport.height);
-        await pdfPage.render({
-          canvasContext: canvasAndCtx.context,
-          viewport,
-          canvasFactory,
-        }).promise;
-
-        const ctx = canvasAndCtx.context;
-        const cw = canvasAndCtx.canvas.width;
-        const ch = canvasAndCtx.canvas.height;
-
-        for (const op of pageOps) {
-          const rx = Math.max(0, Math.min(cw, (Number(op.xRatio) || 0) * cw));
-          const ry = Math.max(0, Math.min(ch, (Number(op.yRatio) || 0) * ch));
-          const rw = Math.max(4, Math.min(cw - rx, (Number(op.wRatio) || 0.15) * cw));
-          const rh = Math.max(4, Math.min(ch - ry, (Number(op.hRatio) || 0.05) * ch));
-
-          if (op.type === 'redact') {
-            const { css, r, g, b } = DocumentService.parseHexColor(op.color || '#000000');
-            ctx.save();
-            ctx.fillStyle = css;
-            ctx.fillRect(rx, ry, rw, rh);
-            if (op.text && String(op.text).trim()) {
-              const luma = 0.299 * r + 0.587 * g + 0.114 * b;
-              ctx.fillStyle = luma < 128 ? '#FFFFFF' : '#000000';
-              const fSize = Math.max(10, Math.min(rh * 0.65, 28));
-              ctx.font = `bold ${Math.round(fSize)}px "Microsoft YaHei", sans-serif`;
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(String(op.text).trim(), rx + rw / 2, ry + rh / 2, rw - 6);
-            }
-            ctx.restore();
-          } else if (op.type === 'stamp') {
-            try {
-              let rawImgBuf = null;
-              if (op.imageBuffer) {
-                rawImgBuf = Buffer.isBuffer(op.imageBuffer) ? op.imageBuffer : Buffer.from(op.imageBuffer);
-              } else if (op.imageBase64) {
-                const b64 = String(op.imageBase64).replace(/^data:image\/\w+;base64,/, '');
-                rawImgBuf = Buffer.from(b64, 'base64');
-              }
-              if (rawImgBuf && rawImgBuf.length > 0) {
-                const resizedPng = await getSharp()(rawImgBuf)
-                  .resize(Math.max(1, Math.round(rw)), Math.max(1, Math.round(rh)), {
-                    fit: 'contain',
-                    background: { r: 0, g: 0, b: 0, alpha: 0 },
-                  })
-                  .png()
-                  .toBuffer();
-                const imgObj = await getCanvasModule().loadImage(resizedPng);
-                ctx.drawImage(imgObj, rx, ry, rw, rh);
-              }
-            } catch (_) {}
-          } else if (op.type === 'annotation' && op.text) {
-            const { css } = DocumentService.parseHexColor(op.color || '#DC2626');
-            const fSize = Math.max(10, Math.round((Number(op.fontSize) || 16) * effectiveScale));
-            ctx.save();
-            ctx.fillStyle = css;
-            ctx.font = `bold ${fSize}px "Microsoft YaHei", sans-serif`;
-            ctx.textBaseline = 'top';
-            const lines = String(op.text).split(/\r?\n/);
-            lines.forEach((line, idx) => {
-              ctx.fillText(line, rx, ry + idx * (fSize * 1.25));
-            });
-            ctx.restore();
-          }
-        }
-
-        const flatPngBuf = canvasAndCtx.canvas.toBuffer('image/png');
-        canvasFactory.destroy(canvasAndCtx);
-
-        const embeddedFlat = await outDoc.embedPng(flatPngBuf);
-        const newPage = outDoc.addPage([origW, origH]);
-        newPage.drawImage(embeddedFlat, {
-          x: 0,
-          y: 0,
-          width: origW,
-          height: origH,
-        });
-      } else {
-        // 无脱敏操作：直接无损拷贝原矢量页，并在顶层叠加签章或文字批注
-        const [copiedPage] = await outDoc.copyPages(srcDoc, [pIdx]);
-        outDoc.addPage(copiedPage);
-
-        if (pageOps.length > 0) {
-          for (const op of pageOps) {
-            const bx = Math.max(0, (Number(op.xRatio) || 0) * origW);
-            const bw = Math.max(8, (Number(op.wRatio) || 0.18) * origW);
-            const bh = Math.max(8, (Number(op.hRatio) || 0.08) * origH);
-            const by = Math.max(0, origH - ((Number(op.yRatio) || 0) * origH) - bh);
-
-            if (op.type === 'stamp') {
-              try {
-                let rawImgBuf = null;
-                if (op.imageBuffer) {
-                  rawImgBuf = Buffer.isBuffer(op.imageBuffer) ? op.imageBuffer : Buffer.from(op.imageBuffer);
-                } else if (op.imageBase64) {
-                  const b64 = String(op.imageBase64).replace(/^data:image\/\w+;base64,/, '');
-                  rawImgBuf = Buffer.from(b64, 'base64');
-                }
-                if (rawImgBuf && rawImgBuf.length > 0) {
-                  const pngBuf = await getSharp()(rawImgBuf).png().toBuffer();
-                  const embeddedStamp = await outDoc.embedPng(pngBuf);
-                  copiedPage.drawImage(embeddedStamp, {
-                    x: bx,
-                    y: by,
-                    width: bw,
-                    height: bh,
-                  });
-                }
-              } catch (_) {}
-            } else if (op.type === 'annotation' && op.text) {
-              const font = await ensureCjkFont();
-              const { pdfRgb } = DocumentService.parseHexColor(op.color || '#DC2626');
-              const fSize = Math.max(8, Math.min(72, Number(op.fontSize) || 16));
-              const lines = String(op.text).split(/\r?\n/);
-              const topY = origH - (Number(op.yRatio) || 0) * origH - fSize;
-              lines.forEach((line, idx) => {
-                if (!line.trim()) return;
-                try {
-                  copiedPage.drawText(line, {
-                    x: bx,
-                    y: Math.max(4, topY - idx * (fSize * 1.25)),
-                    size: fSize,
-                    font: font || undefined,
-                    color: pdfRgb,
-                  });
-                } catch (_) {}
-              });
-            }
-          }
-        }
-      }
-
-      if (onProgress) {
-        const pct = Math.round(((pIdx + 1) / totalPages) * 95);
-        onProgress({
-          task: 'document:sign-and-redact',
-          current: pIdx + 1,
-          total: totalPages,
-          percent: pct,
-          message: `正在处理第 ${pIdx + 1}/${totalPages} 页${hasRedact ? ' (底层光栅涂黑脱敏)' : ''}...`,
-        });
-      }
-    }
-
-    const baseName = fileName.replace(/\.[^/.]+$/, '');
-    const outBytes = await outDoc.save({ useObjectStreams: true });
-    if (onProgress) {
-      onProgress({
-        task: 'document:sign-and-redact',
-        current: totalPages,
-        total: totalPages,
-        percent: 100,
-        message: '签章与脱敏处理完成！',
-      });
-    }
-
-    return {
-      buffer: Buffer.from(outBytes),
-      filename: `${baseName}_signed_redacted.pdf`,
-      totalPages,
-      redactedPageCount: Array.from(opsByPage.values()).filter((list) =>
-        list.some((op) => op.type === 'redact')
-      ).length,
-    };
-  }
-
-  /**
-   * 工具 B：PDF 转高清长图与切片导出 (PDF to Images)
-   * - mode === 'zip': 逐页 300DPI 光栅化导出为 PNG/JPG 并打包为高清图片 ZIP。
-   * - mode === 'long-image': 使用 sharp 纵向拼接为“一图流”超清长图，内置 15500px 高度溢出自动分卷保护，杜绝内存与编码器溢出。
-   */
-  static async pdfToImages(
-    {
-      fileBuffer,
-      fileName = 'document.pdf',
-      mode = 'zip',
-      format = 'png',
-      dpi = 300,
-      quality = 92,
-      pageRanges = '',
-    },
-    onProgress
-  ) {
-    const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
-    const canvasFactory = new NapiCanvasFactory();
-    const loadingTask = getPdfjs().getDocument({
-      data: new Uint8Array(buffer),
-      useSystemFonts: true,
-      disableFontFace: false,
-      canvasFactory,
-    });
-    const pdfjsDoc = await loadingTask.promise;
-    const totalPages = pdfjsDoc.numPages;
-    if (totalPages === 0) {
-      throw new Error('PDF 文档不包含任何页面');
-    }
-
-    let indices = [];
-    if (pageRanges && String(pageRanges).trim()) {
-      indices = DocumentService.parsePageRanges(pageRanges, totalPages);
-    } else {
-      indices = Array.from({ length: totalPages }, (_, i) => i);
-    }
-    if (indices.length === 0) {
-      throw new Error('未匹配到有效的页码范围');
-    }
-
-    const validDpi = Math.max(72, Math.min(300, Number(dpi) || 300));
-    const baseScale = validDpi / 72;
-    const fmt = String(format || 'png').toLowerCase() === 'jpeg' || String(format || 'png').toLowerCase() === 'jpg'
-      ? 'jpg'
-      : 'png';
-    const q = Math.max(40, Math.min(100, Number(quality) || 92));
-    const baseName = fileName.replace(/\.[^/.]+$/, '');
-
-    // 1. 逐页光栅化并立即回收 Canvas 原生内存
-    const renderedPages = [];
-    for (let i = 0; i < indices.length; i++) {
-      const pageNum = indices[i] + 1;
-      const page = await pdfjsDoc.getPage(pageNum);
-      const rawVp = page.getViewport({ scale: 1.0 });
-      // 单页最大边长安全保护 (3600px)，防止超大工程图纸在 300DPI 下引发内存峰值
-      const maxDim = Math.max(rawVp.width * baseScale, rawVp.height * baseScale);
-      const effectiveScale = maxDim > 3600 ? (3600 / Math.max(rawVp.width, rawVp.height)) : baseScale;
-      const viewport = page.getViewport({ scale: effectiveScale });
-
-      const canvasAndCtx = canvasFactory.create(viewport.width, viewport.height);
-      await page.render({
-        canvasContext: canvasAndCtx.context,
-        viewport,
-        canvasFactory,
-      }).promise;
-
-      const rawPng = canvasAndCtx.canvas.toBuffer('image/png');
-      const w = canvasAndCtx.canvas.width;
-      const h = canvasAndCtx.canvas.height;
-      canvasFactory.destroy(canvasAndCtx);
-
-      renderedPages.push({
-        pageNum,
-        rawPng,
-        width: w,
-        height: h,
-      });
-
-      if (onProgress) {
-        const pct = Math.round(((i + 1) / indices.length) * 75);
-        onProgress({
-          task: 'document:pdf-to-images',
-          current: i + 1,
-          total: indices.length,
-          percent: pct,
-          message: `正在高精度光栅化第 ${pageNum} 页 (${i + 1}/${indices.length})...`,
-        });
-      }
-    }
-
-    // 2A. 纵向拼接“一图流”超清长图（带高度溢出分卷保护）
-    if (mode === 'long-image') {
-      const MAX_VOLUME_HEIGHT = 15500; // 严格低于 libvips/WebP 16383px 硬上限与 Buffer 安全阈值
-      const DIVIDER_HEIGHT = 8;
-      const targetWidth = Math.max(...renderedPages.map((p) => p.width));
-
-      // 归一化所有页面宽度至 targetWidth
-      const normalizedPages = [];
-      for (const p of renderedPages) {
-        if (p.width !== targetWidth) {
-          const resizedBuf = await getSharp()(p.rawPng)
-            .resize({ width: targetWidth })
-            .png()
-            .toBuffer();
-          const meta = await getSharp()(resizedBuf).metadata();
-          normalizedPages.push({
-            pageNum: p.pageNum,
-            buffer: resizedBuf,
-            width: targetWidth,
-            height: meta.height || p.height,
-          });
-        } else {
-          normalizedPages.push({
-            pageNum: p.pageNum,
-            buffer: p.rawPng,
-            width: p.width,
-            height: p.height,
-          });
-        }
-      }
-
-      // 按高度上限自动切分卷 (Volumes)
-      const volumes = [];
-      let currentVol = [];
-      let currentHeight = 0;
-
-      for (const p of normalizedPages) {
-        const addedH = currentVol.length === 0 ? p.height : p.height + DIVIDER_HEIGHT;
-        if (currentVol.length > 0 && currentHeight + addedH > MAX_VOLUME_HEIGHT) {
-          volumes.push({ pages: currentVol, totalHeight: currentHeight });
-          currentVol = [p];
-          currentHeight = p.height;
-        } else {
-          currentVol.push(p);
-          currentHeight += addedH;
-        }
-      }
-      if (currentVol.length > 0) {
-        volumes.push({ pages: currentVol, totalHeight: currentHeight });
-      }
-
-      const volumeOutputs = [];
-      for (let vIdx = 0; vIdx < volumes.length; vIdx++) {
-        const vol = volumes[vIdx];
-        let yOffset = 0;
-        const composites = [];
-        for (const p of vol.pages) {
-          composites.push({
-            input: p.buffer,
-            top: yOffset,
-            left: 0,
-          });
-          yOffset += p.height + DIVIDER_HEIGHT;
-        }
-
-        let stitchPipeline = getSharp()({
-          create: {
-            width: targetWidth,
-            height: vol.totalHeight,
-            channels: 4,
-            background: { r: 232, g: 226, b: 220, alpha: 1 },
-          },
-        }).composite(composites);
-
-        const volBuf = fmt === 'jpg'
-          ? await stitchPipeline.jpeg({ quality: q, mozjpeg: true }).toBuffer()
-          : await stitchPipeline.png({ compressionLevel: 8 }).toBuffer();
-
-        volumeOutputs.push({
-          buffer: volBuf,
-          filename: volumes.length === 1
-            ? `${baseName}_长图_${validDpi}dpi.${fmt}`
-            : `${baseName}_长图_第${vIdx + 1}卷.${fmt}`,
-        });
-      }
-
-      if (volumeOutputs.length === 1) {
-        if (onProgress) {
-          onProgress({
-            task: 'document:pdf-to-images',
-            current: indices.length,
-            total: indices.length,
-            percent: 100,
-            message: '超清长图拼接完成！',
-          });
-        }
-        return {
-          buffer: volumeOutputs[0].buffer,
-          filename: volumeOutputs[0].filename,
-          pageCount: indices.length,
-          volumeCount: 1,
-          isMultiPart: false,
-          isZip: false,
-          totalHeight: volumes[0].totalHeight,
-        };
-      }
-
-      // 超长文档已触发高度溢出保护，自动将多卷长图打包为 ZIP
-      return new Promise((resolve, reject) => {
-        try {
-          const archive = new ZipArchive({ zlib: { level: 9 } });
-          const chunks = [];
-          archive.on('data', (c) => chunks.push(c));
-          archive.on('end', () => {
-            if (onProgress) {
-              onProgress({
-                task: 'document:pdf-to-images',
-                current: indices.length,
-                total: indices.length,
-                percent: 100,
-                message: `超长文档已自动分卷打包 (${volumeOutputs.length} 卷)！`,
-              });
-            }
-            resolve({
-              buffer: Buffer.concat(chunks),
-              filename: `${baseName}_长图分卷包_${volumeOutputs.length}卷.zip`,
-              pageCount: indices.length,
-              volumeCount: volumeOutputs.length,
-              isMultiPart: true,
-              isZip: true,
-              totalHeight: volumes.reduce((s, v) => s + v.totalHeight, 0),
-            });
-          });
-          archive.on('error', (err) => reject(err));
-          for (const vo of volumeOutputs) {
-            archive.append(vo.buffer, { name: vo.filename });
-          }
-          archive.finalize();
-        } catch (err) {
-          reject(err);
-        }
-      });
-    }
-
-    // 2B. 批量高清切片图片打包为 ZIP (若仅 1 页且用户选 zip，同样打包入 ZIP 保证格式一致，或直接输出归档)
-    const encodedSlices = [];
-    for (const p of renderedPages) {
-      const sliceBuf = fmt === 'jpg'
-        ? await getSharp()(p.rawPng).flatten({ background: '#FFFFFF' }).jpeg({ quality: q, mozjpeg: true }).toBuffer()
-        : await getSharp()(p.rawPng).png({ compressionLevel: 8 }).toBuffer();
-      const padNum = String(p.pageNum).padStart(3, '0');
-      encodedSlices.push({
-        buffer: sliceBuf,
-        filename: `${baseName}_page_${padNum}.${fmt}`,
-      });
-    }
-
-    return new Promise((resolve, reject) => {
-      try {
-        const archive = new ZipArchive({ zlib: { level: 9 } });
-        const chunks = [];
-        archive.on('data', (c) => chunks.push(c));
-        archive.on('end', () => {
-          if (onProgress) {
-            onProgress({
-              task: 'document:pdf-to-images',
-              current: indices.length,
-              total: indices.length,
-              percent: 100,
-              message: '高清图片切片 ZIP 打包完成！',
-            });
-          }
-          resolve({
-            buffer: Buffer.concat(chunks),
-            filename: `${baseName}_${validDpi}dpi_${encodedSlices.length}p.zip`,
-            pageCount: encodedSlices.length,
-            volumeCount: encodedSlices.length,
-            isMultiPart: true,
-            isZip: true,
-          });
-        });
-        archive.on('error', (err) => reject(err));
-        for (const item of encodedSlices) {
-          archive.append(item.buffer, { name: item.filename });
-        }
-        archive.finalize();
-      } catch (err) {
-        reject(err);
-      }
-    });
-  }
-
-  /**
-   * 工具 C：多页合一缩印拼版 (Multi-Page N-Up Imposition)
-   * - 使用 pdf-lib 的 embedPage() 将 2 / 4 / 6 / 9 页无损矢量缩印至单张标准 A4 纸中
-   * - 支持绘制细灰分割边框线、自定义页边距与横纵向智能适配（发票/讲义合打神器）
-   */
-  static async nupPdf(
-    {
-      fileBuffer,
-      fileName = 'document.pdf',
-      pagesPerSheet = 4,
-      orientation = 'auto',
-      drawBorder = true,
-      marginPt = 24,
-    },
-    onProgress
-  ) {
-    const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
-    const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
-    const srcPages = srcDoc.getPages();
-    const totalSrcPages = srcPages.length;
-    if (totalSrcPages === 0) {
-      throw new Error('PDF 文档不包含任何页面');
-    }
-
-    const n = [2, 4, 6, 9].includes(Number(pagesPerSheet)) ? Number(pagesPerSheet) : 4;
-    const isLandscape =
-      orientation === 'landscape' ||
-      (orientation === 'auto' && (n === 2 || n === 6));
-
-    // 标准 A4 物理尺寸 (pt)
-    const A4_SHORT = 595.28;
-    const A4_LONG = 841.89;
-    const sheetW = isLandscape ? A4_LONG : A4_SHORT;
-    const sheetH = isLandscape ? A4_SHORT : A4_LONG;
-
-    let cols = 2;
-    let rows = 2;
-    if (n === 2) {
-      cols = isLandscape ? 2 : 1;
-      rows = isLandscape ? 1 : 2;
-    } else if (n === 4) {
-      cols = 2;
-      rows = 2;
-    } else if (n === 6) {
-      cols = isLandscape ? 3 : 2;
-      rows = isLandscape ? 2 : 3;
-    } else if (n === 9) {
-      cols = 3;
-      rows = 3;
-    }
-
-    const outDoc = await PDFDocument.create();
-    const margin = Math.max(0, Math.min(72, Number(marginPt) ?? 24));
-    const gap = Math.max(6, Math.round(margin * 0.45));
-
-    const usableW = Math.max(100, sheetW - margin * 2 - gap * (cols - 1));
-    const usableH = Math.max(100, sheetH - margin * 2 - gap * (rows - 1));
-    const cellW = usableW / cols;
-    const cellH = usableH / rows;
-    const innerPad = drawBorder ? 6 : 2;
-
-    const totalSheets = Math.ceil(totalSrcPages / n);
-
-    for (let sIdx = 0; sIdx < totalSheets; sIdx++) {
-      const sheetPage = outDoc.addPage([sheetW, sheetH]);
-      const startIdx = sIdx * n;
-      const endIdx = Math.min(totalSrcPages, startIdx + n);
-
-      for (let i = startIdx; i < endIdx; i++) {
-        const localIdx = i - startIdx;
-        const col = localIdx % cols;
-        const row = Math.floor(localIdx / cols);
-
-        const cellX = margin + col * (cellW + gap);
-        // PDF 原点在左下角，第一行 (row=0) 位于页面最上方
-        const cellY = sheetH - margin - (row + 1) * cellH - row * gap;
-
-        if (drawBorder) {
-          sheetPage.drawRectangle({
-            x: cellX,
-            y: cellY,
-            width: cellW,
-            height: cellH,
-            borderColor: rgb(0.82, 0.82, 0.82),
-            borderWidth: 0.6,
-          });
-        }
-
-        try {
-          const embeddedPage = await outDoc.embedPage(srcPages[i]);
-          const ew = embeddedPage.width || 1;
-          const eh = embeddedPage.height || 1;
-
-          const availW = Math.max(10, cellW - innerPad * 2);
-          const availH = Math.max(10, cellH - innerPad * 2);
-          const scale = Math.min(availW / ew, availH / eh);
-
-          const drawW = ew * scale;
-          const drawH = eh * scale;
-          const drawX = cellX + (cellW - drawW) / 2;
-          const drawY = cellY + (cellH - drawH) / 2;
-
-          sheetPage.drawPage(embeddedPage, {
-            x: drawX,
-            y: drawY,
-            width: drawW,
-            height: drawH,
-          });
-        } catch (_) {
-          // 若遇到空白无内容流的特殊页面，保持空白格即可
-        }
-      }
-
-      if (onProgress) {
-        const pct = Math.round(((sIdx + 1) / totalSheets) * 95);
-        onProgress({
-          task: 'document:nup-pdf',
-          current: sIdx + 1,
-          total: totalSheets,
-          percent: pct,
-          message: `正在拼版第 ${sIdx + 1}/${totalSheets} 张 A4 印张...`,
-        });
-      }
-    }
-
-    const baseName = fileName.replace(/\.[^/.]+$/, '');
-    const outBytes = await outDoc.save({ useObjectStreams: true });
-    if (onProgress) {
-      onProgress({
-        task: 'document:nup-pdf',
-        current: totalSheets,
-        total: totalSheets,
-        percent: 100,
-        message: `${n} 合 1 矢量拼版完成！`,
-      });
-    }
-
-    return {
-      buffer: Buffer.from(outBytes),
-      filename: `${baseName}_${n}up_A4.pdf`,
-      inputPages: totalSrcPages,
-      sourcePages: totalSrcPages,
-      outputSheets: totalSheets,
-      pagesPerSheet: n,
     };
   }
 }
