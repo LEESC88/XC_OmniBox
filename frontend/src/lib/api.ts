@@ -403,10 +403,14 @@ export interface PdfInspectItem {
   height: number;
   fontSize: number;
   fontName?: string;
-  vx: number;
-  vy: number;
-  vw: number;
-  vh: number;
+  leftPercent: number;
+  topPercent: number;
+  widthPercent: number;
+  heightPercent: number;
+  vx?: number;
+  vy?: number;
+  vw?: number;
+  vh?: number;
 }
 
 export interface PdfInspectPage {
@@ -418,6 +422,7 @@ export interface PdfInspectPage {
   viewHeight: number;
   image: string;
   items: PdfInspectItem[];
+  lines?: PdfInspectItem[];
 }
 
 export interface PdfInspectResult {
@@ -434,6 +439,10 @@ export interface PdfTextPatch {
   y: number;
   width: number;
   height: number;
+  leftPercent?: number;
+  topPercent?: number;
+  widthPercent?: number;
+  heightPercent?: number;
   originalText?: string;
   newText: string;
   fontFamily?: "sans" | "hei" | "kai" | "fang" | "song" | "serif" | "helvetica" | "times" | "courier";

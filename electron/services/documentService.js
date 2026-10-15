@@ -1146,6 +1146,7 @@ class DocumentService {
     const limit = maxPages ? Math.min(numPages, Number(maxPages)) : numPages;
     const scale = (Number(dpi) || 120) / 72;
     const pages = [];
+    const pdfjs = getPdfjs();
 
     for (let i = 1; i <= limit; i++) {
       const page = await doc.getPage(i);
@@ -1160,6 +1161,11 @@ class DocumentService {
 
       const imgBase64 = `data:image/png;base64,${canvas.toBuffer('image/png').toString('base64')}`;
 
+      // 提取基准 1.0 比例尺寸与绝对矩阵变换
+      const baseViewport = page.getViewport({ scale: 1.0 });
+      const { pageWidth, pageHeight, pageX, pageY } = baseViewport.rawDims;
+      const pTransform = [1, 0, 0, -1, -pageX, pageY + pageHeight];
+
       const textContent = await page.getTextContent();
       const items = [];
       let itemIdx = 0;
@@ -1168,43 +1174,84 @@ class DocumentService {
         const rawStr = item.str;
         if (!rawStr || !rawStr.trim()) continue;
 
-        const x = Math.round(item.transform[4] * 10) / 10;
-        const y = Math.round(item.transform[5] * 10) / 10;
-        const width = Math.max(2, Math.round(item.width * 10) / 10);
-        const height = Math.max(6, Math.round((item.height || Math.hypot(item.transform[0], item.transform[1]) || 12) * 10) / 10);
-        const fontSize = Math.round((item.height || Math.hypot(item.transform[0], item.transform[1]) || 12) * 10) / 10;
+        const tx = pdfjs.Util.transform(pTransform, item.transform);
+        const fontHeight = Math.hypot(tx[2], tx[3]) || 12;
+        const fontAscent = fontHeight * 0.82;
+        const left = tx[4];
+        const top = tx[5] - fontAscent;
 
-        // 计算 Viewport 视口坐标（左上角为原点），便于前端 1:1 精确定位覆盖
-        const [vx, vyBaseline] = viewport.convertToViewportPoint(x, y);
-        const vw = Math.max(4, Math.round(width * scale * 10) / 10);
-        const vh = Math.max(8, Math.round(height * scale * 10) / 10);
-        const vy = Math.round((vyBaseline - vh * 0.85) * 10) / 10;
+        const leftPercent = Math.max(0, Math.min(100, (left / pageWidth) * 100));
+        const topPercent = Math.max(0, Math.min(100, (top / pageHeight) * 100));
+        const widthPercent = Math.max(0.2, Math.min(100 - leftPercent, (item.width / pageWidth) * 100));
+        const heightPercent = Math.max(0.5, Math.min(100 - topPercent, (fontHeight / pageHeight) * 100));
 
         items.push({
           id: `p${i - 1}_i${itemIdx++}`,
           str: rawStr,
-          x,
-          y,
-          width,
-          height,
-          fontSize,
+          x: Math.round(item.transform[4] * 10) / 10,
+          y: Math.round(item.transform[5] * 10) / 10,
+          width: Math.max(2, Math.round(item.width * 10) / 10),
+          height: Math.max(6, Math.round(fontHeight * 10) / 10),
+          fontSize: Math.round(fontHeight * 10) / 10,
           fontName: item.fontName || '',
-          vx,
-          vy,
-          vw,
-          vh,
+          leftPercent: Math.round(leftPercent * 100) / 100,
+          topPercent: Math.round(topPercent * 100) / 100,
+          widthPercent: Math.round(widthPercent * 100) / 100,
+          heightPercent: Math.round(heightPercent * 100) / 100,
         });
+      }
+
+      // 将同在一行 (Y 坐标差值 <= 4pt) 的字元聚合为自然文本行 Lines
+      const lines = [];
+      const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x);
+      for (const it of sorted) {
+        const existingLine = lines.find((l) => Math.abs(l.y - it.y) <= 4);
+        if (existingLine) {
+          existingLine.items.push(it);
+          existingLine.str += ' ' + it.str;
+          const minX = Math.min(existingLine.x, it.x);
+          const maxX = Math.max(existingLine.x + existingLine.width, it.x + it.width);
+          existingLine.x = minX;
+          existingLine.width = maxX - minX;
+
+          const minLeftPct = Math.min(existingLine.leftPercent, it.leftPercent);
+          const maxRightPct = Math.max(existingLine.leftPercent + existingLine.widthPercent, it.leftPercent + it.widthPercent);
+          const minTopPct = Math.min(existingLine.topPercent, it.topPercent);
+          const maxBottomPct = Math.max(existingLine.topPercent + existingLine.heightPercent, it.topPercent + it.heightPercent);
+
+          existingLine.leftPercent = Math.round(minLeftPct * 100) / 100;
+          existingLine.topPercent = Math.round(minTopPct * 100) / 100;
+          existingLine.widthPercent = Math.round((maxRightPct - minLeftPct) * 100) / 100;
+          existingLine.heightPercent = Math.round((maxBottomPct - minTopPct) * 100) / 100;
+        } else {
+          lines.push({
+            id: `p${i - 1}_line${lines.length}`,
+            str: it.str,
+            y: it.y,
+            x: it.x,
+            width: it.width,
+            height: it.height,
+            fontSize: it.fontSize,
+            fontName: it.fontName,
+            leftPercent: it.leftPercent,
+            topPercent: it.topPercent,
+            widthPercent: it.widthPercent,
+            heightPercent: it.heightPercent,
+            items: [it],
+          });
+        }
       }
 
       pages.push({
         pageIndex: i - 1,
         pageNumber: i,
-        width: Math.round(page.view[2] - page.view[0]),
-        height: Math.round(page.view[3] - page.view[1]),
+        width: Math.round(pageWidth),
+        height: Math.round(pageHeight),
         viewWidth: Math.round(viewport.width),
         viewHeight: Math.round(viewport.height),
         image: imgBase64,
         items,
+        lines,
       });
     }
 
@@ -1314,15 +1361,31 @@ class DocumentService {
       if (isNaN(pageIdx) || pageIdx < 0 || pageIdx >= pageCount) continue;
 
       const page = pdfDoc.getPage(pageIdx);
-      const x = Number(patch.x) || 0;
-      const y = Number(patch.y) || 0;
-      const width = Math.max(2, Number(patch.width) || 10);
-      const height = Math.max(4, Number(patch.height) || 12);
+      const { width: pWidth, height: pHeight } = page.getSize();
+      let x = Number(patch.x);
+      let y = Number(patch.y);
+      let width = Number(patch.width);
+      let height = Number(patch.height);
+      let isBaseline = Boolean(patch.isBaseline !== false);
+
+      if (patch.leftPercent !== undefined && patch.topPercent !== undefined) {
+        x = (Number(patch.leftPercent) / 100) * pWidth;
+        width = Math.max(2, (Number(patch.widthPercent) / 100) * pWidth);
+        const top = (Number(patch.topPercent) / 100) * pHeight;
+        height = Math.max(4, (Number(patch.heightPercent) / 100) * pHeight);
+        y = pHeight - (top + height * 0.82);
+        isBaseline = true;
+      }
+
+      x = isNaN(x) ? 0 : x;
+      y = isNaN(y) ? 0 : y;
+      width = Math.max(2, isNaN(width) ? 10 : width);
+      height = Math.max(4, isNaN(height) ? 12 : height);
+
       const newText = typeof patch.newText === 'string' ? patch.newText : '';
       const bgHex = patch.bgHex !== undefined ? patch.bgHex : '#FFFFFF';
       const colorHex = patch.colorHex || '#000000';
       const padding = typeof patch.padding === 'number' ? patch.padding : 1.5;
-      const isBaseline = Boolean(patch.isBaseline !== false); // 默认坐标 y 为基线
 
       // 1. 涂白遮罩：覆盖原文字印迹
       if (bgHex && bgHex.toLowerCase() !== 'transparent') {
