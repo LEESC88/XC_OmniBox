@@ -50,6 +50,16 @@ interface PdfInplaceTextStudioProps {
   onFileClear?: () => void;
 }
 
+const getFontFamilyCss = (family?: string) => {
+  const fam = (family || "times").toLowerCase();
+  if (fam === "times" || fam === "serif") return '"Times New Roman", Times, "Songti SC", SimSun, serif';
+  if (fam === "song") return 'SimSun, "Songti SC", "Times New Roman", serif';
+  if (fam === "kai") return 'KaiTi, "Kaiti SC", STKaiti, serif';
+  if (fam === "fang") return 'FangSong, "FangSong SC", STFangsong, serif';
+  if (fam === "courier" || fam === "mono") return '"Courier New", Courier, monospace';
+  return 'Arial, Helvetica, "Microsoft YaHei", "PingFang SC", sans-serif';
+};
+
 export default function PdfInplaceTextStudio({
   incomingFile,
   onFileClear,
@@ -83,7 +93,10 @@ export default function PdfInplaceTextStudio({
     topPercent: number;
     widthPercent: number;
     heightPercent: number;
-    fontFamily: "sans" | "serif" | "kai" | "fang" | "helvetica" | "times";
+    fontFamily: "times" | "helvetica" | "courier" | "song" | "hei" | "kai" | "fang" | "sans" | "serif";
+    isBold: boolean;
+    isItalic: boolean;
+    detectedFont?: string;
     fontSize: number;
     colorHex: string;
     bgHex: string;
@@ -102,7 +115,7 @@ export default function PdfInplaceTextStudio({
   // 全文搜索替换状态
   const [searchQuery, setSearchQuery] = useState("");
   const [replaceText, setReplaceText] = useState("");
-  const [searchFontFamily, setSearchFontFamily] = useState<"sans" | "serif" | "kai" | "fang" | "helvetica" | "times">("sans");
+  const [searchFontFamily, setSearchFontFamily] = useState<"times" | "helvetica" | "courier" | "song" | "hei" | "kai" | "fang" | "sans" | "serif">("times");
   const [searchTextColor, setSearchTextColor] = useState("#000000");
   const [searchBgColor, setSearchBgColor] = useState("#FFFFFF");
 
@@ -215,7 +228,10 @@ export default function PdfInplaceTextStudio({
       topPercent: target.topPercent,
       widthPercent: target.widthPercent,
       heightPercent: target.heightPercent,
-      fontFamily: "sans",
+      fontFamily: target.fontFamily || "times",
+      isBold: Boolean(target.isBold),
+      isItalic: Boolean(target.isItalic),
+      detectedFont: target.detectedFont,
       fontSize: target.fontSize || 14,
       colorHex: "#000000",
       bgHex: "#FFFFFF",
@@ -235,7 +251,10 @@ export default function PdfInplaceTextStudio({
       topPercent: patch.topPercent ?? 0,
       widthPercent: patch.widthPercent ?? 10,
       heightPercent: patch.heightPercent ?? 3,
-      fontFamily: (patch.fontFamily as any) || "sans",
+      fontFamily: (patch.fontFamily as any) || "times",
+      isBold: Boolean(patch.isBold),
+      isItalic: Boolean(patch.isItalic),
+      detectedFont: patch.detectedFont,
       fontSize: patch.fontSize || 14,
       colorHex: patch.colorHex || "#000000",
       bgHex: patch.bgHex || "#FFFFFF",
@@ -261,6 +280,9 @@ export default function PdfInplaceTextStudio({
       originalText: activeEditingItem.originalText,
       newText: activeEditingItem.newText,
       fontFamily: activeEditingItem.fontFamily,
+      isBold: activeEditingItem.isBold,
+      isItalic: activeEditingItem.isItalic,
+      detectedFont: activeEditingItem.detectedFont,
       fontSize: activeEditingItem.fontSize,
       colorHex: activeEditingItem.colorHex,
       bgHex: activeEditingItem.bgHex,
@@ -335,7 +357,9 @@ export default function PdfInplaceTextStudio({
         topPercent: Math.round(minY * 100) / 100,
         widthPercent: Math.round(widthPct * 100) / 100,
         heightPercent: Math.round(heightPct * 100) / 100,
-        fontFamily: "sans",
+        fontFamily: "times",
+        isBold: false,
+        isItalic: false,
         fontSize: Math.max(10, Math.round((heightPct / 100) * 800 * 0.7)),
         colorHex: "#000000",
         bgHex: "#FFFFFF",
@@ -369,7 +393,10 @@ export default function PdfInplaceTextStudio({
         heightPercent: m.item.heightPercent,
         originalText: m.item.str,
         newText: modifiedStr,
-        fontFamily: searchFontFamily,
+        fontFamily: (m.item.fontFamily as any) || searchFontFamily,
+        isBold: m.item.isBold,
+        isItalic: m.item.isItalic,
+        detectedFont: m.item.detectedFont,
         fontSize: m.item.fontSize,
         colorHex: searchTextColor,
         bgHex: searchBgColor,
@@ -723,19 +750,29 @@ export default function PdfInplaceTextStudio({
               editGranularity === "draw" ? "cursor-crosshair" : "cursor-default"
             }`}
           >
-            {currentPage ? (
+            {currentPage ? (() => {
+              const baseWidth = Math.min(currentPage.viewWidth, 750);
+              const canvasWidth = baseWidth * zoomScale;
+              const canvasHeight = canvasWidth * (currentPage.height / currentPage.width);
+
+              return (
               <div
-                className="relative shadow-2xl transition-all duration-100 bg-white"
+                className="relative shadow-2xl transition-all duration-100 bg-white flex-shrink-0"
                 style={{
-                  width: `${currentPage.viewWidth * zoomScale}px`,
-                  height: `${currentPage.viewHeight * zoomScale}px`,
+                  width: `${canvasWidth}px`,
+                  height: `${canvasHeight}px`,
+                  aspectRatio: `${currentPage.width} / ${currentPage.height}`,
                 }}
               >
-                {/* 1. 底层高保真光栅渲染图 */}
+                {/* 1. 底层高保真光栅渲染图 (按原生比例锁定，绝对禁止变形拉伸) */}
                 <img
                   src={currentPage.image}
                   alt={`Page ${currentPage.pageNumber}`}
-                  className="w-full h-full block pointer-events-none"
+                  className="w-full h-full block pointer-events-none select-none"
+                  style={{
+                    aspectRatio: `${currentPage.width} / ${currentPage.height}`,
+                    objectFit: "contain",
+                  }}
                 />
 
                 {/* 2. 交互式文字探测层 (Hover & Click to Edit) */}
@@ -745,7 +782,7 @@ export default function PdfInplaceTextStudio({
                     searchQuery.trim().length > 0 &&
                     target.str.toLowerCase().includes(searchQuery.trim().toLowerCase());
 
-                  if (isCurrentEditing) return null; // 正在编辑时隐藏探测框，展示真实输入层
+                  if (isCurrentEditing) return null;
 
                   return (
                     <div
@@ -754,7 +791,7 @@ export default function PdfInplaceTextStudio({
                         e.stopPropagation();
                         handleStartInplaceEdit(target);
                       }}
-                      title={`点击原地修改此段文字: "${target.str}"`}
+                      title={`点击原地修改此段文字: "${target.str}"${target.detectedFont ? ` (字体: ${target.detectedFont})` : ""}`}
                       className={`absolute cursor-text transition-all duration-100 rounded-[2px] ${
                         isMatch
                           ? "bg-indigo-500/35 border-2 border-indigo-600 z-20 animate-pulse"
@@ -794,10 +831,13 @@ export default function PdfInplaceTextStudio({
                       }}
                     >
                       <span
-                        className="truncate leading-tight font-sans"
+                        className="truncate leading-tight"
                         style={{
+                          fontFamily: getFontFamilyCss(patch.fontFamily),
+                          fontWeight: patch.isBold ? "bold" : "normal",
+                          fontStyle: patch.isItalic ? "italic" : "normal",
                           color: patch.colorHex || "#000000",
-                          fontSize: `${Math.max(9, (patch.fontSize || 14) * (120 / 72) * zoomScale * 0.55)}px`,
+                          fontSize: `${Math.max(9, (patch.fontSize || 14) * (canvasWidth / currentPage.width) * 0.95)}px`,
                         }}
                       >
                         {patch.newText || "（已涂白擦除）"}
@@ -822,6 +862,16 @@ export default function PdfInplaceTextStudio({
                       className="absolute -top-11 left-0 flex items-center gap-1.5 p-1 bg-[#1A1412] text-white rounded-xl shadow-2xl border border-white/20 text-xs whitespace-nowrap z-50 animate-in fade-in zoom-in-95 duration-100"
                       style={{ transform: "translateY(-4px)" }}
                     >
+                      {/* 原版字体标识 */}
+                      {activeEditingItem.detectedFont && (
+                        <span
+                          className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-white/10 text-amber-300 font-mono text-[10px]"
+                          title={`探测自原版 PDF 字体对象: ${activeEditingItem.detectedFont}`}
+                        >
+                          原字: {activeEditingItem.detectedFont}
+                        </span>
+                      )}
+
                       {/* 字体选择 */}
                       <select
                         value={activeEditingItem.fontFamily}
@@ -832,13 +882,46 @@ export default function PdfInplaceTextStudio({
                         }
                         className="bg-[#2D221E] text-white px-2 py-0.5 rounded-lg text-[11px] border border-white/10 focus:outline-none"
                       >
-                        <option value="sans">黑体 / 微软雅黑</option>
-                        <option value="serif">宋体 (Serif)</option>
+                        <option value="times">西文 Times (原版衬线)</option>
+                        <option value="helvetica">西文 Helvetica / Arial</option>
+                        <option value="courier">西文 Courier (等宽)</option>
+                        <option value="song">宋体 (Serif)</option>
+                        <option value="hei">黑体 / 微软雅黑</option>
                         <option value="kai">楷体 (KaiTi)</option>
                         <option value="fang">仿宋 (FangSong)</option>
-                        <option value="helvetica">西文 Helvetica</option>
-                        <option value="times">西文 Times</option>
                       </select>
+
+                      {/* 粗体与斜体开关 */}
+                      <div className="flex items-center gap-0.5 bg-[#2D221E] p-0.5 rounded-lg">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActiveEditingItem((prev) =>
+                              prev ? { ...prev, isBold: !prev.isBold } : null
+                            )
+                          }
+                          className={`w-5 h-5 flex items-center justify-center rounded font-bold text-xs transition-colors ${
+                            activeEditingItem.isBold ? "bg-amber-500 text-black shadow-sm" : "text-white/70 hover:text-white"
+                          }`}
+                          title="切换粗体 (Bold)"
+                        >
+                          B
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActiveEditingItem((prev) =>
+                              prev ? { ...prev, isItalic: !prev.isItalic } : null
+                            )
+                          }
+                          className={`w-5 h-5 flex items-center justify-center rounded italic font-serif text-xs transition-colors ${
+                            activeEditingItem.isItalic ? "bg-amber-500 text-black shadow-sm" : "text-white/70 hover:text-white"
+                          }`}
+                          title="切换斜体 (Italic)"
+                        >
+                          I
+                        </button>
+                      </div>
 
                       {/* 字号加减 */}
                       <div className="flex items-center gap-0.5 bg-[#2D221E] px-1 py-0.5 rounded-lg">
@@ -931,7 +1014,7 @@ export default function PdfInplaceTextStudio({
                       </button>
                     </div>
 
-                    {/* 原地真实文本输入框 (Direct In-place Input) */}
+                    {/* 原地真实文本输入框 (Direct In-place Input - 真实字形渲染) */}
                     <div
                       className="w-full relative shadow-lg rounded-[2px]"
                       style={{
@@ -956,10 +1039,13 @@ export default function PdfInplaceTextStudio({
                             handleCancelInplaceEdit();
                           }
                         }}
-                        className="w-full px-1 py-0.5 bg-transparent border-2 border-amber-500 rounded-[2px] focus:outline-none font-sans font-medium"
+                        className="w-full px-1 py-0.5 bg-transparent border-2 border-amber-500 rounded-[2px] focus:outline-none"
                         style={{
+                          fontFamily: getFontFamilyCss(activeEditingItem.fontFamily),
+                          fontWeight: activeEditingItem.isBold ? "bold" : "normal",
+                          fontStyle: activeEditingItem.isItalic ? "italic" : "normal",
                           color: activeEditingItem.colorHex || "#000000",
-                          fontSize: `${Math.max(10, activeEditingItem.fontSize * (120 / 72) * zoomScale * 0.6)}px`,
+                          fontSize: `${Math.max(10, activeEditingItem.fontSize * (canvasWidth / currentPage.width) * 0.95)}px`,
                           lineHeight: 1.2,
                         }}
                       />
@@ -980,8 +1066,8 @@ export default function PdfInplaceTextStudio({
                   />
                 )}
               </div>
-            ) : null}
-          </div>
+              );
+            })() : null}          </div>
 
           <div className="mt-2.5 flex items-center justify-between w-full text-xs text-[#7D6B5D] dark:text-[#BCA89B] px-1">
             <div className="flex items-center gap-1.5">

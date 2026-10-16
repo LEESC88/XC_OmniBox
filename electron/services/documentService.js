@@ -53,13 +53,13 @@ function getCanvasModule() {
 function getPdfjsAssetPath(subDir) {
   try {
     const pkgPath = require.resolve('pdfjs-dist/package.json');
-    const target = path.join(path.dirname(pkgPath), subDir) + path.sep;
-    if (fs.existsSync(target)) return target;
+    const targetDir = path.join(path.dirname(pkgPath), subDir);
+    if (fs.existsSync(targetDir)) return targetDir.replace(/\\/g, '/') + '/';
   } catch (_) {}
-  const p1 = path.join(__dirname, '../node_modules/pdfjs-dist', subDir) + path.sep;
-  if (fs.existsSync(p1)) return p1;
-  const p2 = path.join(process.resourcesPath || '', 'app.asar.unpacked/node_modules/pdfjs-dist', subDir) + path.sep;
-  if (fs.existsSync(p2)) return p2;
+  const p1 = path.join(__dirname, '../node_modules/pdfjs-dist', subDir);
+  if (fs.existsSync(p1)) return p1.replace(/\\/g, '/') + '/';
+  const p2 = path.join(process.resourcesPath || '', 'app.asar.unpacked/node_modules/pdfjs-dist', subDir);
+  if (fs.existsSync(p2)) return p2.replace(/\\/g, '/') + '/';
   return null;
 }
 
@@ -1170,6 +1170,77 @@ class DocumentService {
       const items = [];
       let itemIdx = 0;
 
+      // 提取并解析当前页所用字体的详细排版属性 (字族、衬线/无衬线、粗体、斜体)
+      const fontMetaCache = new Map();
+      const resolveFontMeta = (fontId) => {
+        if (!fontId) return { family: 'times', isBold: false, isItalic: false, rawName: '' };
+        if (fontMetaCache.has(fontId)) return fontMetaCache.get(fontId);
+
+        let rawName = '';
+        let fallbackName = '';
+        let bold = false;
+        let italic = false;
+
+        try {
+          if (page.commonObjs && typeof page.commonObjs.get === 'function') {
+            page.commonObjs.get(fontId, (obj) => {
+              if (obj) {
+                rawName = obj.name || obj.loadedName || '';
+                fallbackName = obj.fallbackName || '';
+                bold = Boolean(obj.bold || /bold|black|heavy|semibold/i.test(rawName));
+                italic = Boolean(obj.italic || /italic|oblique/i.test(rawName));
+              }
+            });
+          }
+        } catch (_) {}
+
+        if (!rawName && textContent.styles && textContent.styles[fontId]) {
+          const style = textContent.styles[fontId];
+          fallbackName = style.fontFamily || '';
+        }
+
+        const lowerName = rawName.toLowerCase();
+        let family = 'times';
+        if (
+          lowerName.includes('times') ||
+          lowerName.includes('roman') ||
+          lowerName.includes('serif') ||
+          lowerName.includes('georgia') ||
+          lowerName.includes('garamond') ||
+          fallbackName === 'serif'
+        ) {
+          family = 'times';
+        } else if (
+          lowerName.includes('courier') ||
+          lowerName.includes('mono') ||
+          lowerName.includes('consolas') ||
+          fallbackName === 'monospace'
+        ) {
+          family = 'courier';
+        } else if (
+          lowerName.includes('arial') ||
+          lowerName.includes('helvetica') ||
+          lowerName.includes('sans') ||
+          lowerName.includes('tahoma') ||
+          lowerName.includes('verdana') ||
+          fallbackName === 'sans-serif'
+        ) {
+          family = 'helvetica';
+        } else if (lowerName.includes('kai') || lowerName.includes('simkai')) {
+          family = 'kai';
+        } else if (lowerName.includes('fang') || lowerName.includes('simfang')) {
+          family = 'fang';
+        } else if (lowerName.includes('song') || lowerName.includes('simsun')) {
+          family = 'song';
+        } else if (lowerName.includes('hei') || lowerName.includes('yahei') || lowerName.includes('simhei')) {
+          family = 'hei';
+        }
+
+        const meta = { family, isBold: bold, isItalic: italic, rawName };
+        fontMetaCache.set(fontId, meta);
+        return meta;
+      };
+
       for (const item of (textContent.items || [])) {
         const rawStr = item.str;
         if (!rawStr || !rawStr.trim()) continue;
@@ -1185,6 +1256,8 @@ class DocumentService {
         const widthPercent = Math.max(0.2, Math.min(100 - leftPercent, (item.width / pageWidth) * 100));
         const heightPercent = Math.max(0.5, Math.min(100 - topPercent, (fontHeight / pageHeight) * 100));
 
+        const fontMeta = resolveFontMeta(item.fontName);
+
         items.push({
           id: `p${i - 1}_i${itemIdx++}`,
           str: rawStr,
@@ -1194,6 +1267,10 @@ class DocumentService {
           height: Math.max(6, Math.round(fontHeight * 10) / 10),
           fontSize: Math.round(fontHeight * 10) / 10,
           fontName: item.fontName || '',
+          fontFamily: fontMeta.family,
+          isBold: fontMeta.isBold,
+          isItalic: fontMeta.isItalic,
+          detectedFont: fontMeta.rawName || fontMeta.family,
           leftPercent: Math.round(leftPercent * 100) / 100,
           topPercent: Math.round(topPercent * 100) / 100,
           widthPercent: Math.round(widthPercent * 100) / 100,
@@ -1207,12 +1284,27 @@ class DocumentService {
       for (const it of sorted) {
         const existingLine = lines.find((l) => Math.abs(l.y - it.y) <= 4);
         if (existingLine) {
+          // 智能分词与空格保护：基于真实字符间距判定是否需要补空格，严禁粗暴盲目加空格破坏连字符/标点
+          const prevItem = existingLine.items[existingLine.items.length - 1];
+          const gap = prevItem ? it.x - (prevItem.x + prevItem.width) : 0;
+          const needsSpace =
+            gap > Math.max(1.8, (it.fontSize || 12) * 0.16) &&
+            !prevItem.str.endsWith(' ') &&
+            !it.str.startsWith(' ') &&
+            !/^[-.,:;!?)\]}/]/.test(it.str) &&
+            !/[-(\[{]$/.test(prevItem.str);
+
           existingLine.items.push(it);
-          existingLine.str += ' ' + it.str;
+          existingLine.str += (needsSpace ? ' ' : '') + it.str;
           const minX = Math.min(existingLine.x, it.x);
           const maxX = Math.max(existingLine.x + existingLine.width, it.x + it.width);
           existingLine.x = minX;
           existingLine.width = maxX - minX;
+
+          existingLine.fontFamily = it.fontFamily;
+          existingLine.isBold = Boolean(existingLine.isBold || it.isBold);
+          existingLine.isItalic = Boolean(existingLine.isItalic || it.isItalic);
+          existingLine.detectedFont = it.detectedFont || existingLine.detectedFont;
 
           const minLeftPct = Math.min(existingLine.leftPercent, it.leftPercent);
           const maxRightPct = Math.max(existingLine.leftPercent + existingLine.widthPercent, it.leftPercent + it.widthPercent);
@@ -1233,6 +1325,10 @@ class DocumentService {
             height: it.height,
             fontSize: it.fontSize,
             fontName: it.fontName,
+            fontFamily: it.fontFamily,
+            isBold: it.isBold,
+            isItalic: it.isItalic,
+            detectedFont: it.detectedFont,
             leftPercent: it.leftPercent,
             topPercent: it.topPercent,
             widthPercent: it.widthPercent,
@@ -1299,54 +1395,70 @@ class DocumentService {
       return rgb(0, 0, 0);
     };
 
+    const isChineseText = (text) => /[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]/.test(text);
+
     // 字体懒加载缓存
     const fontCache = new Map();
-    const loadFont = async (family) => {
-      const famKey = (family || 'sans').toLowerCase();
+    const loadFont = async (family, isBold = false, isItalic = false, sampleText = '') => {
+      const hasCjk = isChineseText(sampleText);
+      const famKey = `${(family || 'times').toLowerCase()}_${isBold ? 'b' : 'n'}_${isItalic ? 'i' : 'n'}_${hasCjk ? 'cjk' : 'lat'}`;
       if (fontCache.has(famKey)) return fontCache.get(famKey);
 
       let font = null;
-      if (famKey === 'helvetica' || famKey === 'arial') {
-        const { StandardFonts } = require('pdf-lib');
-        font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      } else if (famKey === 'times') {
-        const { StandardFonts } = require('pdf-lib');
-        font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
-      } else if (famKey === 'courier') {
-        const { StandardFonts } = require('pdf-lib');
-        font = await pdfDoc.embedFont(StandardFonts.Courier);
+      const { StandardFonts } = require('pdf-lib');
+
+      if (!hasCjk) {
+        // 西文标准 14 矢量字体（高保真无缝匹配，字形字距与原版 100% 相同）
+        const fam = (family || 'times').toLowerCase();
+        if (fam === 'helvetica' || fam === 'sans' || fam === 'arial' || fam === 'hei') {
+          if (isBold && isItalic) font = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
+          else if (isBold) font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+          else if (isItalic) font = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+          else font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        } else if (fam === 'courier' || fam === 'mono') {
+          if (isBold && isItalic) font = await pdfDoc.embedFont(StandardFonts.CourierBoldOblique);
+          else if (isBold) font = await pdfDoc.embedFont(StandardFonts.CourierBold);
+          else if (isItalic) font = await pdfDoc.embedFont(StandardFonts.CourierOblique);
+          else font = await pdfDoc.embedFont(StandardFonts.Courier);
+        } else {
+          // 默认 times / serif
+          if (isBold && isItalic) font = await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
+          else if (isBold) font = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+          else if (isItalic) font = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+          else font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+        }
       } else {
-        // CJK 字体映射
+        // 中文或混合文本使用本地中文字体库
         const fontPathMap = {
-          sans: 'C:/Windows/Fonts/simhei.ttf',
-          hei: 'C:/Windows/Fonts/simhei.ttf',
-          kai: 'C:/Windows/Fonts/simkai.ttf',
-          fang: 'C:/Windows/Fonts/simfang.ttf',
           song: 'C:/Windows/Fonts/simsun.ttc',
           serif: 'C:/Windows/Fonts/simsun.ttc',
+          times: 'C:/Windows/Fonts/simsun.ttc',
+          kai: 'C:/Windows/Fonts/simkai.ttf',
+          fang: 'C:/Windows/Fonts/simfang.ttf',
+          hei: isBold ? 'C:/Windows/Fonts/simhei.ttf' : 'C:/Windows/Fonts/msyh.ttc',
+          sans: isBold ? 'C:/Windows/Fonts/simhei.ttf' : 'C:/Windows/Fonts/msyh.ttc',
+          helvetica: isBold ? 'C:/Windows/Fonts/simhei.ttf' : 'C:/Windows/Fonts/msyh.ttc',
         };
-        const targetPath = fontPathMap[famKey] || 'C:/Windows/Fonts/simhei.ttf';
+        const fam = (family || 'hei').toLowerCase();
+        const targetPath = fontPathMap[fam] || 'C:/Windows/Fonts/simsun.ttc';
         const fallbackPath = 'C:/Windows/Fonts/simhei.ttf';
-
         const pathToLoad = fs.existsSync(targetPath) ? targetPath : (fs.existsSync(fallbackPath) ? fallbackPath : null);
+
         if (pathToLoad) {
           try {
             const fontBytes = fs.readFileSync(pathToLoad);
             const isTtc = pathToLoad.toLowerCase().endsWith('.ttc');
             font = await pdfDoc.embedFont(fontBytes, { subset: !isTtc });
-          } catch (e1) {
-            // fallback simhei
+          } catch (_) {
             if (fs.existsSync(fallbackPath)) {
               try {
-                const fbBytes = fs.readFileSync(fallbackPath);
-                font = await pdfDoc.embedFont(fbBytes, { subset: true });
+                font = await pdfDoc.embedFont(fs.readFileSync(fallbackPath), { subset: true });
               } catch (_) {}
             }
           }
         }
         if (!font) {
-          const { StandardFonts } = require('pdf-lib');
-          font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+          font = await pdfDoc.embedFont(isBold ? StandardFonts.TimesRomanBold : StandardFonts.TimesRoman);
         }
       }
 
@@ -1403,7 +1515,9 @@ class DocumentService {
 
       // 2. 原地绘制新文字
       if (newText.length > 0) {
-        const font = await loadFont(patch.fontFamily);
+        const isBold = Boolean(patch.isBold);
+        const isItalic = Boolean(patch.isItalic);
+        const font = await loadFont(patch.fontFamily, isBold, isItalic, newText);
         const textColor = parseHex(colorHex);
         let targetFontSize = Number(patch.fontSize) > 0 ? Number(patch.fontSize) : Math.max(6, height * 0.85);
 
@@ -1411,7 +1525,7 @@ class DocumentService {
         if (patch.autoFit !== false && width > 4) {
           try {
             const measuredWidth = font.widthOfTextAtSize(newText, targetFontSize);
-            if (measuredWidth > width) {
+            if (measuredWidth > width * 1.03) {
               const scaled = targetFontSize * (width / measuredWidth);
               targetFontSize = Math.max(5, scaled);
             }
