@@ -32,6 +32,11 @@ import {
   Minimize2,
   Plus,
   Minus,
+  Highlighter,
+  Undo2,
+  Redo2,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import Dropzone from "@/components/Dropzone";
 import {
@@ -45,6 +50,15 @@ import {
 } from "@/lib/api";
 import { formatBytes } from "@/lib/imageProcessor";
 import { useI18n } from "@/lib/i18n";
+
+export const HIGHLIGHT_COLORS = [
+  { value: "#FFD600", label: "经典荧光黄", bgClass: "bg-[#FFD600]" },
+  { value: "#00E676", label: "鲜艳荧光绿", bgClass: "bg-[#00E676]" },
+  { value: "#00B0FF", label: "亮丽荧光蓝", bgClass: "bg-[#00B0FF]" },
+  { value: "#FF2D70", label: "荧光玫粉", bgClass: "bg-[#FF2D70]" },
+  { value: "#FF6D00", label: "鲜亮暖橙", bgClass: "bg-[#FF6D00]" },
+  { value: "#A855F7", label: "荧光香芋紫", bgClass: "bg-[#A855F7]" },
+];
 
 interface PdfInplaceTextStudioProps {
   incomingFile?: File;
@@ -93,11 +107,56 @@ export default function PdfInplaceTextStudio({
   // 页面导航与缩放
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [zoomScale, setZoomScale] = useState(1.0);
-  // 编辑粒度：'word' 单字精修 (默认，修改/加粗单字绝不影响整句) | 'line' 整行编辑 | 'draw' 自由画框
-  const [editGranularity, setEditGranularity] = useState<"word" | "line" | "draw">("word");
+  // 编辑粒度：'word' 单字精修 | 'line' 整行编辑 | 'draw' 自由画框 | 'highlight' 荧光高亮笔标注
+  const [editGranularity, setEditGranularity] = useState<"word" | "line" | "draw" | "highlight">("word");
+  const [currentHighlightColor, setCurrentHighlightColor] = useState<string>("#FFD600");
+  // 高亮目标粒度：'word' 单字高亮 | 'line' 整句/单元格高亮
+  const [highlightScope, setHighlightScope] = useState<"word" | "line">("word");
 
   // 待应用修正补丁列表
   const [patches, setPatches] = useState<PdfTextPatch[]>([]);
+
+  // 多级撤销/重做历史栈 (Undo/Redo Stack)
+  const [history, setHistory] = useState<PdfTextPatch[][]>([[]]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  // 磁吸对齐辅助虚线状态
+  const [snapLines, setSnapLines] = useState<{ vertical?: number; horizontal?: number } | null>(null);
+
+  // 浮动工具栏智能上下位置自适应
+  const [toolbarPlacement, setToolbarPlacement] = useState<"auto" | "above" | "below">("auto");
+
+  // 压入历史栈快照
+  const pushHistory = (newPatches: PdfTextPatch[]) => {
+    setHistory((prev) => {
+      const next = prev.slice(0, historyIndex + 1);
+      next.push(newPatches);
+      if (next.length > 50) next.shift();
+      return next;
+    });
+    setHistoryIndex((prev) => Math.min(prev + 1, 49));
+    setPatches(newPatches);
+  };
+
+  // 撤销 (Undo)
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      const targetIndex = historyIndex - 1;
+      setHistoryIndex(targetIndex);
+      setPatches(history[targetIndex]);
+      setActiveEditingItem(null);
+    }
+  };
+
+  // 重做 (Redo)
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      const targetIndex = historyIndex + 1;
+      setHistoryIndex(targetIndex);
+      setPatches(history[targetIndex]);
+      setActiveEditingItem(null);
+    }
+  };
 
   // 全屏沉浸工作台模式
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -159,21 +218,66 @@ export default function PdfInplaceTextStudio({
     colorHex: string;
     bgHex: string;
     autoFit: boolean;
+    isMoved?: boolean;
   } | null>(null);
 
-  // Esc 键退出全屏监听 (若当前没有正在打字原地修改)
+  const exportRef = useRef<() => void>();
+
+  // 全局快捷键与快捷导航监听 (Esc 退出全屏，Ctrl+Z 撤销，Ctrl+Y 重做，Ctrl+S 快速导出)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isFullscreen && !activeEditingItem) {
         setIsFullscreen(false);
       }
+      const activeTag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      const isInputFocused = activeTag === "input" || activeTag === "textarea";
+
+      // Ctrl+S / Cmd+S: 快速导出当前修正好的 PDF
+      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        exportRef.current?.();
+        return;
+      }
+
+      // Ctrl+Z / Cmd+Z: 撤销
+      if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z") && !e.shiftKey) {
+        if (!isInputFocused) {
+          e.preventDefault();
+          handleUndo();
+        }
+      }
+
+      // Ctrl+Y / Cmd+Y / Ctrl+Shift+Z: 重做
+      if (
+        ((e.ctrlKey || e.metaKey) && (e.key === "y" || e.key === "Y")) ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "z" || e.key === "Z"))
+      ) {
+        if (!isInputFocused) {
+          e.preventDefault();
+          handleRedo();
+        }
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isFullscreen, activeEditingItem]);
+  }, [isFullscreen, activeEditingItem, historyIndex, history]);
+
+  // 当进入原地编辑时，自动平滑滚动至视口中心，避免放大后找不到内容或被裁切
+  useEffect(() => {
+    if (activeEditingItem && pageRef.current) {
+      const timer = setTimeout(() => {
+        const inputEl = pageRef.current?.querySelector('input[type="text"]');
+        if (inputEl) {
+          inputEl.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [activeEditingItem]);
 
   // 自由画框拖拽状态 (Drag-to-draw box)
   const canvasRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState<{ xPct: number; yPct: number } | null>(null);
   const [drawCurrent, setDrawCurrent] = useState<{ xPct: number; yPct: number } | null>(null);
@@ -248,16 +352,21 @@ export default function PdfInplaceTextStudio({
     return inspectResult.pages[currentPageIndex] || inspectResult.pages[0];
   }, [inspectResult, currentPageIndex]);
 
-  // 当前页上可点击的目标集合（依据整行模式或单词模式自动切换）
+  // 当前页上可点击的目标集合（依据整行模式、单词模式或高亮模式自动切换）
   const selectableTargets = useMemo(() => {
     if (!currentPage) return [];
+    if (editGranularity === "highlight") {
+      return highlightScope === "line"
+        ? (currentPage.lines && currentPage.lines.length > 0 ? currentPage.lines : currentPage.items)
+        : currentPage.items;
+    }
     if (editGranularity === "line") {
       return (currentPage.lines && currentPage.lines.length > 0)
         ? currentPage.lines
         : currentPage.items;
     }
     return currentPage.items;
-  }, [currentPage, editGranularity]);
+  }, [currentPage, editGranularity, highlightScope]);
 
   // 当前页上应用的 patches
   const currentPagePatches = useMemo(() => {
@@ -286,9 +395,55 @@ export default function PdfInplaceTextStudio({
     return matches;
   }, [inspectResult, searchQuery]);
 
-  // 1. 点击任意文本块，直接在页面原地激活编辑
+  // 1. 点击任意文本块，直接在页面原地激活编辑或高亮标注
   const handleStartInplaceEdit = (target: PdfInspectItem) => {
     if (editGranularity === "draw") return;
+
+    // 荧光高亮笔标注模式 (Highlight Mode)：点击文字直接施加深色高亮，自动匹配字号边界；再次点击同色文字可取消
+    if (editGranularity === "highlight") {
+      const existingIdx = patches.findIndex(
+        (p) =>
+          p.isHighlight &&
+          p.pageIndex === (currentPage?.pageIndex ?? 0) &&
+          Math.abs((p.leftPercent ?? 0) - target.leftPercent) < 0.35 &&
+          Math.abs((p.topPercent ?? 0) - target.topPercent) < 0.35
+      );
+
+      if (existingIdx !== -1) {
+        const existing = patches[existingIdx];
+        if (existing.bgHex === currentHighlightColor) {
+          // 再次点击同色直接取消高亮
+          pushHistory(patches.filter((_, idx) => idx !== existingIdx));
+        } else {
+          // 点击不同颜色则原地更换高亮色
+          const updated = [...patches];
+          updated[existingIdx] = { ...existing, bgHex: currentHighlightColor };
+          pushHistory(updated);
+        }
+        return;
+      }
+
+      const newHighlightPatch: PdfTextPatch = {
+        id: `highlight_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        pageIndex: currentPage?.pageIndex ?? 0,
+        x: target.x,
+        y: target.y,
+        width: target.width,
+        height: target.height,
+        leftPercent: target.leftPercent,
+        topPercent: target.topPercent,
+        widthPercent: target.widthPercent,
+        heightPercent: target.heightPercent,
+        originalText: target.str,
+        newText: "",
+        colorHex: "transparent",
+        bgHex: currentHighlightColor,
+        isHighlight: true,
+      };
+      pushHistory([...patches, newHighlightPatch]);
+      return;
+    }
+
     setActiveEditingItem({
       id: target.id,
       originalText: target.str,
@@ -338,12 +493,19 @@ export default function PdfInplaceTextStudio({
       colorHex: patch.colorHex || "#000000",
       bgHex: patch.bgHex || "#FFFFFF",
       autoFit: patch.autoFit !== false,
+      isMoved: Boolean(patch.isMoved),
     });
   };
 
   // 3. 提交并保存原地编辑项
   const handleCommitInplaceEdit = () => {
     if (!activeEditingItem || !currentPage) return;
+
+    const isDrawnOrMoved =
+      !activeEditingItem.x ||
+      !activeEditingItem.y ||
+      activeEditingItem.id.startsWith("draw_") ||
+      Boolean(activeEditingItem.isMoved);
 
     const newPatch: PdfTextPatch = {
       id: activeEditingItem.patchId || `patch_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -367,14 +529,11 @@ export default function PdfInplaceTextStudio({
       colorHex: activeEditingItem.colorHex,
       bgHex: activeEditingItem.bgHex,
       autoFit: activeEditingItem.autoFit,
+      isMoved: isDrawnOrMoved,
     };
 
-    setPatches((prev) => {
-      // 移除原有的同位置或同 ID patch 并写入更新
-      const filtered = prev.filter((p) => p.id !== newPatch.id);
-      return [...filtered, newPatch];
-    });
-
+    const filtered = patches.filter((p) => p.id !== newPatch.id);
+    pushHistory([...filtered, newPatch]);
     setActiveEditingItem(null);
   };
 
@@ -386,15 +545,50 @@ export default function PdfInplaceTextStudio({
   // 5. 删除当前正在编辑的 Patch
   const handleDeleteCurrentEditingPatch = () => {
     if (activeEditingItem && activeEditingItem.patchId) {
-      setPatches((prev) => prev.filter((p) => p.id !== activeEditingItem.patchId));
+      const filtered = patches.filter((p) => p.id !== activeEditingItem.patchId);
+      pushHistory(filtered);
     }
     setActiveEditingItem(null);
   };
 
-  // 6. 自由画框事件处理 (Draw Mode)
+  // 5.1 直接删除指定 Patch
+  const handleDeletePatch = (patchId: string) => {
+    const filtered = patches.filter((p) => p.id !== patchId);
+    pushHistory(filtered);
+    if (activeEditingItem?.patchId === patchId) {
+      setActiveEditingItem(null);
+    }
+  };
+
+  // 5.2 一键去除留白/自适应贴合文字内容 (Fit Text)
+  const handleAutoFitPatch = (patch: PdfTextPatch) => {
+    if (!currentPage) return;
+    const textLen = (patch.newText || "").length || 1;
+    const fontPt = patch.fontSize || 12;
+    const charWidthPx = fontPt * 0.58;
+    const estimatedWidthPx = textLen * charWidthPx + 14;
+    const estimatedHeightPx = fontPt * 1.35;
+    const fittedWidthPct = Math.min(95, Math.max(2, (estimatedWidthPx / currentPage.width) * 100));
+    const fittedHeightPct = Math.min(80, Math.max(1.2, (estimatedHeightPx / currentPage.height) * 100));
+
+    const updated = patches.map((p) =>
+      p.id === patch.id
+        ? {
+            ...p,
+            widthPercent: Math.round(fittedWidthPct * 100) / 100,
+            heightPercent: Math.round(fittedHeightPct * 100) / 100,
+            autoFit: true,
+            isMoved: true,
+          }
+        : p
+    );
+    pushHistory(updated);
+  };
+
+  // 6. 自由画框事件处理 (Draw Mode only - 严禁在画框中混用高亮，高亮统一用文字点选自适应贴合)
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (editGranularity !== "draw" || !canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
+    if (editGranularity !== "draw" || !pageRef.current) return;
+    const rect = pageRef.current.getBoundingClientRect();
     const xPct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
     const yPct = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
     setIsDrawing(true);
@@ -403,8 +597,8 @@ export default function PdfInplaceTextStudio({
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDrawing || !canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
+    if (!isDrawing || !pageRef.current) return;
+    const rect = pageRef.current.getBoundingClientRect();
     const xPct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
     const yPct = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
     setDrawCurrent({ xPct, yPct });
@@ -427,8 +621,14 @@ export default function PdfInplaceTextStudio({
     setDrawStart(null);
     setDrawCurrent(null);
 
-    // 只有拖拽尺寸大于 1% 时才生成画框
-    if (widthPct > 1 && heightPct > 0.5) {
+    if (widthPct > 0.5 && heightPct > 0.5) {
+      // 自由画框模式：默认高度紧密贴合字号，防止上下留白过大
+      const calculatedFontSize = Math.min(20, Math.max(10, Math.round((heightPct / 100) * (currentPage?.height || 800) * 0.65)));
+      const pageH = currentPage?.height || 800;
+      // 紧密字号高度百分比 (让框高度与文字紧密贴合，彻底根治上下间距太大)
+      const fittedHeightPct = Math.max(1.8, Math.round(((calculatedFontSize * 1.35) / pageH) * 1000) / 10);
+      const actualHeightPct = Math.min(heightPct, fittedHeightPct);
+
       setActiveEditingItem({
         id: `draw_${Date.now()}`,
         originalText: "（自由框选区域）",
@@ -436,19 +636,218 @@ export default function PdfInplaceTextStudio({
         leftPercent: Math.round(minX * 100) / 100,
         topPercent: Math.round(minY * 100) / 100,
         widthPercent: Math.round(widthPct * 100) / 100,
-        heightPercent: Math.round(heightPct * 100) / 100,
+        heightPercent: Math.round(actualHeightPct * 100) / 100,
         fontFamily: "times",
         displayFamily: "Times New Roman",
         isBold: false,
         isItalic: false,
-        fontSize: Math.max(10, Math.round((heightPct / 100) * 800 * 0.7)),
+        fontSize: calculatedFontSize,
         colorHex: "#000000",
-        bgHex: "#FFFFFF",
+        bgHex: "transparent",
         autoFit: true,
       });
-      // 画框完成后自动恢复为整行模式
       setEditGranularity("line");
     }
+  };
+
+  // 7. 拖拽已放置的 Patch 任意调整位置 (带磁吸对齐辅助虚线)
+  const handlePatchMouseDown = (e: React.MouseEvent, patch: PdfTextPatch) => {
+    if (editGranularity === "highlight" && patch.isHighlight) {
+      e.stopPropagation();
+      e.preventDefault();
+      if (patch.bgHex === currentHighlightColor) {
+        handleDeletePatch(patch.id);
+      } else {
+        const updated = patches.map((p) =>
+          p.id === patch.id ? { ...p, bgHex: currentHighlightColor } : p
+        );
+        pushHistory(updated);
+      }
+      return;
+    }
+    if (editGranularity === "draw" || editGranularity === "highlight") return;
+    e.stopPropagation();
+    e.preventDefault();
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startLeftPct = patch.leftPercent ?? 0;
+    const startTopPct = patch.topPercent ?? 0;
+    let hasMoved = false;
+    let finalLeft = startLeftPct;
+    let finalTop = startTopPct;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!pageRef.current) return;
+      const rect = pageRef.current.getBoundingClientRect();
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+
+      if (Math.hypot(deltaX, deltaY) > 3) {
+        hasMoved = true;
+        const deltaXPct = (deltaX / rect.width) * 100;
+        const deltaYPct = (deltaY / rect.height) * 100;
+
+        let candidateLeft = Math.max(0, Math.min(100 - (patch.widthPercent ?? 4), startLeftPct + deltaXPct));
+        let candidateTop = Math.max(0, Math.min(100 - (patch.heightPercent ?? 2), startTopPct + deltaYPct));
+
+        // 磁吸阈值与目标检测 (Snap Threshold ~0.8%)
+        const snapThreshold = 0.8;
+        let snapV: number | undefined = undefined;
+        let snapH: number | undefined = undefined;
+
+        const xTargets = [5, 50, 95];
+        const yTargets: number[] = [];
+
+        currentPagePatches.forEach((other) => {
+          if (other.id !== patch.id) {
+            xTargets.push(other.leftPercent ?? 0);
+            xTargets.push((other.leftPercent ?? 0) + (other.widthPercent ?? 0));
+            yTargets.push(other.topPercent ?? 0);
+            yTargets.push((other.topPercent ?? 0) + (other.heightPercent ?? 0));
+          }
+        });
+
+        for (const targetX of xTargets) {
+          if (Math.abs(candidateLeft - targetX) < snapThreshold) {
+            candidateLeft = targetX;
+            snapV = targetX;
+            break;
+          }
+        }
+
+        for (const targetY of yTargets) {
+          if (Math.abs(candidateTop - targetY) < snapThreshold) {
+            candidateTop = targetY;
+            snapH = targetY;
+            break;
+          }
+        }
+
+        setSnapLines(snapV !== undefined || snapH !== undefined ? { vertical: snapV, horizontal: snapH } : null);
+
+        finalLeft = Math.round(candidateLeft * 100) / 100;
+        finalTop = Math.round(candidateTop * 100) / 100;
+
+        setPatches((prev) =>
+          prev.map((p) =>
+            p.id === patch.id
+              ? {
+                  ...p,
+                  leftPercent: finalLeft,
+                  topPercent: finalTop,
+                  isMoved: true,
+                }
+              : p
+          )
+        );
+      }
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      setSnapLines(null);
+
+      if (hasMoved) {
+        setPatches((current) => {
+          pushHistory(current);
+          return current;
+        });
+      } else {
+        handleEditExistingPatch(patch);
+      }
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
+  // 8. 自由多方向独立缩放手柄 (Independent 4-Side & 4-Corner Resizing)
+  const handlePatchResizeMouseDown = (
+    e: React.MouseEvent,
+    patch: PdfTextPatch,
+    handle: "n" | "s" | "w" | "e" | "nw" | "ne" | "sw" | "se"
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!pageRef.current) return;
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startLeftPct = patch.leftPercent ?? 0;
+    const startTopPct = patch.topPercent ?? 0;
+    const startWidthPct = patch.widthPercent ?? 10;
+    const startHeightPct = patch.heightPercent ?? 3;
+    const startFontSize = patch.fontSize || 12;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!pageRef.current) return;
+      const rect = pageRef.current.getBoundingClientRect();
+      const deltaXPct = ((moveEvent.clientX - startX) / rect.width) * 100;
+      const deltaYPct = ((moveEvent.clientY - startY) / rect.height) * 100;
+
+      let newLeft = startLeftPct;
+      let newTop = startTopPct;
+      let newWidth = startWidthPct;
+      let newHeight = startHeightPct;
+      let newFontSize = startFontSize;
+
+      // 左右独立宽度调节
+      if (handle === "e" || handle === "se" || handle === "ne") {
+        newWidth = Math.max(1.5, Math.min(100 - startLeftPct, startWidthPct + deltaXPct));
+      } else if (handle === "w" || handle === "sw" || handle === "nw") {
+        const potentialLeft = startLeftPct + deltaXPct;
+        const boundedLeft = Math.max(0, Math.min(startLeftPct + startWidthPct - 1.5, potentialLeft));
+        newWidth = startWidthPct + (startLeftPct - boundedLeft);
+        newLeft = boundedLeft;
+      }
+
+      // 上下独立高度调节 (轻松收紧顶部/底部间距，根除上下留白过大)
+      if (handle === "s" || handle === "se" || handle === "sw") {
+        newHeight = Math.max(1.0, Math.min(100 - startTopPct, startHeightPct + deltaYPct));
+      } else if (handle === "n" || handle === "ne" || handle === "nw") {
+        const potentialTop = startTopPct + deltaYPct;
+        const boundedTop = Math.max(0, Math.min(startTopPct + startHeightPct - 1.0, potentialTop));
+        newHeight = startHeightPct + (startTopPct - boundedTop);
+        newTop = boundedTop;
+      }
+
+      // 四角拖拽联动字号
+      if (handle === "se" || handle === "sw" || handle === "ne" || handle === "nw") {
+        const scale = newHeight / Math.max(0.5, startHeightPct);
+        newFontSize = Math.min(72, Math.max(6, Math.round(startFontSize * scale)));
+      }
+
+      setPatches((prev) =>
+        prev.map((p) =>
+          p.id === patch.id
+            ? {
+                ...p,
+                leftPercent: Math.round(newLeft * 100) / 100,
+                topPercent: Math.round(newTop * 100) / 100,
+                widthPercent: Math.round(newWidth * 100) / 100,
+                heightPercent: Math.round(newHeight * 100) / 100,
+                fontSize: newFontSize,
+                isMoved: true,
+                autoFit: false,
+              }
+            : p
+        )
+      );
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      setPatches((current) => {
+        pushHistory(current);
+        return current;
+      });
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
   };
 
   // 一键替换所有搜索匹配项
@@ -475,6 +874,7 @@ export default function PdfInplaceTextStudio({
         originalText: m.item.str,
         newText: modifiedStr,
         fontFamily: (m.item.fontFamily as any) || searchFontFamily,
+        displayFamily: m.item.displayFamily || m.item.detectedFont || "Times New Roman",
         isBold: m.item.isBold,
         isItalic: m.item.isItalic,
         detectedFont: m.item.detectedFont,
@@ -485,23 +885,21 @@ export default function PdfInplaceTextStudio({
       };
     });
 
-    setPatches((prev) => {
-      const existing = [...prev];
-      for (const np of newPatches) {
-        const idx = existing.findIndex(
-          (p) =>
-            p.pageIndex === np.pageIndex &&
-            Math.abs((p.leftPercent ?? 0) - (np.leftPercent ?? 0)) < 1 &&
-            Math.abs((p.topPercent ?? 0) - (np.topPercent ?? 0)) < 1
-        );
-        if (idx !== -1) {
-          existing[idx] = np;
-        } else {
-          existing.push(np);
-        }
+    const merged = [...patches];
+    for (const np of newPatches) {
+      const idx = merged.findIndex(
+        (p) =>
+          p.pageIndex === np.pageIndex &&
+          Math.abs((p.leftPercent ?? 0) - (np.leftPercent ?? 0)) < 1 &&
+          Math.abs((p.topPercent ?? 0) - (np.topPercent ?? 0)) < 1
+      );
+      if (idx !== -1) {
+        merged[idx] = np;
+      } else {
+        merged.push(np);
       }
-      return existing;
-    });
+    }
+    pushHistory(merged);
 
     setSearchQuery("");
     setReplaceText("");
@@ -528,6 +926,8 @@ export default function PdfInplaceTextStudio({
       setApplying(false);
     }
   };
+
+  exportRef.current = handleExportFixedPdf;
 
   // 重置工作区
   const handleReset = () => {
@@ -688,8 +1088,30 @@ export default function PdfInplaceTextStudio({
 
         {/* 顶部工具栏：粒度切换 + 翻页 + 缩放 */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* 编辑粒度切换器：默认单字精修，绝不连带整句 */}
+          {/* 撤销 / 重做按钮组 */}
           <div className="flex items-center bg-[#D2BCAB]/20 dark:bg-[#4D392E]/30 p-1 rounded-xl">
+            <button
+              type="button"
+              disabled={historyIndex <= 0}
+              onClick={handleUndo}
+              className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-[#2D221E] disabled:opacity-30 transition-colors"
+              title="撤销 (Ctrl+Z)"
+            >
+              <Undo2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              disabled={historyIndex >= history.length - 1}
+              onClick={handleRedo}
+              className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-[#2D221E] disabled:opacity-30 transition-colors"
+              title="重做 (Ctrl+Y)"
+            >
+              <Redo2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* 编辑粒度与高亮标注切换器 */}
+          <div className="flex items-center bg-[#D2BCAB]/20 dark:bg-[#4D392E]/30 p-1 rounded-xl gap-0.5">
             <button
               onClick={() => {
                 setEditGranularity("word");
@@ -703,7 +1125,7 @@ export default function PdfInplaceTextStudio({
               title="单字/单个词汇独立修改 (修改或加粗单字绝不波及整句)"
             >
               <Type className="w-3.5 h-3.5" />
-              <span>单字精修 (默认)</span>
+              <span>单字</span>
             </button>
             <button
               onClick={() => {
@@ -718,7 +1140,7 @@ export default function PdfInplaceTextStudio({
               title="整行或完整句子同时编辑"
             >
               <AlignLeft className="w-3.5 h-3.5" />
-              <span>整行编辑</span>
+              <span>整行</span>
             </button>
             <button
               onClick={() => {
@@ -733,8 +1155,73 @@ export default function PdfInplaceTextStudio({
               title="自由画框涂抹编辑"
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span>自由画框</span>
+              <span>画框</span>
             </button>
+            <button
+              onClick={() => {
+                setEditGranularity("highlight");
+                setActiveEditingItem(null);
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+                editGranularity === "highlight"
+                  ? "bg-amber-600 text-white shadow-sm"
+                  : "text-[#7D6B5D] dark:text-[#BCA89B] hover:text-[#2D221E]"
+              }`}
+              title="荧光高亮笔标注 (点击任意文字/单元格自动贴合高亮)"
+            >
+              <Highlighter className="w-3.5 h-3.5" />
+              <span>高亮</span>
+              <span
+                className="w-2.5 h-2.5 rounded-full border border-black/20 shadow-inner flex-shrink-0"
+                style={{ backgroundColor: currentHighlightColor }}
+              />
+            </button>
+
+            {/* 荧光高亮笔调色与单字/整句单元格切换 */}
+            {editGranularity === "highlight" && (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black/15 dark:bg-black/40 rounded-lg ml-1">
+                <div className="flex items-center gap-1 mr-1 border-r border-white/20 pr-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setHighlightScope("word")}
+                    className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition-colors ${
+                      highlightScope === "word"
+                        ? "bg-amber-500 text-black shadow-sm"
+                        : "text-[#7D6B5D] dark:text-[#BCA89B] hover:text-[#2D221E]"
+                    }`}
+                    title="点击单字高亮"
+                  >
+                    单字
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHighlightScope("line")}
+                    className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition-colors ${
+                      highlightScope === "line"
+                        ? "bg-amber-500 text-black shadow-sm"
+                        : "text-[#7D6B5D] dark:text-[#BCA89B] hover:text-[#2D221E]"
+                    }`}
+                    title="点击整句或表格单元格高亮"
+                  >
+                    整句/单格
+                  </button>
+                </div>
+                {HIGHLIGHT_COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => setCurrentHighlightColor(c.value)}
+                    className={`w-3.5 h-3.5 rounded-full border transition-transform ${
+                      currentHighlightColor === c.value
+                        ? "scale-125 border-white ring-2 ring-amber-400 shadow-sm"
+                        : "border-black/20 opacity-75 hover:opacity-100"
+                    }`}
+                    style={{ backgroundColor: c.value }}
+                    title={c.label}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 翻页器 */}
@@ -867,9 +1354,9 @@ export default function PdfInplaceTextStudio({
             onMouseDown={handleCanvasMouseDown}
             onMouseMove={handleCanvasMouseMove}
             onMouseUp={handleCanvasMouseUp}
-            className={`w-full bg-[#1A1412]/5 dark:bg-[#0F0B0A]/40 rounded-2xl p-4 sm:p-6 overflow-auto flex justify-center border border-[#D2BCAB]/20 dark:border-[#4D392E]/30 relative shadow-inner select-none ${
+            className={`w-full bg-[#1A1412]/5 dark:bg-[#0F0B0A]/40 rounded-2xl p-4 sm:p-6 overflow-auto border border-[#D2BCAB]/20 dark:border-[#4D392E]/30 relative shadow-inner select-none ${
               isFullscreen ? "h-full max-h-none" : "max-h-[760px]"
-            } ${editGranularity === "draw" ? "cursor-crosshair" : "cursor-default"}`}
+            } ${editGranularity === "draw" ? "cursor-crosshair" : editGranularity === "highlight" ? "cursor-pointer" : "cursor-default"}`}
           >
             {currentPage ? (() => {
               const baseWidth = Math.min(currentPage.viewWidth, 750);
@@ -878,7 +1365,8 @@ export default function PdfInplaceTextStudio({
 
               return (
               <div
-                className="relative shadow-2xl transition-all duration-100 bg-white flex-shrink-0"
+                ref={pageRef}
+                className="relative shadow-2xl transition-all duration-100 bg-white flex-shrink-0 mx-auto"
                 style={{
                   width: `${canvasWidth}px`,
                   height: `${canvasHeight}px`,
@@ -896,6 +1384,24 @@ export default function PdfInplaceTextStudio({
                   }}
                 />
 
+                {/* 1.1 磁吸对齐辅助虚线 */}
+                {snapLines && (
+                  <>
+                    {snapLines.vertical !== undefined && (
+                      <div
+                        className="absolute top-0 bottom-0 pointer-events-none z-35 border-l border-dashed border-amber-500 shadow-sm"
+                        style={{ left: `${snapLines.vertical}%` }}
+                      />
+                    )}
+                    {snapLines.horizontal !== undefined && (
+                      <div
+                        className="absolute left-0 right-0 pointer-events-none z-35 border-t border-dashed border-amber-500 shadow-sm"
+                        style={{ top: `${snapLines.horizontal}%` }}
+                      />
+                    )}
+                  </>
+                )}
+
                 {/* 2. 交互式文字探测层 (Hover & Click to Edit) */}
                 {selectableTargets.map((target) => {
                   const isCurrentEditing = activeEditingItem?.id === target.id;
@@ -912,59 +1418,171 @@ export default function PdfInplaceTextStudio({
                         e.stopPropagation();
                         handleStartInplaceEdit(target);
                       }}
-                      title={`点击原地修改此段文字: "${target.str}"${target.detectedFont ? ` (字体: ${target.detectedFont})` : ""}`}
-                      className={`absolute cursor-text transition-all duration-100 rounded-[2px] ${
+                      title={
+                        editGranularity === "highlight"
+                          ? `点击为 "${target.str}" 施加荧光高亮 (再次点击同色文字可取消)`
+                          : `点击原地修改此段文字: "${target.str}"${target.detectedFont ? ` (字体: ${target.detectedFont})` : ""}`
+                      }
+                      className={`absolute transition-all duration-100 rounded-[2px] ${
                         isMatch
-                          ? "bg-indigo-500/35 border-2 border-indigo-600 z-20 animate-pulse"
-                          : "hover:bg-blue-500/15 hover:border hover:border-blue-500/60 z-10"
+                          ? "bg-indigo-500/35 border-2 border-indigo-600 z-20 animate-pulse cursor-pointer"
+                          : editGranularity === "highlight"
+                          ? "hover:ring-2 hover:ring-amber-400 z-10 cursor-pointer"
+                          : "hover:bg-blue-500/15 hover:border hover:border-blue-500/60 z-10 cursor-text"
                       }`}
                       style={{
                         left: `${target.leftPercent}%`,
                         top: `${target.topPercent}%`,
                         width: `${target.widthPercent}%`,
                         height: `${target.heightPercent}%`,
+                        ...(editGranularity === "highlight"
+                          ? { backgroundColor: `${currentHighlightColor}40` }
+                          : {}),
                       }}
                     />
                   );
                 })}
 
-                {/* 3. 已生效的 Patches 实时渲染层 (绝对不截断，完整展示实际更改) */}
+                {/* 3. 已生效的 Patches 实时渲染层 (支持点击编辑、拖拽移动与8向独立缩放) */}
                 {currentPagePatches.map((patch) => {
                   const isBeingEdited = activeEditingItem?.patchId === patch.id;
                   if (isBeingEdited) return null;
 
+                  // 荧光笔高亮标注渲染 (自动贴合字体，深色饱和高亮)
+                  if (patch.isHighlight) {
+                    return (
+                      <div
+                        key={patch.id}
+                        onMouseDown={(e) => handlePatchMouseDown(e, patch)}
+                        title="荧光高亮 (点击可更换颜色或删除，按住可拖动微调)"
+                        className="absolute z-20 cursor-pointer group hover:ring-2 hover:ring-amber-500 rounded-[2px] transition-shadow"
+                        style={{
+                          left: `${patch.leftPercent}%`,
+                          top: `${patch.topPercent}%`,
+                          width: `${patch.widthPercent}%`,
+                          height: `${patch.heightPercent}%`,
+                          backgroundColor: patch.bgHex || "#FFD600",
+                          opacity: 0.65,
+                          mixBlendMode: "multiply",
+                        }}
+                      >
+                        {/* 8方向调整手柄 */}
+                        <div
+                          onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "n")}
+                          title="向上拉伸/压缩高亮范围"
+                          className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-1.5 bg-amber-500 hover:bg-amber-400 border border-white rounded-full cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity z-30"
+                        />
+                        <div
+                          onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "s")}
+                          title="向下拉伸/压缩高亮范围"
+                          className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-1.5 bg-amber-500 hover:bg-amber-400 border border-white rounded-full cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity z-30"
+                        />
+                        <div
+                          onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "w")}
+                          title="向左拉伸/压缩高亮范围"
+                          className="absolute top-1/2 -translate-y-1/2 -left-1 w-1.5 h-3 bg-amber-500 hover:bg-amber-400 border border-white rounded-full cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-30"
+                        />
+                        <div
+                          onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "e")}
+                          title="向右拉伸/压缩高亮范围"
+                          className="absolute top-1/2 -translate-y-1/2 -right-1 w-1.5 h-3 bg-amber-500 hover:bg-amber-400 border border-white rounded-full cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-30"
+                        />
+                        <div
+                          onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "nw")}
+                          className="absolute -top-1 -left-1 w-2.5 h-2.5 bg-amber-500 hover:bg-amber-400 border border-white rounded-sm cursor-nwse-resize opacity-0 group-hover:opacity-100 z-30"
+                        />
+                        <div
+                          onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "ne")}
+                          className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 hover:bg-amber-400 border border-white rounded-sm cursor-nesw-resize opacity-0 group-hover:opacity-100 z-30"
+                        />
+                        <div
+                          onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "sw")}
+                          className="absolute -bottom-1 -left-1 w-2.5 h-2.5 bg-amber-500 hover:bg-amber-400 border border-white rounded-sm cursor-nesw-resize opacity-0 group-hover:opacity-100 z-30"
+                        />
+                        <div
+                          onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "se")}
+                          className="absolute -bottom-1 -right-1 w-2.5 h-2.5 bg-amber-500 hover:bg-amber-400 border border-white rounded-sm cursor-nwse-resize opacity-0 group-hover:opacity-100 z-30"
+                        />
+                      </div>
+                    );
+                  }
+
+                  // 正常文字修补 Patch
                   return (
                     <div
                       key={patch.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditExistingPatch(patch);
-                      }}
-                      title={`点击重新编辑: "${patch.newText}"`}
-                      className="absolute z-25 cursor-pointer flex items-center px-1 group hover:ring-2 hover:ring-amber-500 rounded-[2px]"
+                      onMouseDown={(e) => handlePatchMouseDown(e, patch)}
+                      title={`点击编辑，按住可拖动位置: "${patch.newText || '已擦除'}"`}
+                      className="absolute z-25 cursor-move flex items-center px-0.5 group hover:ring-2 hover:ring-amber-500 rounded-[2px] transition-shadow"
                       style={{
                         left: `${patch.leftPercent}%`,
                         top: `${patch.topPercent}%`,
-                        minWidth: `${patch.widthPercent}%`,
-                        width: "max-content",
-                        maxWidth: `${Math.min(100 - (patch.leftPercent ?? 0), 96)}%`,
+                        ...(patch.autoFit !== false
+                          ? { width: "max-content" }
+                          : { width: `${patch.widthPercent}%` }),
+                        maxWidth: `${Math.min(100 - (patch.leftPercent ?? 0), 98)}%`,
                         height: `${patch.heightPercent}%`,
-                        backgroundColor: patch.bgHex || "#FFFFFF",
+                        backgroundColor: patch.bgHex === "transparent" ? "transparent" : (patch.bgHex || "#FFFFFF"),
                         border: "1px dashed #F59E0B",
                       }}
                     >
                       <span
-                        className="whitespace-nowrap leading-none select-none font-medium"
+                        className="whitespace-nowrap leading-none select-none font-medium pointer-events-none"
                         style={{
                           fontFamily: getFontFamilyCss(patch.fontFamily),
                           fontWeight: patch.isBold ? "bold" : "normal",
                           fontStyle: patch.isItalic ? "italic" : "normal",
                           color: patch.colorHex || "#000000",
-                          fontSize: `${Math.max(9, (patch.fontSize || 12) * (canvasWidth / currentPage.width) * 0.95)}px`,
+                          fontSize: `${Math.max(6, (patch.fontSize || 12) * (canvasWidth / currentPage.width))}px`,
                         }}
                       >
                         {patch.newText || "（已涂白擦除）"}
                       </span>
+
+                      {/* 8方向独立缩放手柄 (Independent 4-Side & 4-Corner Resizing) */}
+                      {/* 上、下、左、右独立单边手柄 */}
+                      <div
+                        onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "n")}
+                        title="向上拉伸/压缩上间距 (根除留白)"
+                        className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-1.5 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-full cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
+                      />
+                      <div
+                        onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "s")}
+                        title="向下拉伸/压缩下间距 (根除留白)"
+                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-1.5 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-full cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
+                      />
+                      <div
+                        onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "w")}
+                        title="向左拉伸/压缩左边距"
+                        className="absolute top-1/2 -translate-y-1/2 -left-1 w-1.5 h-3 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-full cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
+                      />
+                      <div
+                        onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "e")}
+                        title="向右拉伸/压缩右边距"
+                        className="absolute top-1/2 -translate-y-1/2 -right-1 w-1.5 h-3 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-full cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
+                      />
+
+                      {/* 4个对角手柄 (同步联动字号) */}
+                      <div
+                        onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "nw")}
+                        title="左上角缩放"
+                        className="absolute -top-1 -left-1 w-2.5 h-2.5 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-sm cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
+                      />
+                      <div
+                        onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "ne")}
+                        title="右上角缩放"
+                        className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-sm cursor-nesw-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
+                      />
+                      <div
+                        onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "sw")}
+                        title="左下角缩放"
+                        className="absolute -bottom-1 -left-1 w-2.5 h-2.5 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-sm cursor-nesw-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
+                      />
+                      <div
+                        onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "se")}
+                        title="右下角缩放 (联动字号)"
+                        className="absolute -bottom-1 -right-1 w-2.5 h-2.5 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-sm cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
+                      />
                     </div>
                   );
                 })}
@@ -980,7 +1598,6 @@ export default function PdfInplaceTextStudio({
                       style={{
                         left: `${activeEditingItem.leftPercent}%`,
                         top: `${activeEditingItem.topPercent}%`,
-                        minWidth: `${Math.max(16, wordWidthPx)}px`,
                         width: "max-content",
                         maxWidth: `${Math.min(100 - (activeEditingItem.leftPercent ?? 0), 96)}%`,
                         height: `${activeEditingItem.heightPercent}%`,
@@ -1009,8 +1626,8 @@ export default function PdfInplaceTextStudio({
                           fontWeight: activeEditingItem.isBold ? "bold" : "normal",
                           fontStyle: activeEditingItem.isItalic ? "italic" : "normal",
                           color: activeEditingItem.colorHex || "#000000",
-                          fontSize: `${Math.max(10, activeEditingItem.fontSize * (canvasWidth / currentPage.width) * 0.95)}px`,
-                          minWidth: `${Math.max(16, wordWidthPx)}px`,
+                          fontSize: `${Math.max(6, (activeEditingItem.fontSize || 12) * (canvasWidth / currentPage.width))}px`,
+                          width: `${Math.max(28, (activeEditingItem.newText.length + 1) * (activeEditingItem.fontSize * 0.65))}px`,
                         }}
                       />
                     </div>
@@ -1024,20 +1641,30 @@ export default function PdfInplaceTextStudio({
                   const wordWidthPx = (activeEditingItem.widthPercent / 100) * canvasWidth;
                   const wordHeightPx = (activeEditingItem.heightPercent / 100) * canvasHeight;
 
-                  const toolbarWidth = 360;
-                  // 将工具栏严格限制在画板左右内侧 [8px, canvasWidth - 368px]，彻底根治右侧溢出
-                  const clampedLeft = Math.max(8, Math.min(canvasWidth - toolbarWidth - 8, wordLeftPx + (wordWidthPx / 2) - (toolbarWidth / 2)));
-                  const isNearTop = wordTopPx < 48;
-                  const clampedTop = isNearTop ? wordTopPx + wordHeightPx + 6 : wordTopPx - 42;
+                  const approxToolbarWidth = 520;
+                  // 将工具栏严格限制在画板左右内侧 [8px, canvasWidth - 528px]，动态自适应绝不超出
+                  const clampedLeft = Math.max(8, Math.min(canvasWidth - approxToolbarWidth - 8, wordLeftPx + (wordWidthPx / 2) - (approxToolbarWidth / 2)));
+                  
+                  // 支持用户手动切换上下位置，避免遮挡上一行文字
+                  let showBelow = false;
+                  if (toolbarPlacement === "below") {
+                    showBelow = true;
+                  } else if (toolbarPlacement === "above") {
+                    showBelow = false;
+                  } else {
+                    showBelow = wordTopPx < 48;
+                  }
+                  const clampedTop = showBelow ? wordTopPx + wordHeightPx + 6 : Math.max(6, wordTopPx - 42);
 
                   return (
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className="absolute z-50 flex items-center gap-1.5 p-1 bg-[#1A1412]/95 backdrop-blur-md text-white rounded-xl shadow-2xl border border-white/20 text-xs whitespace-nowrap animate-in fade-in zoom-in-95 duration-100"
+                      className="absolute z-50 flex items-center gap-1.5 px-2.5 py-1 bg-[#1A1412]/95 backdrop-blur-md text-white rounded-xl shadow-2xl border border-white/20 text-xs whitespace-nowrap animate-in fade-in zoom-in-95 duration-100"
                       style={{
                         left: `${clampedLeft}px`,
                         top: `${clampedTop}px`,
-                        width: `${toolbarWidth}px`,
+                        width: "max-content",
+                        maxWidth: `${Math.max(280, canvasWidth - 16)}px`,
                       }}
                     >
                       {/* 紧凑版自动匹配指示标签 */}
@@ -1052,7 +1679,7 @@ export default function PdfInplaceTextStudio({
                         <span className="text-amber-200">{activeEditingItem.fontSize}pt</span>
                       </span>
 
-                      {/* 字体选择下拉框 (仅显示字体名，不撑大宽度) */}
+                      {/* 字体选择下拉框 */}
                       <select
                         value={activeEditingItem.fontFamily}
                         onChange={(e: any) => {
@@ -1063,17 +1690,17 @@ export default function PdfInplaceTextStudio({
                               ? {
                                   ...prev,
                                   fontFamily: val,
-                                  displayFamily: selected ? selected.label.split(" ")[0] : prev.displayFamily,
+                                  displayFamily: selected ? selected.label.split(" (")[0] : prev.displayFamily,
                                 }
                               : null
                           );
                         }}
-                        className="w-24 sm:w-28 bg-[#2A201C] text-white px-1.5 py-0.5 rounded-lg text-[11px] border border-white/10 focus:outline-none truncate"
+                        className="bg-[#2A201C] text-white px-2 py-0.5 rounded-lg text-[11px] border border-white/10 focus:outline-none max-w-[110px] truncate flex-shrink-0"
                         title="选择字体"
                       >
                         {DOCUMENT_FONTS.map((f) => (
                           <option key={f.value} value={f.value}>
-                            {f.label.split(" ")[0]}
+                            {f.label.split(" (")[0]}
                           </option>
                         ))}
                       </select>
@@ -1110,36 +1737,81 @@ export default function PdfInplaceTextStudio({
                         </button>
                       </div>
 
-                      {/* 字号加减 */}
+                      {/* 字号加减 (同步缩放画框高度) */}
                       <div className="flex items-center gap-0.5 bg-[#2A201C] px-1 py-0.5 rounded-lg text-[11px] font-mono flex-shrink-0">
                         <button
+                          type="button"
                           onClick={() =>
-                            setActiveEditingItem((prev) =>
-                              prev ? { ...prev, fontSize: Math.max(6, prev.fontSize - 1) } : null
-                            )
+                            setActiveEditingItem((prev) => {
+                              if (!prev) return null;
+                              const currentSize = prev.fontSize || 12;
+                              const newSize = Math.max(6, currentSize - 1);
+                              const ratio = newSize / currentSize;
+                              return {
+                                ...prev,
+                                fontSize: newSize,
+                                heightPercent: Math.max(1.5, Math.round(prev.heightPercent * ratio * 100) / 100),
+                              };
+                            })
                           }
                           className="hover:text-amber-400 p-0.5"
-                          title="减小字号"
+                          title="减小字号 (同步缩小边框)"
                         >
                           <Minus className="w-2.5 h-2.5" />
                         </button>
                         <span className="w-5 text-center">{activeEditingItem.fontSize}</span>
                         <button
+                          type="button"
                           onClick={() =>
-                            setActiveEditingItem((prev) =>
-                              prev ? { ...prev, fontSize: Math.min(72, prev.fontSize + 1) } : null
-                            )
+                            setActiveEditingItem((prev) => {
+                              if (!prev) return null;
+                              const currentSize = prev.fontSize || 12;
+                              const newSize = Math.min(72, currentSize + 1);
+                              const ratio = newSize / currentSize;
+                              return {
+                                ...prev,
+                                fontSize: newSize,
+                                heightPercent: Math.max(1.5, Math.round(prev.heightPercent * ratio * 100) / 100),
+                              };
+                            })
                           }
                           className="hover:text-amber-400 p-0.5"
-                          title="增大字号"
+                          title="增大字号 (同步放大边框)"
                         >
                           <Plus className="w-2.5 h-2.5" />
                         </button>
                       </div>
 
+                      {/* 底色透明/白色遮罩切换 */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActiveEditingItem((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  bgHex: prev.bgHex === "transparent" ? "#FFFFFF" : "transparent",
+                                }
+                              : null
+                          )
+                        }
+                        className={`px-1.5 py-0.5 rounded-lg text-[10px] font-medium transition-colors border flex-shrink-0 ${
+                          activeEditingItem.bgHex === "transparent"
+                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                            : "bg-white/20 text-white border-white/30"
+                        }`}
+                        title={
+                          activeEditingItem.bgHex === "transparent"
+                            ? "当前为透明底色（点击切换为白色遮罩）"
+                            : "当前为白色遮罩（点击切换为透明底色）"
+                        }
+                      >
+                        {activeEditingItem.bgHex === "transparent" ? "底:透明" : "底:遮白"}
+                      </button>
+
                       {/* 颜色选择球 */}
                       <label
-                        className="w-5 h-5 rounded-full border border-white/40 cursor-pointer overflow-hidden flex-shrink-0 relative shadow-inner"
+                        className="w-5 h-5 rounded-full border border-white/40 cursor-pointer overflow-hidden flex-shrink-0 relative shadow-inner inline-block"
                         style={{ backgroundColor: activeEditingItem.colorHex || "#000000" }}
                         title="自定义文字颜色"
                       >
@@ -1155,11 +1827,39 @@ export default function PdfInplaceTextStudio({
                         />
                       </label>
 
-                      {/* 确认 / 放弃 / 删除 */}
-                      <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+                      {/* 一键紧密贴合按钮 (去除多余留白) */}
+                      {activeEditingItem.isExistingPatch && activeEditingItem.patchId && (
                         <button
+                          type="button"
+                          onClick={() => {
+                            const p = patches.find((x) => x.id === activeEditingItem.patchId);
+                            if (p) handleAutoFitPatch(p);
+                          }}
+                          className="px-1.5 py-0.5 rounded-lg text-[10px] bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 transition-colors"
+                          title="一键收紧四周间距，去除多余留白"
+                        >
+                          贴合
+                        </button>
+                      )}
+
+                      {/* 工具栏上下翻转按钮 (避免挡住上面一行文字) */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setToolbarPlacement((prev) => (prev === "below" ? "above" : "below"))
+                        }
+                        className="p-1 rounded-lg hover:bg-white/20 text-white/70 hover:text-white transition-colors flex-shrink-0"
+                        title={showBelow ? "将工具栏移到上方" : "将工具栏移到下方（避免遮挡上文）"}
+                      >
+                        {showBelow ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                      </button>
+
+                      {/* 确认 / 放弃 / 删除 */}
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          type="button"
                           onClick={handleCommitInplaceEdit}
-                          className="flex items-center gap-0.5 px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition-colors shadow-sm"
+                          className="flex items-center gap-0.5 px-2.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition-colors shadow-sm"
                           title="完成并暂存修正 (Enter)"
                         >
                           <Check className="w-3 h-3" />
@@ -1167,6 +1867,7 @@ export default function PdfInplaceTextStudio({
                         </button>
                         {activeEditingItem.isExistingPatch && (
                           <button
+                            type="button"
                             onClick={handleDeleteCurrentEditingPatch}
                             className="p-1 rounded-lg hover:bg-red-500/20 text-red-400 transition-colors"
                             title="删除此修补项"
@@ -1175,6 +1876,7 @@ export default function PdfInplaceTextStudio({
                           </button>
                         )}
                         <button
+                          type="button"
                           onClick={handleCancelInplaceEdit}
                           className="p-1 rounded-lg hover:bg-white/20 text-white/70 transition-colors"
                           title="取消 (Esc)"
@@ -1189,7 +1891,11 @@ export default function PdfInplaceTextStudio({
                 {/* 5. 正在自由画框的选区预览 */}
                 {isDrawing && drawStart && drawCurrent && (
                   <div
-                    className="absolute z-40 border-2 border-dashed border-amber-600 bg-amber-500/20 pointer-events-none"
+                    className={`absolute z-40 border-2 border-dashed pointer-events-none ${
+                      editGranularity === "highlight"
+                        ? "border-yellow-500 bg-yellow-400/30"
+                        : "border-amber-600 bg-amber-500/20"
+                    }`}
                     style={{
                       left: `${Math.min(drawStart.xPct, drawCurrent.xPct)}%`,
                       top: `${Math.min(drawStart.yPct, drawCurrent.yPct)}%`,
@@ -1206,7 +1912,9 @@ export default function PdfInplaceTextStudio({
             <div className="flex items-center gap-1.5">
               <HelpCircle className="w-3.5 h-3.5 text-amber-500" />
               <span>
-                {editGranularity === "draw"
+                {editGranularity === "highlight"
+                  ? "高亮模式：直接点击文字或表格单元格自动贴合高亮，再次点击同色文字可取消。"
+                  : editGranularity === "draw"
                   ? "画框模式：在画板上按住鼠标左键拖拽任意矩形，释放即可直接原位打字涂改。"
                   : "Word 模式：点击任意文字即可原地激活打字输入框，回车即可完成修改。"}
               </span>
@@ -1259,7 +1967,7 @@ export default function PdfInplaceTextStudio({
                 </div>
                 {patches.length > 0 && (
                   <button
-                    onClick={() => setPatches([])}
+                    onClick={() => pushHistory([])}
                     className="text-[11px] text-red-500 hover:text-red-700 transition-colors flex items-center gap-1"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -1291,19 +1999,28 @@ export default function PdfInplaceTextStudio({
                           <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-600">
                             第 {p.pageIndex + 1} 页
                           </span>
-                          <span className="truncate line-through opacity-50 text-[11px]">
-                            {p.originalText}
-                          </span>
+                          {p.isHighlight ? (
+                            <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-500">
+                              <Highlighter className="w-3 h-3" />
+                              <span>荧光笔高亮标注</span>
+                            </span>
+                          ) : (
+                            <span className="truncate line-through opacity-50 text-[11px]">
+                              {p.originalText}
+                            </span>
+                          )}
                         </div>
-                        <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold truncate">
-                          <CornerDownRight className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate">{p.newText || "（已涂白擦除）"}</span>
-                        </div>
+                        {!p.isHighlight && (
+                          <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold truncate">
+                            <CornerDownRight className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{p.newText || "（已涂白擦除）"}</span>
+                          </div>
+                        )}
                       </div>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setPatches((prev) => prev.filter((it) => it.id !== p.id));
+                          handleDeletePatch(p.id);
                         }}
                         className="p-1 rounded-lg hover:bg-red-500/10 text-red-500 transition-colors flex-shrink-0"
                         title="删除此项"

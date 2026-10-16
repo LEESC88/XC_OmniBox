@@ -150,6 +150,14 @@ function registerIpcHandlers(options = {}) {
     return await getSpreadsheetService().probeSplitGroups(payload);
   });
 
+  ipcMain.handle('spreadsheet:probe-encoding', async (_e, payload) => {
+    return await getSpreadsheetService().probeTableEncoding(payload);
+  });
+
+  ipcMain.handle('spreadsheet:convert-encoding', async (_e, payload) => {
+    return await getSpreadsheetService().convertTableEncoding(payload);
+  });
+
   // ==================== 实用工具服务 (UtilityService) ====================
   ipcMain.handle('files:scan-folder', async (_e, payload) => {
     return await getUtilityService().scanFolder(payload);

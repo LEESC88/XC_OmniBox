@@ -31,6 +31,7 @@ import {
   FileSearch,
   Sparkles,
   FolderArchive,
+  FileSpreadsheet,
 } from "lucide-react";
 
 import Dropzone from "@/components/Dropzone";
@@ -43,6 +44,7 @@ import ImagesToPdfStudio from "@/components/pdf/ImagesToPdfStudio";
 import PdfOrganizeStudio from "@/components/pdf/PdfOrganizeStudio";
 import OfficeMediaExtractStudio from "@/components/document/OfficeMediaExtractStudio";
 import PdfInplaceTextStudio from "@/components/document/PdfInplaceTextStudio";
+import TableEncodingFixStudio from "@/components/document/TableEncodingFixStudio";
 import AiToolbox from "@/components/AiToolbox";
 
 import { useI18n } from "@/lib/i18n";
@@ -74,6 +76,7 @@ export type DocTabType =
   | "pdf-protect"
   | "pdf-inplace-edit"
   | "office-media-extract"
+  | "table-encoding-fix"
   | "ai-ocr"
   | "ai-searchable-pdf";
 
@@ -537,85 +540,77 @@ export default function DocumentToolbox({
     }
   };
 
-  // Tab definitions with localized labels and badges
+  // Tab definitions with localized labels
   const docTabs = [
     {
       id: "pdf-to-word",
       label: lang === "en" ? "PDF to Word (Reverse)" : "PDF 逆向转 Word",
       icon: FileText,
-      badge: lang === "en" ? "Recommended" : "推荐",
     },
     {
       id: "word-to-pdf",
       label: lang === "en" ? "Word to Ultra PDF" : "Word 转超清 PDF",
       icon: FileCode2,
-      badge: "300DPI",
     },
     {
       id: "pdf-merge",
       label: lang === "en" ? "Merge PDF Documents" : "多 PDF 拼合合并",
       icon: Combine,
-      badge: lang === "en" ? "Multi-select" : "多选",
     },
     {
       id: "pdf-split",
       label: lang === "en" ? "Split & Extract PDF" : "PDF 拆分与范围提取",
       icon: Scissors,
-      badge: lang === "en" ? "Range" : "范围",
     },
     {
       id: "pdf-organize",
       label: lang === "en" ? "PDF Page Organizer" : "PDF 页面可视化调度",
       icon: Layers,
-      badge: lang === "en" ? "Canvas" : "画板",
     },
     {
       id: "pdf-watermark",
       label: lang === "en" ? "PDF Stamp & Watermark" : "PDF 文字印章水印",
       icon: Stamp,
-      badge: lang === "en" ? "Watermark" : "水印",
     },
     {
       id: "pdf-compress",
       label: lang === "en" ? "PDF Smart Compression" : "PDF 智能极限压缩",
       icon: Minimize2,
-      badge: lang === "en" ? "Save 80%" : "省80%",
     },
     {
       id: "images-to-pdf",
       label: lang === "en" ? "Images to PDF Studio" : "多图一键合成 PDF",
       icon: Combine,
-      badge: lang === "en" ? "Lossless" : "高保真",
     },
     {
       id: "pdf-protect",
       label: lang === "en" ? "PDF Encrypt & Unlock" : "PDF 加密解密与权限管理",
       icon: Lock,
-      badge: lang === "en" ? "Encrypt/Unlock" : "加密/解密",
     },
     {
       id: "pdf-inplace-edit",
       label: lang === "en" ? "PDF In-place Text Fix" : "PDF 局部文字原地修正",
       icon: Edit3,
-      badge: lang === "en" ? "In-place" : "原地涂改",
     },
     {
       id: "office-media-extract",
       label: lang === "en" ? "Office Media Extractor" : "Office 媒体资产提取",
       icon: FolderArchive,
-      badge: lang === "en" ? "Lossless" : "原图解构",
+    },
+    {
+      id: "table-encoding-fix",
+      label: lang === "en" ? "CSV / Table Encoding Rescuer" : "表格乱码一键拯救",
+      icon: FileSpreadsheet,
     },
     {
       id: "ai-ocr",
       label: lang === "en" ? "Offline OCR Text" : "离线文字提取 (OCR)",
       icon: Sparkles,
-      badge: lang === "en" ? "Offline" : "离线引擎",
     },
     {
       id: "ai-searchable-pdf",
       label: lang === "en" ? "Dual-Layer Searchable PDF" : "双层可搜索 PDF 制作",
       icon: FileSearch,
-      badge: lang === "en" ? "Dual-Layer" : "双层合成",
     },
   ];
 
@@ -1027,6 +1022,11 @@ export default function DocumentToolbox({
         <OfficeMediaExtractStudio
           initialFile={files[0] || null}
           onClearInitialFile={() => setFiles([])}
+        />
+      ) : activeTab === "table-encoding-fix" ? (
+        <TableEncodingFixStudio
+          incomingFile={files[0] || null}
+          onFileClear={() => setFiles([])}
         />
       ) : activeTab === "ai-ocr" || activeTab === "ai-searchable-pdf" ? (
         <AiToolbox

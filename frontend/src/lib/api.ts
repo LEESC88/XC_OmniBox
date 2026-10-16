@@ -460,6 +460,8 @@ export interface PdfTextPatch {
   bgHex?: string;
   autoFit?: boolean;
   padding?: number;
+  isMoved?: boolean;
+  isHighlight?: boolean;
 }
 
 export interface PdfApplyPatchesResult {
@@ -512,5 +514,95 @@ export async function applyPdfTextPatches(
     patchCount: res.patchCount,
   };
 }
+
+export interface TableEncodingProbeResult {
+  fileName: string;
+  fileSize: number;
+  detectedEncoding: {
+    encoding: string;
+    label: string;
+    confidence: number;
+    hasBom: boolean;
+    bomLength: number;
+  };
+  activeEncoding: string;
+  detectedDelimiter: string;
+  activeDelimiter: string;
+  totalRows: number;
+  totalCols: number;
+  headers: string[];
+  previewRows: string[][];
+  candidateEncodings: Array<{
+    id: string;
+    label: string;
+    snippet: string;
+  }>;
+  hasGibberishRisk: boolean;
+}
+
+export interface TableEncodingConvertResult {
+  success: boolean;
+  blob: Blob;
+  filename: string;
+  totalRows: number;
+  totalCols: number;
+  targetFormat: string;
+}
+
+/**
+ * 探测与分析表格文件字符集编码及分隔符
+ */
+export async function probeTableEncoding(
+  file: File,
+  options?: { overrideEncoding?: string; overrideDelimiter?: string }
+): Promise<TableEncodingProbeResult> {
+  const fileBuffer = await file.arrayBuffer();
+  return await invokeNative<TableEncodingProbeResult>("spreadsheet:probe-encoding", {
+    fileBuffer,
+    fileName: file.name,
+    overrideEncoding: options?.overrideEncoding,
+    overrideDelimiter: options?.overrideDelimiter,
+  });
+}
+
+/**
+ * 智能转换并导出标准双击无乱码表格 (.xlsx / 带 BOM 的 .csv / 纯 UTF-8 .csv)
+ */
+export async function convertTableEncoding(
+  file: File,
+  options: {
+    sourceEncoding?: string;
+    targetFormat: "xlsx" | "csv-bom" | "csv-utf8";
+    delimiter?: string;
+  }
+): Promise<TableEncodingConvertResult> {
+  const fileBuffer = await file.arrayBuffer();
+  const res = await invokeNative<{
+    success: boolean;
+    buffer: Uint8Array | ArrayBuffer;
+    filename: string;
+    mime: string;
+    totalRows: number;
+    totalCols: number;
+    targetFormat: string;
+  }>("spreadsheet:convert-encoding", {
+    fileBuffer,
+    fileName: file.name,
+    sourceEncoding: options.sourceEncoding,
+    targetFormat: options.targetFormat,
+    delimiter: options.delimiter,
+  });
+
+  const blob = new Blob([res.buffer as any], { type: res.mime });
+  return {
+    success: res.success,
+    blob,
+    filename: res.filename,
+    totalRows: res.totalRows,
+    totalCols: res.totalCols,
+    targetFormat: res.targetFormat,
+  };
+}
+
 
 

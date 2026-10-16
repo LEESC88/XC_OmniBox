@@ -53,6 +53,7 @@ import {
   FolderTree,
   CopyCheck,
   FolderArchive,
+  FileSpreadsheet,
 } from "lucide-react";
 import CoconutLogo from "@/components/CoconutLogo";
 import DocumentToolbox, { DocTabType } from "@/components/DocumentToolbox";
@@ -124,8 +125,7 @@ const TOOLS_REGISTRY: {
         id: "pdf-to-word",
         module: "document",
         name: "PDF 逆向转 Word",
-        desc: "高保真提取表格与文本排版",
-        badge: "推荐",
+        desc: "智能提取表格与文本排版",
         icon: FileText,
         keywords: ["pdf", "转word", "提取", "转换", "docx"],
       },
@@ -133,8 +133,7 @@ const TOOLS_REGISTRY: {
         id: "word-to-pdf",
         module: "document",
         name: "Word 转超清 PDF",
-        desc: "打印级矢量无损输出保留清晰度",
-        badge: "300DPI",
+        desc: "矢量无损输出保留清晰度",
         icon: FileCode2,
         keywords: ["word", "转pdf", "超清", "无损", "打印"],
       },
@@ -143,7 +142,6 @@ const TOOLS_REGISTRY: {
         module: "document",
         name: "多 PDF 拼合合并",
         desc: "多文件按需排序混编整合",
-        badge: "多选",
         icon: Combine,
         keywords: ["pdf", "合并", "拼接", "多文件"],
       },
@@ -152,7 +150,6 @@ const TOOLS_REGISTRY: {
         module: "document",
         name: "PDF 拆分与范围提取",
         desc: "按页码区间抽取指定页面",
-        badge: "范围",
         icon: Scissors,
         keywords: ["pdf", "拆分", "提取", "截取", "分割"],
       },
@@ -161,7 +158,6 @@ const TOOLS_REGISTRY: {
         module: "document",
         name: "PDF 页面可视化调度",
         desc: "拖拽调序、单页独立旋转 90°/180°、剔除废页",
-        badge: "画板",
         icon: Layers,
         keywords: ["pdf", "页面", "排序", "调序", "旋转", "删减", "画板"],
       },
@@ -170,7 +166,6 @@ const TOOLS_REGISTRY: {
         module: "document",
         name: "PDF 文字印章水印",
         desc: "倾斜半透明防伪防盗用标记",
-        badge: "水印",
         icon: Stamp,
         keywords: ["pdf", "水印", "文字", "印章", "防伪"],
       },
@@ -178,8 +173,7 @@ const TOOLS_REGISTRY: {
         id: "pdf-compress",
         module: "document",
         name: "PDF 智能极限压缩",
-        desc: "消除冗余流与高保真图像下采样，大幅瘦身体积",
-        badge: "省80%",
+        desc: "消除冗余流与图像下采样，大幅瘦身体积",
         icon: Minimize2,
         keywords: ["pdf", "压缩", "瘦身", "减小", "体积", "优化"],
       },
@@ -188,7 +182,6 @@ const TOOLS_REGISTRY: {
         module: "document",
         name: "多图一键合成 PDF",
         desc: "多张图片拖拽排序，自由合成单页或 A4 标准文档",
-        badge: "高保真",
         icon: Combine,
         keywords: ["图片", "jpg", "png", "转pdf", "合成", "相册"],
       },
@@ -197,7 +190,6 @@ const TOOLS_REGISTRY: {
         module: "document",
         name: "PDF 加密解密与权限管理",
         desc: "AES 工业级加密上锁、已知密码解除限制与隐私元数据一键抹除",
-        badge: "加密/解密",
         icon: Lock,
         keywords: ["pdf", "密码", "加密", "解密", "解锁", "保护", "权限"],
       },
@@ -205,8 +197,7 @@ const TOOLS_REGISTRY: {
         id: "pdf-inplace-edit",
         module: "document",
         name: "PDF 局部文字原地修正",
-        desc: "合同/账单/简历错字日期金额原地涂白重绘修正，100% 保持原版面与矢量印章",
-        badge: "杀手级",
+        desc: "合同/账单/简历错字日期金额原地涂白重绘修正，保持原版面与排版",
         icon: Edit3,
         keywords: ["pdf", "修改文字", "原地修改", "错别字", "替换", "合同", "账单", "金额", "日期", "edit", "fix"],
       },
@@ -215,16 +206,22 @@ const TOOLS_REGISTRY: {
         module: "document",
         name: "Office 媒体资产提取",
         desc: "一键无损批量提取 Word/PPT/Excel 内嵌的原始高清图片与音视频",
-        badge: "原图解构",
         icon: FolderArchive,
         keywords: ["word", "ppt", "excel", "提取图片", "图片提取", "原图", "解构", "docx", "pptx", "xlsx", "media"],
+      },
+      {
+        id: "table-encoding-fix",
+        module: "document",
+        name: "CSV / 表格乱码一键拯救",
+        desc: "智能嗅探网银/财务/ERP导出的 ANSI/GBK 字符集，一键无损还原为 Excel 双击必开表格",
+        icon: FileSpreadsheet,
+        keywords: ["csv", "乱码", "转码", "excel", "锟斤拷", "烫烫烫", "gbk", "gb18030", "utf8", "bom", "网银", "erp", "表格修复"],
       },
       {
         id: "ai-ocr",
         module: "document",
         name: "离线文字提取 (OCR)",
-        desc: "高精提取中英文、书籍、发票及表格字形，支持一键复制与 TXT 导出",
-        badge: "多语言",
+        desc: "提取中英文、书籍、发票及表格字形，支持一键复制与 TXT 导出",
         icon: Sparkles,
         keywords: ["ocr", "文字提取", "识别", "扫描", "文字识别"],
       },
@@ -233,7 +230,6 @@ const TOOLS_REGISTRY: {
         module: "document",
         name: "双层可搜索 PDF 制作",
         desc: "将扫描件/图像注入底层透明文字排版层，实现极速检索与精准划词复制",
-        badge: "双层PDF",
         icon: FileSearch,
         keywords: [
           "可搜索pdf",
@@ -546,7 +542,7 @@ export default function Home() {
   // 客户端自动更新弹窗状态与版本感知
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
-  const [appVersion, setAppVersion] = useState<string>("1.6.1");
+  const [appVersion, setAppVersion] = useState<string>("1.6.4");
 
   // 快捷键指南弹窗状态与全局提示
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);

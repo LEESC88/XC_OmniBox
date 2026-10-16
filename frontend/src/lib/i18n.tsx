@@ -12,48 +12,51 @@ export const TOOL_TRANSLATIONS: Record<
   // Document
   "pdf-to-word": {
     name: "PDF to Word (Reverse)",
-    desc: "High-fidelity extraction of tables and formatted layouts",
-    badge: "Recommended",
+    desc: "Extraction of tables and formatted layouts",
   },
   "word-to-pdf": {
     name: "Word to Ultra PDF",
-    desc: "Print-grade lossless vector rendering with 300+ DPI fidelity",
-    badge: "300DPI",
+    desc: "Vector rendering with 300+ DPI fidelity",
   },
   "pdf-merge": {
     name: "Merge PDF Documents",
     desc: "Sort, combine, and merge multiple PDFs seamlessly",
-    badge: "Multi-select",
   },
   "pdf-split": {
     name: "Split & Extract PDF",
     desc: "Extract pages by custom range or individual slices",
-    badge: "Range",
   },
   "pdf-watermark": {
     name: "PDF Stamp & Watermark",
-    desc: "Anti-counterfeit translucent custom text watermark",
-    badge: "Watermark",
+    desc: "Translucent custom text watermark",
   },
   "pdf-compress": {
     name: "PDF Smart Compression",
     desc: "Clean dead streams and smart downsampling for slim files",
-    badge: "Save 70%",
   },
   "images-to-pdf": {
     name: "Images to PDF Studio",
     desc: "Merge multiple JPG/PNG/WebP into a single vector PDF",
-    badge: "Multi-image",
   },
   "pdf-organize": {
     name: "PDF Page Organizer",
     desc: "Visual page reordering, individual page rotation, and page removal",
-    badge: "Canvas",
   },
   "pdf-protect": {
     name: "PDF Encrypt & Unlock Studio",
     desc: "AES encryption, authorized password unlocking & privacy metadata scrubbing",
-    badge: "Encrypt/Unlock",
+  },
+  "pdf-inplace-edit": {
+    name: "PDF In-place Text Fix",
+    desc: "In-place text editing, baseline & font auto-match for contracts and invoices",
+  },
+  "office-media-extract": {
+    name: "Office Media Extractor",
+    desc: "Extract embedded high-res images, audio, and videos from Word/PPT/Excel",
+  },
+  "table-encoding-fix": {
+    name: "CSV / Table Encoding Rescuer",
+    desc: "Smart charset detection (GBK/ANSI/UTF-8) and lossless conversion to Excel spreadsheets",
   },
 
   // Image

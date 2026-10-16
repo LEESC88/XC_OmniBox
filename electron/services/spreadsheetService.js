@@ -392,6 +392,451 @@ class SpreadsheetService {
       activeSheet: sheetName,
     };
   }
+
+  // ==================== CSV / 表格乱码一键拯救与智能转码 ====================
+
+  /**
+   * 智能检测文本字节流编码 (BOM优先 -> UTF-16嗅探 -> 7位ASCII -> 严格UTF-8 -> CJK特征分析 -> 语言兜底)
+   */
+  static detectEncoding(buffer) {
+    if (!buffer || buffer.length === 0) {
+      return { encoding: 'utf-8', confidence: 1.0, hasBom: false, bomLength: 0, label: 'UTF-8' };
+    }
+
+    // 1. 优先检测权威 BOM 标记
+    if (buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
+      return { encoding: 'utf-8', confidence: 1.0, hasBom: true, bomLength: 3, label: 'UTF-8 (带 BOM 标准)' };
+    }
+    if (buffer.length >= 2 && buffer[0] === 0xFF && buffer[1] === 0xFE) {
+      return { encoding: 'utf-16le', confidence: 1.0, hasBom: true, bomLength: 2, label: 'UTF-16LE (Unicode 标头)' };
+    }
+    if (buffer.length >= 2 && buffer[0] === 0xFE && buffer[1] === 0xFF) {
+      return { encoding: 'utf-16be', confidence: 1.0, hasBom: true, bomLength: 2, label: 'UTF-16BE (Unicode 标头)' };
+    }
+
+    // 2. 检测无 BOM 的 UTF-16 文本 (SAP/财务系统 Unicode TXT 导出常见)
+    const sampleLen = Math.min(buffer.length, 8192);
+    if (sampleLen >= 32) {
+      let nullCountEven = 0;
+      let nullCountOdd = 0;
+      for (let i = 0; i < sampleLen; i++) {
+        if (buffer[i] === 0) {
+          if (i % 2 === 0) nullCountEven++;
+          else nullCountOdd++;
+        }
+      }
+      if (nullCountOdd > sampleLen * 0.25 && nullCountEven === 0) {
+        return { encoding: 'utf-16le', confidence: 0.95, hasBom: false, bomLength: 0, label: 'UTF-16LE (无 BOM)' };
+      }
+      if (nullCountEven > sampleLen * 0.25 && nullCountOdd === 0) {
+        return { encoding: 'utf-16be', confidence: 0.95, hasBom: false, bomLength: 0, label: 'UTF-16BE (无 BOM)' };
+      }
+    }
+
+    // 3. 检测纯 7 位 ASCII
+    let isPureAscii = true;
+    for (let i = 0; i < sampleLen; i++) {
+      if (buffer[i] >= 0x80) {
+        isPureAscii = false;
+        break;
+      }
+    }
+    if (isPureAscii) {
+      return { encoding: 'utf-8', confidence: 0.99, hasBom: false, bomLength: 0, label: 'ASCII (纯英数兼容)' };
+    }
+
+    // 4. 尝试严谨模式的 UTF-8 (若包含非法多字节序列立即报错排除)
+    try {
+      const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+      utf8Decoder.decode(buffer.subarray(0, sampleLen));
+      return {
+        encoding: 'utf-8',
+        confidence: 0.99,
+        hasBom: false,
+        bomLength: 0,
+        label: 'UTF-8 (无 BOM - 原生 Excel 易乱码)',
+      };
+    } catch (_) {}
+
+    // 5. UTF-8 校验失败，测试国内网银/ERP最主流的 GB18030 / GBK / GB2312
+    try {
+      const gbkDecoder = new TextDecoder('gb18030', { fatal: true });
+      const text = gbkDecoder.decode(buffer.subarray(0, sampleLen));
+      let cjkCount = 0;
+      for (let i = 0; i < text.length; i++) {
+        const code = text.charCodeAt(i);
+        if (code >= 0x4e00 && code <= 0x9fa5) cjkCount++;
+      }
+      if (cjkCount > 0) {
+        return {
+          encoding: 'gb18030',
+          confidence: 0.98,
+          hasBom: false,
+          bomLength: 0,
+          label: 'GBK / GB18030 (国内网银/ERP/税控标准)',
+        };
+      }
+    } catch (_) {}
+
+    // 6. 测试繁体中文 Big5
+    try {
+      const big5Decoder = new TextDecoder('big5', { fatal: true });
+      const text = big5Decoder.decode(buffer.subarray(0, sampleLen));
+      let cjkCount = 0;
+      for (let i = 0; i < text.length; i++) {
+        const code = text.charCodeAt(i);
+        if (code >= 0x4e00 && code <= 0x9fa5) cjkCount++;
+      }
+      if (cjkCount > 0) {
+        return {
+          encoding: 'big5',
+          confidence: 0.95,
+          hasBom: false,
+          bomLength: 0,
+          label: 'Big5 (港台繁体中文)',
+        };
+      }
+    } catch (_) {}
+
+    // 7. 测试日文 Shift_JIS
+    try {
+      const sjisDecoder = new TextDecoder('shift_jis', { fatal: true });
+      sjisDecoder.decode(buffer.subarray(0, sampleLen));
+      return {
+        encoding: 'shift_jis',
+        confidence: 0.90,
+        hasBom: false,
+        bomLength: 0,
+        label: 'Shift_JIS (日文标准)',
+      };
+    } catch (_) {}
+
+    // 8. 兜底为 Windows-1252 (西欧 ANSI)
+    return {
+      encoding: 'windows-1252',
+      confidence: 0.70,
+      hasBom: false,
+      bomLength: 0,
+      label: 'Windows-1252 (ANSI/西欧)',
+    };
+  }
+
+  /**
+   * 自动探测 CSV 字段分隔符 (, / \t / ; / |)
+   */
+  static detectDelimiter(sampleText) {
+    if (!sampleText) return ',';
+    const lines = sampleText.split(/\r?\n/).filter(l => l.trim().length > 0).slice(0, 20);
+    if (lines.length === 0) return ',';
+
+    const candidates = [',', '\t', ';', '|'];
+    let bestDelimiter = ',';
+    let bestScore = -1;
+
+    for (const delim of candidates) {
+      let counts = [];
+      for (const line of lines) {
+        let inside = false;
+        let count = 0;
+        for (let i = 0; i < line.length; i++) {
+          if (line[i] === '"') inside = !inside;
+          else if (!inside && line[i] === delim) count++;
+        }
+        counts.push(count);
+      }
+
+      if (counts.length === 0 || counts[0] === 0) continue;
+
+      const first = counts[0];
+      const isUniform = counts.every(c => c === first && c > 0);
+      const avg = counts.reduce((a, b) => a + b, 0) / counts.length;
+
+      let score = avg * (isUniform ? 10 : 1);
+      if (delim === '\t' && isUniform) score *= 1.2;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestDelimiter = delim;
+      }
+    }
+
+    return bestDelimiter;
+  }
+
+  /**
+   * RFC 4180 标准流式 CSV 行解析器 (严谨支持引号转义 ""、内嵌换行与自定义分隔符)
+   */
+  static parseCsvRows(text, delimiter = ',') {
+    const rows = [];
+    let currentRow = [];
+    let currentCell = '';
+    let insideQuotes = false;
+    let i = 0;
+    const len = text.length;
+
+    while (i < len) {
+      const ch = text[i];
+
+      if (ch === '"') {
+        if (insideQuotes && text[i + 1] === '"') {
+          currentCell += '"';
+          i += 2;
+          continue;
+        } else {
+          insideQuotes = !insideQuotes;
+          i++;
+          continue;
+        }
+      }
+
+      if (!insideQuotes) {
+        if (ch === delimiter) {
+          currentRow.push(currentCell);
+          currentCell = '';
+          i++;
+          continue;
+        }
+        if (ch === '\r') {
+          if (text[i + 1] === '\n') i++;
+          currentRow.push(currentCell);
+          rows.push(currentRow);
+          currentRow = [];
+          currentCell = '';
+          i++;
+          continue;
+        }
+        if (ch === '\n') {
+          currentRow.push(currentCell);
+          rows.push(currentRow);
+          currentRow = [];
+          currentCell = '';
+          i++;
+          continue;
+        }
+      }
+
+      currentCell += ch;
+      i++;
+    }
+
+    if (currentCell.length > 0 || currentRow.length > 0) {
+      currentRow.push(currentCell);
+      rows.push(currentRow);
+    }
+
+    // 剔除末尾多余空行
+    if (rows.length > 0 && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === '') {
+      rows.pop();
+    }
+
+    return rows;
+  }
+
+  /**
+   * RFC 4180 标准 CSV 字符串格式化
+   */
+  static formatToCsv(rows, delimiter = ',') {
+    return rows.map(row => {
+      return row.map(cell => {
+        const str = String(cell ?? '');
+        if (str.includes(delimiter) || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      }).join(delimiter);
+    }).join('\r\n');
+  }
+
+  /**
+   * 获取多编码候选快照与文本预览片段 (供前端用户实时比对切换)
+   */
+  static getCandidateEncodings(buffer) {
+    const candidateList = [
+      { id: 'gb18030', label: 'GBK / GB18030 (国内网银/财务/ERP标准)' },
+      { id: 'utf-8', label: 'UTF-8 (通用国际标准)' },
+      { id: 'big5', label: 'Big5 (港台繁体中文)' },
+      { id: 'shift_jis', label: 'Shift_JIS (日文编码)' },
+      { id: 'windows-1252', label: 'Windows-1252 (西欧 ANSI)' },
+    ];
+
+    const sample = buffer.subarray(0, 1024);
+    return candidateList.map(item => {
+      let previewSnippet = '';
+      try {
+        const dec = new TextDecoder(item.id);
+        previewSnippet = dec.decode(sample).substring(0, 60).replace(/\r?\n/g, ' ');
+      } catch (_) {
+        previewSnippet = '（无法以此编码解码）';
+      }
+      return {
+        id: item.id,
+        label: item.label,
+        snippet: previewSnippet,
+      };
+    });
+  }
+
+  /**
+   * 探测分析表格编码与结构 (CSV/TSV/TXT 智能字符集识别与分隔符嗅探)
+   */
+  static async probeTableEncoding({ fileBuffer, fileName = 'table.csv', overrideEncoding, overrideDelimiter }) {
+    if (!fileBuffer || (Buffer.isBuffer(fileBuffer) && fileBuffer.length === 0)) {
+      throw new Error('未接收到有效的表格数据');
+    }
+    const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
+    const fileSize = buffer.length;
+
+    // 1. 自动探测字符编码
+    const detected = SpreadsheetService.detectEncoding(buffer);
+    const activeEncoding = overrideEncoding || detected.encoding;
+
+    // 2. 解码文本 (使用指定的编码或探测到的编码)
+    let fullText = '';
+    try {
+      const decoder = new TextDecoder(activeEncoding);
+      const sliceBuffer = detected.hasBom && !overrideEncoding ? buffer.subarray(detected.bomLength) : buffer;
+      fullText = decoder.decode(sliceBuffer);
+    } catch (_) {
+      fullText = new TextDecoder('utf-8').decode(buffer);
+    }
+
+    // 3. 自动探测分隔符
+    const detectedDelimiter = SpreadsheetService.detectDelimiter(fullText);
+    const activeDelimiter = overrideDelimiter || detectedDelimiter;
+
+    // 4. RFC 4180 流式解析表格行
+    const rows = SpreadsheetService.parseCsvRows(fullText, activeDelimiter);
+    const totalRows = rows.length;
+    const headers = totalRows > 0 ? rows[0] : [];
+    const totalCols = headers.length;
+
+    // 5. 候选编码方案生成及预览片段
+    const candidateEncodings = SpreadsheetService.getCandidateEncodings(buffer);
+
+    return {
+      fileName,
+      fileSize,
+      detectedEncoding: detected,
+      activeEncoding,
+      detectedDelimiter,
+      activeDelimiter,
+      totalRows,
+      totalCols,
+      headers,
+      previewRows: rows.slice(1, 21),
+      candidateEncodings,
+      hasGibberishRisk: detected.encoding === 'gb18030' || (detected.encoding === 'utf-8' && !detected.hasBom),
+    };
+  }
+
+  /**
+   * 智能转码并导出双击必开的标准表格 (.xlsx / 带 BOM 的 .csv / 纯 UTF-8 .csv)
+   */
+  static async convertTableEncoding({
+    fileBuffer,
+    fileName = 'table.csv',
+    sourceEncoding,
+    targetFormat = 'xlsx',
+    delimiter,
+  }) {
+    if (!fileBuffer || (Buffer.isBuffer(fileBuffer) && fileBuffer.length === 0)) {
+      throw new Error('未接收到有效的表格数据');
+    }
+    const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
+
+    // 1. 确定源字符集
+    const detected = SpreadsheetService.detectEncoding(buffer);
+    const encodingToUse = sourceEncoding || detected.encoding;
+
+    // 2. 解码完整文本
+    let fullText = '';
+    try {
+      const decoder = new TextDecoder(encodingToUse);
+      const sliceBuffer = detected.hasBom && !sourceEncoding ? buffer.subarray(detected.bomLength) : buffer;
+      fullText = decoder.decode(sliceBuffer);
+    } catch (_) {
+      fullText = new TextDecoder('utf-8').decode(buffer);
+    }
+
+    // 3. 确定分隔符并解析
+    const activeDelimiter = delimiter || SpreadsheetService.detectDelimiter(fullText);
+    const rows = SpreadsheetService.parseCsvRows(fullText, activeDelimiter);
+    if (rows.length === 0) {
+      throw new Error('未解析到有效的表格行数据');
+    }
+
+    const baseName = fileName.replace(/\.[^/.]+$/, '');
+
+    // 4. 格式化输出
+    if (targetFormat === 'xlsx') {
+      const ws = {};
+      const maxCols = Math.max(...rows.map(r => r.length), 1);
+      const range = { s: { c: 0, r: 0 }, e: { c: maxCols - 1, r: rows.length - 1 } };
+
+      for (let R = 0; R < rows.length; ++R) {
+        const row = rows[R];
+        for (let C = 0; C < row.length; ++C) {
+          const cellRef = XLSX.utils.encode_cell({ c: C, r: R });
+          const val = row[C] ?? '';
+
+          // 核心保护：前导零字符（如 00123）、身份证号（18位）、银行卡号（16-19位）强制保留为字符串格式
+          // 纯数字且无前导零的数值安全转为数值单元格（便于公式统计）
+          const isLeadZero = val.length > 1 && val.startsWith('0') && !val.startsWith('0.');
+          const isLongNumeric = val.length >= 15 && /^\d+$/.test(val);
+          const isPureNumber = /^-?\d+(\.\d+)?$/.test(val) && !isLeadZero && !isLongNumeric;
+
+          if (R > 0 && isPureNumber) {
+            ws[cellRef] = { t: 'n', v: Number(val) };
+          } else {
+            ws[cellRef] = { t: 's', v: String(val) };
+          }
+        }
+      }
+      ws['!ref'] = XLSX.utils.encode_range(range);
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '标准表格');
+      const outBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      return {
+        success: true,
+        buffer: Buffer.from(outBuffer),
+        filename: `${baseName}_标准表格.xlsx`,
+        mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        totalRows: rows.length,
+        totalCols: maxCols,
+        targetFormat: 'xlsx',
+      };
+    } else if (targetFormat === 'csv-bom') {
+      // 带 UTF-8 BOM 的 CSV：Excel 双击必开且绝不乱码
+      const csvStr = SpreadsheetService.formatToCsv(rows, ',');
+      const outBuffer = Buffer.concat([Buffer.from([0xEF, 0xBB, 0xBF]), Buffer.from(csvStr, 'utf-8')]);
+
+      return {
+        success: true,
+        buffer: outBuffer,
+        filename: `${baseName}_Excel兼容(带BOM).csv`,
+        mime: 'text/csv; charset=utf-8',
+        totalRows: rows.length,
+        totalCols: Math.max(...rows.map(r => r.length), 1),
+        targetFormat: 'csv-bom',
+      };
+    } else {
+      // 纯净 UTF-8 CSV (无 BOM，适合 Python/数据库/接口导入)
+      const csvStr = SpreadsheetService.formatToCsv(rows, ',');
+      const outBuffer = Buffer.from(csvStr, 'utf-8');
+
+      return {
+        success: true,
+        buffer: outBuffer,
+        filename: `${baseName}_标准UTF8.csv`,
+        mime: 'text/csv; charset=utf-8',
+        totalRows: rows.length,
+        totalCols: Math.max(...rows.map(r => r.length), 1),
+        targetFormat: 'csv-utf8',
+      };
+    }
+  }
 }
 
 module.exports = SpreadsheetService;

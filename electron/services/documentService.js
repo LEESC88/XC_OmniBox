@@ -1171,32 +1171,46 @@ class DocumentService {
       const items = [];
       let itemIdx = 0;
 
-      // 提取并解析当前页所用字体的详细排版属性 (字族、衬线/无衬线、粗体、斜体)
+      // 异步预加载并解析当前页所用字体的详细排版属性 (字族、衬线/无衬线、粗体、斜体)
       const fontMetaCache = new Map();
-      const resolveFontMeta = (fontId) => {
-        if (!fontId) return { family: 'times', displayFamily: 'Times New Roman', isBold: false, isItalic: false, rawName: '' };
-        if (fontMetaCache.has(fontId)) return fontMetaCache.get(fontId);
+      const uniqueFontIds = [...new Set((textContent.items || []).map(it => it.fontName).filter(Boolean))];
 
+      for (const fid of uniqueFontIds) {
         let rawName = '';
         let fallbackName = '';
         let bold = false;
         let italic = false;
 
-        try {
-          if (page.commonObjs && typeof page.commonObjs.get === 'function') {
-            page.commonObjs.get(fontId, (obj) => {
-              if (obj) {
-                rawName = obj.name || obj.loadedName || '';
-                fallbackName = obj.fallbackName || '';
-                bold = Boolean(obj.bold || /bold|black|heavy|semibold|bd/i.test(rawName));
-                italic = Boolean(obj.italic || /italic|oblique|it/i.test(rawName));
-              }
+        if (page.commonObjs && typeof page.commonObjs.get === 'function') {
+          try {
+            const fontObj = await new Promise((resolve) => {
+              let settled = false;
+              const timer = setTimeout(() => {
+                if (!settled) {
+                  settled = true;
+                  resolve(null);
+                }
+              }, 120);
+              page.commonObjs.get(fid, (obj) => {
+                if (!settled) {
+                  settled = true;
+                  clearTimeout(timer);
+                  resolve(obj);
+                }
+              });
             });
-          }
-        } catch (_) {}
 
-        if (!rawName && textContent.styles && textContent.styles[fontId]) {
-          const style = textContent.styles[fontId];
+            if (fontObj) {
+              rawName = fontObj.name || fontObj.loadedName || '';
+              fallbackName = fontObj.fallbackName || '';
+              bold = Boolean(fontObj.bold || /bold|black|heavy|semibold|bd/i.test(rawName));
+              italic = Boolean(fontObj.italic || /italic|oblique|it/i.test(rawName));
+            }
+          } catch (_) {}
+        }
+
+        if (!rawName && textContent.styles && textContent.styles[fid]) {
+          const style = textContent.styles[fid];
           fallbackName = style.fontFamily || '';
         }
 
@@ -1245,9 +1259,12 @@ class DocumentService {
           displayFamily = 'Times New Roman';
         }
 
-        const meta = { family, displayFamily, isBold: bold, isItalic: italic, rawName };
-        fontMetaCache.set(fontId, meta);
-        return meta;
+        fontMetaCache.set(fid, { family, displayFamily, isBold: bold, isItalic: italic, rawName });
+      }
+
+      const resolveFontMeta = (fontId) => {
+        if (!fontId) return { family: 'times', displayFamily: 'Times New Roman', isBold: false, isItalic: false, rawName: '' };
+        return fontMetaCache.get(fontId) || { family: 'times', displayFamily: 'Times New Roman', isBold: false, isItalic: false, rawName: '' };
       };
 
       for (const item of (textContent.items || [])) {
@@ -1338,11 +1355,17 @@ class DocumentService {
         }
       }
 
-      // 将同在一行 (Y 坐标差值 <= 4pt) 的字元聚合为自然文本行 Lines
+      // 将同在一行 (Y 坐标差值 <= 3.5pt) 且水平紧密连续的字元聚合为自然文本块（超出间隙判定为表格跨列/独立单元格，严禁跨格串行）
       const lines = [];
       const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x);
       for (const it of sorted) {
-        const existingLine = lines.find((l) => Math.abs(l.y - it.y) <= 4);
+        const maxGap = Math.max(10, (it.fontSize || 12) * 1.35);
+        const existingLine = lines.find((l) => {
+          if (Math.abs(l.y - it.y) > 3.5) return false;
+          const lastItem = l.items[l.items.length - 1];
+          const gap = it.x - (lastItem.x + lastItem.width);
+          return gap >= -4 && gap <= maxGap;
+        });
         if (existingLine) {
           // 智能分词与空格保护：基于真实字符间距判定是否需要补空格，严禁粗暴盲目加空格破坏连字符/标点
           const prevItem = existingLine.items[existingLine.items.length - 1];
@@ -1589,16 +1612,23 @@ class DocumentService {
           font = await pdfDoc.embedFont(stdFont);
         }
       } else {
-        // CJK 兜底
-        const cjkPath = 'C:/Windows/Fonts/simsun.ttc';
-        if (fs.existsSync(cjkPath)) {
-          try {
-            const fontBytes = fs.readFileSync(cjkPath);
-            font = await pdfDoc.embedFont(fontBytes, { subset: false });
-          } catch (_) {}
+        // CJK 真实中文字体（优先使用 Windows 原生 TrueType 黑体/等线/宋体，启用 glyph 子集化嵌入，杜绝 TTC 报错）
+        const cjkCandidates = isBold
+          ? ['C:/Windows/Fonts/simsunb.ttf', 'C:/Windows/Fonts/simhei.ttf', 'C:/Windows/Fonts/Dengb.ttf', 'C:/Windows/Fonts/Deng.ttf']
+          : ['C:/Windows/Fonts/simhei.ttf', 'C:/Windows/Fonts/Deng.ttf', 'C:/Windows/Fonts/simkai.ttf', 'C:/Windows/Fonts/simfang.ttf', 'C:/Windows/Fonts/simsunb.ttf'];
+        for (const cjkPath of cjkCandidates) {
+          if (fs.existsSync(cjkPath)) {
+            try {
+              const fontBytes = fs.readFileSync(cjkPath);
+              font = await pdfDoc.embedFont(fontBytes, { subset: true });
+              if (font) break;
+            } catch (_) {}
+          }
         }
         if (!font) {
-          font = await pdfDoc.embedFont(isBold ? StandardFonts.TimesRomanBold : StandardFonts.TimesRoman);
+          try {
+            font = await pdfDoc.embedFont(isBold ? StandardFonts.TimesRomanBold : StandardFonts.TimesRoman);
+          } catch (_) {}
         }
       }
 
@@ -1629,7 +1659,7 @@ class DocumentService {
         patch.width > 0 &&
         patch.height > 0;
 
-      if (!hasExactVectorCoords && patch.leftPercent !== undefined && patch.topPercent !== undefined) {
+      if ((patch.isMoved || !hasExactVectorCoords) && patch.leftPercent !== undefined && patch.topPercent !== undefined) {
         x = (Number(patch.leftPercent) / 100) * pWidth;
         width = Math.max(2, (Number(patch.widthPercent) / 100) * pWidth);
         const top = (Number(patch.topPercent) / 100) * pHeight;
@@ -1648,39 +1678,59 @@ class DocumentService {
       const colorHex = patch.colorHex || '#000000';
       const padding = typeof patch.padding === 'number' ? patch.padding : 1.5;
 
-      // 1. 涂白遮罩：覆盖原文字印迹
+      // 0. 荧光高亮笔标注模式 (Highlight Mode - 办公软件级 Multiply 半透明高亮，保留底层文字笔触)
+      if (patch.isHighlight) {
+        const { BlendMode } = require('pdf-lib');
+        const hlColor = parseHex(patch.bgHex || patch.colorHex || '#FFD600');
+        const hlPaddingX = typeof patch.padding === 'number' ? patch.padding : 1.5;
+        const hlPaddingY = 1.0;
+        const hlY = isBaseline ? (y - height * 0.22) - hlPaddingY : y - hlPaddingY;
+        const hlH = height * 1.08 + hlPaddingY * 2;
+        page.drawRectangle({
+          x: x - hlPaddingX,
+          y: hlY,
+          width: width + hlPaddingX * 2,
+          height: hlH,
+          color: hlColor,
+          opacity: 0.58,
+          blendMode: BlendMode.Multiply,
+        });
+        continue;
+      }
+
+      // 1. 加载字体与计算文字真实渲染尺寸（确保 100% 保持原检测字号与加粗格式，严禁私自缩放字号）
+      const isBold = Boolean(patch.isBold);
+      const isItalic = Boolean(patch.isItalic);
+      const targetFontSize = Number(patch.fontSize) > 0 ? Number(patch.fontSize) : Math.max(6, height * 0.85);
+      const font = await loadFont(patch.fontFamily, isBold, isItalic, newText);
+
+      let measuredWidth = width;
+      if (newText.length > 0 && font) {
+        try {
+          measuredWidth = font.widthOfTextAtSize(newText, targetFontSize);
+        } catch (_) {}
+      }
+
+      // 2. 涂白遮罩：覆盖原文字印迹并容纳新文字（若新文字更长，遮罩自适应向右扩展，保证彻底擦除底痕且绝不截断）
       if (bgHex && bgHex.toLowerCase() !== 'transparent') {
         const maskColor = parseHex(bgHex);
-        const maskY = isBaseline ? (y - height * 0.25) - padding : y - padding;
-        const maskH = height + padding * 2;
+        const effectiveHeight = Math.max(height, targetFontSize * 1.15);
+        const maskH = effectiveHeight + padding * 2;
+        const maskY = isBaseline ? (y - effectiveHeight * 0.25) - padding : y - padding;
+        const maskWidth = Math.max(width, measuredWidth) + padding * 2;
+
         page.drawRectangle({
           x: x - padding,
           y: maskY,
-          width: width + padding * 2,
+          width: maskWidth,
           height: maskH,
           color: maskColor,
         });
       }
 
-      // 2. 原地绘制新文字
-      if (newText.length > 0) {
-        const isBold = Boolean(patch.isBold);
-        const isItalic = Boolean(patch.isItalic);
-        const font = await loadFont(patch.fontFamily, isBold, isItalic, newText);
+      // 3. 原地绘制新文字（字号、粗体、斜体与字体系列 100% 严格执行，绝对不发生形变或缩小）
+      if (newText.length > 0 && font) {
         const textColor = parseHex(colorHex);
-        let targetFontSize = Number(patch.fontSize) > 0 ? Number(patch.fontSize) : Math.max(6, height * 0.85);
-
-        // 自适应排版：若新文字超出原区域，自动微缩字号，保持不侵入邻近排版
-        if (patch.autoFit !== false && width > 4) {
-          try {
-            const measuredWidth = font.widthOfTextAtSize(newText, targetFontSize);
-            if (measuredWidth > width * 1.03) {
-              const scaled = targetFontSize * (width / measuredWidth);
-              targetFontSize = Math.max(5, scaled);
-            }
-          } catch (_) {}
-        }
-
         const drawY = isBaseline ? y : y + (height - targetFontSize) / 2 + targetFontSize * 0.15;
         try {
           page.drawText(newText, {
