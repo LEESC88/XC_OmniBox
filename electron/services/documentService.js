@@ -1259,33 +1259,83 @@ class DocumentService {
         const fontAscent = fontHeight * 0.82;
         const left = tx[4];
         const top = tx[5] - fontAscent;
-
-        const leftPercent = Math.max(0, Math.min(100, (left / renderWidth) * 100));
-        const topPercent = Math.max(0, Math.min(100, (top / renderHeight) * 100));
-        const widthPercent = Math.max(0.2, Math.min(100 - leftPercent, (item.width / renderWidth) * 100));
-        const heightPercent = Math.max(0.5, Math.min(100 - topPercent, (fontHeight / renderHeight) * 100));
-
         const fontMeta = resolveFontMeta(item.fontName);
 
-        items.push({
-          id: `p${i - 1}_i${itemIdx++}`,
-          str: rawStr,
-          x: Math.round(item.transform[4] * 10) / 10,
-          y: Math.round(item.transform[5] * 10) / 10,
-          width: Math.max(2, Math.round(item.width * 10) / 10),
-          height: Math.max(6, Math.round(fontHeight * 10) / 10),
-          fontSize: Math.round(fontHeight * 10) / 10,
-          fontName: item.fontName || '',
-          fontFamily: fontMeta.family,
-          displayFamily: fontMeta.displayFamily,
-          isBold: fontMeta.isBold,
-          isItalic: fontMeta.isItalic,
-          detectedFont: fontMeta.rawName || fontMeta.family,
-          leftPercent: Math.round(leftPercent * 100) / 100,
-          topPercent: Math.round(topPercent * 100) / 100,
-          widthPercent: Math.round(widthPercent * 100) / 100,
-          heightPercent: Math.round(heightPercent * 100) / 100,
-        });
+        // 检测 item.str 是否包含多个以空格分隔的单词 (如 "favourite fruit is apple")
+        // 若包含，拆解为独立单词词元 (Sub-word tokens)，使用户能精准点选/加粗/修改单字而绝不牵连整句
+        const wordMatches = [];
+        const regex = /\S+/g;
+        let match;
+        while ((match = regex.exec(rawStr)) !== null) {
+          wordMatches.push({ word: match[0], index: match.index });
+        }
+
+        if (wordMatches.length > 1 && ctx && typeof ctx.measureText === 'function') {
+          ctx.font = `${Math.round(fontHeight)}px sans-serif`;
+          const totalMeasured = ctx.measureText(rawStr).width || 1;
+          const scaleFactor = (item.width || totalMeasured) / totalMeasured;
+
+          for (const wm of wordMatches) {
+            const prefix = rawStr.substring(0, wm.index);
+            const prefixW = ctx.measureText(prefix).width * scaleFactor;
+            const wordW = ctx.measureText(wm.word).width * scaleFactor;
+
+            const wordX = item.transform[4] + prefixW;
+            const wordY = item.transform[5];
+            const wordLeft = left + prefixW;
+            const wordTop = top;
+
+            const wLeftPercent = Math.max(0, Math.min(100, (wordLeft / renderWidth) * 100));
+            const wTopPercent = Math.max(0, Math.min(100, (wordTop / renderHeight) * 100));
+            const wWidthPercent = Math.max(0.2, Math.min(100 - wLeftPercent, (wordW / renderWidth) * 100));
+            const wHeightPercent = Math.max(0.5, Math.min(100 - wTopPercent, (fontHeight / renderHeight) * 100));
+
+            items.push({
+              id: `p${i - 1}_i${itemIdx++}`,
+              str: wm.word,
+              x: Math.round(wordX * 10) / 10,
+              y: Math.round(wordY * 10) / 10,
+              width: Math.max(2, Math.round(wordW * 10) / 10),
+              height: Math.max(6, Math.round(fontHeight * 10) / 10),
+              fontSize: Math.round(fontHeight * 10) / 10,
+              fontName: item.fontName || '',
+              fontFamily: fontMeta.family,
+              displayFamily: fontMeta.displayFamily,
+              isBold: fontMeta.isBold,
+              isItalic: fontMeta.isItalic,
+              detectedFont: fontMeta.rawName || fontMeta.family,
+              leftPercent: Math.round(wLeftPercent * 100) / 100,
+              topPercent: Math.round(wTopPercent * 100) / 100,
+              widthPercent: Math.round(wWidthPercent * 100) / 100,
+              heightPercent: Math.round(wHeightPercent * 100) / 100,
+            });
+          }
+        } else {
+          const leftPercent = Math.max(0, Math.min(100, (left / renderWidth) * 100));
+          const topPercent = Math.max(0, Math.min(100, (top / renderHeight) * 100));
+          const widthPercent = Math.max(0.2, Math.min(100 - leftPercent, (item.width / renderWidth) * 100));
+          const heightPercent = Math.max(0.5, Math.min(100 - topPercent, (fontHeight / renderHeight) * 100));
+
+          items.push({
+            id: `p${i - 1}_i${itemIdx++}`,
+            str: rawStr,
+            x: Math.round(item.transform[4] * 10) / 10,
+            y: Math.round(item.transform[5] * 10) / 10,
+            width: Math.max(2, Math.round(item.width * 10) / 10),
+            height: Math.max(6, Math.round(fontHeight * 10) / 10),
+            fontSize: Math.round(fontHeight * 10) / 10,
+            fontName: item.fontName || '',
+            fontFamily: fontMeta.family,
+            displayFamily: fontMeta.displayFamily,
+            isBold: fontMeta.isBold,
+            isItalic: fontMeta.isItalic,
+            detectedFont: fontMeta.rawName || fontMeta.family,
+            leftPercent: Math.round(leftPercent * 100) / 100,
+            topPercent: Math.round(topPercent * 100) / 100,
+            widthPercent: Math.round(widthPercent * 100) / 100,
+            heightPercent: Math.round(heightPercent * 100) / 100,
+          });
+        }
       }
 
       // 将同在一行 (Y 坐标差值 <= 4pt) 的字元聚合为自然文本行 Lines

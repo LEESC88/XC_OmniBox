@@ -92,12 +92,14 @@ export default function PdfInplaceTextStudio({
   // 页面导航与缩放
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [zoomScale, setZoomScale] = useState(1.0);
-
-  // 编辑粒度：'line' 整行编辑 (最像 Word) | 'word' 单词精修 | 'draw' 自由画框
-  const [editGranularity, setEditGranularity] = useState<"line" | "word" | "draw">("line");
+  // 编辑粒度：'word' 单字精修 (默认，修改/加粗单字绝不影响整句) | 'line' 整行编辑 | 'draw' 自由画框
+  const [editGranularity, setEditGranularity] = useState<"word" | "line" | "draw">("word");
 
   // 待应用修正补丁列表
   const [patches, setPatches] = useState<PdfTextPatch[]>([]);
+
+  // 全屏沉浸工作台模式
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // 当前正在原地编辑的活跃项目 (Active Inline Editing Target)
   const [activeEditingItem, setActiveEditingItem] = useState<{
@@ -124,6 +126,17 @@ export default function PdfInplaceTextStudio({
     bgHex: string;
     autoFit: boolean;
   } | null>(null);
+
+  // Esc 键退出全屏监听 (若当前没有正在打字原地修改)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isFullscreen && !activeEditingItem) {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFullscreen, activeEditingItem]);
 
   // 自由画框拖拽状态 (Drag-to-draw box)
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -609,7 +622,13 @@ export default function PdfInplaceTextStudio({
   }
 
   return (
-    <div className="space-y-4">
+    <div
+      className={
+        isFullscreen
+          ? "fixed inset-0 z-[9999] w-screen h-screen bg-[#FDFCFB] dark:bg-[#150F0D] p-3 sm:p-5 flex flex-col overflow-hidden shadow-2xl"
+          : "space-y-4"
+      }
+    >
       {/* 顶部控制栏 */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
         <div className="flex items-center gap-3">
@@ -635,23 +654,8 @@ export default function PdfInplaceTextStudio({
 
         {/* 顶部工具栏：粒度切换 + 翻页 + 缩放 */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* 编辑粒度切换器 */}
+          {/* 编辑粒度切换器：默认单字精修，绝不连带整句 */}
           <div className="flex items-center bg-[#D2BCAB]/20 dark:bg-[#4D392E]/30 p-1 rounded-xl">
-            <button
-              onClick={() => {
-                setEditGranularity("line");
-                setActiveEditingItem(null);
-              }}
-              className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
-                editGranularity === "line"
-                  ? "bg-white dark:bg-[#2D221E] text-amber-600 dark:text-amber-400 shadow-sm"
-                  : "text-[#7D6B5D] dark:text-[#BCA89B] hover:text-[#2D221E]"
-              }`}
-              title="整行自然编辑 (最像 Word)"
-            >
-              <AlignLeft className="w-3.5 h-3.5" />
-              <span>整行编辑</span>
-            </button>
             <button
               onClick={() => {
                 setEditGranularity("word");
@@ -662,10 +666,25 @@ export default function PdfInplaceTextStudio({
                   ? "bg-white dark:bg-[#2D221E] text-amber-600 dark:text-amber-400 shadow-sm"
                   : "text-[#7D6B5D] dark:text-[#BCA89B] hover:text-[#2D221E]"
               }`}
-              title="单字/短语精修"
+              title="单字/单个词汇独立修改 (修改或加粗单字绝不波及整句)"
             >
               <Type className="w-3.5 h-3.5" />
-              <span>单词精修</span>
+              <span>单字精修 (默认)</span>
+            </button>
+            <button
+              onClick={() => {
+                setEditGranularity("line");
+                setActiveEditingItem(null);
+              }}
+              className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+                editGranularity === "line"
+                  ? "bg-white dark:bg-[#2D221E] text-amber-600 dark:text-amber-400 shadow-sm"
+                  : "text-[#7D6B5D] dark:text-[#BCA89B] hover:text-[#2D221E]"
+              }`}
+              title="整行或完整句子同时编辑"
+            >
+              <AlignLeft className="w-3.5 h-3.5" />
+              <span>整行编辑</span>
             </button>
             <button
               onClick={() => {
@@ -677,7 +696,7 @@ export default function PdfInplaceTextStudio({
                   ? "bg-amber-600 text-white shadow-sm"
                   : "text-[#7D6B5D] dark:text-[#BCA89B] hover:text-[#2D221E]"
               }`}
-              title="自由在画板上拖拽画框进行任意区域涂改"
+              title="自由画框涂抹编辑"
             >
               <Sliders className="w-3.5 h-3.5" />
               <span>自由画框</span>
@@ -734,6 +753,29 @@ export default function PdfInplaceTextStudio({
             </button>
           </div>
 
+          {/* 全屏模式切换器 */}
+          <button
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+              isFullscreen
+                ? "bg-amber-500 text-white border-amber-600 shadow-sm"
+                : "bg-white/80 dark:bg-[#2D221E] border-[#D2BCAB]/40 dark:border-[#4D392E]/60 text-[#2D221E] dark:text-[#F5EBE6] hover:bg-amber-50 dark:hover:bg-amber-950/20"
+            }`}
+            title={isFullscreen ? "退出全屏工作台 (Esc)" : "进入全屏工作台模式，享受更大视野与精细编辑"}
+          >
+            {isFullscreen ? (
+              <>
+                <Minimize2 className="w-3.5 h-3.5 text-white" />
+                <span>退出全屏</span>
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>全屏编辑</span>
+              </>
+            )}
+          </button>
+
           <button
             onClick={handleReset}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border border-[#D2BCAB]/40 dark:border-[#4D392E]/50 hover:bg-[#D2BCAB]/15 transition-colors"
@@ -772,17 +814,17 @@ export default function PdfInplaceTextStudio({
       )}
 
       {/* 主工作区 */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      <div className={`grid grid-cols-1 lg:grid-cols-12 gap-5 items-start ${isFullscreen ? "flex-1 min-h-0 overflow-hidden" : ""}`}>
         {/* 左侧/中间：高精度所见即所得 PDF 交互画板 */}
-        <div className="lg:col-span-8 flex flex-col items-center">
+        <div className={`lg:col-span-8 flex flex-col items-center ${isFullscreen ? "h-full overflow-hidden" : ""}`}>
           <div
             ref={canvasRef}
             onMouseDown={handleCanvasMouseDown}
             onMouseMove={handleCanvasMouseMove}
             onMouseUp={handleCanvasMouseUp}
-            className={`w-full bg-[#1A1412]/5 dark:bg-[#0F0B0A]/40 rounded-2xl p-4 sm:p-6 overflow-auto max-h-[760px] flex justify-center border border-[#D2BCAB]/20 dark:border-[#4D392E]/30 relative shadow-inner select-none ${
-              editGranularity === "draw" ? "cursor-crosshair" : "cursor-default"
-            }`}
+            className={`w-full bg-[#1A1412]/5 dark:bg-[#0F0B0A]/40 rounded-2xl p-4 sm:p-6 overflow-auto flex justify-center border border-[#D2BCAB]/20 dark:border-[#4D392E]/30 relative shadow-inner select-none ${
+              isFullscreen ? "h-full max-h-none" : "max-h-[760px]"
+            } ${editGranularity === "draw" ? "cursor-crosshair" : "cursor-default"}`}
           >
             {currentPage ? (() => {
               const baseWidth = Math.min(currentPage.viewWidth, 750);
@@ -1133,7 +1175,7 @@ export default function PdfInplaceTextStudio({
         </div>
 
         {/* 右侧：全文搜索替换与待修补清单 */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className={`lg:col-span-4 space-y-4 ${isFullscreen ? "h-full overflow-y-auto pr-1" : ""}`}>
           {/* 右侧面板选项卡 */}
           <div className="flex bg-[#D2BCAB]/20 dark:bg-[#4D392E]/30 p-1 rounded-2xl">
             <button

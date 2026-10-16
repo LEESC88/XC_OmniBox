@@ -15,6 +15,8 @@ For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
   - **Smart Typography Inspection & Auto-Matching**: Automatically probes and matches font family, font size, bold/italic style, and color before editing with a live auto-match badge.
   - **Eliminated Preview Truncation**: Dynamic max-content patch width ensures longer replacements are fully visible on canvas without `...` ellipsis clipping.
   - **Multi-Page Rotated Viewport Calibration**: Completely resolved canvas aspect ratio stretching on rotated/landscape pages.
+  - **Single-Word Sub-Token Precision**: Deconstructs multi-word text streams into independent word tokens. Modifying, bolding, or restyling a single word (e.g., "apple" in "favourite fruit is apple") isolates only that specific word without altering the surrounding sentence.
+  - **Immersive Full-Screen Studio**: Dedicated full-screen mode with Esc keyboard shortcut and maximized canvas for distortion-free, distraction-free document editing.
   - **Auto-Fit Typography Protection**: Dynamically measures text advance width and shrinks font size when replacements are longer, preventing text overlap.
   - **Strict Backend-First Architecture**: Parsing, font embedding, and vector re-rendering run entirely within the Node.js backend.
 
