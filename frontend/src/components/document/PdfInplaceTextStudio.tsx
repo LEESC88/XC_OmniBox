@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Edit3,
   Search,
@@ -100,6 +101,39 @@ export default function PdfInplaceTextStudio({
 
   // 全屏沉浸工作台模式
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    if (!isFullscreen) {
+      setIsFullscreen(true);
+      try {
+        if (document.documentElement && !document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+        }
+      } catch (_) {}
+    } else {
+      setIsFullscreen(false);
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        }
+      } catch (_) {}
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, [isFullscreen]);
 
   // 当前正在原地编辑的活跃项目 (Active Inline Editing Target)
   const [activeEditingItem, setActiveEditingItem] = useState<{
@@ -621,11 +655,11 @@ export default function PdfInplaceTextStudio({
     );
   }
 
-  return (
+  const studioContent = (
     <div
       className={
         isFullscreen
-          ? "fixed inset-0 z-[9999] w-screen h-screen bg-[#FDFCFB] dark:bg-[#150F0D] p-3 sm:p-5 flex flex-col overflow-hidden shadow-2xl"
+          ? "fixed inset-0 z-[999999] w-screen h-screen bg-[#140F0D] text-[#F5EBE6] p-3 sm:p-5 flex flex-col overflow-hidden shadow-2xl"
           : "space-y-4"
       }
     >
@@ -753,9 +787,20 @@ export default function PdfInplaceTextStudio({
             </button>
           </div>
 
+          {/* 顶部一键导出按钮 */}
+          <button
+            disabled={applying || patches.length === 0}
+            onClick={handleExportFixedPdf}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white transition-all shadow-sm"
+            title="应用当前全部补丁并保存下载 PDF"
+          >
+            {applying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            <span>{applying ? "正在重绘..." : `导出 PDF (${patches.length})`}</span>
+          </button>
+
           {/* 全屏模式切换器 */}
           <button
-            onClick={() => setIsFullscreen(!isFullscreen)}
+            onClick={toggleFullscreen}
             className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
               isFullscreen
                 ? "bg-amber-500 text-white border-amber-600 shadow-sm"
@@ -766,7 +811,7 @@ export default function PdfInplaceTextStudio({
             {isFullscreen ? (
               <>
                 <Minimize2 className="w-3.5 h-3.5 text-white" />
-                <span>退出全屏</span>
+                <span>退出全屏 (Esc)</span>
               </>
             ) : (
               <>
@@ -924,192 +969,21 @@ export default function PdfInplaceTextStudio({
                   );
                 })}
 
-                {/* 4. 原地直接编辑层 (Direct In-place Visual Editor - 像 Word 这样改，随输入动态扩展) */}
-                {activeEditingItem && (
-                  <div
-                    onClick={(e) => e.stopPropagation()}
-                    className="absolute z-50 flex flex-col items-start"
-                    style={{
-                      left: `${activeEditingItem.leftPercent}%`,
-                      top: `${activeEditingItem.topPercent}%`,
-                      minWidth: `${Math.max(12, activeEditingItem.widthPercent)}%`,
-                      width: "max-content",
-                      maxWidth: `${Math.min(100 - (activeEditingItem.leftPercent ?? 0), 96)}%`,
-                    }}
-                  >
-                    {/* 浮动微型排版工具栏 (Floating Mini Toolbar) */}
+                {/* 4. 原地直接编辑层 (Direct In-place Visual Editor - 像 Word 这样改) */}
+                {activeEditingItem && (() => {
+                  const wordWidthPx = (activeEditingItem.widthPercent / 100) * canvasWidth;
+
+                  return (
                     <div
-                      className="absolute -top-11 left-0 flex items-center gap-1.5 p-1 bg-[#1A1412] text-white rounded-xl shadow-2xl border border-white/20 text-xs whitespace-nowrap z-50 animate-in fade-in zoom-in-95 duration-100"
-                      style={{ transform: "translateY(-4px)" }}
-                    >
-                      {/* 原版字体自动匹配提示 */}
-                      <div
-                        className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 font-mono text-[11px] border border-amber-500/30"
-                        title={`已自动匹配原版排版: ${activeEditingItem.displayFamily || activeEditingItem.detectedFont || "Times New Roman"} · ${activeEditingItem.fontSize}pt ${activeEditingItem.isBold ? "· 粗体" : ""} ${activeEditingItem.isItalic ? "· 斜体" : ""}`}
-                      >
-                        <span className="text-[10px] text-amber-400">✨ 自动匹配:</span>
-                        <span className="font-bold text-white max-w-[120px] truncate">
-                          {activeEditingItem.displayFamily || activeEditingItem.detectedFont || "Times New Roman"}
-                        </span>
-                        <span className="text-amber-200">· {activeEditingItem.fontSize}pt</span>
-                        {activeEditingItem.isBold && <span className="font-bold text-amber-400 text-[10px]">B</span>}
-                        {activeEditingItem.isItalic && <span className="italic text-amber-400 text-[10px]">I</span>}
-                      </div>
-
-                      {/* 字体选择 */}
-                      <select
-                        value={activeEditingItem.fontFamily}
-                        onChange={(e: any) => {
-                          const val = e.target.value;
-                          const selected = DOCUMENT_FONTS.find((f) => f.value === val);
-                          setActiveEditingItem((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  fontFamily: val,
-                                  displayFamily: selected ? selected.label.split(" ")[0] : prev.displayFamily,
-                                }
-                              : null
-                          );
-                        }}
-                        className="bg-[#2D221E] text-white px-2 py-0.5 rounded-lg text-[11px] border border-white/10 focus:outline-none"
-                      >
-                        {DOCUMENT_FONTS.map((f) => (
-                          <option key={f.value} value={f.value}>
-                            {f.label}
-                          </option>
-                        ))}
-                      </select>
-
-                      {/* 粗体与斜体开关 */}
-                      <div className="flex items-center gap-0.5 bg-[#2D221E] p-0.5 rounded-lg">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActiveEditingItem((prev) =>
-                              prev ? { ...prev, isBold: !prev.isBold } : null
-                            )
-                          }
-                          className={`w-5 h-5 flex items-center justify-center rounded font-bold text-xs transition-colors ${
-                            activeEditingItem.isBold ? "bg-amber-500 text-black shadow-sm" : "text-white/70 hover:text-white"
-                          }`}
-                          title="切换粗体 (Bold)"
-                        >
-                          B
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActiveEditingItem((prev) =>
-                              prev ? { ...prev, isItalic: !prev.isItalic } : null
-                            )
-                          }
-                          className={`w-5 h-5 flex items-center justify-center rounded italic font-serif text-xs transition-colors ${
-                            activeEditingItem.isItalic ? "bg-amber-500 text-black shadow-sm" : "text-white/70 hover:text-white"
-                          }`}
-                          title="切换斜体 (Italic)"
-                        >
-                          I
-                        </button>
-                      </div>
-
-                      {/* 字号加减 */}
-                      <div className="flex items-center gap-0.5 bg-[#2D221E] px-1 py-0.5 rounded-lg">
-                        <button
-                          onClick={() =>
-                            setActiveEditingItem((prev) =>
-                              prev ? { ...prev, fontSize: Math.max(8, prev.fontSize - 1) } : null
-                            )
-                          }
-                          className="hover:text-amber-400 p-0.5"
-                          title="减小字号"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="text-[11px] font-mono px-1">
-                          {activeEditingItem.fontSize}pt
-                        </span>
-                        <button
-                          onClick={() =>
-                            setActiveEditingItem((prev) =>
-                              prev ? { ...prev, fontSize: Math.min(72, prev.fontSize + 1) } : null
-                            )
-                          }
-                          className="hover:text-amber-400 p-0.5"
-                          title="增大字号"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-
-                      {/* 快捷颜色块 (解决蓝标题/红章/黑正文字色不匹配) */}
-                      <div className="flex items-center gap-1 px-1">
-                        {[
-                          { color: "#000000", title: "经典黑" },
-                          { color: "#1E3A8A", title: "商务深蓝" },
-                          { color: "#DC2626", title: "醒目红" },
-                          { color: "#4B5563", title: "深灰" },
-                        ].map((c) => (
-                          <button
-                            key={c.color}
-                            onClick={() =>
-                              setActiveEditingItem((prev) =>
-                                prev ? { ...prev, colorHex: c.color } : null
-                              )
-                            }
-                            title={c.title}
-                            className={`w-4 h-4 rounded-full border border-white/40 transition-transform ${
-                              activeEditingItem.colorHex === c.color ? "scale-125 ring-2 ring-white" : ""
-                            }`}
-                            style={{ backgroundColor: c.color }}
-                          />
-                        ))}
-                        <input
-                          type="color"
-                          value={activeEditingItem.colorHex}
-                          onChange={(e) =>
-                            setActiveEditingItem((prev) =>
-                              prev ? { ...prev, colorHex: e.target.value } : null
-                            )
-                          }
-                          className="w-4 h-4 rounded cursor-pointer border-none bg-transparent"
-                          title="自定义文字颜色"
-                        />
-                      </div>
-
-                      {/* 确认 / 放弃 / 删除 */}
-                      <button
-                        onClick={handleCommitInplaceEdit}
-                        className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition-colors"
-                        title="完成并暂存修正 (Enter)"
-                      >
-                        <Check className="w-3 h-3" />
-                        <span>确定</span>
-                      </button>
-                      {activeEditingItem.isExistingPatch && (
-                        <button
-                          onClick={handleDeleteCurrentEditingPatch}
-                          className="p-1 rounded-lg hover:bg-red-500/20 text-red-400 transition-colors"
-                          title="删除此修补项"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )}
-                      <button
-                        onClick={handleCancelInplaceEdit}
-                        className="p-1 rounded-lg hover:bg-white/20 text-white/70 transition-colors"
-                        title="取消 (Esc)"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-
-                    {/* 原地真实文本输入框 (Direct In-place Input - 真实字形渲染) */}
-                    <div
-                      className="w-full relative shadow-lg rounded-[2px]"
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute z-40 flex items-center"
                       style={{
-                        backgroundColor: activeEditingItem.bgHex || "#FFFFFF",
-                        minHeight: "100%",
+                        left: `${activeEditingItem.leftPercent}%`,
+                        top: `${activeEditingItem.topPercent}%`,
+                        minWidth: `${Math.max(16, wordWidthPx)}px`,
+                        width: "max-content",
+                        maxWidth: `${Math.min(100 - (activeEditingItem.leftPercent ?? 0), 96)}%`,
+                        height: `${activeEditingItem.heightPercent}%`,
                       }}
                     >
                       <input
@@ -1129,19 +1003,188 @@ export default function PdfInplaceTextStudio({
                             handleCancelInplaceEdit();
                           }
                         }}
-                        className="w-full px-1 py-0.5 bg-transparent border-2 border-amber-500 rounded-[2px] focus:outline-none"
+                        className="h-full px-1 py-0 bg-white text-black border border-amber-500 rounded-[2px] shadow-sm focus:outline-none focus:ring-1 focus:ring-amber-500 leading-none"
                         style={{
                           fontFamily: getFontFamilyCss(activeEditingItem.fontFamily),
                           fontWeight: activeEditingItem.isBold ? "bold" : "normal",
                           fontStyle: activeEditingItem.isItalic ? "italic" : "normal",
                           color: activeEditingItem.colorHex || "#000000",
                           fontSize: `${Math.max(10, activeEditingItem.fontSize * (canvasWidth / currentPage.width) * 0.95)}px`,
-                          lineHeight: 1.2,
+                          minWidth: `${Math.max(16, wordWidthPx)}px`,
                         }}
                       />
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
+
+                {/* 4.1 智能防溢出浮动微型排版工具栏 (Smart Clamped Mini Toolbar - 绝对不超出画板边缘) */}
+                {activeEditingItem && (() => {
+                  const wordLeftPx = (activeEditingItem.leftPercent / 100) * canvasWidth;
+                  const wordTopPx = (activeEditingItem.topPercent / 100) * canvasHeight;
+                  const wordWidthPx = (activeEditingItem.widthPercent / 100) * canvasWidth;
+                  const wordHeightPx = (activeEditingItem.heightPercent / 100) * canvasHeight;
+
+                  const toolbarWidth = 360;
+                  // 将工具栏严格限制在画板左右内侧 [8px, canvasWidth - 368px]，彻底根治右侧溢出
+                  const clampedLeft = Math.max(8, Math.min(canvasWidth - toolbarWidth - 8, wordLeftPx + (wordWidthPx / 2) - (toolbarWidth / 2)));
+                  const isNearTop = wordTopPx < 48;
+                  const clampedTop = isNearTop ? wordTopPx + wordHeightPx + 6 : wordTopPx - 42;
+
+                  return (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute z-50 flex items-center gap-1.5 p-1 bg-[#1A1412]/95 backdrop-blur-md text-white rounded-xl shadow-2xl border border-white/20 text-xs whitespace-nowrap animate-in fade-in zoom-in-95 duration-100"
+                      style={{
+                        left: `${clampedLeft}px`,
+                        top: `${clampedTop}px`,
+                        width: `${toolbarWidth}px`,
+                      }}
+                    >
+                      {/* 紧凑版自动匹配指示标签 */}
+                      <span
+                        className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono text-[10px] border border-amber-500/30 flex-shrink-0 cursor-default"
+                        title={`已自动匹配原版排版: ${activeEditingItem.displayFamily || "Times New Roman"} · ${activeEditingItem.fontSize}pt ${activeEditingItem.isBold ? "· 粗体" : ""} ${activeEditingItem.isItalic ? "· 斜体" : ""}`}
+                      >
+                        <Sparkles className="w-2.5 h-2.5 text-amber-400" />
+                        <span className="max-w-[70px] truncate font-semibold text-white">
+                          {activeEditingItem.displayFamily || "Times"}
+                        </span>
+                        <span className="text-amber-200">{activeEditingItem.fontSize}pt</span>
+                      </span>
+
+                      {/* 字体选择下拉框 (仅显示字体名，不撑大宽度) */}
+                      <select
+                        value={activeEditingItem.fontFamily}
+                        onChange={(e: any) => {
+                          const val = e.target.value;
+                          const selected = DOCUMENT_FONTS.find((f) => f.value === val);
+                          setActiveEditingItem((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  fontFamily: val,
+                                  displayFamily: selected ? selected.label.split(" ")[0] : prev.displayFamily,
+                                }
+                              : null
+                          );
+                        }}
+                        className="w-24 sm:w-28 bg-[#2A201C] text-white px-1.5 py-0.5 rounded-lg text-[11px] border border-white/10 focus:outline-none truncate"
+                        title="选择字体"
+                      >
+                        {DOCUMENT_FONTS.map((f) => (
+                          <option key={f.value} value={f.value}>
+                            {f.label.split(" ")[0]}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* 粗体与斜体 */}
+                      <div className="flex items-center gap-0.5 bg-[#2A201C] p-0.5 rounded-lg flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActiveEditingItem((prev) =>
+                              prev ? { ...prev, isBold: !prev.isBold } : null
+                            )
+                          }
+                          className={`w-5 h-5 flex items-center justify-center rounded text-xs font-bold transition-colors ${
+                            activeEditingItem.isBold ? "bg-amber-500 text-black shadow-sm font-extrabold" : "text-white/70 hover:text-white"
+                          }`}
+                          title="粗体 (Bold)"
+                        >
+                          B
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActiveEditingItem((prev) =>
+                              prev ? { ...prev, isItalic: !prev.isItalic } : null
+                            )
+                          }
+                          className={`w-5 h-5 flex items-center justify-center rounded italic font-serif text-xs transition-colors ${
+                            activeEditingItem.isItalic ? "bg-amber-500 text-black shadow-sm" : "text-white/70 hover:text-white"
+                          }`}
+                          title="斜体 (Italic)"
+                        >
+                          I
+                        </button>
+                      </div>
+
+                      {/* 字号加减 */}
+                      <div className="flex items-center gap-0.5 bg-[#2A201C] px-1 py-0.5 rounded-lg text-[11px] font-mono flex-shrink-0">
+                        <button
+                          onClick={() =>
+                            setActiveEditingItem((prev) =>
+                              prev ? { ...prev, fontSize: Math.max(6, prev.fontSize - 1) } : null
+                            )
+                          }
+                          className="hover:text-amber-400 p-0.5"
+                          title="减小字号"
+                        >
+                          <Minus className="w-2.5 h-2.5" />
+                        </button>
+                        <span className="w-5 text-center">{activeEditingItem.fontSize}</span>
+                        <button
+                          onClick={() =>
+                            setActiveEditingItem((prev) =>
+                              prev ? { ...prev, fontSize: Math.min(72, prev.fontSize + 1) } : null
+                            )
+                          }
+                          className="hover:text-amber-400 p-0.5"
+                          title="增大字号"
+                        >
+                          <Plus className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+
+                      {/* 颜色选择球 */}
+                      <label
+                        className="w-5 h-5 rounded-full border border-white/40 cursor-pointer overflow-hidden flex-shrink-0 relative shadow-inner"
+                        style={{ backgroundColor: activeEditingItem.colorHex || "#000000" }}
+                        title="自定义文字颜色"
+                      >
+                        <input
+                          type="color"
+                          value={activeEditingItem.colorHex || "#000000"}
+                          onChange={(e) =>
+                            setActiveEditingItem((prev) =>
+                              prev ? { ...prev, colorHex: e.target.value } : null
+                            )
+                          }
+                          className="opacity-0 absolute inset-0 cursor-pointer w-full h-full"
+                        />
+                      </label>
+
+                      {/* 确认 / 放弃 / 删除 */}
+                      <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+                        <button
+                          onClick={handleCommitInplaceEdit}
+                          className="flex items-center gap-0.5 px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition-colors shadow-sm"
+                          title="完成并暂存修正 (Enter)"
+                        >
+                          <Check className="w-3 h-3" />
+                          <span>确定</span>
+                        </button>
+                        {activeEditingItem.isExistingPatch && (
+                          <button
+                            onClick={handleDeleteCurrentEditingPatch}
+                            className="p-1 rounded-lg hover:bg-red-500/20 text-red-400 transition-colors"
+                            title="删除此修补项"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                        <button
+                          onClick={handleCancelInplaceEdit}
+                          className="p-1 rounded-lg hover:bg-white/20 text-white/70 transition-colors"
+                          title="取消 (Esc)"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* 5. 正在自由画框的选区预览 */}
                 {isDrawing && drawStart && drawCurrent && (
@@ -1381,4 +1424,6 @@ export default function PdfInplaceTextStudio({
       </div>
     </div>
   );
+
+  return isFullscreen && mounted ? createPortal(studioContent, document.body) : studioContent;
 }
