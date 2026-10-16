@@ -50,14 +50,31 @@ interface PdfInplaceTextStudioProps {
   onFileClear?: () => void;
 }
 
+export const DOCUMENT_FONTS = [
+  { value: "times", label: "Times New Roman (标注文档/合同/学术衬线)" },
+  { value: "arial", label: "Arial (现代标准无衬线)" },
+  { value: "calibri", label: "Calibri (商务/Office 常用体)" },
+  { value: "georgia", label: "Georgia (典雅高易读衬线体)" },
+  { value: "garamond", label: "Garamond (精美传统高雅衬线)" },
+  { value: "verdana", label: "Verdana (宽大字怀清晰体)" },
+  { value: "tahoma", label: "Tahoma (紧凑商务无衬线)" },
+  { value: "courier", label: "Courier New (等宽/代码/表格)" },
+  { value: "consolas", label: "Consolas (现代编程等宽)" },
+  { value: "helvetica", label: "Helvetica (国际标准现代体)" },
+];
+
 const getFontFamilyCss = (family?: string) => {
   const fam = (family || "times").toLowerCase();
-  if (fam === "times" || fam === "serif") return '"Times New Roman", Times, "Songti SC", SimSun, serif';
-  if (fam === "song") return 'SimSun, "Songti SC", "Times New Roman", serif';
-  if (fam === "kai") return 'KaiTi, "Kaiti SC", STKaiti, serif';
-  if (fam === "fang") return 'FangSong, "FangSong SC", STFangsong, serif';
-  if (fam === "courier" || fam === "mono") return '"Courier New", Courier, monospace';
-  return 'Arial, Helvetica, "Microsoft YaHei", "PingFang SC", sans-serif';
+  if (fam === "times" || fam === "serif") return '"Times New Roman", Times, Georgia, serif';
+  if (fam === "arial" || fam === "helvetica" || fam === "sans") return 'Arial, Helvetica, "Segoe UI", sans-serif';
+  if (fam === "calibri") return 'Calibri, Candara, Segoe, "Segoe UI", Optima, Arial, sans-serif';
+  if (fam === "georgia") return 'Georgia, "Times New Roman", serif';
+  if (fam === "garamond") return 'Garamond, "EB Garamond", "Times New Roman", serif';
+  if (fam === "verdana") return 'Verdana, Geneva, sans-serif';
+  if (fam === "tahoma") return 'Tahoma, Verdana, Segoe, sans-serif';
+  if (fam === "courier") return '"Courier New", Courier, monospace';
+  if (fam === "consolas") return 'Consolas, Monaco, "Courier New", monospace';
+  return '"Times New Roman", Times, serif';
 };
 
 export default function PdfInplaceTextStudio({
@@ -89,11 +106,16 @@ export default function PdfInplaceTextStudio({
     patchId?: string;
     originalText: string;
     newText: string;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
     leftPercent: number;
     topPercent: number;
     widthPercent: number;
     heightPercent: number;
-    fontFamily: "times" | "helvetica" | "courier" | "song" | "hei" | "kai" | "fang" | "sans" | "serif";
+    fontFamily: string;
+    displayFamily?: string;
     isBold: boolean;
     isItalic: boolean;
     detectedFont?: string;
@@ -115,7 +137,7 @@ export default function PdfInplaceTextStudio({
   // 全文搜索替换状态
   const [searchQuery, setSearchQuery] = useState("");
   const [replaceText, setReplaceText] = useState("");
-  const [searchFontFamily, setSearchFontFamily] = useState<"times" | "helvetica" | "courier" | "song" | "hei" | "kai" | "fang" | "sans" | "serif">("times");
+  const [searchFontFamily, setSearchFontFamily] = useState<"times" | "arial" | "calibri" | "georgia" | "garamond" | "verdana" | "tahoma" | "courier" | "consolas" | "helvetica" | "sans" | "serif">("times");
   const [searchTextColor, setSearchTextColor] = useState("#000000");
   const [searchBgColor, setSearchBgColor] = useState("#FFFFFF");
 
@@ -224,15 +246,20 @@ export default function PdfInplaceTextStudio({
       id: target.id,
       originalText: target.str,
       newText: target.str,
+      x: target.x,
+      y: target.y,
+      width: target.width,
+      height: target.height,
       leftPercent: target.leftPercent,
       topPercent: target.topPercent,
       widthPercent: target.widthPercent,
       heightPercent: target.heightPercent,
       fontFamily: target.fontFamily || "times",
+      displayFamily: target.displayFamily || target.detectedFont || "Times New Roman",
       isBold: Boolean(target.isBold),
       isItalic: Boolean(target.isItalic),
-      detectedFont: target.detectedFont,
-      fontSize: target.fontSize || 14,
+      detectedFont: target.displayFamily || target.detectedFont || "Times New Roman",
+      fontSize: target.fontSize || 12,
       colorHex: "#000000",
       bgHex: "#FFFFFF",
       autoFit: true,
@@ -247,15 +274,20 @@ export default function PdfInplaceTextStudio({
       patchId: patch.id,
       originalText: patch.originalText || "",
       newText: patch.newText,
+      x: patch.x,
+      y: patch.y,
+      width: patch.width,
+      height: patch.height,
       leftPercent: patch.leftPercent ?? 0,
       topPercent: patch.topPercent ?? 0,
       widthPercent: patch.widthPercent ?? 10,
       heightPercent: patch.heightPercent ?? 3,
       fontFamily: (patch.fontFamily as any) || "times",
+      displayFamily: patch.displayFamily || patch.detectedFont || "Times New Roman",
       isBold: Boolean(patch.isBold),
       isItalic: Boolean(patch.isItalic),
-      detectedFont: patch.detectedFont,
-      fontSize: patch.fontSize || 14,
+      detectedFont: patch.displayFamily || patch.detectedFont || "Times New Roman",
+      fontSize: patch.fontSize || 12,
       colorHex: patch.colorHex || "#000000",
       bgHex: patch.bgHex || "#FFFFFF",
       autoFit: patch.autoFit !== false,
@@ -269,10 +301,10 @@ export default function PdfInplaceTextStudio({
     const newPatch: PdfTextPatch = {
       id: activeEditingItem.patchId || `patch_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       pageIndex: currentPage.pageIndex,
-      x: 0,
-      y: 0,
-      width: 0,
-      height: 0,
+      x: activeEditingItem.x ?? 0,
+      y: activeEditingItem.y ?? 0,
+      width: activeEditingItem.width ?? 0,
+      height: activeEditingItem.height ?? 0,
       leftPercent: activeEditingItem.leftPercent,
       topPercent: activeEditingItem.topPercent,
       widthPercent: activeEditingItem.widthPercent,
@@ -280,6 +312,7 @@ export default function PdfInplaceTextStudio({
       originalText: activeEditingItem.originalText,
       newText: activeEditingItem.newText,
       fontFamily: activeEditingItem.fontFamily,
+      displayFamily: activeEditingItem.displayFamily,
       isBold: activeEditingItem.isBold,
       isItalic: activeEditingItem.isItalic,
       detectedFont: activeEditingItem.detectedFont,
@@ -358,6 +391,7 @@ export default function PdfInplaceTextStudio({
         widthPercent: Math.round(widthPct * 100) / 100,
         heightPercent: Math.round(heightPct * 100) / 100,
         fontFamily: "times",
+        displayFamily: "Times New Roman",
         isBold: false,
         isItalic: false,
         fontSize: Math.max(10, Math.round((heightPct / 100) * 800 * 0.7)),
@@ -807,7 +841,7 @@ export default function PdfInplaceTextStudio({
                   );
                 })}
 
-                {/* 3. 已生效的 Patches 实时渲染层 */}
+                {/* 3. 已生效的 Patches 实时渲染层 (绝对不截断，完整展示实际更改) */}
                 {currentPagePatches.map((patch) => {
                   const isBeingEdited = activeEditingItem?.patchId === patch.id;
                   if (isBeingEdited) return null;
@@ -819,25 +853,27 @@ export default function PdfInplaceTextStudio({
                         e.stopPropagation();
                         handleEditExistingPatch(patch);
                       }}
-                      title="点击重新调整此处的修改"
-                      className="absolute z-25 cursor-pointer flex items-center px-0.5 overflow-hidden group hover:ring-2 hover:ring-amber-500"
+                      title={`点击重新编辑: "${patch.newText}"`}
+                      className="absolute z-25 cursor-pointer flex items-center px-1 group hover:ring-2 hover:ring-amber-500 rounded-[2px]"
                       style={{
                         left: `${patch.leftPercent}%`,
                         top: `${patch.topPercent}%`,
-                        width: `${patch.widthPercent}%`,
+                        minWidth: `${patch.widthPercent}%`,
+                        width: "max-content",
+                        maxWidth: `${Math.min(100 - (patch.leftPercent ?? 0), 96)}%`,
                         height: `${patch.heightPercent}%`,
                         backgroundColor: patch.bgHex || "#FFFFFF",
                         border: "1px dashed #F59E0B",
                       }}
                     >
                       <span
-                        className="truncate leading-tight"
+                        className="whitespace-nowrap leading-none select-none font-medium"
                         style={{
                           fontFamily: getFontFamilyCss(patch.fontFamily),
                           fontWeight: patch.isBold ? "bold" : "normal",
                           fontStyle: patch.isItalic ? "italic" : "normal",
                           color: patch.colorHex || "#000000",
-                          fontSize: `${Math.max(9, (patch.fontSize || 14) * (canvasWidth / currentPage.width) * 0.95)}px`,
+                          fontSize: `${Math.max(9, (patch.fontSize || 12) * (canvasWidth / currentPage.width) * 0.95)}px`,
                         }}
                       >
                         {patch.newText || "（已涂白擦除）"}
@@ -846,7 +882,7 @@ export default function PdfInplaceTextStudio({
                   );
                 })}
 
-                {/* 4. 原地直接编辑层 (Direct In-place Visual Editor - 像 Word 这样改) */}
+                {/* 4. 原地直接编辑层 (Direct In-place Visual Editor - 像 Word 这样改，随输入动态扩展) */}
                 {activeEditingItem && (
                   <div
                     onClick={(e) => e.stopPropagation()}
@@ -854,7 +890,9 @@ export default function PdfInplaceTextStudio({
                     style={{
                       left: `${activeEditingItem.leftPercent}%`,
                       top: `${activeEditingItem.topPercent}%`,
-                      width: `${Math.max(15, activeEditingItem.widthPercent)}%`,
+                      minWidth: `${Math.max(12, activeEditingItem.widthPercent)}%`,
+                      width: "max-content",
+                      maxWidth: `${Math.min(100 - (activeEditingItem.leftPercent ?? 0), 96)}%`,
                     }}
                   >
                     {/* 浮动微型排版工具栏 (Floating Mini Toolbar) */}
@@ -862,33 +900,43 @@ export default function PdfInplaceTextStudio({
                       className="absolute -top-11 left-0 flex items-center gap-1.5 p-1 bg-[#1A1412] text-white rounded-xl shadow-2xl border border-white/20 text-xs whitespace-nowrap z-50 animate-in fade-in zoom-in-95 duration-100"
                       style={{ transform: "translateY(-4px)" }}
                     >
-                      {/* 原版字体标识 */}
-                      {activeEditingItem.detectedFont && (
-                        <span
-                          className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-white/10 text-amber-300 font-mono text-[10px]"
-                          title={`探测自原版 PDF 字体对象: ${activeEditingItem.detectedFont}`}
-                        >
-                          原字: {activeEditingItem.detectedFont}
+                      {/* 原版字体自动匹配提示 */}
+                      <div
+                        className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 font-mono text-[11px] border border-amber-500/30"
+                        title={`已自动匹配原版排版: ${activeEditingItem.displayFamily || activeEditingItem.detectedFont || "Times New Roman"} · ${activeEditingItem.fontSize}pt ${activeEditingItem.isBold ? "· 粗体" : ""} ${activeEditingItem.isItalic ? "· 斜体" : ""}`}
+                      >
+                        <span className="text-[10px] text-amber-400">✨ 自动匹配:</span>
+                        <span className="font-bold text-white max-w-[120px] truncate">
+                          {activeEditingItem.displayFamily || activeEditingItem.detectedFont || "Times New Roman"}
                         </span>
-                      )}
+                        <span className="text-amber-200">· {activeEditingItem.fontSize}pt</span>
+                        {activeEditingItem.isBold && <span className="font-bold text-amber-400 text-[10px]">B</span>}
+                        {activeEditingItem.isItalic && <span className="italic text-amber-400 text-[10px]">I</span>}
+                      </div>
 
                       {/* 字体选择 */}
                       <select
                         value={activeEditingItem.fontFamily}
-                        onChange={(e: any) =>
+                        onChange={(e: any) => {
+                          const val = e.target.value;
+                          const selected = DOCUMENT_FONTS.find((f) => f.value === val);
                           setActiveEditingItem((prev) =>
-                            prev ? { ...prev, fontFamily: e.target.value } : null
-                          )
-                        }
+                            prev
+                              ? {
+                                  ...prev,
+                                  fontFamily: val,
+                                  displayFamily: selected ? selected.label.split(" ")[0] : prev.displayFamily,
+                                }
+                              : null
+                          );
+                        }}
                         className="bg-[#2D221E] text-white px-2 py-0.5 rounded-lg text-[11px] border border-white/10 focus:outline-none"
                       >
-                        <option value="times">西文 Times (原版衬线)</option>
-                        <option value="helvetica">西文 Helvetica / Arial</option>
-                        <option value="courier">西文 Courier (等宽)</option>
-                        <option value="song">宋体 (Serif)</option>
-                        <option value="hei">黑体 / 微软雅黑</option>
-                        <option value="kai">楷体 (KaiTi)</option>
-                        <option value="fang">仿宋 (FangSong)</option>
+                        {DOCUMENT_FONTS.map((f) => (
+                          <option key={f.value} value={f.value}>
+                            {f.label}
+                          </option>
+                        ))}
                       </select>
 
                       {/* 粗体与斜体开关 */}
@@ -1253,12 +1301,11 @@ export default function PdfInplaceTextStudio({
                     onChange={(e: any) => setSearchFontFamily(e.target.value)}
                     className="w-full px-2 py-1.5 text-xs rounded-xl bg-white dark:bg-[#201815] border border-[#D2BCAB]/40 dark:border-[#4D392E]/60 focus:outline-none"
                   >
-                    <option value="sans">黑体 / 微软雅黑</option>
-                    <option value="serif">宋体 (Serif)</option>
-                    <option value="kai">楷体 (KaiTi)</option>
-                    <option value="fang">仿宋 (FangSong)</option>
-                    <option value="helvetica">西文 Helvetica</option>
-                    <option value="times">西文 Times</option>
+                    {DOCUMENT_FONTS.map((f) => (
+                      <option key={f.value} value={f.value}>
+                        {f.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

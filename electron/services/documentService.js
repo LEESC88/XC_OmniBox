@@ -1161,10 +1161,11 @@ class DocumentService {
 
       const imgBase64 = `data:image/png;base64,${canvas.toBuffer('image/png').toString('base64')}`;
 
-      // 提取基准 1.0 比例尺寸与绝对矩阵变换
+      // 提取基准 1.0 比例尺寸与绝对矩阵变换 (基准视口完全承载旋转角度与真实宽高，杜绝多页拉伸变形)
       const baseViewport = page.getViewport({ scale: 1.0 });
-      const { pageWidth, pageHeight, pageX, pageY } = baseViewport.rawDims;
-      const pTransform = [1, 0, 0, -1, -pageX, pageY + pageHeight];
+      const renderWidth = baseViewport.width;
+      const renderHeight = baseViewport.height;
+      const pTransform = baseViewport.transform;
 
       const textContent = await page.getTextContent();
       const items = [];
@@ -1173,7 +1174,7 @@ class DocumentService {
       // 提取并解析当前页所用字体的详细排版属性 (字族、衬线/无衬线、粗体、斜体)
       const fontMetaCache = new Map();
       const resolveFontMeta = (fontId) => {
-        if (!fontId) return { family: 'times', isBold: false, isItalic: false, rawName: '' };
+        if (!fontId) return { family: 'times', displayFamily: 'Times New Roman', isBold: false, isItalic: false, rawName: '' };
         if (fontMetaCache.has(fontId)) return fontMetaCache.get(fontId);
 
         let rawName = '';
@@ -1187,8 +1188,8 @@ class DocumentService {
               if (obj) {
                 rawName = obj.name || obj.loadedName || '';
                 fallbackName = obj.fallbackName || '';
-                bold = Boolean(obj.bold || /bold|black|heavy|semibold/i.test(rawName));
-                italic = Boolean(obj.italic || /italic|oblique/i.test(rawName));
+                bold = Boolean(obj.bold || /bold|black|heavy|semibold|bd/i.test(rawName));
+                italic = Boolean(obj.italic || /italic|oblique|it/i.test(rawName));
               }
             });
           }
@@ -1201,42 +1202,50 @@ class DocumentService {
 
         const lowerName = rawName.toLowerCase();
         let family = 'times';
-        if (
-          lowerName.includes('times') ||
-          lowerName.includes('roman') ||
-          lowerName.includes('serif') ||
-          lowerName.includes('georgia') ||
-          lowerName.includes('garamond') ||
-          fallbackName === 'serif'
-        ) {
+        let displayFamily = 'Times New Roman';
+
+        if (lowerName.includes('times') || lowerName.includes('roman')) {
           family = 'times';
-        } else if (
-          lowerName.includes('courier') ||
-          lowerName.includes('mono') ||
-          lowerName.includes('consolas') ||
-          fallbackName === 'monospace'
-        ) {
+          displayFamily = 'Times New Roman';
+        } else if (lowerName.includes('arial')) {
+          family = 'arial';
+          displayFamily = 'Arial';
+        } else if (lowerName.includes('calibri')) {
+          family = 'calibri';
+          displayFamily = 'Calibri';
+        } else if (lowerName.includes('georgia')) {
+          family = 'georgia';
+          displayFamily = 'Georgia';
+        } else if (lowerName.includes('garamond')) {
+          family = 'garamond';
+          displayFamily = 'Garamond';
+        } else if (lowerName.includes('verdana')) {
+          family = 'verdana';
+          displayFamily = 'Verdana';
+        } else if (lowerName.includes('tahoma')) {
+          family = 'tahoma';
+          displayFamily = 'Tahoma';
+        } else if (lowerName.includes('courier')) {
           family = 'courier';
-        } else if (
-          lowerName.includes('arial') ||
-          lowerName.includes('helvetica') ||
-          lowerName.includes('sans') ||
-          lowerName.includes('tahoma') ||
-          lowerName.includes('verdana') ||
-          fallbackName === 'sans-serif'
-        ) {
-          family = 'helvetica';
-        } else if (lowerName.includes('kai') || lowerName.includes('simkai')) {
-          family = 'kai';
-        } else if (lowerName.includes('fang') || lowerName.includes('simfang')) {
-          family = 'fang';
-        } else if (lowerName.includes('song') || lowerName.includes('simsun')) {
-          family = 'song';
-        } else if (lowerName.includes('hei') || lowerName.includes('yahei') || lowerName.includes('simhei')) {
-          family = 'hei';
+          displayFamily = 'Courier New';
+        } else if (lowerName.includes('consola')) {
+          family = 'consolas';
+          displayFamily = 'Consolas';
+        } else if (lowerName.includes('helvetica') || lowerName.includes('sans')) {
+          family = 'arial';
+          displayFamily = 'Arial';
+        } else if (fallbackName === 'serif') {
+          family = 'times';
+          displayFamily = 'Times New Roman';
+        } else if (fallbackName === 'monospace') {
+          family = 'courier';
+          displayFamily = 'Courier New';
+        } else {
+          family = 'times';
+          displayFamily = 'Times New Roman';
         }
 
-        const meta = { family, isBold: bold, isItalic: italic, rawName };
+        const meta = { family, displayFamily, isBold: bold, isItalic: italic, rawName };
         fontMetaCache.set(fontId, meta);
         return meta;
       };
@@ -1251,10 +1260,10 @@ class DocumentService {
         const left = tx[4];
         const top = tx[5] - fontAscent;
 
-        const leftPercent = Math.max(0, Math.min(100, (left / pageWidth) * 100));
-        const topPercent = Math.max(0, Math.min(100, (top / pageHeight) * 100));
-        const widthPercent = Math.max(0.2, Math.min(100 - leftPercent, (item.width / pageWidth) * 100));
-        const heightPercent = Math.max(0.5, Math.min(100 - topPercent, (fontHeight / pageHeight) * 100));
+        const leftPercent = Math.max(0, Math.min(100, (left / renderWidth) * 100));
+        const topPercent = Math.max(0, Math.min(100, (top / renderHeight) * 100));
+        const widthPercent = Math.max(0.2, Math.min(100 - leftPercent, (item.width / renderWidth) * 100));
+        const heightPercent = Math.max(0.5, Math.min(100 - topPercent, (fontHeight / renderHeight) * 100));
 
         const fontMeta = resolveFontMeta(item.fontName);
 
@@ -1268,6 +1277,7 @@ class DocumentService {
           fontSize: Math.round(fontHeight * 10) / 10,
           fontName: item.fontName || '',
           fontFamily: fontMeta.family,
+          displayFamily: fontMeta.displayFamily,
           isBold: fontMeta.isBold,
           isItalic: fontMeta.isItalic,
           detectedFont: fontMeta.rawName || fontMeta.family,
@@ -1302,6 +1312,7 @@ class DocumentService {
           existingLine.width = maxX - minX;
 
           existingLine.fontFamily = it.fontFamily;
+          existingLine.displayFamily = it.displayFamily;
           existingLine.isBold = Boolean(existingLine.isBold || it.isBold);
           existingLine.isItalic = Boolean(existingLine.isItalic || it.isItalic);
           existingLine.detectedFont = it.detectedFont || existingLine.detectedFont;
@@ -1326,6 +1337,7 @@ class DocumentService {
             fontSize: it.fontSize,
             fontName: it.fontName,
             fontFamily: it.fontFamily,
+            displayFamily: it.displayFamily,
             isBold: it.isBold,
             isItalic: it.isItalic,
             detectedFont: it.detectedFont,
@@ -1341,8 +1353,8 @@ class DocumentService {
       pages.push({
         pageIndex: i - 1,
         pageNumber: i,
-        width: Math.round(pageWidth),
-        height: Math.round(pageHeight),
+        width: Math.round(renderWidth),
+        height: Math.round(renderHeight),
         viewWidth: Math.round(viewport.width),
         viewHeight: Math.round(viewport.height),
         image: imgBase64,
@@ -1406,56 +1418,134 @@ class DocumentService {
 
       let font = null;
       const { StandardFonts } = require('pdf-lib');
+      const fam = (family || 'times').toLowerCase();
+
+      // 常见常用标准文档字体（优先加载 Windows 系统原生 TrueType 字体以达到 100% 原始笔触，不存在则回退至内置标准字体）
+      const winFontMap = {
+        times: {
+          regular: 'C:/Windows/Fonts/times.ttf',
+          bold: 'C:/Windows/Fonts/timesbd.ttf',
+          italic: 'C:/Windows/Fonts/timesi.ttf',
+          boldItalic: 'C:/Windows/Fonts/timesbi.ttf',
+          stdRegular: StandardFonts.TimesRoman,
+          stdBold: StandardFonts.TimesRomanBold,
+          stdItalic: StandardFonts.TimesRomanItalic,
+          stdBoldItalic: StandardFonts.TimesRomanBoldItalic,
+        },
+        arial: {
+          regular: 'C:/Windows/Fonts/arial.ttf',
+          bold: 'C:/Windows/Fonts/arialbd.ttf',
+          italic: 'C:/Windows/Fonts/ariali.ttf',
+          boldItalic: 'C:/Windows/Fonts/arialbi.ttf',
+          stdRegular: StandardFonts.Helvetica,
+          stdBold: StandardFonts.HelveticaBold,
+          stdItalic: StandardFonts.HelveticaOblique,
+          stdBoldItalic: StandardFonts.HelveticaBoldOblique,
+        },
+        calibri: {
+          regular: 'C:/Windows/Fonts/calibri.ttf',
+          bold: 'C:/Windows/Fonts/calibrib.ttf',
+          italic: 'C:/Windows/Fonts/calibrii.ttf',
+          boldItalic: 'C:/Windows/Fonts/calibriz.ttf',
+          stdRegular: StandardFonts.Helvetica,
+          stdBold: StandardFonts.HelveticaBold,
+          stdItalic: StandardFonts.HelveticaOblique,
+          stdBoldItalic: StandardFonts.HelveticaBoldOblique,
+        },
+        georgia: {
+          regular: 'C:/Windows/Fonts/georgia.ttf',
+          bold: 'C:/Windows/Fonts/georgiab.ttf',
+          italic: 'C:/Windows/Fonts/georgiai.ttf',
+          boldItalic: 'C:/Windows/Fonts/georgiaz.ttf',
+          stdRegular: StandardFonts.TimesRoman,
+          stdBold: StandardFonts.TimesRomanBold,
+          stdItalic: StandardFonts.TimesRomanItalic,
+          stdBoldItalic: StandardFonts.TimesRomanBoldItalic,
+        },
+        garamond: {
+          regular: 'C:/Windows/Fonts/georgia.ttf',
+          bold: 'C:/Windows/Fonts/georgiab.ttf',
+          italic: 'C:/Windows/Fonts/georgiai.ttf',
+          boldItalic: 'C:/Windows/Fonts/georgiaz.ttf',
+          stdRegular: StandardFonts.TimesRoman,
+          stdBold: StandardFonts.TimesRomanBold,
+          stdItalic: StandardFonts.TimesRomanItalic,
+          stdBoldItalic: StandardFonts.TimesRomanBoldItalic,
+        },
+        verdana: {
+          regular: 'C:/Windows/Fonts/verdana.ttf',
+          bold: 'C:/Windows/Fonts/verdanab.ttf',
+          italic: 'C:/Windows/Fonts/verdanai.ttf',
+          boldItalic: 'C:/Windows/Fonts/verdanaz.ttf',
+          stdRegular: StandardFonts.Helvetica,
+          stdBold: StandardFonts.HelveticaBold,
+          stdItalic: StandardFonts.HelveticaOblique,
+          stdBoldItalic: StandardFonts.HelveticaBoldOblique,
+        },
+        tahoma: {
+          regular: 'C:/Windows/Fonts/tahoma.ttf',
+          bold: 'C:/Windows/Fonts/tahomabd.ttf',
+          italic: 'C:/Windows/Fonts/tahoma.ttf',
+          boldItalic: 'C:/Windows/Fonts/tahomabd.ttf',
+          stdRegular: StandardFonts.Helvetica,
+          stdBold: StandardFonts.HelveticaBold,
+          stdItalic: StandardFonts.HelveticaOblique,
+          stdBoldItalic: StandardFonts.HelveticaBoldOblique,
+        },
+        courier: {
+          regular: 'C:/Windows/Fonts/cour.ttf',
+          bold: 'C:/Windows/Fonts/courbd.ttf',
+          italic: 'C:/Windows/Fonts/couri.ttf',
+          boldItalic: 'C:/Windows/Fonts/courbi.ttf',
+          stdRegular: StandardFonts.Courier,
+          stdBold: StandardFonts.CourierBold,
+          stdItalic: StandardFonts.CourierOblique,
+          stdBoldItalic: StandardFonts.CourierBoldOblique,
+        },
+        consolas: {
+          regular: 'C:/Windows/Fonts/consola.ttf',
+          bold: 'C:/Windows/Fonts/consolab.ttf',
+          italic: 'C:/Windows/Fonts/consola.ttf',
+          boldItalic: 'C:/Windows/Fonts/consolab.ttf',
+          stdRegular: StandardFonts.Courier,
+          stdBold: StandardFonts.CourierBold,
+          stdItalic: StandardFonts.CourierOblique,
+          stdBoldItalic: StandardFonts.CourierBoldOblique,
+        },
+        helvetica: {
+          regular: 'C:/Windows/Fonts/arial.ttf',
+          bold: 'C:/Windows/Fonts/arialbd.ttf',
+          italic: 'C:/Windows/Fonts/ariali.ttf',
+          boldItalic: 'C:/Windows/Fonts/arialbi.ttf',
+          stdRegular: StandardFonts.Helvetica,
+          stdBold: StandardFonts.HelveticaBold,
+          stdItalic: StandardFonts.HelveticaOblique,
+          stdBoldItalic: StandardFonts.HelveticaBoldOblique,
+        },
+      };
+
+      const fontDef = winFontMap[fam] || winFontMap.times;
 
       if (!hasCjk) {
-        // 西文标准 14 矢量字体（高保真无缝匹配，字形字距与原版 100% 相同）
-        const fam = (family || 'times').toLowerCase();
-        if (fam === 'helvetica' || fam === 'sans' || fam === 'arial' || fam === 'hei') {
-          if (isBold && isItalic) font = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
-          else if (isBold) font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-          else if (isItalic) font = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
-          else font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-        } else if (fam === 'courier' || fam === 'mono') {
-          if (isBold && isItalic) font = await pdfDoc.embedFont(StandardFonts.CourierBoldOblique);
-          else if (isBold) font = await pdfDoc.embedFont(StandardFonts.CourierBold);
-          else if (isItalic) font = await pdfDoc.embedFont(StandardFonts.CourierOblique);
-          else font = await pdfDoc.embedFont(StandardFonts.Courier);
-        } else {
-          // 默认 times / serif
-          if (isBold && isItalic) font = await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
-          else if (isBold) font = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
-          else if (isItalic) font = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
-          else font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+        const ttfPath = isBold && isItalic ? fontDef.boldItalic : isBold ? fontDef.bold : isItalic ? fontDef.italic : fontDef.regular;
+        if (ttfPath && fs.existsSync(ttfPath)) {
+          try {
+            const fontBytes = fs.readFileSync(ttfPath);
+            font = await pdfDoc.embedFont(fontBytes, { subset: true });
+          } catch (_) {}
+        }
+        if (!font) {
+          const stdFont = isBold && isItalic ? fontDef.stdBoldItalic : isBold ? fontDef.stdBold : isItalic ? fontDef.stdItalic : fontDef.stdRegular;
+          font = await pdfDoc.embedFont(stdFont);
         }
       } else {
-        // 中文或混合文本使用本地中文字体库
-        const fontPathMap = {
-          song: 'C:/Windows/Fonts/simsun.ttc',
-          serif: 'C:/Windows/Fonts/simsun.ttc',
-          times: 'C:/Windows/Fonts/simsun.ttc',
-          kai: 'C:/Windows/Fonts/simkai.ttf',
-          fang: 'C:/Windows/Fonts/simfang.ttf',
-          hei: isBold ? 'C:/Windows/Fonts/simhei.ttf' : 'C:/Windows/Fonts/msyh.ttc',
-          sans: isBold ? 'C:/Windows/Fonts/simhei.ttf' : 'C:/Windows/Fonts/msyh.ttc',
-          helvetica: isBold ? 'C:/Windows/Fonts/simhei.ttf' : 'C:/Windows/Fonts/msyh.ttc',
-        };
-        const fam = (family || 'hei').toLowerCase();
-        const targetPath = fontPathMap[fam] || 'C:/Windows/Fonts/simsun.ttc';
-        const fallbackPath = 'C:/Windows/Fonts/simhei.ttf';
-        const pathToLoad = fs.existsSync(targetPath) ? targetPath : (fs.existsSync(fallbackPath) ? fallbackPath : null);
-
-        if (pathToLoad) {
+        // CJK 兜底
+        const cjkPath = 'C:/Windows/Fonts/simsun.ttc';
+        if (fs.existsSync(cjkPath)) {
           try {
-            const fontBytes = fs.readFileSync(pathToLoad);
-            const isTtc = pathToLoad.toLowerCase().endsWith('.ttc');
-            font = await pdfDoc.embedFont(fontBytes, { subset: !isTtc });
-          } catch (_) {
-            if (fs.existsSync(fallbackPath)) {
-              try {
-                font = await pdfDoc.embedFont(fs.readFileSync(fallbackPath), { subset: true });
-              } catch (_) {}
-            }
-          }
+            const fontBytes = fs.readFileSync(cjkPath);
+            font = await pdfDoc.embedFont(fontBytes, { subset: false });
+          } catch (_) {}
         }
         if (!font) {
           font = await pdfDoc.embedFont(isBold ? StandardFonts.TimesRomanBold : StandardFonts.TimesRoman);
@@ -1480,7 +1570,16 @@ class DocumentService {
       let height = Number(patch.height);
       let isBaseline = Boolean(patch.isBaseline !== false);
 
-      if (patch.leftPercent !== undefined && patch.topPercent !== undefined) {
+      const hasExactVectorCoords =
+        typeof patch.x === 'number' &&
+        typeof patch.y === 'number' &&
+        (patch.x !== 0 || patch.y !== 0) &&
+        !isNaN(patch.x) &&
+        !isNaN(patch.y) &&
+        patch.width > 0 &&
+        patch.height > 0;
+
+      if (!hasExactVectorCoords && patch.leftPercent !== undefined && patch.topPercent !== undefined) {
         x = (Number(patch.leftPercent) / 100) * pWidth;
         width = Math.max(2, (Number(patch.widthPercent) / 100) * pWidth);
         const top = (Number(patch.topPercent) / 100) * pHeight;

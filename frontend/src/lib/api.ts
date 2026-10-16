@@ -403,7 +403,8 @@ export interface PdfInspectItem {
   height: number;
   fontSize: number;
   fontName?: string;
-  fontFamily?: "times" | "helvetica" | "courier" | "song" | "hei" | "kai" | "fang" | "sans" | "serif";
+  fontFamily?: "times" | "arial" | "calibri" | "georgia" | "garamond" | "verdana" | "tahoma" | "courier" | "consolas" | "helvetica" | "sans" | "serif";
+  displayFamily?: string;
   isBold?: boolean;
   isItalic?: boolean;
   detectedFont?: string;
@@ -449,7 +450,8 @@ export interface PdfTextPatch {
   heightPercent?: number;
   originalText?: string;
   newText: string;
-  fontFamily?: "times" | "helvetica" | "courier" | "song" | "hei" | "kai" | "fang" | "sans" | "serif";
+  fontFamily?: "times" | "arial" | "calibri" | "georgia" | "garamond" | "verdana" | "tahoma" | "courier" | "consolas" | "helvetica" | "sans" | "serif" | string;
+  displayFamily?: string;
   isBold?: boolean;
   isItalic?: boolean;
   detectedFont?: string;

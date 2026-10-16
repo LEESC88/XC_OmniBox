@@ -11,6 +11,10 @@ For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
   - **Dual-Mode Fixer Engine (Inspired by Stirling-PDF / GenOffice)**:
     - **Global Search & Replace**: Batch find keywords and swap text across pages in seconds.
     - **Visual Click-to-Edit Studio**: Hover & click any word block on the high-definition canvas to edit in-place with instant preview, font style selection, and size/color adjustments.
+  - **Industry-Standard Western Document Fonts**: Built-in native support for `Times New Roman`, `Arial`, `Calibri`, `Georgia`, `Garamond`, `Verdana`, `Tahoma`, `Courier New`, `Consolas`, `Helvetica` with zero layout distortion.
+  - **Smart Typography Inspection & Auto-Matching**: Automatically probes and matches font family, font size, bold/italic style, and color before editing with a live auto-match badge.
+  - **Eliminated Preview Truncation**: Dynamic max-content patch width ensures longer replacements are fully visible on canvas without `...` ellipsis clipping.
+  - **Multi-Page Rotated Viewport Calibration**: Completely resolved canvas aspect ratio stretching on rotated/landscape pages.
   - **Auto-Fit Typography Protection**: Dynamically measures text advance width and shrinks font size when replacements are longer, preventing text overlap.
   - **Strict Backend-First Architecture**: Parsing, font embedding, and vector re-rendering run entirely within the Node.js backend.
 
