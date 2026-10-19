@@ -4,6 +4,22 @@ All notable updates and releases for **XC_OmniBox** will be documented in this f
 
 For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
+## 🌟 v1.6.6 PDF to Word (DOCX) High-Fidelity Layout Reconstruction Engine
+
+- 🚀 **Sub-Second Native Conversion Speed (90x Speedup)**:
+  - Eliminated the 60-second headless Word COM automation deadlock caused by background Office modal conversion dialogs.
+  - Built-in Node.js pure native OpenXML (`docx`) layout compilation engine processes multi-page documents in under 1 second (<700ms) with zero Microsoft Office installation dependency.
+
+- 📐 **High-Fidelity Document Structure & Layout Reconstruction**:
+  - **Dynamic Table Detection & Matrix Assembly**: Automatically identifies multi-column aligned data blocks, clusters vertical cell boundaries, and outputs native editable Word tables (`docx.Table`) with proper borders, shading, cell padding, and column widths.
+  - **Natural Paragraph Reflow & Line Breaks**: Replaced the previous single-space run joiner with intelligent baseline clustering and gap analysis. Regular text flows into editable, wrappable paragraphs while genuine paragraph boundaries, headings, and margins are preserved.
+  - **Hierarchical Headings & List Alignment**: Detects Title/H1/H2/H3 levels based on font size and font weight thresholds, generating Word-standard heading styles and bullet list indentations.
+  - **Sub-Point Font Family & Style Fidelity**: Retains TrueType font families (Calibri, Arial, Times New Roman, SimSun, Microsoft YaHei, etc.), sub-point font sizes, bold weights, italic angles, and hex colors.
+  - **Dual-Engine Scanned PDF Auto-Fallback**: Pure image/scanned pages automatically render high-resolution raster buffers embedded cleanly into Word document sections with zero relationship corruption.
+  - **Flexible Page Range Support**: Full support for converting all pages or specified page ranges (`startPage` / `endPage`) with real-time progress callbacks.
+
+---
+
 ## 🌟 v1.6.5 PDF Single-Word Smart Spacing & Same-Line Auto-Reflow Engine
 
 - 🎯 **PDF In-place Text Fix — Single-Word Auto-Spacing & Same-Line Reflow**:

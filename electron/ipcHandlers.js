@@ -40,7 +40,7 @@ function registerIpcHandlers(options = {}) {
 
   // ==================== 文档服务 (DocumentService) ====================
   ipcMain.handle('document:pdf-to-word', async (_e, payload) => {
-    return await getDocumentService().pdfToWord(payload);
+    return await getDocumentService().pdfToWord(payload, emitProgress(_e));
   });
 
   ipcMain.handle('document:word-to-pdf', async (_e, payload) => {

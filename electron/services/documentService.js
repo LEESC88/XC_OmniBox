@@ -23,6 +23,12 @@ function getSharp() {
   return _sharp;
 }
 
+let _docx = null;
+function getDocx() {
+  if (!_docx) _docx = require('docx');
+  return _docx;
+}
+
 function getCanvasModule() {
   if (!_canvasModule) {
     _canvasModule = require('@napi-rs/canvas');
@@ -799,85 +805,525 @@ class DocumentService {
   }
 
   /**
-   * PDF 转 Word (优先调用 Windows Word / WPS COM 智能重排，无 COM 权限时自动回退 pdfjs + OpenXML 引擎)
+   * PDF 转 Word (高保真版面逆向重构引擎，纯 Node.js 秒级流式生成标准 OpenXML .docx)
+   * 自动重构标题、列表、多列对齐真实表格、字体族/字号/加粗/斜体样式及多页几何边界
    */
-  static async pdfToWord({ fileBuffer, fileName = 'document.pdf' }) {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'xc_p2w_'));
-    const inputPdf = path.join(tempDir, fileName);
-    const outputDocx = path.join(tempDir, `${fileName.replace(/\.[^/.]+$/, '')}.docx`);
-    const psScriptPath = path.join(tempDir, 'convert_p2w.ps1');
+  static async pdfToWord({ fileBuffer, fileName = 'document.pdf', startPage, endPage }, onProgress) {
+    const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
+    const {
+      Document,
+      Packer,
+      Paragraph,
+      TextRun,
+      HeadingLevel,
+      Table,
+      TableRow,
+      TableCell,
+      WidthType,
+      AlignmentType,
+      ImageRun,
+    } = getDocx();
 
-    try {
-      const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
-      fs.writeFileSync(inputPdf, buffer);
+    const canvasFactory = new NapiCanvasFactory();
+    const loadingTask = DocumentService.getDocumentTask(buffer, { canvasFactory });
+    const pdfDoc = await loadingTask.promise;
+    const numPages = pdfDoc.numPages;
 
-      const psContent = [
-        `$ErrorActionPreference = "Stop"`,
-        `$word = $null`,
-        `try { $word = New-Object -ComObject Word.Application } catch {`,
-        `  try { $word = New-Object -ComObject KWPS.Application } catch { throw "NO_COM" }`,
-        `}`,
-        `$word.Visible = $false`,
-        `$word.DisplayAlerts = 0`,
-        `try {`,
-        `  $doc = $word.Documents.Open("${inputPdf.replace(/\\/g, '\\\\')}", $false, $true)`,
-        `  $doc.SaveAs2("${outputDocx.replace(/\\/g, '\\\\')}", 16)`,
-        `  $doc.Close($false)`,
-        `} finally {`,
-        `  if ($word) {`,
-        `    $word.Quit()`,
-        `    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($word) | Out-Null`,
-        `  }`,
-        `}`,
-      ].join('\r\n');
+    const startIdx = Math.max(1, (Number(startPage) || 0) + 1);
+    const endIdx =
+      endPage !== undefined && endPage !== null && Number(endPage) > 0
+        ? Math.min(numPages, Number(endPage))
+        : numPages;
+    const totalPagesToConvert = Math.max(1, endIdx - startIdx + 1);
 
-      fs.writeFileSync(psScriptPath, psContent, 'utf8');
+    const sections = [];
 
-      try {
-        execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psScriptPath}"`, {
-          timeout: 60000,
-          windowsHide: true,
-          stdio: 'ignore',
+    for (let pageNum = startIdx; pageNum <= endIdx; pageNum++) {
+      if (onProgress) {
+        onProgress({
+          current: pageNum - startIdx + 1,
+          total: totalPagesToConvert,
+          percent: Math.round(((pageNum - startIdx + 1) / totalPagesToConvert) * 100),
         });
-      } catch (_) {}
-
-      if (fs.existsSync(outputDocx)) {
-        const docxData = fs.readFileSync(outputDocx);
-        return {
-          buffer: docxData,
-          filename: path.basename(outputDocx),
-        };
       }
 
-      // 纯 Node.js pdfjs 文本提取 + OpenXML 组装兜底引擎
-      const loadingTask = DocumentService.getDocumentTask(buffer);
-      const pdfDoc = await loadingTask.promise;
-      const paragraphs = [];
-      for (let i = 1; i <= pdfDoc.numPages; i++) {
-        const page = await pdfDoc.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageLines = (textContent.items || [])
-          .map((it) => it.str)
-          .filter(Boolean)
-          .join(' ');
-        if (pageLines) {
-          paragraphs.push(pageLines);
+      const page = await pdfDoc.getPage(pageNum);
+      const view = page.view; // [x0, y0, pageW, pageH]
+      const pageW = view[2] - view[0];
+      const pageH = view[3] - view[1];
+      const isLandscape = pageW > pageH;
+
+      const textContent = await page.getTextContent();
+      const items = textContent.items || [];
+
+      // 1. 字体元数据缓存与解析
+      const fontMetaCache = new Map();
+      for (const fid of Object.keys(textContent.styles || {})) {
+        let rawName = '';
+        let fallbackName = '';
+        let bold = false;
+        let italic = false;
+
+        if (page.commonObjs && typeof page.commonObjs.get === 'function') {
+          try {
+            const fontObj = await new Promise((resolve) => {
+              let settled = false;
+              const timer = setTimeout(() => {
+                if (!settled) {
+                  settled = true;
+                  resolve(null);
+                }
+              }, 60);
+              page.commonObjs.get(fid, (obj) => {
+                if (!settled) {
+                  settled = true;
+                  clearTimeout(timer);
+                  resolve(obj);
+                }
+              });
+            });
+
+            if (fontObj) {
+              rawName = fontObj.name || fontObj.loadedName || '';
+              fallbackName = fontObj.fallbackName || '';
+              bold = Boolean(fontObj.bold || /bold|black|heavy|semibold|bd/i.test(rawName));
+              italic = Boolean(fontObj.italic || /italic|oblique|it/i.test(rawName));
+            }
+          } catch (_) {}
+        }
+
+        if (!rawName && textContent.styles && textContent.styles[fid]) {
+          fallbackName = textContent.styles[fid].fontFamily || '';
+        }
+
+        const lowerName = rawName.toLowerCase();
+        let family = 'Times New Roman';
+        if (lowerName.includes('times') || lowerName.includes('roman')) {
+          family = 'Times New Roman';
+        } else if (lowerName.includes('arial')) {
+          family = 'Arial';
+        } else if (lowerName.includes('calibri')) {
+          family = 'Calibri';
+        } else if (lowerName.includes('georgia')) {
+          family = 'Georgia';
+        } else if (lowerName.includes('garamond')) {
+          family = 'Garamond';
+        } else if (lowerName.includes('verdana')) {
+          family = 'Verdana';
+        } else if (lowerName.includes('tahoma')) {
+          family = 'Tahoma';
+        } else if (lowerName.includes('courier')) {
+          family = 'Courier New';
+        } else if (lowerName.includes('consola')) {
+          family = 'Consolas';
+        } else if (lowerName.includes('simsun') || lowerName.includes('song')) {
+          family = 'SimSun';
+        } else if (lowerName.includes('yahei')) {
+          family = 'Microsoft YaHei';
+        } else if (lowerName.includes('kaiti') || lowerName.includes('kai')) {
+          family = 'KaiTi';
+        } else if (lowerName.includes('fangsong')) {
+          family = 'FangSong';
+        } else if (fallbackName === 'sans-serif') {
+          family = 'Arial';
+        }
+
+        fontMetaCache.set(fid, { family, isBold: bold, isItalic: italic });
+      }
+
+      // 2. 提取并规范化词元
+      const rawTokens = [];
+      for (const it of items) {
+        const str = it.str;
+        if (!str || !str.trim()) continue;
+
+        const tx = it.transform; // [scaleX, skewY, skewX, scaleY, tx, ty]
+        const fontHeight = Math.hypot(tx[2], tx[3]) || 11;
+        const left = tx[4];
+        const top = pageH - tx[5] - fontHeight * 0.82;
+        const width = it.width > 0 ? it.width : fontHeight * str.length * 0.55;
+        const meta = fontMetaCache.get(it.fontName) || { family: 'Times New Roman', isBold: false, isItalic: false };
+
+        rawTokens.push({
+          text: str,
+          left,
+          top,
+          width,
+          height: fontHeight,
+          fontSize: Math.round(fontHeight * 10) / 10,
+          fontFamily: meta.family,
+          isBold: meta.isBold,
+          isItalic: meta.isItalic,
+        });
+      }
+
+      // 纯扫描或图片型页面容灾兜底：当页面完全没有可抽取文字时，光栅化为高清图片嵌入 Word
+      if (rawTokens.length === 0) {
+        try {
+          const viewport = page.getViewport({ scale: 1.5 });
+          const { canvas, context: ctx } = canvasFactory.create(viewport.width, viewport.height);
+          await page.render({ canvasContext: ctx, viewport, canvasFactory }).promise;
+          const pngBuf = canvas.toBuffer('image/png');
+
+          sections.push({
+            properties: {
+              page: {
+                size: {
+                  width: Math.round(pageW * 20),
+                  height: Math.round(pageH * 20),
+                  orientation: isLandscape ? 'landscape' : 'portrait',
+                },
+                margin: { top: 720, bottom: 720, left: 720, right: 720 },
+              },
+            },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new ImageRun({
+                    data: pngBuf,
+                    transformation: {
+                      width: Math.min(520, Math.round(pageW * 0.88)),
+                      height: Math.min(740, Math.round(pageH * 0.88)),
+                    },
+                    type: 'png',
+                  }),
+                ],
+              }),
+            ],
+          });
+          continue;
+        } catch (_) {}
+      }
+
+      // 3. 将词元按基线聚类为行 (Lines)
+      rawTokens.sort((a, b) => {
+        const dy = Math.abs(a.top - b.top);
+        if (dy <= Math.max(3.0, Math.min(a.fontSize, b.fontSize) * 0.35)) {
+          return a.left - b.left;
+        }
+        return a.top - b.top;
+      });
+
+      const lines = [];
+      for (const tok of rawTokens) {
+        let matchedLine = null;
+        for (const line of lines) {
+          if (Math.abs(line.top - tok.top) <= Math.max(3.0, tok.fontSize * 0.35)) {
+            matchedLine = line;
+            break;
+          }
+        }
+        if (matchedLine) {
+          matchedLine.tokens.push(tok);
+          matchedLine.top = Math.min(matchedLine.top, tok.top);
+          matchedLine.bottom = Math.max(matchedLine.bottom, tok.top + tok.height);
+        } else {
+          lines.push({
+            top: tok.top,
+            bottom: tok.top + tok.height,
+            tokens: [tok],
+          });
         }
       }
-      if (paragraphs.length === 0) {
-        paragraphs.push(fileName);
+
+      // 行内词元排序与微距碎片聚合
+      for (const line of lines) {
+        line.tokens.sort((a, b) => a.left - b.left);
+        const mergedTokens = [];
+        for (let i = 0; i < line.tokens.length; i++) {
+          const cur = line.tokens[i];
+          if (mergedTokens.length === 0) {
+            mergedTokens.push(cur);
+            continue;
+          }
+          const prev = mergedTokens[mergedTokens.length - 1];
+          const gap = cur.left - (prev.left + prev.width);
+          if (
+            gap <= Math.max(1.5, cur.fontSize * 0.16) &&
+            prev.isBold === cur.isBold &&
+            prev.isItalic === cur.isItalic &&
+            prev.fontFamily === cur.fontFamily &&
+            Math.abs(prev.fontSize - cur.fontSize) <= 1.0
+          ) {
+            prev.text += (gap > 0.5 ? ' ' : '') + cur.text;
+            prev.width = cur.left + cur.width - prev.left;
+          } else {
+            mergedTokens.push(cur);
+          }
+        }
+        line.tokens = mergedTokens;
+        line.left = line.tokens[0].left;
+        const lastTok = line.tokens[line.tokens.length - 1];
+        line.right = lastTok.left + lastTok.width;
+        line.width = line.right - line.left;
+        line.avgFontSize = line.tokens.reduce((acc, t) => acc + t.fontSize, 0) / line.tokens.length;
+        line.isBold = line.tokens.filter((t) => t.isBold).length >= line.tokens.length / 2;
+        line.isItalic = line.tokens.filter((t) => t.isItalic).length >= line.tokens.length / 2;
       }
 
-      const docxBuffer = await DocumentService.buildDocxFromParagraphs(paragraphs);
-      return {
-        buffer: docxBuffer,
-        filename: path.basename(outputDocx),
+      lines.sort((a, b) => a.top - b.top);
+
+      // 4. 表格检测 (Table Detection)
+      const tableBlocks = [];
+      let currentTableRows = [];
+
+      const isTableRow = (line) => {
+        if (line.tokens.length < 2) return false;
+        let wideGaps = 0;
+        for (let i = 0; i < line.tokens.length - 1; i++) {
+          const gap = line.tokens[i + 1].left - (line.tokens[i].left + line.tokens[i].width);
+          if (gap >= 24) wideGaps++;
+        }
+        return wideGaps >= 1 && line.tokens.length >= 2;
       };
-    } finally {
-      try {
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      } catch (_) {}
+
+      const flushTable = () => {
+        if (currentTableRows.length >= 2) {
+          tableBlocks.push([...currentTableRows]);
+        }
+        currentTableRows = [];
+      };
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (isTableRow(line)) {
+          if (currentTableRows.length === 0) {
+            currentTableRows.push(line);
+          } else {
+            const prev = currentTableRows[currentTableRows.length - 1];
+            if (line.top - prev.bottom <= prev.avgFontSize * 2.8) {
+              currentTableRows.push(line);
+            } else {
+              flushTable();
+              currentTableRows.push(line);
+            }
+          }
+        } else {
+          flushTable();
+        }
+      }
+      flushTable();
+
+      const tableLineSet = new Set();
+      const lineToTableMap = new Map();
+      for (const tRows of tableBlocks) {
+        for (const rowLine of tRows) {
+          tableLineSet.add(rowLine);
+          lineToTableMap.set(rowLine, tRows);
+        }
+      }
+
+      // 5. 段落、标题、列表与表格组装
+      const pageChildren = [];
+      const processedTables = new Set();
+
+      let activeParagraphRuns = [];
+      let activeParagraphAlignment = AlignmentType.LEFT;
+      let activeParagraphSpacing = { after: 140, line: 260 };
+
+      const flushActiveParagraph = () => {
+        if (activeParagraphRuns.length > 0) {
+          pageChildren.push(
+            new Paragraph({
+              alignment: activeParagraphAlignment,
+              spacing: activeParagraphSpacing,
+              children: activeParagraphRuns,
+            })
+          );
+          activeParagraphRuns = [];
+          activeParagraphAlignment = AlignmentType.LEFT;
+          activeParagraphSpacing = { after: 140, line: 260 };
+        }
+      };
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        // 5.1 结构化表格生成
+        if (tableLineSet.has(line)) {
+          flushActiveParagraph();
+          const tRows = lineToTableMap.get(line);
+          if (!processedTables.has(tRows)) {
+            processedTables.add(tRows);
+
+            const colXList = [];
+            for (const row of tRows) {
+              for (const t of row.tokens) {
+                const matchedCol = colXList.find((cx) => Math.abs(cx - t.left) <= 18);
+                if (!matchedCol) {
+                  colXList.push(t.left);
+                }
+              }
+            }
+            colXList.sort((a, b) => a - b);
+            const colCount = Math.max(colXList.length, 2);
+
+            const tableRows = tRows.map((row, rIdx) => {
+              const cellTokensMap = new Map();
+              for (let c = 0; c < colCount; c++) cellTokensMap.set(c, []);
+
+              for (const t of row.tokens) {
+                let bestCol = 0;
+                let minDiff = 999999;
+                colXList.forEach((cx, cIdx) => {
+                  const diff = Math.abs(cx - t.left);
+                  if (diff < minDiff) {
+                    minDiff = diff;
+                    bestCol = cIdx;
+                  }
+                });
+                cellTokensMap.get(bestCol).push(t);
+              }
+
+              const isHeader = rIdx === 0 && row.isBold;
+
+              return new TableRow({
+                tableHeader: isHeader,
+                children: Array.from({ length: colCount }).map((_, cIdx) => {
+                  const cTokens = cellTokensMap.get(cIdx) || [];
+                  const runs = cTokens.map(
+                    (t) =>
+                      new TextRun({
+                        text: t.text + ' ',
+                        bold: isHeader || t.isBold,
+                        italics: t.isItalic,
+                        size: Math.round(t.fontSize * 2),
+                        font: { name: t.fontFamily },
+                      })
+                  );
+
+                  return new TableCell({
+                    children: [
+                      new Paragraph({
+                        children: runs.length > 0 ? runs : [new TextRun('')],
+                        spacing: { after: 60, before: 60 },
+                      }),
+                    ],
+                  });
+                }),
+              });
+            });
+
+            pageChildren.push(
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: tableRows,
+              })
+            );
+            pageChildren.push(new Paragraph({ spacing: { after: 120 }, children: [] }));
+          }
+          continue;
+        }
+
+        // 5.2 文本行对齐检测
+        let alignment = AlignmentType.LEFT;
+        if (Math.abs((line.left + line.right) / 2 - pageW / 2) < 22 && line.width < pageW * 0.75) {
+          alignment = AlignmentType.CENTER;
+        } else if (pageW - line.right < 72 && line.left > pageW * 0.35) {
+          alignment = AlignmentType.RIGHT;
+        }
+
+        // 5.3 标题层级判定
+        let isHeading = false;
+        let headingLvl = undefined;
+        if (line.avgFontSize >= 17) {
+          isHeading = true;
+          headingLvl = HeadingLevel.HEADING_1;
+        } else if (line.avgFontSize >= 13.5 && (line.isBold || line.width < pageW * 0.8)) {
+          isHeading = true;
+          headingLvl = HeadingLevel.HEADING_2;
+        } else if (line.avgFontSize >= 12 && line.isBold && line.width < pageW * 0.75) {
+          isHeading = true;
+          headingLvl = HeadingLevel.HEADING_3;
+        }
+
+        // 5.4 列表序号匹配
+        const fullLineText = line.tokens.map((t) => t.text).join(' ');
+        const isBullet = /^([•◦▪▫–\-\*]|(\d+[\.\)])|(\([0-9a-zA-Z]\))|([A-Za-z]\.)|([一二三四五六七八九十]+[、\.]))\s*/.test(
+          fullLineText
+        );
+
+        const prevLine = i > 0 ? lines[i - 1] : null;
+        const isGapLarge = prevLine ? line.top - prevLine.bottom > prevLine.avgFontSize * 1.45 : true;
+
+        if (isHeading || isBullet || alignment !== activeParagraphAlignment || isGapLarge) {
+          flushActiveParagraph();
+
+          activeParagraphAlignment = alignment;
+          activeParagraphSpacing = isHeading ? { before: 200, after: 120 } : { after: 140, line: 260 };
+
+          const runs = line.tokens.map(
+            (t, tIdx) =>
+              new TextRun({
+                text: t.text + (tIdx < line.tokens.length - 1 ? ' ' : ''),
+                bold: isHeading || t.isBold,
+                italics: t.isItalic,
+                size: Math.round(t.fontSize * 2),
+                font: { name: t.fontFamily },
+              })
+          );
+
+          pageChildren.push(
+            new Paragraph({
+              heading: headingLvl,
+              alignment,
+              indent: isBullet ? { left: 480, hanging: 240 } : undefined,
+              spacing: activeParagraphSpacing,
+              children: runs,
+            })
+          );
+          activeParagraphAlignment = AlignmentType.LEFT;
+          activeParagraphSpacing = { after: 140, line: 260 };
+        } else {
+          if (activeParagraphRuns.length > 0) {
+            activeParagraphRuns.push(new TextRun(' '));
+          }
+          for (let tIdx = 0; tIdx < line.tokens.length; tIdx++) {
+            const t = line.tokens[tIdx];
+            activeParagraphRuns.push(
+              new TextRun({
+                text: t.text + (tIdx < line.tokens.length - 1 ? ' ' : ''),
+                bold: t.isBold,
+                italics: t.isItalic,
+                size: Math.round(t.fontSize * 2),
+                font: { name: t.fontFamily },
+              })
+            );
+          }
+        }
+      }
+      flushActiveParagraph();
+
+      sections.push({
+        properties: {
+          page: {
+            size: {
+              width: Math.round(pageW * 20),
+              height: Math.round(pageH * 20),
+              orientation: isLandscape ? 'landscape' : 'portrait',
+            },
+            margin: {
+              top: 1440,
+              bottom: 1440,
+              left: 1440,
+              right: 1440,
+            },
+          },
+        },
+        children: pageChildren.length > 0 ? pageChildren : [new Paragraph('')],
+      });
     }
+
+    const doc = new Document({
+      sections: sections.length > 0 ? sections : [{ children: [new Paragraph(fileName)] }],
+    });
+
+    const docxBuffer = await Packer.toBuffer(doc);
+    return {
+      buffer: docxBuffer,
+      filename: `${fileName.replace(/\.[^/.]+$/, '')}.docx`,
+    };
   }
 
   /**

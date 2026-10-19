@@ -14,6 +14,8 @@ import {
   ShieldCheck,
   Type,
   Eraser,
+  AlignLeft,
+  Table as TableIcon,
   AlertCircle,
   CheckCircle2,
   Loader2,
@@ -1625,6 +1627,27 @@ export default function DocumentToolbox({
                   : t.common.supportsPdf
               }
             />
+          )}
+
+          {activeTab === "pdf-to-word" && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-coconut-100/60 dark:bg-darkbg-subtle/60 border border-coconut-200/50 dark:border-darkbg-border/50 text-coconut-700 dark:text-darkbg-muted flex items-center gap-2 shadow-2xs">
+                <Zap className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                <span className="font-medium truncate">{lang === "en" ? "Blazing Fast (<2s)" : "毫秒级高速引擎"}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-coconut-100/60 dark:bg-darkbg-subtle/60 border border-coconut-200/50 dark:border-darkbg-border/50 text-coconut-700 dark:text-darkbg-muted flex items-center gap-2 shadow-2xs">
+                <TableIcon className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                <span className="font-medium truncate">{lang === "en" ? "Real Word Tables" : "智能重构真实表格"}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-coconut-100/60 dark:bg-darkbg-subtle/60 border border-coconut-200/50 dark:border-darkbg-border/50 text-coconut-700 dark:text-darkbg-muted flex items-center gap-2 shadow-2xs">
+                <AlignLeft className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                <span className="font-medium truncate">{lang === "en" ? "Flowing Paragraphs" : "自然流动段落"}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-coconut-100/60 dark:bg-darkbg-subtle/60 border border-coconut-200/50 dark:border-darkbg-border/50 text-coconut-700 dark:text-darkbg-muted flex items-center gap-2 shadow-2xs">
+                <Type className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                <span className="font-medium truncate">{lang === "en" ? "Fonts & Headings" : "保留标题与粗斜体"}</span>
+              </div>
+            </div>
           )}
 
           {error && (

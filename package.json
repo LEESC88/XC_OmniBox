@@ -1,6 +1,6 @@
 {
   "name": "xc-omnibox",
-  "version": "1.6.5",
+  "version": "1.6.6",
   "description": "XC_OmniBox (XC 万象箱) - 全能多媒体创作效率桌面客户端",
   "author": "LEESC88",
   "private": true,
@@ -21,6 +21,7 @@
     "@pdfsmaller/pdf-encrypt-lite": "^1.2.0",
     "archiver": "^8.0.0",
     "diff": "^9.0.0",
+    "docx": "^9.12.0",
     "electron-updater": "^6.8.9",
     "jsqr": "^1.4.0",
     "pdf-lib": "^1.17.1",
