@@ -11,8 +11,10 @@ For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
   - High-fidelity VS Code Dark+ theme palette mapping: Keywords (`#569CD6`), Functions (`#DCDCAA`), Types/Builtins (`#4EC9B0`), Numbers (`#B5CEA8`), Strings (`#CE9178`), Comments (`#6A9955`), Identifiers (`#9CDCFE`), and Operators/Punctuation (`#D4D4D4`).
   - Seamless 1-cell Table container with `#1E1E1E` dark background and `#007ACC` left accent bar, completely eliminating horizontal dividing line artifacts across code lines in Microsoft Word.
   - High-end live preview with macOS window action dots (`🔴 🟡 🟢`), language badge, line count, and tokenized syntax styling.
-- 🌐 **Dynamic English Sample Preset**:
-  - Automatically loads a professional English architecture report when language is set to English (`lang === "en"`), including real-world TypeScript duration computation logic and structured metrics table.
+- 🌐 **Comprehensive English UI Localization & Dynamic Word Footers**:
+  - Registered `ai-md-to-word` in `TOOL_TRANSLATIONS` so tool cards, descriptions, and headers switch seamlessly between English and Chinese.
+  - Fully translated all input placeholders (e.g. `e.g. CONFIDENTIAL · DO NOT DISTRIBUTE`, `e.g. XC Global Executive Office`, `e.g. DOC-2026-01`), layout option labels, and template badges.
+  - Native Word OpenXML footer dynamically formats as `— Page X of Y —` for English documents and `— 第 X 页 / 共 Y 页 —` for Chinese documents, synchronized across live preview and exported .docx.
 - 📐 **Spacious & Uncluttered Studio UI Redesign**:
   - Completely decluttered `AiMarkdownToWordStudio.tsx` with generous card padding, expanded layout margins (`gap-6 lg:gap-8`), soft rounded corners, elevated A4 paper shadow, and an expandable "Customize Layout" accordion.
 

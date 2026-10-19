@@ -191,8 +191,12 @@ export default function AiMarkdownToWordStudio({
   const [template, setTemplate] = useState<WordTemplateType>("gov-redhead");
   const [documentTitle, setDocumentTitle] = useState<string>("");
   const [enableRedHeader, setEnableRedHeader] = useState<boolean>(true);
-  const [redHeaderOrg, setRedHeaderOrg] = useState<string>("XC 万象集团办公厅文件");
-  const [docNumber, setDocNumber] = useState<string>("万象办发〔2026〕01号");
+  const [redHeaderOrg, setRedHeaderOrg] = useState<string>(() =>
+    lang === "en" ? "XC Executive Office Document" : "XC 万象集团办公厅文件"
+  );
+  const [docNumber, setDocNumber] = useState<string>(() =>
+    lang === "en" ? "DOC-2026-01" : "万象办发〔2026〕01号"
+  );
   const [firstLineIndent, setFirstLineIndent] = useState<boolean>(true);
   const [includePageNumbers, setIncludePageNumbers] = useState<boolean>(true);
   const [headerText, setHeaderText] = useState<string>("");
@@ -209,12 +213,22 @@ export default function AiMarkdownToWordStudio({
     blob: Blob;
   } | null>(null);
 
-  // 语言变动时，若用户尚未修改默认示例，则平滑自动同步切换为当前语言示例
+  // 语言变动时，若用户尚未修改默认示例与公文参数，则平滑自动同步切换为当前语言环境
   useEffect(() => {
     if (content === SAMPLE_ZH_MARKDOWN && lang === "en") {
       setContent(SAMPLE_EN_MARKDOWN);
     } else if (content === SAMPLE_EN_MARKDOWN && lang === "zh") {
       setContent(SAMPLE_ZH_MARKDOWN);
+    }
+    if (lang === "en" && redHeaderOrg === "XC 万象集团办公厅文件") {
+      setRedHeaderOrg("XC Executive Office Document");
+    } else if (lang === "zh" && redHeaderOrg === "XC Executive Office Document") {
+      setRedHeaderOrg("XC 万象集团办公厅文件");
+    }
+    if (lang === "en" && docNumber === "万象办发〔2026〕01号") {
+      setDocNumber("DOC-2026-01");
+    } else if (lang === "zh" && docNumber === "DOC-2026-01") {
+      setDocNumber("万象办发〔2026〕01号");
     }
   }, [lang]);
 
@@ -238,18 +252,19 @@ export default function AiMarkdownToWordStudio({
         const res = await inspectMarkdown({
           content,
           cleanAiArtifacts,
+          lang,
         });
         setInspectResult(res);
         setError(null);
       } catch (err: any) {
-        setError(err?.message || "解析预览失败");
+        setError(err?.message || (lang === "en" ? "Failed to parse preview" : "解析预览失败"));
       } finally {
         setInspecting(false);
       }
     }, 180);
 
     return () => clearTimeout(timer);
-  }, [content, cleanAiArtifacts]);
+  }, [content, cleanAiArtifacts, lang]);
 
   const handleFileSelect = async (file: File) => {
     setInspecting(true);
@@ -318,12 +333,15 @@ export default function AiMarkdownToWordStudio({
         template,
         documentTitle: documentTitle.trim() || undefined,
         enableRedHeader: template === "gov-redhead" ? enableRedHeader : false,
-        redHeaderOrg,
-        docNumber,
+        redHeaderOrg:
+          redHeaderOrg.trim() ||
+          (lang === "en" ? "XC Executive Office Document" : "XC 万象集团办公厅文件"),
+        docNumber: docNumber.trim() || (lang === "en" ? "DOC-2026-01" : "万象办发〔2026〕01号"),
         firstLineIndent,
         includePageNumbers,
         headerText: headerText.trim() || undefined,
         cleanAiArtifacts,
+        lang,
       });
 
       setLastExported({
@@ -492,7 +510,9 @@ export default function AiMarkdownToWordStudio({
                       value={redHeaderOrg}
                       disabled={!enableRedHeader}
                       onChange={(e) => setRedHeaderOrg(e.target.value)}
-                      placeholder="如：XC 万象集团办公厅文件"
+                      placeholder={
+                        lang === "en" ? "e.g. XC Global Executive Office" : "如：XC 万象集团办公厅文件"
+                      }
                       className="w-full px-3.5 py-2 text-xs rounded-xl border border-coconut-200 dark:border-darkbg-border bg-coconut-50/50 dark:bg-darkbg-subtle text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-red-500 disabled:opacity-50"
                     />
                   </div>
@@ -505,7 +525,7 @@ export default function AiMarkdownToWordStudio({
                       value={docNumber}
                       disabled={!enableRedHeader}
                       onChange={(e) => setDocNumber(e.target.value)}
-                      placeholder="如：万象办发〔2026〕01号"
+                      placeholder={lang === "en" ? "e.g. DOC-2026-01" : "如：万象办发〔2026〕01号"}
                       className="w-full px-3.5 py-2 text-xs rounded-xl border border-coconut-200 dark:border-darkbg-border bg-coconut-50/50 dark:bg-darkbg-subtle text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-red-500 disabled:opacity-50"
                     />
                   </div>
@@ -520,7 +540,10 @@ export default function AiMarkdownToWordStudio({
                   type="text"
                   value={documentTitle}
                   onChange={(e) => setDocumentTitle(e.target.value)}
-                  placeholder={inspectResult?.detectedTitle || "自动提取首个一级标题"}
+                  placeholder={
+                    inspectResult?.detectedTitle ||
+                    (lang === "en" ? "Auto-extract first heading" : "自动提取首个一级标题")
+                  }
                   className="w-full px-3.5 py-2 text-xs rounded-xl border border-coconut-200 dark:border-darkbg-border bg-coconut-50/50 dark:bg-darkbg-subtle text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -533,7 +556,9 @@ export default function AiMarkdownToWordStudio({
                   type="text"
                   value={headerText}
                   onChange={(e) => setHeaderText(e.target.value)}
-                  placeholder="如：内部绝密 · 严禁外传"
+                  placeholder={
+                    lang === "en" ? "e.g. CONFIDENTIAL · DO NOT DISTRIBUTE" : "如：内部绝密 · 严禁外传"
+                  }
                   className="w-full px-3.5 py-2 text-xs rounded-xl border border-coconut-200 dark:border-darkbg-border bg-coconut-50/50 dark:bg-darkbg-subtle text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-blue-500"
                 />
               </div>
@@ -567,7 +592,11 @@ export default function AiMarkdownToWordStudio({
                   onChange={(e) => setIncludePageNumbers(e.target.checked)}
                   className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
                 />
-                <span>{lang === "en" ? "Dynamic Page Numbers" : "页脚动态页码 (第X页/共Y页)"}</span>
+                <span>
+                  {lang === "en"
+                    ? "Dynamic Page Numbers (Page X of Y)"
+                    : "页脚动态页码 (第X页/共Y页)"}
+                </span>
               </label>
               <label className="inline-flex items-center gap-2 text-xs text-coconut-800 dark:text-darkbg-text cursor-pointer select-none">
                 <input
@@ -734,10 +763,16 @@ export default function AiMarkdownToWordStudio({
             </div>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-coconut-100 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted">
               {template === "gov-redhead"
-                ? "GB/T 9704 公文"
+                ? lang === "en"
+                  ? "GB/T 9704 Red-Header"
+                  : "GB/T 9704 公文"
                 : template === "business-report"
-                  ? "现代商务研报"
-                  : "学术三线表"}
+                  ? lang === "en"
+                    ? "Business Report"
+                    : "现代商务研报"
+                  : lang === "en"
+                    ? "Academic Three-Line Table"
+                    : "学术三线表"}
             </span>
           </div>
 
@@ -755,10 +790,11 @@ export default function AiMarkdownToWordStudio({
               {template === "gov-redhead" && enableRedHeader && (
                 <div className="text-center pb-3 mb-3 border-b-4 border-double border-[#D40000]">
                   <div className="text-xl sm:text-2xl font-black tracking-widest text-[#D40000] font-serif">
-                    {redHeaderOrg || "XC 万象集团办公厅文件"}
+                    {redHeaderOrg ||
+                      (lang === "en" ? "XC Executive Office Document" : "XC 万象集团办公厅文件")}
                   </div>
                   <div className="text-xs text-slate-700 mt-2 font-serif">
-                    {docNumber || "万象办发〔2026〕01号"}
+                    {docNumber || (lang === "en" ? "DOC-2026-01" : "万象办发〔2026〕01号")}
                   </div>
                 </div>
               )}
@@ -1002,7 +1038,7 @@ export default function AiMarkdownToWordStudio({
               {/* 页脚动态页码预览 */}
               {includePageNumbers && (
                 <div className="pt-4 mt-4 border-t border-slate-100 text-center text-[10px] text-slate-400 font-serif">
-                  — 第 1 页 / 共 1 页 —
+                  {lang === "en" ? "— Page 1 of 1 —" : "— 第 1 页 / 共 1 页 —"}
                 </div>
               )}
             </div>

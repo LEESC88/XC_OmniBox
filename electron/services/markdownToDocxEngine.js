@@ -442,6 +442,8 @@ function isTableSeparatorLine(line) {
  */
 function parseMarkdownToAst(rawContent, options = {}) {
   const cleanAi = options.cleanAiArtifacts !== false;
+  const lang = options.lang || 'zh';
+  const isEn = lang === 'en' || (!/[\u4e00-\u9fa5]/.test(rawContent) && lang !== 'zh');
   const normalized = normalizeInputContent(rawContent, cleanAi);
   const lines = normalized.split('\n');
 
@@ -610,14 +612,15 @@ function parseMarkdownToAst(rawContent, options = {}) {
         // 过滤 GitHub 警告标记头如 [!NOTE]
         const alertMatch = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(.*)/i.exec(qContent);
         if (alertMatch) {
-          const labelMap = {
+          const alertType = alertMatch[1].toUpperCase();
+          const labelMapZh = {
             NOTE: '【说明】',
             TIP: '【提示】',
             IMPORTANT: '【重要】',
             WARNING: '【注意】',
             CAUTION: '【警示】',
           };
-          const prefix = labelMap[alertMatch[1].toUpperCase()] || '【提示】';
+          const prefix = isEn ? `[${alertType}]` : labelMapZh[alertType] || '【提示】';
           quoteLines.push(`**${prefix}**${alertMatch[2] ? ' ' + alertMatch[2] : ''}`);
         } else if (qContent) {
           quoteLines.push(qContent);
@@ -1201,12 +1204,18 @@ function renderDocxTable(tableBlock, theme) {
 /**
  * 核心：检查并预览 Markdown / AI 内容结构
  */
-async function inspectMarkdown({ content, fileBuffer, fileName = 'document.md', cleanAiArtifacts = true }) {
+async function inspectMarkdown({
+  content,
+  fileBuffer,
+  fileName = 'document.md',
+  cleanAiArtifacts = true,
+  lang = 'zh',
+}) {
   let rawText = content || '';
   if (!rawText && fileBuffer) {
     rawText = decodeInputBuffer(fileBuffer);
   }
-  const ast = parseMarkdownToAst(rawText, { cleanAiArtifacts });
+  const ast = parseMarkdownToAst(rawText, { cleanAiArtifacts, lang });
   return {
     success: true,
     fileName,
@@ -1246,25 +1255,35 @@ async function markdownToWord({
   template = 'gov-redhead',
   documentTitle = '',
   enableRedHeader = true,
-  redHeaderOrg = 'XC 万象办公文件',
-  docNumber = '万象发〔2026〕01号',
+  redHeaderOrg = '',
+  docNumber = '',
   firstLineIndent = true,
   includePageNumbers = true,
   headerText = '',
   cleanAiArtifacts = true,
+  lang = 'zh',
 }) {
   let rawText = content || '';
   if (!rawText && fileBuffer) {
     rawText = decodeInputBuffer(fileBuffer);
   }
 
-  const ast = parseMarkdownToAst(rawText, { cleanAiArtifacts, documentTitle });
+  const isEn = lang === 'en' || (!/[\u4e00-\u9fa5]/.test(rawText) && lang !== 'zh');
+  const orgTitle = (
+    redHeaderOrg ||
+    (isEn ? 'XC Executive Office Document' : 'XC 万象办公文件')
+  ).trim();
+  const issueDocNumber = (
+    docNumber ||
+    (isEn ? 'DOC-2026-01' : '万象发〔2026〕01号')
+  ).trim();
+
+  const ast = parseMarkdownToAst(rawText, { cleanAiArtifacts, documentTitle, lang: isEn ? 'en' : 'zh' });
   const theme = getTemplateTheme(template);
   const children = [];
 
   // 1. 若为红头公文模式且启用了红头版式，生成标准红头版头 + 发文字号 + 红头文武双线
   if (template === 'gov-redhead' && enableRedHeader) {
-    const orgTitle = (redHeaderOrg || 'XC 万象办公文件').trim();
     children.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
@@ -1302,7 +1321,7 @@ async function markdownToWord({
         spacing: { before: 40, after: 320, line: 400, lineRule: LineRuleType.EXACT },
         children: [
           new TextRun({
-            text: (docNumber || '').trim() || ' ',
+            text: issueDocNumber || ' ',
             font: theme.bodyFont,
             size: 32, // 三号仿宋
             color: '000000',
@@ -1388,6 +1407,7 @@ async function markdownToWord({
       // 公文模式下，若一级标题未带“一、”或“第X章”编号，且存在多个章节，保持原样或赋予标准缩进
       let runsToRender = block.runs;
       if (
+        !isEn &&
         template === 'gov-redhead' &&
         lvl === 1 &&
         !/^([一二三四五六七八九十百]+、|第[一二三四五六七八九十百\d]+[章节部分]|\d+[.、])/.test(block.text)
@@ -1719,8 +1739,12 @@ async function markdownToWord({
               alignment: AlignmentType.CENTER,
               children: [
                 new TextRun({
-                  children: ['— 第 ', PageNumber.CURRENT, ' 页 / 共 ', PageNumber.TOTAL_PAGES, ' 页 —'],
-                  font: { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: 'SimSun' },
+                  children: isEn
+                    ? ['— Page ', PageNumber.CURRENT, ' of ', PageNumber.TOTAL_PAGES, ' —']
+                    : ['— 第 ', PageNumber.CURRENT, ' 页 / 共 ', PageNumber.TOTAL_PAGES, ' 页 —'],
+                  font: isEn
+                    ? { ascii: 'Times New Roman', hAnsi: 'Times New Roman' }
+                    : { ascii: 'Times New Roman', hAnsi: 'Times New Roman', eastAsia: 'SimSun' },
                   size: 20, // 10pt
                   color: '475569',
                 }),

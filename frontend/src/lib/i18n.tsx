@@ -58,6 +58,10 @@ export const TOOL_TRANSLATIONS: Record<
     name: "CSV / Table Encoding Rescuer",
     desc: "Smart charset detection (GBK/ANSI/UTF-8) and lossless conversion to Excel spreadsheets",
   },
+  "ai-md-to-word": {
+    name: "AI / Markdown to Standard Word",
+    desc: "Compile DeepSeek/Kimi/ChatGPT text or Markdown into official red-header, neat tables, and standard line-spaced .docx, with academic three-line tables",
+  },
 
   // Image
   "compress": {

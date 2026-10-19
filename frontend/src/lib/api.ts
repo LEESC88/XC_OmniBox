@@ -677,6 +677,7 @@ export interface MarkdownToWordOptions {
   includePageNumbers?: boolean;
   headerText?: string;
   cleanAiArtifacts?: boolean;
+  lang?: string;
 }
 
 /**
@@ -686,6 +687,7 @@ export async function inspectMarkdown(options: {
   content?: string;
   file?: File;
   cleanAiArtifacts?: boolean;
+  lang?: string;
 }): Promise<MarkdownInspectResult> {
   const fileBuffer = options.file ? await options.file.arrayBuffer() : undefined;
   return await invokeNative<MarkdownInspectResult>("document:inspect-markdown", {
@@ -693,6 +695,7 @@ export async function inspectMarkdown(options: {
     fileBuffer,
     fileName: options.file?.name || "AI_Document.md",
     cleanAiArtifacts: options.cleanAiArtifacts ?? true,
+    lang: options.lang,
   });
 }
 
@@ -729,6 +732,7 @@ export async function convertMarkdownToWord(
     includePageNumbers: options.includePageNumbers,
     headerText: options.headerText,
     cleanAiArtifacts: options.cleanAiArtifacts,
+    lang: options.lang,
   });
 
   const blob = new Blob([res.buffer as any], { type: res.mime });
