@@ -23,128 +23,120 @@ const {
   PageNumber,
 } = require('docx');
 
-let Prism = null;
+let Prism;
 try {
   Prism = require('prismjs');
-  require('prismjs/components/prism-typescript');
-  require('prismjs/components/prism-python');
-  require('prismjs/components/prism-java');
-  require('prismjs/components/prism-c');
-  require('prismjs/components/prism-cpp');
-  require('prismjs/components/prism-csharp');
-  require('prismjs/components/prism-go');
-  require('prismjs/components/prism-rust');
-  require('prismjs/components/prism-json');
-  require('prismjs/components/prism-bash');
-  require('prismjs/components/prism-sql');
-  require('prismjs/components/prism-yaml');
+  const prismComponents = [
+    'javascript',
+    'typescript',
+    'python',
+    'json',
+    'bash',
+    'sql',
+    'java',
+    'c',
+    'cpp',
+    'csharp',
+    'go',
+    'rust',
+    'yaml',
+    'css',
+    'markup',
+  ];
+  for (const comp of prismComponents) {
+    try {
+      require(`prismjs/components/prism-${comp}`);
+    } catch (_) {}
+  }
 } catch (e) {
-  console.warn('[markdownToDocxEngine] Prism load warning:', e.message);
+  console.warn('[markdownToDocxEngine] Prism load error:', e.message);
 }
 
-/**
- * VS Code Dark+ IDE 风格语法高亮色彩映射表
- */
-const TOKEN_COLOR_MAP = {
-  comment: '6A9955',
-  prolog: '6A9955',
-  doctype: '6A9955',
-  cdata: '6A9955',
-  keyword: '569CD6',
-  selector: '569CD6',
-  boolean: '569CD6',
-  tag: '569CD6',
-  function: 'DCDCAA',
-  'function-variable': 'DCDCAA',
-  'class-name': '4EC9B0',
-  builtin: '4EC9B0',
-  constant: '4EC9B0',
-  string: 'CE9178',
+// 仿真 VS Code Dark+ IDE 高保真语法色彩板（100% 还原现代编辑器视觉）
+const CODE_THEME_COLORS = {
+  keyword: '569CD6', // 蓝/青（private, let, const, return, if 等关键字）
+  'class-name': '4EC9B0', // 青绿（类名与类型）
+  builtin: '4EC9B0', // 青绿（string, null, Number, Math 等内置类型）
+  type: '4EC9B0',
+  function: 'DCDCAA', // 柔黄（calculatedDuration, parseInt, split 等方法）
+  string: 'CE9178', // 暖橙/砖红（'Full-Time', '08:00 - 17:30' 等字符串）
   char: 'CE9178',
-  'attr-value': 'CE9178',
-  number: 'B5CEA8',
-  variable: '9CDCFE',
-  property: '9CDCFE',
-  'attr-name': '9CDCFE',
-  parameter: '9CDCFE',
-  regex: 'D16969',
+  number: 'B5CEA8', // 淡绿（0, 3600, 60, 8 等数值字面量）
+  boolean: '569CD6',
+  comment: '6A9955', // 橄榄绿（// 1. 获取班次标准上班时间... 独占注释色）
   operator: 'D4D4D4',
   punctuation: 'D4D4D4',
-  plain: 'D4D4D4',
+  property: '9CDCFE', // 浅天蓝（对象属性与参数名）
+  variable: '9CDCFE',
+  parameter: '9CDCFE',
+  regex: 'D16969',
+  tag: '569CD6',
+  'attr-name': '9CDCFE',
+  'attr-value': 'CE9178',
+  default: 'D4D4D4', // 浅灰主正文字色
 };
 
-function flattenPrismTokens(tokenList) {
-  const result = [];
-  for (const tok of tokenList) {
-    if (typeof tok === 'string') {
-      result.push({ text: tok, type: 'plain' });
-    } else if (Array.isArray(tok.content)) {
-      result.push(
-        ...flattenPrismTokens(tok.content).map((sub) => ({
-          ...sub,
-          type: sub.type !== 'plain' ? sub.type : tok.type || 'plain',
-        }))
-      );
-    } else if (typeof tok.content === 'object' && tok.content !== null) {
-      result.push(...flattenPrismTokens([tok.content]));
-    } else {
-      result.push({ text: String(tok.content || ''), type: tok.type });
+const LANG_ALIAS = {
+  ts: 'typescript',
+  tsx: 'typescript',
+  js: 'javascript',
+  jsx: 'javascript',
+  py: 'python',
+  sh: 'bash',
+  shell: 'bash',
+  zsh: 'bash',
+  yml: 'yaml',
+  cs: 'csharp',
+  golang: 'go',
+  rs: 'rust',
+  rb: 'ruby',
+};
+
+function tokenizeCode(codeText, langName = '') {
+  const normLang = LANG_ALIAS[String(langName || '').toLowerCase()] || String(langName || '').toLowerCase();
+  const grammar = (Prism && Prism.languages[normLang]) || (Prism && Prism.languages.javascript);
+
+  let flatTokens = [];
+  if (grammar) {
+    const rawTokens = Prism.tokenize(codeText || '', grammar);
+    function walk(tok, inheritedType) {
+      if (typeof tok === 'string') {
+        flatTokens.push({ text: tok, type: inheritedType || 'default' });
+      } else if (Array.isArray(tok)) {
+        tok.forEach((t) => walk(t, inheritedType));
+      } else if (typeof tok === 'object' && tok !== null) {
+        const type = tok.type || inheritedType || 'default';
+        if (typeof tok.content === 'string') {
+          flatTokens.push({ text: tok.content, type });
+        } else {
+          walk(tok.content, type);
+        }
+      }
     }
-  }
-  return result;
-}
-
-function normalizeLangAlias(rawLang) {
-  const s = String(rawLang || '').toLowerCase().trim();
-  if (['ts', 'tsx', 'typescript'].includes(s)) return 'typescript';
-  if (['js', 'jsx', 'javascript', 'mjs', 'cjs'].includes(s)) return 'javascript';
-  if (['py', 'python'].includes(s)) return 'python';
-  if (['sh', 'bash', 'shell', 'zsh'].includes(s)) return 'bash';
-  if (['c', 'h'].includes(s)) return 'c';
-  if (['cpp', 'cc', 'cxx', 'hpp'].includes(s)) return 'cpp';
-  if (['cs', 'csharp'].includes(s)) return 'csharp';
-  if (['golang', 'go'].includes(s)) return 'go';
-  if (['rs', 'rust'].includes(s)) return 'rust';
-  if (['yml', 'yaml'].includes(s)) return 'yaml';
-  if (['json'].includes(s)) return 'json';
-  if (['sql'].includes(s)) return 'sql';
-  if (['java'].includes(s)) return 'java';
-  return 'javascript';
-}
-
-function highlightCodeToLines(codeText, rawLang = 'javascript') {
-  if (!Prism) {
-    return String(codeText || '')
-      .split('\n')
-      .map((ln) => [{ text: ln || ' ', color: 'D4D4D4', bold: false }]);
+    rawTokens.forEach((t) => walk(t, null));
+  } else {
+    flatTokens = [{ text: codeText || '', type: 'default' }];
   }
 
-  const langKey = normalizeLangAlias(rawLang);
-  const grammar = Prism.languages[langKey] || Prism.languages.javascript;
-  const rawTokens = Prism.tokenize(String(codeText || ''), grammar);
-  const flatTokens = flattenPrismTokens(rawTokens);
-
-  const lines = [[]];
+  const lines = [];
+  let currentLine = [];
   for (const tok of flatTokens) {
-    const color = TOKEN_COLOR_MAP[tok.type] || 'D4D4D4';
     const parts = tok.text.split('\n');
     for (let i = 0; i < parts.length; i++) {
       if (i > 0) {
-        lines.push([]);
+        lines.push(currentLine.length > 0 ? currentLine : [{ text: ' ', type: 'default', color: 'D4D4D4' }]);
+        currentLine = [];
       }
       if (parts[i]) {
-        lines[lines.length - 1].push({
-          text: parts[i],
-          color,
-          bold: tok.type === 'keyword',
-          type: tok.type,
-        });
+        const color = CODE_THEME_COLORS[tok.type] || CODE_THEME_COLORS.default;
+        const italic = tok.type === 'comment';
+        currentLine.push({ text: parts[i], type: tok.type, color, italic });
       }
     }
   }
+  lines.push(currentLine.length > 0 ? currentLine : [{ text: ' ', type: 'default', color: 'D4D4D4' }]);
   return lines;
 }
-
 
 /**
  * 常用 LaTeX 数学符号映射表，使 DeepSeek / ChatGPT 输出的行内公式在 Word 中优雅可读
@@ -478,14 +470,13 @@ function parseMarkdownToAst(rawContent, options = {}) {
         i++;
       }
       if (i < lines.length) i++; // 跳过结束围栏
-      const codeText = codeLines.join('\n');
-      const highlightedLines = highlightCodeToLines(codeText, language);
+      const tokenizedLines = tokenizeCode(codeLines.join('\n'), language);
       blocks.push({
         type: 'code',
         language,
         lines: codeLines.length > 0 ? codeLines : [''],
-        text: codeText,
-        highlightedLines,
+        tokenizedLines,
+        text: codeLines.join('\n'),
       });
       continue;
     }
@@ -1239,8 +1230,8 @@ async function inspectMarkdown({ content, fileBuffer, fileName = 'document.md', 
           }))
         : undefined,
       language: b.language,
-      lines: b.lines ? b.lines.slice(0, 40) : undefined,
-      highlightedLines: b.highlightedLines ? b.highlightedLines.slice(0, 40) : undefined,
+      lines: b.lines ? b.lines.slice(0, 20) : undefined,
+      tokenizedLines: b.tokenizedLines ? b.tokenizedLines.slice(0, 80) : undefined,
     })),
   };
 }
@@ -1575,68 +1566,74 @@ async function markdownToWord({
     }
 
     if (block.type === 'code') {
-      const hlLines =
-        block.highlightedLines ||
-        highlightCodeToLines(block.text, block.language);
-
-      const codeParagraphs = hlLines.map((lineTokens, lineIdx) => {
-        const runs = lineTokens.map(
-          (seg) =>
+      const tokenizedLines =
+        block.tokenizedLines || tokenizeCode((block.lines || []).join('\n'), block.language);
+      const codeParagraphs = tokenizedLines.map((lineTokens, lineIdx) => {
+        const runs = (lineTokens.length > 0 ? lineTokens : [{ text: ' ', color: 'D4D4D4' }]).map(
+          (tok) =>
             new TextRun({
-              text: seg.text || ' ',
+              text: tok.text || ' ',
               font: { ascii: 'Consolas', hAnsi: 'Consolas', eastAsia: 'Microsoft YaHei' },
               size: 19, // 9.5pt
-              color: seg.color || 'D4D4D4',
-              bold: Boolean(seg.bold),
+              color: tok.color || 'D4D4D4',
+              italics: Boolean(tok.italic),
               noProof: true,
             })
         );
-
         return new Paragraph({
           keepLines: true,
-          keepNext: lineIdx < hlLines.length - 1 ? true : undefined,
+          keepNext: lineIdx < tokenizedLines.length - 1 ? true : undefined,
           spacing: {
-            before: lineIdx === 0 ? 60 : 0,
-            after: lineIdx === hlLines.length - 1 ? 60 : 0,
+            before: 0,
+            after: 0,
             line: 260,
             lineRule: LineRuleType.AUTO,
           },
-          children: runs.length > 0 ? runs : [new TextRun({ text: ' ', color: 'D4D4D4' })],
+          children: runs,
         });
       });
 
-      const codeContainerTable = new Table({
+      const codeTable = new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
         borders: {
-          top: { style: BorderStyle.SINGLE, size: 4, color: '333333' },
-          bottom: { style: BorderStyle.SINGLE, size: 4, color: '333333' },
-          left: { style: BorderStyle.SINGLE, size: 18, color: '569CD6' },
-          right: { style: BorderStyle.SINGLE, size: 4, color: '333333' },
-          insideHorizontal: { style: BorderStyle.NONE },
-          insideVertical: { style: BorderStyle.NONE },
+          top: { style: BorderStyle.SINGLE, size: 4, color: '2D2D2D' },
+          bottom: { style: BorderStyle.SINGLE, size: 4, color: '2D2D2D' },
+          left: { style: BorderStyle.SINGLE, size: 18, color: '007ACC' },
+          right: { style: BorderStyle.SINGLE, size: 4, color: '2D2D2D' },
+          insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+          insideVertical: { style: BorderStyle.NONE, size: 0, color: 'auto' },
         },
         rows: [
           new TableRow({
-            cantSplit: true,
             children: [
               new TableCell({
+                width: { size: 100, type: WidthType.PERCENTAGE },
                 shading: { type: ShadingType.CLEAR, fill: '1E1E1E' },
-                margins: { top: 140, bottom: 140, left: 240, right: 240 },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 4, color: '2D2D2D' },
+                  bottom: { style: BorderStyle.SINGLE, size: 4, color: '2D2D2D' },
+                  left: { style: BorderStyle.SINGLE, size: 18, color: '007ACC' },
+                  right: { style: BorderStyle.SINGLE, size: 4, color: '2D2D2D' },
+                },
+                margins: {
+                  top: 140,
+                  bottom: 140,
+                  left: 180,
+                  right: 180,
+                },
                 children:
-                  codeParagraphs.length > 0
-                    ? codeParagraphs
-                    : [new Paragraph({ children: [new TextRun({ text: ' ', color: 'D4D4D4' })] })],
+                  codeParagraphs.length > 0 ? codeParagraphs : [new Paragraph({ children: [] })],
               }),
             ],
           }),
         ],
       });
 
-      children.push(codeContainerTable);
+      children.push(codeTable);
       children.push(
         new Paragraph({
-          spacing: { before: 0, after: 140, line: 120, lineRule: LineRuleType.EXACT },
-          children: [new TextRun({ text: '', size: 2 })],
+          spacing: { before: 0, after: 120, line: 120, lineRule: LineRuleType.EXACT },
+          children: [],
         })
       );
       continue;

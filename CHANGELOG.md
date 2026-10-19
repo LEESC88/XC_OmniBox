@@ -4,22 +4,17 @@ All notable updates and releases for **XC_OmniBox** will be documented in this f
 
 For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
-## 🌟 v1.6.8 IDE Syntax Highlighting for Code Blocks & English Sample Support
+## 🌟 v1.6.8 IDE Syntax Highlighting for Word Code Blocks, English Sample Sync & Spacious UI
 
-- 🎨 **VS Code IDE Syntax Highlighting for Markdown Code Blocks**:
-  - Integrated `prismjs` lexer engine supporting TypeScript, JavaScript, Python, Java, C, C++, C#, Go, Rust, JSON, Bash, SQL, and YAML.
-  - Formatted code blocks with exact VS Code Dark+ color palette: keywords (`#569CD6`), functions (`#DCDCAA`), types/classes (`#4EC9B0`), strings (`#CE9178`), numbers (`#B5CEA8`), comments (`#6A9955`), variables (`#9CDCFE`).
-  - Seamless single-cell table container in Word `.docx` with `#1E1E1E` dark background, `#569CD6` left accent border, and zero inter-paragraph hairline seams.
-  - Interactive live preview in studio featuring macOS window control dots, language pill, one-click copy button, and colored token highlights.
-
-- 🌐 **Dynamic English Sample & Language-Aware Presets**:
-  - Automatically loads a professional English technical report sample (`SAMPLE_EN_MARKDOWN`) when the interface language is English (`lang === "en"`).
-  - Automatically loads standard Chinese administrative/project document sample (`SAMPLE_ZH_MARKDOWN`) in Chinese mode.
-
-- 🌿 **Spacious & Decluttered Studio UI Design**:
-  - Compact segmented pill switcher replacing oversized template cards to maximize vertical editing and preview real estate.
-  - Collapsible metadata panel for official red-header titles and document numbers (`发文字号`).
-  - Expanded dual-pane preview height to `min-h-[520px]`.
+- 🎨 **IDE Multi-Color Syntax Highlighting in Word (.docx) & Live Preview**:
+  - Embedded Prism.js lexical tokenizer in `markdownToDocxEngine.js` supporting 15 mainstream languages (TypeScript, JavaScript, Python, JSON, SQL, Bash, Go, Rust, Java, C, C++, C#, YAML, CSS, Markup).
+  - High-fidelity VS Code Dark+ theme palette mapping: Keywords (`#569CD6`), Functions (`#DCDCAA`), Types/Builtins (`#4EC9B0`), Numbers (`#B5CEA8`), Strings (`#CE9178`), Comments (`#6A9955`), Identifiers (`#9CDCFE`), and Operators/Punctuation (`#D4D4D4`).
+  - Seamless 1-cell Table container with `#1E1E1E` dark background and `#007ACC` left accent bar, completely eliminating horizontal dividing line artifacts across code lines in Microsoft Word.
+  - High-end live preview with macOS window action dots (`🔴 🟡 🟢`), language badge, line count, and tokenized syntax styling.
+- 🌐 **Dynamic English Sample Preset**:
+  - Automatically loads a professional English architecture report when language is set to English (`lang === "en"`), including real-world TypeScript duration computation logic and structured metrics table.
+- 📐 **Spacious & Uncluttered Studio UI Redesign**:
+  - Completely decluttered `AiMarkdownToWordStudio.tsx` with generous card padding, expanded layout margins (`gap-6 lg:gap-8`), soft rounded corners, elevated A4 paper shadow, and an expandable "Customize Layout" accordion.
 
 ---
 
