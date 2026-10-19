@@ -412,6 +412,9 @@ export interface PdfInspectItem {
   topPercent: number;
   widthPercent: number;
   heightPercent: number;
+  lineId?: string;
+  wordIndex?: number;
+  items?: PdfInspectItem[];
   vx?: number;
   vy?: number;
   vw?: number;
@@ -437,8 +440,22 @@ export interface PdfInspectResult {
   pages: PdfInspectPage[];
 }
 
+export interface PdfReflowSegment {
+  text: string;
+  origX: number;
+  origWidth: number;
+  fontFamily?: string;
+  fontSize?: number;
+  isBold?: boolean;
+  isItalic?: boolean;
+  colorHex?: string;
+  isPatched?: boolean;
+}
+
 export interface PdfTextPatch {
   id: string;
+  targetItemId?: string;
+  lineId?: string;
   pageIndex: number;
   x: number;
   y: number;
@@ -462,6 +479,9 @@ export interface PdfTextPatch {
   padding?: number;
   isMoved?: boolean;
   isHighlight?: boolean;
+  minXConstraint?: number;
+  origTailRight?: number;
+  reflowSegments?: PdfReflowSegment[];
 }
 
 export interface PdfApplyPatchesResult {

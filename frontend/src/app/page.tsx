@@ -542,7 +542,7 @@ export default function Home() {
   // 客户端自动更新弹窗状态与版本感知
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
-  const [appVersion, setAppVersion] = useState<string>("1.6.4");
+  const [appVersion, setAppVersion] = useState<string>("1.6.5");
 
   // 快捷键指南弹窗状态与全局提示
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);

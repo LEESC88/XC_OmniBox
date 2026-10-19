@@ -92,6 +92,28 @@ const getFontFamilyCss = (family?: string) => {
   return '"Times New Roman", Times, serif';
 };
 
+let _uiMeasureCanvas: HTMLCanvasElement | null = null;
+const measureUiTextWidthPx = (
+  text: string,
+  fontFamily: string,
+  fontSizePx: number,
+  isBold?: boolean,
+  isItalic?: boolean
+): number => {
+  if (typeof document === "undefined") {
+    return Math.max(22, (text.length + 1) * fontSizePx * 0.55);
+  }
+  if (!_uiMeasureCanvas) {
+    _uiMeasureCanvas = document.createElement("canvas");
+  }
+  const ctx = _uiMeasureCanvas.getContext("2d");
+  if (!ctx) {
+    return Math.max(22, (text.length + 1) * fontSizePx * 0.55);
+  }
+  ctx.font = `${isItalic ? "italic " : ""}${isBold ? "bold " : ""}${fontSizePx}px ${getFontFamilyCss(fontFamily)}`;
+  return Math.ceil(ctx.measureText(text || " ").width);
+};
+
 export default function PdfInplaceTextStudio({
   incomingFile,
   onFileClear,
@@ -197,6 +219,8 @@ export default function PdfInplaceTextStudio({
   // 当前正在原地编辑的活跃项目 (Active Inline Editing Target)
   const [activeEditingItem, setActiveEditingItem] = useState<{
     id: string;
+    targetItemId?: string;
+    lineId?: string;
     isExistingPatch?: boolean;
     patchId?: string;
     originalText: string;
@@ -395,9 +419,73 @@ export default function PdfInplaceTextStudio({
     return matches;
   }, [inspectResult, searchQuery]);
 
+  // 辅助：将当前活跃编辑项构建为标准 PdfTextPatch
+  const buildPatchFromEditingItem = (
+    item: NonNullable<typeof activeEditingItem>,
+    pageIdx: number
+  ): PdfTextPatch => {
+    const isDrawnOrMoved =
+      !item.x ||
+      !item.y ||
+      item.id.startsWith("draw_") ||
+      Boolean(item.isMoved);
+
+    return {
+      id: item.patchId || `patch_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      pageIndex: pageIdx,
+      targetItemId: item.targetItemId || (!item.id.startsWith("draw_") && !item.id.startsWith("patch_") ? item.id : undefined),
+      lineId: item.lineId,
+      x: item.x ?? 0,
+      y: item.y ?? 0,
+      width: item.width ?? 0,
+      height: item.height ?? 0,
+      leftPercent: item.leftPercent,
+      topPercent: item.topPercent,
+      widthPercent: item.widthPercent,
+      heightPercent: item.heightPercent,
+      originalText: item.originalText,
+      newText: item.newText,
+      fontFamily: item.fontFamily,
+      displayFamily: item.displayFamily,
+      isBold: item.isBold,
+      isItalic: item.isItalic,
+      detectedFont: item.detectedFont,
+      fontSize: item.fontSize,
+      colorHex: item.colorHex,
+      bgHex: item.bgHex,
+      autoFit: item.autoFit,
+      isMoved: isDrawnOrMoved,
+    };
+  };
+
+  const mergePatchIntoList = (basePatches: PdfTextPatch[], newPatch: PdfTextPatch): PdfTextPatch[] => {
+    const filtered = basePatches.filter(
+      (p) =>
+        p.id !== newPatch.id &&
+        !(
+          !p.isHighlight &&
+          !newPatch.isHighlight &&
+          p.pageIndex === newPatch.pageIndex &&
+          newPatch.targetItemId &&
+          p.targetItemId === newPatch.targetItemId
+        )
+    );
+    return [...filtered, newPatch];
+  };
+
   // 1. 点击任意文本块，直接在页面原地激活编辑或高亮标注
   const handleStartInplaceEdit = (target: PdfInspectItem) => {
     if (editGranularity === "draw") return;
+
+    // 若上一个输入框已有实质修改但尚未按回车，切换词时自动暂存
+    if (
+      activeEditingItem &&
+      currentPage &&
+      (activeEditingItem.newText !== activeEditingItem.originalText || activeEditingItem.isExistingPatch)
+    ) {
+      const autoSaved = buildPatchFromEditingItem(activeEditingItem, currentPage.pageIndex);
+      pushHistory(mergePatchIntoList(patches, autoSaved));
+    }
 
     // 荧光高亮笔标注模式 (Highlight Mode)：点击文字直接施加深色高亮，自动匹配字号边界；再次点击同色文字可取消
     if (editGranularity === "highlight") {
@@ -444,8 +532,19 @@ export default function PdfInplaceTextStudio({
       return;
     }
 
+    // 如果该词已经存在未移动的 Patch，直接进入该 Patch 的编辑态
+    const existingWordPatch = currentPagePatches.find(
+      (p) => !p.isHighlight && !p.isMoved && p.targetItemId === target.id
+    );
+    if (existingWordPatch) {
+      handleEditExistingPatch(existingWordPatch);
+      return;
+    }
+
     setActiveEditingItem({
       id: target.id,
+      targetItemId: target.id,
+      lineId: target.lineId,
       originalText: target.str,
       newText: target.str,
       x: target.x,
@@ -472,6 +571,8 @@ export default function PdfInplaceTextStudio({
   const handleEditExistingPatch = (patch: PdfTextPatch) => {
     setActiveEditingItem({
       id: patch.id,
+      targetItemId: patch.targetItemId,
+      lineId: patch.lineId,
       isExistingPatch: true,
       patchId: patch.id,
       originalText: patch.originalText || "",
@@ -501,39 +602,8 @@ export default function PdfInplaceTextStudio({
   const handleCommitInplaceEdit = () => {
     if (!activeEditingItem || !currentPage) return;
 
-    const isDrawnOrMoved =
-      !activeEditingItem.x ||
-      !activeEditingItem.y ||
-      activeEditingItem.id.startsWith("draw_") ||
-      Boolean(activeEditingItem.isMoved);
-
-    const newPatch: PdfTextPatch = {
-      id: activeEditingItem.patchId || `patch_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      pageIndex: currentPage.pageIndex,
-      x: activeEditingItem.x ?? 0,
-      y: activeEditingItem.y ?? 0,
-      width: activeEditingItem.width ?? 0,
-      height: activeEditingItem.height ?? 0,
-      leftPercent: activeEditingItem.leftPercent,
-      topPercent: activeEditingItem.topPercent,
-      widthPercent: activeEditingItem.widthPercent,
-      heightPercent: activeEditingItem.heightPercent,
-      originalText: activeEditingItem.originalText,
-      newText: activeEditingItem.newText,
-      fontFamily: activeEditingItem.fontFamily,
-      displayFamily: activeEditingItem.displayFamily,
-      isBold: activeEditingItem.isBold,
-      isItalic: activeEditingItem.isItalic,
-      detectedFont: activeEditingItem.detectedFont,
-      fontSize: activeEditingItem.fontSize,
-      colorHex: activeEditingItem.colorHex,
-      bgHex: activeEditingItem.bgHex,
-      autoFit: activeEditingItem.autoFit,
-      isMoved: isDrawnOrMoved,
-    };
-
-    const filtered = patches.filter((p) => p.id !== newPatch.id);
-    pushHistory([...filtered, newPatch]);
+    const newPatch = buildPatchFromEditingItem(activeEditingItem, currentPage.pageIndex);
+    pushHistory(mergePatchIntoList(patches, newPatch));
     setActiveEditingItem(null);
   };
 
@@ -908,13 +978,22 @@ export default function PdfInplaceTextStudio({
 
   // 提交并生成修正后的 PDF
   const handleExportFixedPdf = async () => {
-    if (!file || patches.length === 0) return;
+    if (!file) return;
+    let patchesToApply = patches;
+    if (activeEditingItem && currentPage) {
+      const pendingPatch = buildPatchFromEditingItem(activeEditingItem, currentPage.pageIndex);
+      patchesToApply = mergePatchIntoList(patches, pendingPatch);
+      pushHistory(patchesToApply);
+      setActiveEditingItem(null);
+    }
+    if (patchesToApply.length === 0) return;
+
     setApplying(true);
     setExportError(null);
     setExportSuccess(null);
 
     try {
-      const res = await applyPdfTextPatches(file, patches);
+      const res = await applyPdfTextPatches(file, patchesToApply);
       setExportSuccess({
         filename: res.filename,
         blob: res.blob,
@@ -1276,13 +1355,13 @@ export default function PdfInplaceTextStudio({
 
           {/* 顶部一键导出按钮 */}
           <button
-            disabled={applying || patches.length === 0}
+            disabled={applying || (patches.length === 0 && !activeEditingItem)}
             onClick={handleExportFixedPdf}
             className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white transition-all shadow-sm"
             title="应用当前全部补丁并保存下载 PDF"
           >
             {applying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-            <span>{applying ? "正在重绘..." : `导出 PDF (${patches.length})`}</span>
+            <span>{applying ? "正在重绘..." : `导出 PDF (${patches.length + (activeEditingItem && !activeEditingItem.isExistingPatch ? 1 : 0)})`}</span>
           </button>
 
           {/* 全屏模式切换器 */}
@@ -1362,6 +1441,82 @@ export default function PdfInplaceTextStudio({
               const baseWidth = Math.min(currentPage.viewWidth, 750);
               const canvasWidth = baseWidth * zoomScale;
               const canvasHeight = canvasWidth * (currentPage.height / currentPage.width);
+              const scaleRatio = canvasWidth / currentPage.width;
+
+              // 计算同行单字自动顺延重排集合 (Same-Line Word Reflow Engine)
+              const coveredTargetIds = new Set<string>();
+              const consumedPatchIds = new Set<string>();
+              let isActiveItemInReflow = false;
+
+              const reflowedLines: {
+                line: PdfInspectItem;
+                firstAffectedIdx: number;
+                matchedPatchByWordIdx: Map<number, PdfTextPatch>;
+              }[] = [];
+
+              for (const line of currentPage.lines || []) {
+                const lineItems = line.items || [];
+                if (lineItems.length <= 1) continue;
+
+                // 如果该行本身已存在整行级补丁，则不启用单字顺延层
+                const hasWholeLinePatch = currentPagePatches.some(
+                  (p) =>
+                    !p.isHighlight &&
+                    !p.isMoved &&
+                    (p.targetItemId === line.id ||
+                      (!p.targetItemId && (p.width ?? 0) >= line.width - 2.5))
+                );
+                if (hasWholeLinePatch) continue;
+
+                const matchedPatchByWordIdx = new Map<number, PdfTextPatch>();
+                let firstAffectedIdx = -1;
+
+                lineItems.forEach((wordIt, wIdx) => {
+                  const wordPatch = currentPagePatches.find((p) => {
+                    if (p.isHighlight || p.isMoved) return false;
+                    if (p.targetItemId && /_l\d+$/.test(p.targetItemId)) return false;
+                    if (p.targetItemId) return p.targetItemId === wordIt.id;
+                    return (
+                      Math.abs((p.y ?? 0) - wordIt.y) <= 3.5 &&
+                      Math.abs((p.x ?? 0) - wordIt.x) <= 3.0 &&
+                      (p.width ?? 0) < line.width - 2.5
+                    );
+                  });
+
+                  if (wordPatch) {
+                    matchedPatchByWordIdx.set(wIdx, wordPatch);
+                    consumedPatchIds.add(wordPatch.id);
+                    if (firstAffectedIdx === -1 || wIdx < firstAffectedIdx) {
+                      firstAffectedIdx = wIdx;
+                    }
+                  }
+
+                  const isActiveHere =
+                    activeEditingItem &&
+                    !activeEditingItem.isMoved &&
+                    (activeEditingItem.targetItemId === wordIt.id ||
+                      activeEditingItem.id === wordIt.id ||
+                      (wordPatch && activeEditingItem.patchId === wordPatch.id));
+
+                  if (isActiveHere) {
+                    isActiveItemInReflow = true;
+                    if (firstAffectedIdx === -1 || wIdx < firstAffectedIdx) {
+                      firstAffectedIdx = wIdx;
+                    }
+                  }
+                });
+
+                if (firstAffectedIdx !== -1) {
+                  for (let m = firstAffectedIdx; m < lineItems.length; m++) {
+                    coveredTargetIds.add(lineItems[m].id);
+                  }
+                  reflowedLines.push({
+                    line,
+                    firstAffectedIdx,
+                    matchedPatchByWordIdx,
+                  });
+                }
+              }
 
               return (
               <div
@@ -1405,11 +1560,12 @@ export default function PdfInplaceTextStudio({
                 {/* 2. 交互式文字探测层 (Hover & Click to Edit) */}
                 {selectableTargets.map((target) => {
                   const isCurrentEditing = activeEditingItem?.id === target.id;
+                  if (isCurrentEditing) return null;
+                  if (editGranularity === "word" && coveredTargetIds.has(target.id)) return null;
+
                   const isMatch =
                     searchQuery.trim().length > 0 &&
                     target.str.toLowerCase().includes(searchQuery.trim().toLowerCase());
-
-                  if (isCurrentEditing) return null;
 
                   return (
                     <div
@@ -1443,10 +1599,167 @@ export default function PdfInplaceTextStudio({
                   );
                 })}
 
+                {/* 2.5 同行单字自动空隙顺延重排层 (Same-Line Auto Word Spacing & Reflow) */}
+                {reflowedLines.map(({ line, firstAffectedIdx, matchedPatchByWordIdx }) => {
+                  const lineItems = line.items || [];
+                  const firstItem = lineItems[firstAffectedIdx];
+                  const lastItem = lineItems[lineItems.length - 1];
+                  if (!firstItem || !lastItem) return null;
+
+                  const origTailWidthPct = Math.max(
+                    firstItem.widthPercent,
+                    lastItem.leftPercent + lastItem.widthPercent - firstItem.leftPercent
+                  );
+                  const naturalWordGapPx = Math.max(2.5, (line.fontSize || 12) * 0.27 * scaleRatio);
+
+                  return (
+                    <div
+                      key={`reflow_${line.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute z-25 flex items-center"
+                      style={{
+                        left: `${firstItem.leftPercent}%`,
+                        top: `${line.topPercent}%`,
+                        minWidth: `${origTailWidthPct + 0.25}%`,
+                        width: "max-content",
+                        maxWidth: `${Math.min(100 - firstItem.leftPercent, 98)}%`,
+                        height: `${line.heightPercent}%`,
+                        backgroundColor: "#FFFFFF",
+                        columnGap: `${naturalWordGapPx}px`,
+                      }}
+                    >
+                      {lineItems.slice(firstAffectedIdx).map((wordIt, relIdx) => {
+                        const wIdx = firstAffectedIdx + relIdx;
+                        const wordPatch = matchedPatchByWordIdx.get(wIdx);
+                        const isEditingThisWord =
+                          activeEditingItem &&
+                          !activeEditingItem.isMoved &&
+                          (activeEditingItem.targetItemId === wordIt.id ||
+                            activeEditingItem.id === wordIt.id ||
+                            (wordPatch && activeEditingItem.patchId === wordPatch.id));
+
+                        if (isEditingThisWord && activeEditingItem) {
+                          const inputFontPx = Math.max(6, (activeEditingItem.fontSize || 12) * scaleRatio);
+                          const measuredInputW = measureUiTextWidthPx(
+                            activeEditingItem.newText,
+                            activeEditingItem.fontFamily,
+                            inputFontPx,
+                            activeEditingItem.isBold,
+                            activeEditingItem.isItalic
+                          );
+                          return (
+                            <input
+                              key={`edit_${wordIt.id}`}
+                              autoFocus
+                              type="text"
+                              value={activeEditingItem.newText}
+                              onChange={(e) =>
+                                setActiveEditingItem((prev) =>
+                                  prev ? { ...prev, newText: e.target.value } : null
+                                )
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleCommitInplaceEdit();
+                                } else if (e.key === "Escape") {
+                                  handleCancelInplaceEdit();
+                                }
+                              }}
+                              className="h-full px-0.5 py-0 bg-white text-black border border-amber-500 rounded-[2px] shadow-sm focus:outline-none focus:ring-1 focus:ring-amber-500 leading-none flex-shrink-0"
+                              style={{
+                                fontFamily: getFontFamilyCss(activeEditingItem.fontFamily),
+                                fontWeight: activeEditingItem.isBold ? "bold" : "normal",
+                                fontStyle: activeEditingItem.isItalic ? "italic" : "normal",
+                                color: activeEditingItem.colorHex || "#000000",
+                                fontSize: `${inputFontPx}px`,
+                                width: `${Math.max(18, measuredInputW + 6)}px`,
+                              }}
+                            />
+                          );
+                        }
+
+                        if (wordPatch) {
+                          if (!wordPatch.newText) {
+                            return (
+                              <span
+                                key={wordPatch.id}
+                                onMouseDown={(e) => handlePatchMouseDown(e, wordPatch)}
+                                title="已擦除此词（点击可恢复或重新编辑）"
+                                className="px-1 py-0.5 text-[9px] text-amber-600 bg-amber-50 border border-dashed border-amber-400 rounded cursor-pointer select-none leading-none"
+                              >
+                                ⌫
+                              </span>
+                            );
+                          }
+                          return (
+                            <div
+                              key={wordPatch.id}
+                              onMouseDown={(e) => handlePatchMouseDown(e, wordPatch)}
+                              title={`点击编辑，按住可拖动位置: "${wordPatch.newText}"`}
+                              className="h-full cursor-move flex items-center px-0.5 group hover:ring-2 hover:ring-amber-500 rounded-[2px] transition-shadow flex-shrink-0"
+                              style={{
+                                backgroundColor:
+                                  wordPatch.bgHex === "transparent"
+                                    ? "transparent"
+                                    : wordPatch.bgHex || "#FFFFFF",
+                                border: "1px dashed #F59E0B",
+                              }}
+                            >
+                              <span
+                                className="whitespace-nowrap leading-none select-none font-medium pointer-events-none"
+                                style={{
+                                  fontFamily: getFontFamilyCss(wordPatch.fontFamily),
+                                  fontWeight: wordPatch.isBold ? "bold" : "normal",
+                                  fontStyle: wordPatch.isItalic ? "italic" : "normal",
+                                  color: wordPatch.colorHex || "#000000",
+                                  fontSize: `${Math.max(6, (wordPatch.fontSize || 12) * scaleRatio)}px`,
+                                }}
+                              >
+                                {wordPatch.newText}
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        const isMatch =
+                          searchQuery.trim().length > 0 &&
+                          wordIt.str.toLowerCase().includes(searchQuery.trim().toLowerCase());
+
+                        return (
+                          <span
+                            key={wordIt.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartInplaceEdit(wordIt);
+                            }}
+                            title={`点击原地修改此词: "${wordIt.str}"`}
+                            className={`whitespace-nowrap leading-none select-none rounded-[2px] transition-colors flex-shrink-0 ${
+                              isMatch
+                                ? "bg-indigo-500/35 ring-1 ring-indigo-600 cursor-pointer"
+                                : "hover:bg-blue-500/15 hover:ring-1 hover:ring-blue-500/60 cursor-text"
+                            }`}
+                            style={{
+                              fontFamily: getFontFamilyCss(wordIt.fontFamily),
+                              fontWeight: wordIt.isBold ? "bold" : "normal",
+                              fontStyle: wordIt.isItalic ? "italic" : "normal",
+                              color: "#000000",
+                              fontSize: `${Math.max(6, (wordIt.fontSize || 12) * scaleRatio)}px`,
+                            }}
+                          >
+                            {wordIt.str}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+
                 {/* 3. 已生效的 Patches 实时渲染层 (支持点击编辑、拖拽移动与8向独立缩放) */}
                 {currentPagePatches.map((patch) => {
                   const isBeingEdited = activeEditingItem?.patchId === patch.id;
                   if (isBeingEdited) return null;
+                  if (consumedPatchIds.has(patch.id)) return null;
 
                   // 荧光笔高亮标注渲染 (自动贴合字体，深色饱和高亮)
                   if (patch.isHighlight) {
@@ -1533,7 +1846,7 @@ export default function PdfInplaceTextStudio({
                           fontWeight: patch.isBold ? "bold" : "normal",
                           fontStyle: patch.isItalic ? "italic" : "normal",
                           color: patch.colorHex || "#000000",
-                          fontSize: `${Math.max(6, (patch.fontSize || 12) * (canvasWidth / currentPage.width))}px`,
+                          fontSize: `${Math.max(6, (patch.fontSize || 12) * scaleRatio)}px`,
                         }}
                       >
                         {patch.newText || "（已涂白擦除）"}
@@ -1588,8 +1901,15 @@ export default function PdfInplaceTextStudio({
                 })}
 
                 {/* 4. 原地直接编辑层 (Direct In-place Visual Editor - 像 Word 这样改) */}
-                {activeEditingItem && (() => {
-                  const wordWidthPx = (activeEditingItem.widthPercent / 100) * canvasWidth;
+                {activeEditingItem && !isActiveItemInReflow && (() => {
+                  const inputFontPx = Math.max(6, (activeEditingItem.fontSize || 12) * scaleRatio);
+                  const measuredInputW = measureUiTextWidthPx(
+                    activeEditingItem.newText,
+                    activeEditingItem.fontFamily,
+                    inputFontPx,
+                    activeEditingItem.isBold,
+                    activeEditingItem.isItalic
+                  );
 
                   return (
                     <div
@@ -1626,8 +1946,8 @@ export default function PdfInplaceTextStudio({
                           fontWeight: activeEditingItem.isBold ? "bold" : "normal",
                           fontStyle: activeEditingItem.isItalic ? "italic" : "normal",
                           color: activeEditingItem.colorHex || "#000000",
-                          fontSize: `${Math.max(6, (activeEditingItem.fontSize || 12) * (canvasWidth / currentPage.width))}px`,
-                          width: `${Math.max(28, (activeEditingItem.newText.length + 1) * (activeEditingItem.fontSize * 0.65))}px`,
+                          fontSize: `${inputFontPx}px`,
+                          width: `${Math.max(24, measuredInputW + 8)}px`,
                         }}
                       />
                     </div>

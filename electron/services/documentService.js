@@ -1287,15 +1287,20 @@ class DocumentService {
           wordMatches.push({ word: match[0], index: match.index });
         }
 
-        if (wordMatches.length > 1 && ctx && typeof ctx.measureText === 'function') {
-          ctx.font = `${Math.round(fontHeight)}px sans-serif`;
+        if (wordMatches.length >= 1 && ctx && typeof ctx.measureText === 'function') {
+          const weightStr = fontMeta.isBold ? 'bold ' : '';
+          const styleStr = fontMeta.isItalic ? 'italic ' : '';
+          ctx.font = `${styleStr}${weightStr}${fontHeight}px ${fontMeta.displayFamily || 'Times New Roman'}`;
           const totalMeasured = ctx.measureText(rawStr).width || 1;
           const scaleFactor = (item.width || totalMeasured) / totalMeasured;
 
           for (const wm of wordMatches) {
             const prefix = rawStr.substring(0, wm.index);
-            const prefixW = ctx.measureText(prefix).width * scaleFactor;
-            const wordW = ctx.measureText(wm.word).width * scaleFactor;
+            const prefixW = wm.index > 0 ? ctx.measureText(prefix).width * scaleFactor : 0;
+            const wordW =
+              wordMatches.length === 1 && rawStr === wm.word && item.width > 0
+                ? item.width
+                : ctx.measureText(wm.word).width * scaleFactor;
 
             const wordX = item.transform[4] + prefixW;
             const wordY = item.transform[5];
@@ -1310,11 +1315,11 @@ class DocumentService {
             items.push({
               id: `p${i - 1}_i${itemIdx++}`,
               str: wm.word,
-              x: Math.round(wordX * 10) / 10,
-              y: Math.round(wordY * 10) / 10,
-              width: Math.max(2, Math.round(wordW * 10) / 10),
-              height: Math.max(6, Math.round(fontHeight * 10) / 10),
-              fontSize: Math.round(fontHeight * 10) / 10,
+              x: Math.round(wordX * 100) / 100,
+              y: Math.round(wordY * 100) / 100,
+              width: Math.max(1.5, Math.round(wordW * 100) / 100),
+              height: Math.max(6, Math.round(fontHeight * 100) / 100),
+              fontSize: Math.round(fontHeight * 100) / 100,
               fontName: item.fontName || '',
               fontFamily: fontMeta.family,
               displayFamily: fontMeta.displayFamily,
@@ -1328,6 +1333,7 @@ class DocumentService {
             });
           }
         } else {
+          const trimmedStr = rawStr.trim();
           const leftPercent = Math.max(0, Math.min(100, (left / renderWidth) * 100));
           const topPercent = Math.max(0, Math.min(100, (top / renderHeight) * 100));
           const widthPercent = Math.max(0.2, Math.min(100 - leftPercent, (item.width / renderWidth) * 100));
@@ -1335,12 +1341,12 @@ class DocumentService {
 
           items.push({
             id: `p${i - 1}_i${itemIdx++}`,
-            str: rawStr,
-            x: Math.round(item.transform[4] * 10) / 10,
-            y: Math.round(item.transform[5] * 10) / 10,
-            width: Math.max(2, Math.round(item.width * 10) / 10),
-            height: Math.max(6, Math.round(fontHeight * 10) / 10),
-            fontSize: Math.round(fontHeight * 10) / 10,
+            str: trimmedStr,
+            x: Math.round(item.transform[4] * 100) / 100,
+            y: Math.round(item.transform[5] * 100) / 100,
+            width: Math.max(1.5, Math.round(item.width * 100) / 100),
+            height: Math.max(6, Math.round(fontHeight * 100) / 100),
+            fontSize: Math.round(fontHeight * 100) / 100,
             fontName: item.fontName || '',
             fontFamily: fontMeta.family,
             displayFamily: fontMeta.displayFamily,
@@ -1355,11 +1361,38 @@ class DocumentService {
         }
       }
 
+      // 先对字元按行与水平 X 坐标排序，并缝合因 PDF 字距微调 (Kerning) 被切碎的同一单词碎片
+      const rawSorted = [...items].sort((a, b) => (Math.abs(b.y - a.y) <= 3.5 ? a.x - b.x : b.y - a.y));
+      const coalescedItems = [];
+      for (const it of rawSorted) {
+        const prev = coalescedItems.length > 0 ? coalescedItems[coalescedItems.length - 1] : null;
+        const isSameBaseline = prev && Math.abs(prev.y - it.y) <= 3.5;
+        const gap = prev ? it.x - (prev.x + prev.width) : 999;
+        const maxKerningGap = Math.max(1.5, (it.fontSize || 12) * 0.14);
+        const bothNonCjk = prev && !/[\u4e00-\u9fa5]/.test(prev.str) && !/[\u4e00-\u9fa5]/.test(it.str);
+
+        if (isSameBaseline && bothNonCjk && gap >= -3.5 && gap <= maxKerningGap) {
+          prev.str += it.str;
+          const minX = Math.min(prev.x, it.x);
+          const maxX = Math.max(prev.x + prev.width, it.x + it.width);
+          prev.x = Math.round(minX * 100) / 100;
+          prev.width = Math.round((maxX - minX) * 100) / 100;
+          const minLeftPct = Math.min(prev.leftPercent, it.leftPercent);
+          const maxRightPct = Math.max(prev.leftPercent + prev.widthPercent, it.leftPercent + it.widthPercent);
+          prev.leftPercent = Math.round(minLeftPct * 100) / 100;
+          prev.widthPercent = Math.round((maxRightPct - minLeftPct) * 100) / 100;
+        } else {
+          coalescedItems.push(it);
+        }
+      }
+      coalescedItems.forEach((it, idx) => {
+        it.id = `p${i - 1}_i${idx}`;
+      });
+
       // 将同在一行 (Y 坐标差值 <= 3.5pt) 且水平紧密连续的字元聚合为自然文本块（超出间隙判定为表格跨列/独立单元格，严禁跨格串行）
       const lines = [];
-      const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x);
-      for (const it of sorted) {
-        const maxGap = Math.max(10, (it.fontSize || 12) * 1.35);
+      for (const it of coalescedItems) {
+        const maxGap = Math.max(12, (it.fontSize || 12) * 1.65);
         const existingLine = lines.find((l) => {
           if (Math.abs(l.y - it.y) > 3.5) return false;
           const lastItem = l.items[l.items.length - 1];
@@ -1371,7 +1404,7 @@ class DocumentService {
           const prevItem = existingLine.items[existingLine.items.length - 1];
           const gap = prevItem ? it.x - (prevItem.x + prevItem.width) : 0;
           const needsSpace =
-            gap > Math.max(1.8, (it.fontSize || 12) * 0.16) &&
+            gap > Math.max(1.5, (it.fontSize || 12) * 0.14) &&
             !prevItem.str.endsWith(' ') &&
             !it.str.startsWith(' ') &&
             !/^[-.,:;!?)\]}/]/.test(it.str) &&
@@ -1381,8 +1414,8 @@ class DocumentService {
           existingLine.str += (needsSpace ? ' ' : '') + it.str;
           const minX = Math.min(existingLine.x, it.x);
           const maxX = Math.max(existingLine.x + existingLine.width, it.x + it.width);
-          existingLine.x = minX;
-          existingLine.width = maxX - minX;
+          existingLine.x = Math.round(minX * 100) / 100;
+          existingLine.width = Math.round((maxX - minX) * 100) / 100;
 
           existingLine.fontFamily = it.fontFamily;
           existingLine.displayFamily = it.displayFamily;
@@ -1423,6 +1456,15 @@ class DocumentService {
         }
       }
 
+      // 为每个词元标记所属行 ID 与行内索引，支撑单字修改时的同行自动顺延重排 (Same-Line Reflow)
+      for (const line of lines) {
+        line.items.sort((a, b) => a.x - b.x);
+        line.items.forEach((it, idx) => {
+          it.lineId = line.id;
+          it.wordIndex = idx;
+        });
+      }
+
       pages.push({
         pageIndex: i - 1,
         pageNumber: i,
@@ -1431,7 +1473,7 @@ class DocumentService {
         viewWidth: Math.round(viewport.width),
         viewHeight: Math.round(viewport.height),
         image: imgBase64,
-        items,
+        items: coalescedItems,
         lines,
       });
     }
@@ -1638,7 +1680,134 @@ class DocumentService {
 
     const pageCount = pdfDoc.getPageCount();
 
-    for (const patch of rawPatches) {
+    // 预处理：若收到未预挂载 reflowSegments 的单字修改补丁，自动关联所在行并构造同行后续词元重排队列
+    let effectivePatches = [...rawPatches];
+    const needsAutoLineReflow = effectivePatches.some(
+      (p) =>
+        !p.isHighlight &&
+        !p.isMoved &&
+        (!Array.isArray(p.reflowSegments) || p.reflowSegments.length === 0) &&
+        typeof p.x === 'number' &&
+        typeof p.y === 'number' &&
+        (p.x !== 0 || p.y !== 0)
+    );
+
+    if (needsAutoLineReflow) {
+      try {
+        const maxTouchedPage = Math.min(
+          pageCount,
+          Math.max(...effectivePatches.map((p) => (Number(p.pageIndex) || 0) + 1), 1)
+        );
+        const layout = await DocumentService.inspectPdfText({
+          fileBuffer: buffer,
+          fileName,
+          dpi: 72,
+          maxPages: maxTouchedPage,
+        });
+
+        if (layout && Array.isArray(layout.pages)) {
+          const rebuiltPatches = [];
+          const consumedPatchIndices = new Set();
+
+          for (const pageLayout of layout.pages) {
+            const pIdx = pageLayout.pageIndex;
+            const pageLines = pageLayout.lines || [];
+
+            for (const line of pageLines) {
+              if (!Array.isArray(line.items) || line.items.length === 0) continue;
+
+              // 查找该行内匹配到的单字级补丁 (排除整行替换补丁)
+              const matchedByItemIdx = new Map();
+              effectivePatches.forEach((p, patchIdx) => {
+                if (consumedPatchIndices.has(patchIdx)) return;
+                if (Number(p.pageIndex) !== pIdx || p.isHighlight || p.isMoved) return;
+                if (Array.isArray(p.reflowSegments) && p.reflowSegments.length > 0) return;
+
+                // 若补丁明确标记为整行级补丁 (targetItemId 为行 ID 如 p0_l0，或宽度已覆盖整行)，不拆分为单字重排
+                if (p.targetItemId && (p.targetItemId === line.id || /_l\d+$/.test(String(p.targetItemId)))) {
+                  return;
+                }
+                if (!p.targetItemId && line.items.length > 1 && Number(p.width) >= line.width - 2.5) {
+                  return;
+                }
+
+                const matchedIdx = line.items.findIndex((it) => {
+                  if (p.targetItemId) return p.targetItemId === it.id;
+                  return Math.abs(Number(p.y) - it.y) <= 3.5 && Math.abs(Number(p.x) - it.x) <= 3.0;
+                });
+
+                if (matchedIdx !== -1) {
+                  matchedByItemIdx.set(matchedIdx, { patch: p, patchIdx });
+                  consumedPatchIndices.add(patchIdx);
+                }
+              });
+
+              if (matchedByItemIdx.size > 0) {
+                const patchedIndices = [...matchedByItemIdx.keys()].sort((a, b) => a - b);
+                const firstIdx = patchedIndices[0];
+                const firstItem = line.items[firstIdx];
+                const firstPatchEntry = matchedByItemIdx.get(firstIdx).patch;
+                const prevItem = firstIdx > 0 ? line.items[firstIdx - 1] : null;
+                const lastItem = line.items[line.items.length - 1];
+
+                const reflowSegments = [];
+                for (let m = firstIdx; m < line.items.length; m++) {
+                  const it = line.items[m];
+                  const matched = matchedByItemIdx.get(m)?.patch;
+                  if (matched) {
+                    reflowSegments.push({
+                      text: typeof matched.newText === 'string' ? matched.newText : '',
+                      origX: it.x,
+                      origWidth: it.width,
+                      fontFamily: matched.fontFamily || it.fontFamily || 'times',
+                      fontSize: Number(matched.fontSize) > 0 ? Number(matched.fontSize) : it.fontSize,
+                      isBold: Boolean(matched.isBold),
+                      isItalic: Boolean(matched.isItalic),
+                      colorHex: matched.colorHex || '#000000',
+                      isPatched: true,
+                    });
+                  } else {
+                    reflowSegments.push({
+                      text: it.str,
+                      origX: it.x,
+                      origWidth: it.width,
+                      fontFamily: it.fontFamily || 'times',
+                      fontSize: it.fontSize || 12,
+                      isBold: Boolean(it.isBold),
+                      isItalic: Boolean(it.isItalic),
+                      colorHex: '#000000',
+                      isPatched: false,
+                    });
+                  }
+                }
+
+                rebuiltPatches.push({
+                  ...firstPatchEntry,
+                  x: firstItem.x,
+                  y: firstItem.y,
+                  width: firstItem.width,
+                  height: firstItem.height,
+                  minXConstraint: prevItem ? prevItem.x + prevItem.width : undefined,
+                  origTailRight: lastItem.x + lastItem.width,
+                  reflowSegments,
+                });
+              }
+            }
+          }
+
+          effectivePatches.forEach((p, idx) => {
+            if (!consumedPatchIndices.has(idx)) {
+              rebuiltPatches.push(p);
+            }
+          });
+          effectivePatches = rebuiltPatches;
+        }
+      } catch (reflowErr) {
+        console.warn('[applyPdfTextPatches] auto line reflow fallback:', reflowErr.message);
+      }
+    }
+
+    for (const patch of effectivePatches) {
       const pageIdx = Number(patch.pageIndex);
       if (isNaN(pageIdx) || pageIdx < 0 || pageIdx >= pageCount) continue;
 
@@ -1695,6 +1864,118 @@ class DocumentService {
           opacity: 0.58,
           blendMode: BlendMode.Multiply,
         });
+        continue;
+      }
+
+      // 0.5 单字修改同行自动顺延重排模式 (Same-Line Trailing Reflow - 自动保持空格并顺延后续单词，严防碰撞重叠)
+      if (Array.isArray(patch.reflowSegments) && patch.reflowSegments.length > 0 && !patch.isMoved) {
+        const segments = [];
+        for (const seg of patch.reflowSegments) {
+          const segText = typeof seg.text === 'string' ? seg.text.trim() : '';
+          const segFontSize =
+            Number(seg.fontSize) > 0
+              ? Number(seg.fontSize)
+              : Number(patch.fontSize) > 0
+              ? Number(patch.fontSize)
+              : Math.max(6, height * 0.85);
+          const segBold = Boolean(seg.isBold);
+          const segItalic = Boolean(seg.isItalic);
+          const segFamily = seg.fontFamily || patch.fontFamily || 'times';
+          const segColor = seg.colorHex || '#000000';
+          const segFont = await loadFont(segFamily, segBold, segItalic, segText || ' ');
+          let segWidth = 0;
+          if (segText.length > 0 && segFont) {
+            try {
+              segWidth = segFont.widthOfTextAtSize(segText, segFontSize);
+            } catch (_) {
+              segWidth = Number(seg.origWidth) || segText.length * segFontSize * 0.5;
+            }
+          }
+          segments.push({
+            text: segText,
+            origX: Number(seg.origX) || x,
+            origWidth: Number(seg.origWidth) || 0,
+            fontSize: segFontSize,
+            font: segFont,
+            colorHex: segColor,
+            measuredWidth: segWidth,
+          });
+        }
+
+        let cursorX = x;
+        for (let sIdx = 0; sIdx < segments.length; sIdx++) {
+          const curr = segments[sIdx];
+          curr.drawX = cursorX;
+          if (curr.text.length === 0) {
+            continue;
+          }
+          if (sIdx < segments.length - 1) {
+            const next = segments[sIdx + 1];
+            let stdSpace = curr.fontSize * 0.25;
+            if (curr.font) {
+              try {
+                stdSpace = curr.font.widthOfTextAtSize(' ', curr.fontSize) || stdSpace;
+              } catch (_) {}
+            }
+            const origGap =
+              next.origX > 0 && curr.origX > 0 ? next.origX - (curr.origX + curr.origWidth) : stdSpace;
+            const isClosingPunct = /^[.,;:!?)\]}]/.test(next.text) || /[-(\[{]$/.test(curr.text);
+            const gap = isClosingPunct
+              ? Math.max(0, Math.min(origGap, stdSpace * 0.35))
+              : origGap >= stdSpace * 0.9 && origGap <= stdSpace * 2.4
+              ? Math.max(stdSpace, origGap)
+              : stdSpace;
+            cursorX += curr.measuredWidth + gap;
+          } else {
+            cursorX += curr.measuredWidth;
+          }
+        }
+
+        if (bgHex && bgHex.toLowerCase() !== 'transparent') {
+          const maskColor = parseHex(bgHex);
+          const maxSegFontSize = Math.max(...segments.map((s) => s.fontSize), height * 0.85);
+          const effectiveHeight = Math.max(height, maxSegFontSize * 1.08);
+          const padY = 0.8;
+          const maskH = effectiveHeight + padY * 2;
+          const maskY = isBaseline ? y - effectiveHeight * 0.23 - padY : y - padY;
+
+          const minLeft =
+            typeof patch.minXConstraint === 'number' && !isNaN(patch.minXConstraint)
+              ? Math.max(patch.minXConstraint + 0.4, x - 1.0)
+              : x - padding;
+          const origRight =
+            typeof patch.origTailRight === 'number' && patch.origTailRight > x
+              ? patch.origTailRight
+              : x + width;
+          const maskRight = Math.max(origRight, cursorX) + padding;
+          const maskWidth = Math.max(2, maskRight - minLeft);
+
+          page.drawRectangle({
+            x: minLeft,
+            y: maskY,
+            width: maskWidth,
+            height: maskH,
+            color: maskColor,
+          });
+        }
+
+        for (const seg of segments) {
+          if (seg.text.length > 0 && seg.font) {
+            const textColor = parseHex(seg.colorHex);
+            const drawY = isBaseline ? y : y + (height - seg.fontSize) / 2 + seg.fontSize * 0.15;
+            try {
+              page.drawText(seg.text, {
+                x: seg.drawX,
+                y: drawY,
+                size: seg.fontSize,
+                font: seg.font,
+                color: textColor,
+              });
+            } catch (drawErr) {
+              console.warn('[applyPdfTextPatches] reflow drawText error:', drawErr.message);
+            }
+          }
+        }
         continue;
       }
 

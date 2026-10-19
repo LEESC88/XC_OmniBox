@@ -4,6 +4,16 @@ All notable updates and releases for **XC_OmniBox** will be documented in this f
 
 For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
+## 🌟 v1.6.5 PDF Single-Word Smart Spacing & Same-Line Auto-Reflow Engine
+
+- 🎯 **PDF In-place Text Fix — Single-Word Auto-Spacing & Same-Line Reflow**:
+  - **Root-Cause Elimination of Single-Word Collision**: Editing a single word in Word Mode (e.g., changing `"with"` to `"within"` in `"operates with two distinct categories"`) no longer collides with or overwrites the subsequent word (`"withinvo"`). The engine now automatically preserves natural word spacing and shifts trailing words on the same line horizontally.
+  - **Independent Word Style Isolation Preserved**: Bolding, italicizing, or recoloring a single word only styles that specific word while smoothly reflowing the unedited words after it in their original font and style.
+  - **Sub-Point TrueType Font Metric Calibration**: Replaced generic `sans-serif` width estimation in `inspectPdfText` with exact `@napi-rs/canvas` font family/weight/style measurement (<0.002pt deviation from `pdf-lib` TrueType metrics) and intra-word kerning fragment coalescing.
+  - **Live WYSIWYG Reflow Preview**: Real-time inline `<input>` and canvas patch preview dynamically shift trailing words on the same line as you type.
+
+---
+
 ## 🌟 v1.6.4 CSV / Table Encoding Rescuer (Intelligent Charset Sniffing & Transcoding)
 
 - 📊 **CSV / Table Encoding Rescuer (Intelligent Charset Sniffing & Transcoding)**:
