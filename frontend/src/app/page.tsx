@@ -218,6 +218,14 @@ const TOOLS_REGISTRY: {
         keywords: ["csv", "乱码", "转码", "excel", "锟斤拷", "烫烫烫", "gbk", "gb18030", "utf8", "bom", "网银", "erp", "表格修复"],
       },
       {
+        id: "ai-md-to-word",
+        module: "document",
+        name: "AI / Markdown 转标准 Word",
+        desc: "将 DeepSeek/Kimi/ChatGPT 文本或 Markdown 一键编译为带规范红头、工整表格与标准行距的 .docx",
+        icon: FileCode2,
+        keywords: ["markdown", "md", "word", "docx", "ai", "deepseek", "kimi", "chatgpt", "红头文件", "公文", "三线表", "排版"],
+      },
+      {
         id: "ai-ocr",
         module: "document",
         name: "离线文字提取 (OCR)",
@@ -542,7 +550,7 @@ export default function Home() {
   // 客户端自动更新弹窗状态与版本感知
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
-  const [appVersion, setAppVersion] = useState<string>("1.6.6");
+  const [appVersion, setAppVersion] = useState<string>("1.6.7");
 
   // 快捷键指南弹窗状态与全局提示
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);

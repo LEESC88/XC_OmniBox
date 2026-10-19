@@ -4,6 +4,22 @@ All notable updates and releases for **XC_OmniBox** will be documented in this f
 
 For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
+## 🌟 v1.6.7 AI / Markdown to Standard Styled Word (.docx) Engine
+
+- 📄 **AI / Markdown One-Click to Standard Styled Word (`.docx`)**:
+  - **Core Pain Point Solved**: Eliminates broken table borders, lost heading hierarchies, ugly monospaced CJK-Latin font mixing, and messy line spacing when copying content from DeepSeek, Kimi, or ChatGPT into Microsoft Word.
+  - **Three Built-In Professional Word Style Templates**:
+    - **Official Red-Header Document (`gov-redhead`, GB/T 9704 Standard)**: Features customizable Crimson Red Header organization banner, issue number (`发文字号`), double red rule divider (`文武双红线`), SimHei/KaiTi section headings, FangSong 16pt (三号) body text, 2-character first-line indentation, and exact 28pt line spacing.
+    - **Modern Business Report (`business-report`)**: Royal blue left-accent heading bars, Microsoft YaHei + Arial dual-script typography, deep navy table headers with alternating zebra striping, and 1.5x reading line spacing.
+    - **Academic & Technical Paper (`academic-paper`)**: SimSun + Times New Roman dual-script fonts, authentic **Academic Three-Line Tables (标准学术三线表)**, and shaded Consolas code blocks.
+  - **Smart Anti-Squeeze Table Layout & Multi-List Restart**:
+    - Dynamic visual column width measurement with readability floors (`TEXT_COL_FLOOR_DXA`) prevents narrow columns from wrapping into 1-character vertical stacks.
+    - Independent `numbering` instances per ordered list ensure every numbered list restarts cleanly at `1.`.
+  - **AI Conversational Chatter Filter & HTML Clipboard Normalization**:
+    - Automatically strips AI opening/closing pleasantries, converts pasted HTML `<table>` / rich text and GFM Markdown tables, renders native Word `CheckBox` controls (`- [x]`), cleans inline LaTeX math symbols, and injects native `PAGE / NUMPAGES` dynamic footer fields.
+
+---
+
 ## 🌟 v1.6.6 PDF to Word (DOCX) High-Fidelity Layout Reconstruction Engine
 
 - 🚀 **Sub-Second Native Conversion Speed (90x Speedup)**:

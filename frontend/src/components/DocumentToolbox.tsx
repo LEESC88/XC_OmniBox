@@ -47,6 +47,7 @@ import PdfOrganizeStudio from "@/components/pdf/PdfOrganizeStudio";
 import OfficeMediaExtractStudio from "@/components/document/OfficeMediaExtractStudio";
 import PdfInplaceTextStudio from "@/components/document/PdfInplaceTextStudio";
 import TableEncodingFixStudio from "@/components/document/TableEncodingFixStudio";
+import AiMarkdownToWordStudio from "@/components/document/AiMarkdownToWordStudio";
 import AiToolbox from "@/components/AiToolbox";
 
 import { useI18n } from "@/lib/i18n";
@@ -79,6 +80,7 @@ export type DocTabType =
   | "pdf-inplace-edit"
   | "office-media-extract"
   | "table-encoding-fix"
+  | "ai-md-to-word"
   | "ai-ocr"
   | "ai-searchable-pdf";
 
@@ -605,6 +607,11 @@ export default function DocumentToolbox({
       icon: FileSpreadsheet,
     },
     {
+      id: "ai-md-to-word",
+      label: lang === "en" ? "AI / Markdown to Styled Word" : "AI / Markdown 转标准 Word",
+      icon: FileCode2,
+    },
+    {
       id: "ai-ocr",
       label: lang === "en" ? "Offline OCR Text" : "离线文字提取 (OCR)",
       icon: Sparkles,
@@ -1029,6 +1036,11 @@ export default function DocumentToolbox({
         <TableEncodingFixStudio
           incomingFile={files[0] || null}
           onFileClear={() => setFiles([])}
+        />
+      ) : activeTab === "ai-md-to-word" ? (
+        <AiMarkdownToWordStudio
+          incomingFiles={files}
+          onIncomingFilesHandled={() => setFiles([])}
         />
       ) : activeTab === "ai-ocr" || activeTab === "ai-searchable-pdf" ? (
         <AiToolbox

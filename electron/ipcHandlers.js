@@ -99,6 +99,14 @@ function registerIpcHandlers(options = {}) {
     return await getDocumentService().applyPdfTextPatches(payload);
   });
 
+  ipcMain.handle('document:inspect-markdown', async (_e, payload) => {
+    return await getDocumentService().inspectMarkdown(payload);
+  });
+
+  ipcMain.handle('document:markdown-to-word', async (_e, payload) => {
+    return await getDocumentService().markdownToWord(payload);
+  });
+
 
   // ==================== 图像服务 (ImageService) ====================
   ipcMain.handle('image:compress', async (_e, payload) => {

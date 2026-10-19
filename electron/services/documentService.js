@@ -2481,6 +2481,23 @@ class DocumentService {
       patchCount: rawPatches.length,
     };
   }
+
+  /**
+   * AI / Markdown 材料结构嗅探与预览
+   */
+  static async inspectMarkdown(payload) {
+    const engine = require('./markdownToDocxEngine');
+    return await engine.inspectMarkdown(payload || {});
+  }
+
+  /**
+   * AI / Markdown 材料一键转换为带规范样式的标准 Word (.docx)
+   */
+  static async markdownToWord(payload) {
+    const engine = require('./markdownToDocxEngine');
+    return await engine.markdownToWord(payload || {});
+  }
 }
 
 module.exports = DocumentService;
+

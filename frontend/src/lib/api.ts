@@ -624,5 +624,119 @@ export async function convertTableEncoding(
   };
 }
 
+export type WordTemplateType = "gov-redhead" | "business-report" | "academic-paper";
+
+export interface MarkdownPreviewBlock {
+  type: "heading" | "paragraph" | "table" | "code" | "blockquote" | "list" | "hr";
+  level?: number;
+  text?: string;
+  headers?: string[];
+  rows?: string[][];
+  alignments?: ("left" | "center" | "right")[];
+  items?: Array<{
+    text: string;
+    ordered: boolean;
+    level: number;
+    checked?: boolean | null;
+  }>;
+  language?: string;
+  lines?: string[];
+}
+
+export interface MarkdownInspectResult {
+  success: boolean;
+  fileName: string;
+  normalizedMarkdown: string;
+  detectedTitle: string;
+  stats: {
+    charCount: number;
+    wordCount: number;
+    headingCount: number;
+    tableCount: number;
+    listItemCount: number;
+    codeBlockCount: number;
+    quoteCount: number;
+  };
+  outline: Array<{ level: number; text: string }>;
+  previewBlocks: MarkdownPreviewBlock[];
+}
+
+export interface MarkdownToWordOptions {
+  content?: string;
+  file?: File;
+  fileName?: string;
+  template: WordTemplateType;
+  documentTitle?: string;
+  enableRedHeader?: boolean;
+  redHeaderOrg?: string;
+  docNumber?: string;
+  firstLineIndent?: boolean;
+  includePageNumbers?: boolean;
+  headerText?: string;
+  cleanAiArtifacts?: boolean;
+}
+
+/**
+ * 后端嗅探与解析 AI / Markdown 材料结构及排版预览块
+ */
+export async function inspectMarkdown(options: {
+  content?: string;
+  file?: File;
+  cleanAiArtifacts?: boolean;
+}): Promise<MarkdownInspectResult> {
+  const fileBuffer = options.file ? await options.file.arrayBuffer() : undefined;
+  return await invokeNative<MarkdownInspectResult>("document:inspect-markdown", {
+    content: options.content,
+    fileBuffer,
+    fileName: options.file?.name || "AI_Document.md",
+    cleanAiArtifacts: options.cleanAiArtifacts ?? true,
+  });
+}
+
+/**
+ * 一键将 AI / Markdown 材料转换为带规范样式的标准 Word (.docx)
+ */
+export async function convertMarkdownToWord(
+  options: MarkdownToWordOptions
+): Promise<{
+  success: boolean;
+  blob: Blob;
+  filename: string;
+  detectedTitle: string;
+  stats: MarkdownInspectResult["stats"];
+}> {
+  const fileBuffer = options.file ? await options.file.arrayBuffer() : undefined;
+  const res = await invokeNative<{
+    success: boolean;
+    buffer: Uint8Array | ArrayBuffer;
+    filename: string;
+    mime: string;
+    detectedTitle: string;
+    stats: MarkdownInspectResult["stats"];
+  }>("document:markdown-to-word", {
+    content: options.content,
+    fileBuffer,
+    fileName: options.file?.name || options.fileName || "AI_Document.md",
+    template: options.template,
+    documentTitle: options.documentTitle,
+    enableRedHeader: options.enableRedHeader,
+    redHeaderOrg: options.redHeaderOrg,
+    docNumber: options.docNumber,
+    firstLineIndent: options.firstLineIndent,
+    includePageNumbers: options.includePageNumbers,
+    headerText: options.headerText,
+    cleanAiArtifacts: options.cleanAiArtifacts,
+  });
+
+  const blob = new Blob([res.buffer as any], { type: res.mime });
+  return {
+    success: res.success,
+    blob,
+    filename: res.filename,
+    detectedTitle: res.detectedTitle,
+    stats: res.stats,
+  };
+}
+
 
 
