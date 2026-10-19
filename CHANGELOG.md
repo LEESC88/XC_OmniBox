@@ -4,6 +4,25 @@ All notable updates and releases for **XC_OmniBox** will be documented in this f
 
 For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
+## 🌟 v1.6.8 IDE Syntax Highlighting for Code Blocks & English Sample Support
+
+- 🎨 **VS Code IDE Syntax Highlighting for Markdown Code Blocks**:
+  - Integrated `prismjs` lexer engine supporting TypeScript, JavaScript, Python, Java, C, C++, C#, Go, Rust, JSON, Bash, SQL, and YAML.
+  - Formatted code blocks with exact VS Code Dark+ color palette: keywords (`#569CD6`), functions (`#DCDCAA`), types/classes (`#4EC9B0`), strings (`#CE9178`), numbers (`#B5CEA8`), comments (`#6A9955`), variables (`#9CDCFE`).
+  - Seamless single-cell table container in Word `.docx` with `#1E1E1E` dark background, `#569CD6` left accent border, and zero inter-paragraph hairline seams.
+  - Interactive live preview in studio featuring macOS window control dots, language pill, one-click copy button, and colored token highlights.
+
+- 🌐 **Dynamic English Sample & Language-Aware Presets**:
+  - Automatically loads a professional English technical report sample (`SAMPLE_EN_MARKDOWN`) when the interface language is English (`lang === "en"`).
+  - Automatically loads standard Chinese administrative/project document sample (`SAMPLE_ZH_MARKDOWN`) in Chinese mode.
+
+- 🌿 **Spacious & Decluttered Studio UI Design**:
+  - Compact segmented pill switcher replacing oversized template cards to maximize vertical editing and preview real estate.
+  - Collapsible metadata panel for official red-header titles and document numbers (`发文字号`).
+  - Expanded dual-pane preview height to `min-h-[520px]`.
+
+---
+
 ## 🌟 v1.6.7 AI / Markdown to Standard Styled Word (.docx) Engine
 
 - 📄 **AI / Markdown One-Click to Standard Styled Word (`.docx`)**:

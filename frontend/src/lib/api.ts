@@ -641,6 +641,7 @@ export interface MarkdownPreviewBlock {
   }>;
   language?: string;
   lines?: string[];
+  highlightedLines?: Array<Array<{ text: string; color: string; bold?: boolean }>>;
 }
 
 export interface MarkdownInspectResult {

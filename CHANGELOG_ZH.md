@@ -4,6 +4,25 @@
 
 英文版本请参阅 [English Changelog](CHANGELOG.md)。
 
+## 🌟 v1.6.8 代码块 IDE 语法彩色高亮与英文示例支持
+
+- 🎨 **Markdown 代码块 VS Code IDE 风格语法高亮**：
+  - 集成 `prismjs` 词法解析核心，全面支持 TypeScript、JavaScript、Python、Java、C、C++、C#、Go、Rust、JSON、Bash、SQL、YAML。
+  - 精准对齐 VS Code Dark+ 官方色彩规范：关键字（`#569CD6` 蓝）、函数名（`#DCDCAA` 金）、类型与类名（`#4EC9B0` 青）、字符串（`#CE9178` 珊瑚粉）、数值（`#B5CEA8` 浅绿）、注释（`#6A9955` 森林绿）、变量参数（`#9CDCFE` 浅天蓝）。
+  - Word 导出的 `.docx` 采用单格容器表格架构，完美消除段落之间的微缝白线，暗黑底色（`#1E1E1E`）与左侧醒目蓝条（`#569CD6`）浑然一体。
+  - 前端实时 A4 预览界面配套 IDE 窗口形态，支持 macOS 拟真红黄绿三色圆点、语言标签胶囊与代码一键快捷复制。
+
+- 🌐 **自适应中英文示例材料**：
+  - 界面语言设为英文（`lang === "en"`）时，“Sample / 示例材料”与初始内容自动加载地道英文技术执行汇报（`SAMPLE_EN_MARKDOWN`）。
+  - 中文模式下无缝保留标准党政公文/集团行动方案示例材料（`SAMPLE_ZH_MARKDOWN`）。
+
+- 🌿 **清爽通透的工作台 UI 降噪升级**：
+  - 优化原先较厚重的模板卡片，重构为轻巧灵动的分段胶囊选择器（Segmented Switcher），大幅释放垂直编辑与预览空间。
+  - 红头公文的发文机关与发文字号收拢至可折叠微调抽屉，界面呼吸感倍增。
+  - 双栏编辑与预览区高度扩展至 `min-h-[520px]`，浏览体验更舒畅。
+
+---
+
 ## 🌟 v1.6.7 AI / Markdown 材料一键转带样式标准 Word (.docx) 引擎
 
 - 📄 **AI / Markdown 材料一键转带样式标准 Word (`.docx`)**：

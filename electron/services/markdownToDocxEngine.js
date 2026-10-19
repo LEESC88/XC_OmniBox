@@ -23,6 +23,129 @@ const {
   PageNumber,
 } = require('docx');
 
+let Prism = null;
+try {
+  Prism = require('prismjs');
+  require('prismjs/components/prism-typescript');
+  require('prismjs/components/prism-python');
+  require('prismjs/components/prism-java');
+  require('prismjs/components/prism-c');
+  require('prismjs/components/prism-cpp');
+  require('prismjs/components/prism-csharp');
+  require('prismjs/components/prism-go');
+  require('prismjs/components/prism-rust');
+  require('prismjs/components/prism-json');
+  require('prismjs/components/prism-bash');
+  require('prismjs/components/prism-sql');
+  require('prismjs/components/prism-yaml');
+} catch (e) {
+  console.warn('[markdownToDocxEngine] Prism load warning:', e.message);
+}
+
+/**
+ * VS Code Dark+ IDE 风格语法高亮色彩映射表
+ */
+const TOKEN_COLOR_MAP = {
+  comment: '6A9955',
+  prolog: '6A9955',
+  doctype: '6A9955',
+  cdata: '6A9955',
+  keyword: '569CD6',
+  selector: '569CD6',
+  boolean: '569CD6',
+  tag: '569CD6',
+  function: 'DCDCAA',
+  'function-variable': 'DCDCAA',
+  'class-name': '4EC9B0',
+  builtin: '4EC9B0',
+  constant: '4EC9B0',
+  string: 'CE9178',
+  char: 'CE9178',
+  'attr-value': 'CE9178',
+  number: 'B5CEA8',
+  variable: '9CDCFE',
+  property: '9CDCFE',
+  'attr-name': '9CDCFE',
+  parameter: '9CDCFE',
+  regex: 'D16969',
+  operator: 'D4D4D4',
+  punctuation: 'D4D4D4',
+  plain: 'D4D4D4',
+};
+
+function flattenPrismTokens(tokenList) {
+  const result = [];
+  for (const tok of tokenList) {
+    if (typeof tok === 'string') {
+      result.push({ text: tok, type: 'plain' });
+    } else if (Array.isArray(tok.content)) {
+      result.push(
+        ...flattenPrismTokens(tok.content).map((sub) => ({
+          ...sub,
+          type: sub.type !== 'plain' ? sub.type : tok.type || 'plain',
+        }))
+      );
+    } else if (typeof tok.content === 'object' && tok.content !== null) {
+      result.push(...flattenPrismTokens([tok.content]));
+    } else {
+      result.push({ text: String(tok.content || ''), type: tok.type });
+    }
+  }
+  return result;
+}
+
+function normalizeLangAlias(rawLang) {
+  const s = String(rawLang || '').toLowerCase().trim();
+  if (['ts', 'tsx', 'typescript'].includes(s)) return 'typescript';
+  if (['js', 'jsx', 'javascript', 'mjs', 'cjs'].includes(s)) return 'javascript';
+  if (['py', 'python'].includes(s)) return 'python';
+  if (['sh', 'bash', 'shell', 'zsh'].includes(s)) return 'bash';
+  if (['c', 'h'].includes(s)) return 'c';
+  if (['cpp', 'cc', 'cxx', 'hpp'].includes(s)) return 'cpp';
+  if (['cs', 'csharp'].includes(s)) return 'csharp';
+  if (['golang', 'go'].includes(s)) return 'go';
+  if (['rs', 'rust'].includes(s)) return 'rust';
+  if (['yml', 'yaml'].includes(s)) return 'yaml';
+  if (['json'].includes(s)) return 'json';
+  if (['sql'].includes(s)) return 'sql';
+  if (['java'].includes(s)) return 'java';
+  return 'javascript';
+}
+
+function highlightCodeToLines(codeText, rawLang = 'javascript') {
+  if (!Prism) {
+    return String(codeText || '')
+      .split('\n')
+      .map((ln) => [{ text: ln || ' ', color: 'D4D4D4', bold: false }]);
+  }
+
+  const langKey = normalizeLangAlias(rawLang);
+  const grammar = Prism.languages[langKey] || Prism.languages.javascript;
+  const rawTokens = Prism.tokenize(String(codeText || ''), grammar);
+  const flatTokens = flattenPrismTokens(rawTokens);
+
+  const lines = [[]];
+  for (const tok of flatTokens) {
+    const color = TOKEN_COLOR_MAP[tok.type] || 'D4D4D4';
+    const parts = tok.text.split('\n');
+    for (let i = 0; i < parts.length; i++) {
+      if (i > 0) {
+        lines.push([]);
+      }
+      if (parts[i]) {
+        lines[lines.length - 1].push({
+          text: parts[i],
+          color,
+          bold: tok.type === 'keyword',
+          type: tok.type,
+        });
+      }
+    }
+  }
+  return lines;
+}
+
+
 /**
  * 常用 LaTeX 数学符号映射表，使 DeepSeek / ChatGPT 输出的行内公式在 Word 中优雅可读
  */
@@ -355,11 +478,14 @@ function parseMarkdownToAst(rawContent, options = {}) {
         i++;
       }
       if (i < lines.length) i++; // 跳过结束围栏
+      const codeText = codeLines.join('\n');
+      const highlightedLines = highlightCodeToLines(codeText, language);
       blocks.push({
         type: 'code',
         language,
         lines: codeLines.length > 0 ? codeLines : [''],
-        text: codeLines.join('\n'),
+        text: codeText,
+        highlightedLines,
       });
       continue;
     }
@@ -1113,7 +1239,8 @@ async function inspectMarkdown({ content, fileBuffer, fileName = 'document.md', 
           }))
         : undefined,
       language: b.language,
-      lines: b.lines ? b.lines.slice(0, 20) : undefined,
+      lines: b.lines ? b.lines.slice(0, 40) : undefined,
+      highlightedLines: b.highlightedLines ? b.highlightedLines.slice(0, 40) : undefined,
     })),
   };
 }
@@ -1448,44 +1575,70 @@ async function markdownToWord({
     }
 
     if (block.type === 'code') {
-      const codeLines = block.lines && block.lines.length > 0 ? block.lines : [''];
-      codeLines.forEach((lineText, lineIdx) => {
-        children.push(
-          new Paragraph({
-            keepLines: true,
-            keepNext: lineIdx < codeLines.length - 1 ? true : undefined,
-            indent: { left: 240, right: 240 },
-            shading: { type: ShadingType.CLEAR, fill: 'F1F5F9' },
-            border: {
-              top:
-                lineIdx === 0
-                  ? { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1', space: 4 }
-                  : undefined,
-              bottom:
-                lineIdx === codeLines.length - 1
-                  ? { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1', space: 4 }
-                  : undefined,
-              left: { style: BorderStyle.SINGLE, size: 12, color: '64748B', space: 8 },
-              right: { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1', space: 4 },
-            },
-            spacing: {
-              before: lineIdx === 0 ? 120 : 0,
-              after: lineIdx === codeLines.length - 1 ? 140 : 0,
-              line: 260,
-              lineRule: LineRuleType.AUTO,
-            },
+      const hlLines =
+        block.highlightedLines ||
+        highlightCodeToLines(block.text, block.language);
+
+      const codeParagraphs = hlLines.map((lineTokens, lineIdx) => {
+        const runs = lineTokens.map(
+          (seg) =>
+            new TextRun({
+              text: seg.text || ' ',
+              font: { ascii: 'Consolas', hAnsi: 'Consolas', eastAsia: 'Microsoft YaHei' },
+              size: 19, // 9.5pt
+              color: seg.color || 'D4D4D4',
+              bold: Boolean(seg.bold),
+              noProof: true,
+            })
+        );
+
+        return new Paragraph({
+          keepLines: true,
+          keepNext: lineIdx < hlLines.length - 1 ? true : undefined,
+          spacing: {
+            before: lineIdx === 0 ? 60 : 0,
+            after: lineIdx === hlLines.length - 1 ? 60 : 0,
+            line: 260,
+            lineRule: LineRuleType.AUTO,
+          },
+          children: runs.length > 0 ? runs : [new TextRun({ text: ' ', color: 'D4D4D4' })],
+        });
+      });
+
+      const codeContainerTable = new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 4, color: '333333' },
+          bottom: { style: BorderStyle.SINGLE, size: 4, color: '333333' },
+          left: { style: BorderStyle.SINGLE, size: 18, color: '569CD6' },
+          right: { style: BorderStyle.SINGLE, size: 4, color: '333333' },
+          insideHorizontal: { style: BorderStyle.NONE },
+          insideVertical: { style: BorderStyle.NONE },
+        },
+        rows: [
+          new TableRow({
+            cantSplit: true,
             children: [
-              new TextRun({
-                text: lineText || ' ',
-                font: { ascii: 'Consolas', hAnsi: 'Consolas', eastAsia: 'Microsoft YaHei' },
-                size: 19, // 9.5pt
-                color: '0F172A',
-                noProof: true,
+              new TableCell({
+                shading: { type: ShadingType.CLEAR, fill: '1E1E1E' },
+                margins: { top: 140, bottom: 140, left: 240, right: 240 },
+                children:
+                  codeParagraphs.length > 0
+                    ? codeParagraphs
+                    : [new Paragraph({ children: [new TextRun({ text: ' ', color: 'D4D4D4' })] })],
               }),
             ],
-          })
-        );
+          }),
+        ],
       });
+
+      children.push(codeContainerTable);
+      children.push(
+        new Paragraph({
+          spacing: { before: 0, after: 140, line: 120, lineRule: LineRuleType.EXACT },
+          children: [new TextRun({ text: '', size: 2 })],
+        })
+      );
       continue;
     }
 

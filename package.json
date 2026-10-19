@@ -1,6 +1,6 @@
 {
   "name": "xc-omnibox",
-  "version": "1.6.7",
+  "version": "1.6.8",
   "description": "XC_OmniBox (XC 万象箱) - 全能多媒体创作效率桌面客户端",
   "author": "LEESC88",
   "private": true,
@@ -26,6 +26,7 @@
     "jsqr": "^1.4.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^3.11.174",
+    "prismjs": "^1.30.0",
     "qrcode": "^1.5.4",
     "sharp": "^0.35.5",
     "unzipper": "^0.12.5",
