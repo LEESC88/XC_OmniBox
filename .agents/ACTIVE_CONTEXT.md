@@ -1,17 +1,16 @@
 # Active Context: IDE Code Blocks & Spacious UI (v1.6.8)
 
 ## 1. Current Step
-- Step 1: Integrated Prism.js tokenizer into `electron/services/markdownToDocxEngine.js` with VS Code Dark+ color map.
-- Step 2: Rendered code blocks via seamless 1-cell Table container with `#1E1E1E` background & `#007ACC` accent line.
-- Step 3: Added dedicated English architecture report sample synced with `lang === "en"`.
-- Step 4: Redesigned `AiMarkdownToWordStudio.tsx` to unclutter and open up visual spacing.
-- Step 5: Verified with Word COM PDF/PNG render + Next.js build + ready for GitHub release `v1.6.8`.
+- Step 1: Registered `ai-md-to-word` in `TOOL_TRANSLATIONS` (`i18n.tsx`) for bilingual tool card/search/header support.
+- Step 2: Localized all input placeholders (`headerText`, `redHeaderOrg`, `docNumber`), checkboxes, and template badges in studio.
+- Step 3: Word OpenXML engine footer dynamically formats as `— Page X of Y —` (EN) and `— 第 X 页 / 共 Y 页 —` (ZH).
+- Step 4: COM test verified via `verify_en_footer.png` & `verify_zh_footer.png`.
+- Step 5: Published overwrite release `v1.6.8` to GitHub Releases.
 
 ## 2. Core Types & IPC Contract
-- `tokenizedLines`: `Array<Array<{ text: string; type: string; color: string; italic?: boolean }>>`
-- Theme colors: `#569CD6` (keywords), `#DCDCAA` (functions), `#4EC9B0` (types), `#B5CEA8` (numbers), `#6A9955` (comments).
+- `MarkdownToWordOptions`: added `lang?: string`
+- `convertMarkdownToWord`: forwards `lang` to backend engine
 
 ## 3. Edge Cases Handled
-- Line-by-line token segmentation avoids multi-line run collapse.
-- 1-cell Table avoids Word paragraph dividing border gaps.
-- Empty code lines preserve single space to retain line height.
+- `isEn` detection checks explicit `lang === 'en'` or absence of CJK chars.
+- Preview paper footer and Word footer strictly aligned to current language.
