@@ -2,6 +2,7 @@ const { execSync, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const { cleanOldLocalReleases } = require('./clean-releases');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'package.json'), 'utf-8'));
@@ -232,6 +233,9 @@ async function main() {
   console.log(`🎉 Release v${version} completely published!`);
   console.log(`🔗 Public URL: ${release.html_url}`);
   console.log(`========================================================\n`);
+
+  // 4. 自动清理本地旧版本安装包，仅保留最新 2 个版本
+  cleanOldLocalReleases(releaseDir, 2);
 }
 
 main().catch((err) => {
