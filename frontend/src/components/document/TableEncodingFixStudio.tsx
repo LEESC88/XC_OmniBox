@@ -29,6 +29,7 @@ import {
   downloadBlob,
   TableEncodingProbeResult,
 } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 interface TableEncodingFixStudioProps {
   incomingFile?: File | null;
@@ -39,6 +40,8 @@ export default function TableEncodingFixStudio({
   incomingFile,
   onFileClear,
 }: TableEncodingFixStudioProps) {
+  const { lang } = useI18n();
+
   const [file, setFile] = useState<File | null>(incomingFile || null);
   const [probing, setProbing] = useState<boolean>(false);
   const [probeResult, setProbeResult] = useState<TableEncodingProbeResult | null>(null);
@@ -97,7 +100,12 @@ export default function TableEncodingFixStudio({
       })
       .catch((err: any) => {
         if (!isMounted) return;
-        setProbeError(err.message || "表格编码解析失败，请检查文件格式");
+        setProbeError(
+          err.message ||
+            (lang === "en"
+              ? "Failed to parse table encoding, please verify file format"
+              : "表格编码解析失败，请检查文件格式"),
+        );
       })
       .finally(() => {
         if (isMounted) setProbing(false);
@@ -106,7 +114,7 @@ export default function TableEncodingFixStudio({
     return () => {
       isMounted = false;
     };
-  }, [file, selectedEncoding, selectedDelimiter]);
+  }, [file, selectedEncoding, selectedDelimiter, lang]);
 
   // 切换编码方案
   const handleSelectEncoding = (encodingId: string) => {
@@ -139,7 +147,10 @@ export default function TableEncodingFixStudio({
 
       downloadBlob(res.blob, res.filename);
     } catch (err: any) {
-      setConvertError(err.message || "表格转码导出失败，请重试");
+      setConvertError(
+        err.message ||
+          (lang === "en" ? "Failed to transcode table, please retry" : "表格转码导出失败，请重试"),
+      );
     } finally {
       setConvertingFormat(null);
     }
@@ -180,19 +191,33 @@ export default function TableEncodingFixStudio({
               setConvertSuccess(null);
               onFileClear?.();
             }}
-            title="拖放或选择乱码 CSV / TSV / 文本表格"
-            hint="支持国内网银流水、ERP财务导出、税控报表及各类双击打开出现“锟斤拷/烫烫烫”的表格"
-            badge="智能编码拯救"
+            title={
+              lang === "en"
+                ? "Drop or select garbled CSV / TSV / text table here"
+                : "拖放或选择乱码 CSV / TSV / 文本表格"
+            }
+            hint={
+              lang === "en"
+                ? "Supports banking statements, ERP exports, tax tables, and any files displaying garbled characters"
+                : "支持国内网银流水、ERP财务导出、税控报表及各类双击打开出现“锟斤拷/烫烫烫”的表格"
+            }
+            badge={lang === "en" ? "Smart Charset Fix" : "智能编码拯救"}
           />
 
           {/* 典型乱码痛点科普小贴士 */}
           <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 dark:bg-amber-500/10 space-y-2">
             <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold text-xs sm:text-sm">
               <Sparkles className="w-4 h-4 flex-shrink-0" />
-              <span>为什么银行/ERP导出的表格用 Excel 打开全是乱码？</span>
+              <span>
+                {lang === "en"
+                  ? "Why do banking/ERP exported tables open as garbled text in Excel?"
+                  : "为什么银行/ERP导出的表格用 Excel 打开全是乱码？"}
+              </span>
             </div>
             <p className="text-xs text-[#7D6B5D] dark:text-[#BCA89B] leading-relaxed">
-              国内主流商业银行（工行、招行、建行等）与财务 ERP 系统常沿用 Windows ANSI (GBK/GB18030) 编码导出，而 Office Excel 或 Mac 默认按 UTF-8 解码，导致汉字出现著名的“锟斤拷 / 烫烫烫”乱码。本工具在本地自动嗅探原始字符集，并一键无损重建为双击必开的标杆 Excel (.xlsx) 或 Excel 兼容 UTF-8 表格。
+              {lang === "en"
+                ? "Major banking and ERP systems often export tables using Windows ANSI (GBK/GB18030) encoding, while Excel or macOS defaults to UTF-8 decoding, causing characters to distort. This tool locally detects the original charset and losslessly reconstructs a standard Excel (.xlsx) or Excel-compatible UTF-8 table that opens cleanly anywhere."
+                : "国内主流商业银行（工行、招行、建行等）与财务 ERP 系统常沿用 Windows ANSI (GBK/GB18030) 编码导出，而 Office Excel 或 Mac 默认按 UTF-8 解码，导致汉字出现著名的“锟斤拷 / 烫烫烫”乱码。本工具在本地自动嗅探原始字符集，并一键无损重建为双击必开的标杆 Excel (.xlsx) 或 Excel 兼容 UTF-8 表格。"}
             </p>
           </div>
         </div>
@@ -214,10 +239,10 @@ export default function TableEncodingFixStudio({
                     <>
                       <span>·</span>
                       <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                        {probeResult.totalRows.toLocaleString()} 行数据
+                        {probeResult.totalRows.toLocaleString()} {lang === "en" ? "rows" : "行数据"}
                       </span>
                       <span>·</span>
-                      <span>{probeResult.totalCols} 列</span>
+                      <span>{probeResult.totalCols} {lang === "en" ? "columns" : "列"}</span>
                     </>
                   )}
                 </div>
@@ -229,7 +254,7 @@ export default function TableEncodingFixStudio({
               className="px-3 py-1.5 rounded-lg border border-[#D2BCAB]/50 dark:border-[#4D392E]/60 text-xs text-[#7D6B5D] dark:text-[#BCA89B] hover:text-[#2D221E] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex items-center gap-1.5"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>更换文件</span>
+              <span>{lang === "en" ? "Change File" : "更换文件"}</span>
             </button>
           </div>
 
@@ -237,7 +262,11 @@ export default function TableEncodingFixStudio({
           {probing && (
             <div className="py-12 flex flex-col items-center justify-center space-y-3 text-[#7D6B5D] dark:text-[#BCA89B]">
               <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
-              <p className="text-xs font-medium">正在深度嗅探字符编码与数据结构...</p>
+              <p className="text-xs font-medium">
+                {lang === "en"
+                  ? "Deep probing character encoding and data structure..."
+                  : "正在深度嗅探字符编码与数据结构..."}
+              </p>
             </div>
           )}
 
@@ -258,23 +287,27 @@ export default function TableEncodingFixStudio({
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500 text-black shadow-sm flex items-center gap-1">
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>智能识别：{probeResult.detectedEncoding.label}</span>
+                      <span>
+                        {lang === "en"
+                          ? `Identified: ${probeResult.detectedEncoding.label}`
+                          : `智能识别：${probeResult.detectedEncoding.label}`}
+                      </span>
                     </span>
                     <span className="text-xs text-amber-700 dark:text-amber-300 font-semibold">
-                      (可信度 {Math.round(probeResult.detectedEncoding.confidence * 100)}%)
+                      ({lang === "en" ? "Confidence" : "可信度"} {Math.round(probeResult.detectedEncoding.confidence * 100)}%)
                     </span>
                   </div>
 
                   <div className="flex items-center gap-1.5 text-xs text-[#7D6B5D] dark:text-[#BCA89B]">
-                    <span>分隔符：</span>
+                    <span>{lang === "en" ? "Delimiter:" : "分隔符："}</span>
                     <span className="font-mono font-bold px-2 py-0.5 rounded bg-black/5 dark:bg-white/10 text-[#2D221E] dark:text-white">
                       {probeResult.activeDelimiter === ","
-                        ? "逗号 (,)"
+                        ? lang === "en" ? "Comma (,)" : "逗号 (,)"
                         : probeResult.activeDelimiter === "\t"
-                        ? "制表符 (Tab)"
+                        ? lang === "en" ? "Tab (\\t)" : "制表符 (Tab)"
                         : probeResult.activeDelimiter === ";"
-                        ? "分号 (;)"
-                        : `字符 (${probeResult.activeDelimiter})`}
+                        ? lang === "en" ? "Semicolon (;)" : "分号 (;)"
+                        : `${lang === "en" ? "Char" : "字符"} (${probeResult.activeDelimiter})`}
                     </span>
                   </div>
                 </div>
@@ -283,15 +316,24 @@ export default function TableEncodingFixStudio({
                 <div className="text-xs text-[#7D6B5D] dark:text-[#BCA89B] leading-relaxed">
                   {probeResult.detectedEncoding.encoding === "gb18030" ? (
                     <p className="text-amber-800 dark:text-amber-200">
-                      💡 <strong>诊断结论</strong>：文件为国内标准 <strong>GBK/GB18030</strong> 字符集。由于无 BOM 标头，原生 Excel 双击打开必然产生“锟斤拷”乱码。本工具已无损还原字符，请直接导出为标准 Excel 或带 BOM 的 CSV。
+                      💡 <strong>{lang === "en" ? "Diagnosis" : "诊断结论"}</strong>:{" "}
+                      {lang === "en"
+                        ? "File is in GBK/GB18030 charset. Without a BOM header, native Excel double-click causes garbled text. Characters have been losslessly recovered—export directly to Standard Excel or CSV with BOM."
+                        : "文件为国内标准 GBK/GB18030 字符集。由于无 BOM 标头，原生 Excel 双击打开必然产生“锟斤拷”乱码。本工具已无损还原字符，请直接导出为标准 Excel 或带 BOM 的 CSV。"}
                     </p>
                   ) : probeResult.detectedEncoding.encoding === "utf-8" && !probeResult.detectedEncoding.hasBom ? (
                     <p className="text-amber-800 dark:text-amber-200">
-                      💡 <strong>诊断结论</strong>：文件为 <strong>UTF-8（无 BOM）</strong> 字符集。中文版 Windows Excel 双击时会自动误判为 GBK 从而显示乱码（如“浜ゆ槗”）。建议导出为带 BOM 的 CSV 或标准 Excel (.xlsx)。
+                      💡 <strong>{lang === "en" ? "Diagnosis" : "诊断结论"}</strong>:{" "}
+                      {lang === "en"
+                        ? "File is in UTF-8 (without BOM) charset. Windows Excel may misinterpret it as ANSI/GBK. Exporting to CSV with BOM or Standard Excel (.xlsx) is recommended."
+                        : "文件为 UTF-8（无 BOM） 字符集。中文版 Windows Excel 双击时会自动误判为 GBK 从而显示乱码（如“浜ゆ槗”）。建议导出为带 BOM 的 CSV 或标准 Excel (.xlsx)。"}
                     </p>
                   ) : (
                     <p className="text-emerald-700 dark:text-emerald-300">
-                      ✅ <strong>诊断结论</strong>：文件采用 <strong>{probeResult.detectedEncoding.label}</strong> 编码，结构清晰完整。
+                      ✅ <strong>{lang === "en" ? "Diagnosis" : "诊断结论"}</strong>:{" "}
+                      {lang === "en"
+                        ? `File uses ${probeResult.detectedEncoding.label} encoding with intact structure.`
+                        : `文件采用 ${probeResult.detectedEncoding.label} 编码，结构清晰完整。`}
                     </p>
                   )}
                 </div>
@@ -302,10 +344,16 @@ export default function TableEncodingFixStudio({
                 <div className="flex items-center justify-between text-xs font-bold text-[#2D221E] dark:text-[#F5EBE6]">
                   <div className="flex items-center gap-1.5">
                     <Layers className="w-3.5 h-3.5 text-amber-500" />
-                    <span>若预览仍有乱码，可手动切换候选编码查看效果：</span>
+                    <span>
+                      {lang === "en"
+                        ? "If preview still appears distorted, switch candidate encoding manually:"
+                        : "若预览仍有乱码，可手动切换候选编码查看效果："}
+                    </span>
                   </div>
                   <span className="text-[11px] font-normal text-[#7D6B5D] dark:text-[#BCA89B]">
-                    点击即可实时刷新下方表格
+                    {lang === "en"
+                      ? "Click to refresh the preview table below in real time"
+                      : "点击即可实时刷新下方表格"}
                   </span>
                 </div>
 
@@ -338,11 +386,15 @@ export default function TableEncodingFixStudio({
                 <div className="flex items-center justify-between text-xs font-bold text-[#2D221E] dark:text-[#F5EBE6]">
                   <div className="flex items-center gap-1.5">
                     <TableIcon className="w-3.5 h-3.5 text-amber-500" />
-                    <span>转码效果实时预览 (前 {probeResult.previewRows.length} 行)</span>
+                    <span>
+                      {lang === "en"
+                        ? `Live Preview (First ${probeResult.previewRows.length} rows)`
+                        : `转码效果实时预览 (前 ${probeResult.previewRows.length} 行)`}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-normal text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
-                      文字清晰即代表修正成功
+                      {lang === "en" ? "Clear text indicates successful fix" : "文字清晰即代表修正成功"}
                     </span>
                   </div>
                 </div>
@@ -359,7 +411,7 @@ export default function TableEncodingFixStudio({
                             key={idx}
                             className="px-3 py-2 font-bold text-[#2D221E] dark:text-[#F5EBE6] whitespace-nowrap border-r border-[#D2BCAB]/20 last:border-r-0"
                           >
-                            {header || `列 ${idx + 1}`}
+                            {header || (lang === "en" ? `Col ${idx + 1}` : `列 ${idx + 1}`)}
                           </th>
                         ))}
                       </tr>
@@ -402,11 +454,17 @@ export default function TableEncodingFixStudio({
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-500" />
                     <span>
-                      转码完成并已自动下载：<strong>{convertSuccess.filename}</strong>（共{" "}
-                      {convertSuccess.totalRows.toLocaleString()} 行）
+                      {lang === "en" ? "Transcoded & downloaded: " : "转码完成并已自动下载："}
+                      <strong>{convertSuccess.filename}</strong> (
+                      {lang === "en"
+                        ? `Total ${convertSuccess.totalRows.toLocaleString()} rows`
+                        : `共 ${convertSuccess.totalRows.toLocaleString()} 行`}
+                      )
                     </span>
                   </div>
-                  <span className="text-[11px] font-semibold text-emerald-600">双击必开无乱码</span>
+                  <span className="text-[11px] font-semibold text-emerald-600">
+                    {lang === "en" ? "Guaranteed Clean Opening" : "双击必开无乱码"}
+                  </span>
                 </div>
               )}
 
@@ -414,7 +472,11 @@ export default function TableEncodingFixStudio({
               <div className="space-y-3 pt-2">
                 <h4 className="text-xs font-bold text-[#2D221E] dark:text-[#F5EBE6] flex items-center gap-1.5">
                   <Download className="w-3.5 h-3.5 text-amber-500" />
-                  <span>请选择导出方案（点击即可立即转换并下载）：</span>
+                  <span>
+                    {lang === "en"
+                      ? "Choose export format (Click to transcode & download immediately):"
+                      : "请选择导出方案（点击即可立即转换并下载）："}
+                  </span>
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -423,16 +485,17 @@ export default function TableEncodingFixStudio({
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-500 text-black uppercase">
-                          首选推荐
+                          {lang === "en" ? "Recommended" : "首选推荐"}
                         </span>
                         <FileSpreadsheet className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                       </div>
                       <h5 className="font-bold text-sm text-[#2D221E] dark:text-white">
-                        标准 Excel 工作簿 (.xlsx)
+                        {lang === "en" ? "Standard Excel Workbook (.xlsx)" : "标准 Excel 工作簿 (.xlsx)"}
                       </h5>
                       <p className="text-xs text-[#7D6B5D] dark:text-[#BCA89B] leading-relaxed">
-                        转换为原生 Office OpenXML 表格。<strong>绝无乱码</strong>
-                        ，且智能锁定保护身份证、银行卡号与编码前导零（不会被 Excel 搞成 6.22E+18）。
+                        {lang === "en"
+                          ? "Converts to native Office OpenXML format. 100% garbled-free, with smart protection for ID cards, bank accounts, and leading zeros."
+                          : "转换为原生 Office OpenXML 表格。绝无乱码，且智能锁定保护身份证、银行卡号与编码前导零（不会被 Excel 搞成 6.22E+18）。"}
                       </p>
                     </div>
 
@@ -445,12 +508,12 @@ export default function TableEncodingFixStudio({
                       {convertingFormat === "xlsx" ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>正在转码生成...</span>
+                          <span>{lang === "en" ? "Generating..." : "正在转码生成..."}</span>
                         </>
                       ) : (
                         <>
                           <Download className="w-4 h-4" />
-                          <span>一键导出 Excel (.xlsx)</span>
+                          <span>{lang === "en" ? "Export Excel (.xlsx)" : "一键导出 Excel (.xlsx)"}</span>
                         </>
                       )}
                     </button>
@@ -461,15 +524,17 @@ export default function TableEncodingFixStudio({
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                          全平台双击兼容
+                          {lang === "en" ? "Cross-Platform Compatible" : "全平台双击兼容"}
                         </span>
                         <FileCheck className="w-5 h-5 text-emerald-500" />
                       </div>
                       <h5 className="font-bold text-sm text-[#2D221E] dark:text-white">
-                        Excel 兼容 CSV (带 BOM)
+                        {lang === "en" ? "Excel-Compatible CSV (with BOM)" : "Excel 兼容 CSV (带 BOM)"}
                       </h5>
                       <p className="text-xs text-[#7D6B5D] dark:text-[#BCA89B] leading-relaxed">
-                        添加标准的 UTF-8 BOM 标头。Windows 与 Mac Excel 双击直接打开，彻底告别“锟斤拷”。
+                        {lang === "en"
+                          ? "Adds standard UTF-8 BOM header. Windows and Mac Excel open directly with zero encoding confusion."
+                          : "添加标准的 UTF-8 BOM 标头。Windows 与 Mac Excel 双击直接打开，彻底告别“锟斤拷”。"}
                       </p>
                     </div>
 
@@ -482,12 +547,12 @@ export default function TableEncodingFixStudio({
                       {convertingFormat === "csv-bom" ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>正在转码生成...</span>
+                          <span>{lang === "en" ? "Generating..." : "正在转码生成..."}</span>
                         </>
                       ) : (
                         <>
                           <Download className="w-4 h-4" />
-                          <span>导出带 BOM 的 CSV</span>
+                          <span>{lang === "en" ? "Export CSV with BOM" : "导出带 BOM 的 CSV"}</span>
                         </>
                       )}
                     </button>
@@ -498,15 +563,17 @@ export default function TableEncodingFixStudio({
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400">
-                          程序 / 数据库标准
+                          {lang === "en" ? "Developer / Database Standard" : "程序 / 数据库标准"}
                         </span>
                         <Database className="w-5 h-5 text-blue-500" />
                       </div>
                       <h5 className="font-bold text-sm text-[#2D221E] dark:text-white">
-                        纯净 UTF-8 CSV (无 BOM)
+                        {lang === "en" ? "Pure UTF-8 CSV (No BOM)" : "纯净 UTF-8 CSV (无 BOM)"}
                       </h5>
                       <p className="text-xs text-[#7D6B5D] dark:text-[#BCA89B] leading-relaxed">
-                        标准的 Unix 纯 UTF-8 格式，适合导入 MySQL、PostgreSQL、Python Pandas 或各类服务端接口。
+                        {lang === "en"
+                          ? "Standard Unix UTF-8 format without BOM, ideal for MySQL, PostgreSQL, Python Pandas, or server APIs."
+                          : "标准的 Unix 纯 UTF-8 格式，适合导入 MySQL、PostgreSQL、Python Pandas 或各类服务端接口。"}
                       </p>
                     </div>
 
@@ -519,12 +586,12 @@ export default function TableEncodingFixStudio({
                       {convertingFormat === "csv-utf8" ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>正在转码生成...</span>
+                          <span>{lang === "en" ? "Generating..." : "正在转码生成..."}</span>
                         </>
                       ) : (
                         <>
                           <Download className="w-4 h-4" />
-                          <span>导出纯 UTF-8 CSV</span>
+                          <span>{lang === "en" ? "Export Pure UTF-8 CSV" : "导出纯 UTF-8 CSV"}</span>
                         </>
                       )}
                     </button>

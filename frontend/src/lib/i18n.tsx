@@ -101,12 +101,27 @@ export const TOOL_TRANSLATIONS: Record<
     desc: "Millisecond-precise waveform trimming and ringtone maker",
     badge: "Waveform",
   },
+  "merge": {
+    name: "Seamless Audio Joiner",
+    desc: "Combine multiple audio tracks in sequential sequence",
+    badge: "Mashup",
+  },
   "convert-audio": {
     name: "Audio Format Transcoder",
     desc: "High bitrate conversion for MP3, WAV, FLAC, AAC, OGG",
     badge: "320K",
   },
+  "audio-convert": {
+    name: "Audio Format Transcoder",
+    desc: "High bitrate conversion for MP3, WAV, FLAC, AAC, OGG",
+    badge: "320K",
+  },
   "merge-audio": {
+    name: "Seamless Audio Joiner",
+    desc: "Combine multiple audio tracks in sequential sequence",
+    badge: "Mashup",
+  },
+  "audio-merge": {
     name: "Seamless Audio Joiner",
     desc: "Combine multiple audio tracks in sequential sequence",
     badge: "Mashup",
@@ -180,10 +195,11 @@ export const TOOL_TRANSLATIONS: Record<
 };
 
 export const CATEGORY_TRANSLATIONS: Record<string, string> = {
-  document: "Document & Text Workshop",
-  spreadsheet: "Spreadsheet & Data",
-  image: "Image & Visual",
-  audio: "Audio & Sound",
+  pdf: "PDF Professional Studio",
+  document: "Office & Document Studio",
+  spreadsheet: "Spreadsheet & Data Studio",
+  image: "Image & Visual Studio",
+  audio: "Audio & Sound Studio",
   utilities: "Everyday Utilities",
 };
 
@@ -198,8 +214,9 @@ export const UI_DICTIONARY = {
     noResults: "未找到相关工具",
 
     modules: {
-      document: "文档与文字",
-      spreadsheet: "表格",
+      pdf: "PDF 专业工坊",
+      document: "文档与办公",
+      spreadsheet: "表格与数据",
       image: "图片",
       audio: "音频",
       utilities: "日常",
@@ -562,8 +579,9 @@ export const UI_DICTIONARY = {
     noResults: "No tools found",
 
     modules: {
-      document: "Docs & Text",
-      spreadsheet: "Sheets",
+      pdf: "PDF Studio",
+      document: "Docs & Office",
+      spreadsheet: "Sheets & Data",
       image: "Image",
       audio: "Audio",
       utilities: "Utilities",
@@ -933,7 +951,10 @@ export function getLocalizedTools<T extends { category: string; module: string; 
     ...cat,
     category: CATEGORY_TRANSLATIONS[cat.module] || cat.category,
     tools: cat.tools.map((tool) => {
-      const translation = TOOL_TRANSLATIONS[tool.id];
+      const translation =
+        TOOL_TRANSLATIONS[`${tool.id}-${cat.module}`] ||
+        TOOL_TRANSLATIONS[`${cat.module}-${tool.id}`] ||
+        TOOL_TRANSLATIONS[tool.id];
       if (!translation) return tool;
       return {
         ...tool,

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import Dropzone from "@/components/Dropzone";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
+import TableEncodingFixStudio from "@/components/document/TableEncodingFixStudio";
 import { useI18n } from "@/lib/i18n";
 import { downloadBlob } from "@/lib/api";
 import { formatBytes } from "@/lib/imageProcessor";
@@ -35,7 +36,7 @@ import {
   SplitProbeGroupResult,
 } from "@/lib/spreadsheetProcessor";
 
-export type SpreadsheetTab = "sheet-merge" | "sheet-split";
+export type SpreadsheetTab = "sheet-merge" | "sheet-split" | "table-encoding-fix";
 
 export interface SpreadsheetToolboxProps {
   currentTab?: SpreadsheetTab;
@@ -261,6 +262,12 @@ export default function SpreadsheetToolbox({
             icon: Scissors,
             badge: t.spreadsheet.badgeSplit,
           },
+          {
+            id: "table-encoding-fix",
+            label: lang === "en" ? "CSV / Table Encoding Rescuer" : "表格乱码一键拯救",
+            icon: FileSpreadsheet,
+            badge: lang === "en" ? "Encoding Fix" : "智能编码拯救",
+          },
         ]}
         activeTab={activeTab}
         onTabChange={(id) => handleTabSelect(id as SpreadsheetTab)}
@@ -302,7 +309,7 @@ export default function SpreadsheetToolbox({
               </div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
                 <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                <span>100% 本地沙盒 · 零云端上传</span>
+                <span>{lang === "en" ? "100% Local Sandbox · Zero Cloud Upload" : "100% 本地沙盒 · 零云端上传"}</span>
               </div>
             </div>
 
@@ -431,7 +438,7 @@ export default function SpreadsheetToolbox({
                           ? `Sample Headers from "${mergeProbe.fileName}" (${mergeProbe.headers.length} columns):`
                           : `首个文件表头采样 (${mergeProbe.headers.length} 个字段):`}
                       </span>
-                      <span>数据行约 {mergeProbe.totalRows} 行</span>
+                      <span>{lang === "en" ? `Data rows: ~${mergeProbe.totalRows}` : `数据行约 ${mergeProbe.totalRows} 行`}</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 bg-white/60 dark:bg-darkbg-card/60 rounded-xl border border-coconut-200/50 dark:border-darkbg-border/60">
                       {mergeProbe.headers.map((h, i) => (
@@ -449,8 +456,9 @@ export default function SpreadsheetToolbox({
                 {/* 行动按钮 */}
                 <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                    已选 {mergeFiles.length} 个文件 · 总大小{" "}
-                    {formatBytes(mergeFiles.reduce((acc, f) => acc + f.size, 0))}
+                    {lang === "en"
+                      ? `Selected ${mergeFiles.length} files · Total ${formatBytes(mergeFiles.reduce((acc, f) => acc + f.size, 0))}`
+                      : `已选 ${mergeFiles.length} 个文件 · 总大小 ${formatBytes(mergeFiles.reduce((acc, f) => acc + f.size, 0))}`}
                   </div>
 
                   <button
@@ -461,7 +469,7 @@ export default function SpreadsheetToolbox({
                     {isMerging ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>{mergeProgressText || "正在流式拼合并写..."}</span>
+                        <span>{mergeProgressText || (lang === "en" ? "Streaming & merging..." : "正在流式拼合并写...")}</span>
                       </>
                     ) : (
                       <>
@@ -488,7 +496,9 @@ export default function SpreadsheetToolbox({
                         {mergeResult.filename}
                       </h4>
                       <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                        成功合并 {mergeResult.totalMergedRows} 行数据 · 包含 {mergeResult.columnCount} 列字段
+                        {lang === "en"
+                          ? `Merged ${mergeResult.totalMergedRows} rows · ${mergeResult.columnCount} columns`
+                          : `成功合并 ${mergeResult.totalMergedRows} 行数据 · 包含 ${mergeResult.columnCount} 列字段`}
                       </p>
                     </div>
                   </div>
@@ -498,7 +508,7 @@ export default function SpreadsheetToolbox({
                     className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition-all"
                   >
                     <Download className="w-4 h-4" />
-                    <span>立即保存合并表格</span>
+                    <span>{lang === "en" ? "Save Merged Spreadsheet" : "立即保存合并表格"}</span>
                   </button>
                 </div>
               </div>
@@ -535,7 +545,7 @@ export default function SpreadsheetToolbox({
               </div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
                 <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                <span>100% 本地沙盒 · 零云端上传</span>
+                <span>{lang === "en" ? "100% Local Sandbox · Zero Cloud Upload" : "100% 本地沙盒 · 零云端上传"}</span>
               </div>
             </div>
 
@@ -613,7 +623,7 @@ export default function SpreadsheetToolbox({
                     >
                       {splitProbe.headers.map((h, i) => (
                         <option key={i} value={i}>
-                          第 {i + 1} 列 · {h}
+                          {lang === "en" ? `Col ${i + 1} · ${h}` : `第 ${i + 1} 列 · ${h}`}
                         </option>
                       ))}
                     </select>
@@ -690,15 +700,19 @@ export default function SpreadsheetToolbox({
                     <div className="p-3.5 bg-white/70 dark:bg-darkbg-card/70 border border-coconut-200/80 dark:border-darkbg-border rounded-xl space-y-2">
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-semibold text-coconut-800 dark:text-darkbg-text flex items-center gap-1.5">
-                          <span>预计拆解出</span>
+                          <span>{lang === "en" ? "Estimated split: " : "预计拆解出 "}</span>
                           <span className="font-bold text-indigo-600 dark:text-indigo-400 font-mono px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 rounded">
                             {splitGroupInfo.distinctCount}
                           </span>
-                          <span>个独立子表 (数据总计约 {splitGroupInfo.totalRows} 行)</span>
+                          <span>
+                            {lang === "en"
+                              ? ` individual sheets (total ~${splitGroupInfo.totalRows} rows)`
+                              : ` 个独立子表 (数据总计约 ${splitGroupInfo.totalRows} 行)`}
+                          </span>
                         </span>
                         {isProbingGroups && (
                           <span className="text-[11px] text-coconut-500 flex items-center gap-1">
-                            <Loader2 className="w-3 h-3 animate-spin" /> 计算分组中...
+                            <Loader2 className="w-3 h-3 animate-spin" /> {lang === "en" ? "Calculating groups..." : "计算分组中..."}
                           </span>
                         )}
                       </div>
@@ -711,12 +725,12 @@ export default function SpreadsheetToolbox({
                               className="px-2 py-0.5 text-[11px] bg-coconut-100 dark:bg-darkbg-subtle text-coconut-800 dark:text-darkbg-text rounded-md border border-coconut-200/60 dark:border-darkbg-border flex items-center gap-1.5"
                             >
                               <span className="font-medium">{s.key}</span>
-                              <span className="text-[10px] text-coconut-500 font-mono">({s.count}行)</span>
+                              <span className="text-[10px] text-coconut-500 font-mono">({s.count} {lang === "en" ? "rows" : "行"})</span>
                             </span>
                           ))}
                           {splitGroupInfo.distinctCount > splitGroupInfo.sampleKeys.length && (
                             <span className="px-2 py-0.5 text-[11px] text-coconut-500">
-                              +{splitGroupInfo.distinctCount - splitGroupInfo.sampleKeys.length} 更多分组...
+                              +{splitGroupInfo.distinctCount - splitGroupInfo.sampleKeys.length} {lang === "en" ? "more groups..." : "更多分组..."}
                             </span>
                           )}
                         </div>
@@ -728,7 +742,9 @@ export default function SpreadsheetToolbox({
                 {/* 启动拆分按钮 */}
                 <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="text-xs text-coconut-600 dark:text-darkbg-muted">
-                    当前文件: {splitFile.name} ({formatBytes(splitFile.size)}) · 约 {splitProbe.totalRows} 行数据
+                    {lang === "en"
+                      ? `Current file: ${splitFile.name} (${formatBytes(splitFile.size)}) · ~${splitProbe.totalRows} rows`
+                      : `当前文件: ${splitFile.name} (${formatBytes(splitFile.size)}) · 约 ${splitProbe.totalRows} 行数据`}
                   </div>
 
                   <button
@@ -742,7 +758,7 @@ export default function SpreadsheetToolbox({
                     {isSplitting ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>{splitProgressText || "正在流式分组拆解..."}</span>
+                        <span>{splitProgressText || (lang === "en" ? "Streaming & grouping..." : "正在流式分组拆解...")}</span>
                       </>
                     ) : (
                       <>
@@ -769,7 +785,9 @@ export default function SpreadsheetToolbox({
                         {splitResult.zipFilename}
                       </h4>
                       <p className="text-xs text-indigo-700 dark:text-indigo-400">
-                        成功分拆为 {splitResult.items.length} 个独立子表格文件
+                        {lang === "en"
+                          ? `Successfully split into ${splitResult.items.length} spreadsheets`
+                          : `成功分拆为 ${splitResult.items.length} 个独立子表格文件`}
                       </p>
                     </div>
                   </div>
@@ -779,7 +797,7 @@ export default function SpreadsheetToolbox({
                     className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition-all"
                   >
                     <Download className="w-4 h-4" />
-                    <span>打包下载全部 (ZIP)</span>
+                    <span>{lang === "en" ? "Download All (ZIP)" : "打包下载全部 (ZIP)"}</span>
                   </button>
                 </div>
 
@@ -795,12 +813,12 @@ export default function SpreadsheetToolbox({
                           {item.key}
                         </div>
                         <div className="text-[11px] text-coconut-500 dark:text-darkbg-muted">
-                          {item.rowCount} 行
+                          {item.rowCount} {lang === "en" ? "rows" : "行"}
                         </div>
                       </div>
                       <button
                         onClick={() => downloadBlob(item.blob, item.filename)}
-                        title="下载此单表"
+                        title={lang === "en" ? "Download single sheet" : "下载此单表"}
                         className="p-1.5 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 transition-colors"
                       >
                         <Download className="w-4 h-4" />
@@ -812,6 +830,14 @@ export default function SpreadsheetToolbox({
             )}
           </div>
         </div>
+      )}
+
+      {/* ================= 3. CSV / 表格乱码一键拯救面板 ================= */}
+      {activeTab === "table-encoding-fix" && (
+        <TableEncodingFixStudio
+          incomingFile={incomingFiles?.[0] || null}
+          onFileClear={() => {}}
+        />
       )}
     </div>
   );

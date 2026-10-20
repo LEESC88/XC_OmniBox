@@ -52,12 +52,12 @@ import { formatBytes } from "@/lib/imageProcessor";
 import { useI18n } from "@/lib/i18n";
 
 export const HIGHLIGHT_COLORS = [
-  { value: "#FFD600", label: "经典荧光黄", bgClass: "bg-[#FFD600]" },
-  { value: "#00E676", label: "鲜艳荧光绿", bgClass: "bg-[#00E676]" },
-  { value: "#00B0FF", label: "亮丽荧光蓝", bgClass: "bg-[#00B0FF]" },
-  { value: "#FF2D70", label: "荧光玫粉", bgClass: "bg-[#FF2D70]" },
-  { value: "#FF6D00", label: "鲜亮暖橙", bgClass: "bg-[#FF6D00]" },
-  { value: "#A855F7", label: "荧光香芋紫", bgClass: "bg-[#A855F7]" },
+  { value: "#FFD600", label: "经典荧光黄", labelEn: "Fluorescent Yellow", bgClass: "bg-[#FFD600]" },
+  { value: "#00E676", label: "鲜艳荧光绿", labelEn: "Fluorescent Green", bgClass: "bg-[#00E676]" },
+  { value: "#00B0FF", label: "亮丽荧光蓝", labelEn: "Fluorescent Blue", bgClass: "bg-[#00B0FF]" },
+  { value: "#FF2D70", label: "荧光玫粉", labelEn: "Fluorescent Pink", bgClass: "bg-[#FF2D70]" },
+  { value: "#FF6D00", label: "鲜亮暖橙", labelEn: "Fluorescent Orange", bgClass: "bg-[#FF6D00]" },
+  { value: "#A855F7", label: "荧光香芋紫", labelEn: "Fluorescent Purple", bgClass: "bg-[#A855F7]" },
 ];
 
 interface PdfInplaceTextStudioProps {
@@ -66,16 +66,16 @@ interface PdfInplaceTextStudioProps {
 }
 
 export const DOCUMENT_FONTS = [
-  { value: "times", label: "Times New Roman (标注文档/合同/学术衬线)" },
-  { value: "arial", label: "Arial (现代标准无衬线)" },
-  { value: "calibri", label: "Calibri (商务/Office 常用体)" },
-  { value: "georgia", label: "Georgia (典雅高易读衬线体)" },
-  { value: "garamond", label: "Garamond (精美传统高雅衬线)" },
-  { value: "verdana", label: "Verdana (宽大字怀清晰体)" },
-  { value: "tahoma", label: "Tahoma (紧凑商务无衬线)" },
-  { value: "courier", label: "Courier New (等宽/代码/表格)" },
-  { value: "consolas", label: "Consolas (现代编程等宽)" },
-  { value: "helvetica", label: "Helvetica (国际标准现代体)" },
+  { value: "times", label: "Times New Roman (标注文档/合同/学术衬线)", labelEn: "Times New Roman (Contract/Academic Serif)" },
+  { value: "arial", label: "Arial (现代标准无衬线)", labelEn: "Arial (Standard Sans-Serif)" },
+  { value: "calibri", label: "Calibri (商务/Office 常用体)", labelEn: "Calibri (Business/Office Sans)" },
+  { value: "georgia", label: "Georgia (典雅高易读衬线体)", labelEn: "Georgia (High-Readability Serif)" },
+  { value: "garamond", label: "Garamond (精美传统高雅衬线)", labelEn: "Garamond (Classic Elegant Serif)" },
+  { value: "verdana", label: "Verdana (宽大字怀清晰体)", labelEn: "Verdana (Wide Clear Sans)" },
+  { value: "tahoma", label: "Tahoma (紧凑商务无衬线)", labelEn: "Tahoma (Compact Business Sans)" },
+  { value: "courier", label: "Courier New (等宽/代码/表格)", labelEn: "Courier New (Monospace/Code/Table)" },
+  { value: "consolas", label: "Consolas (现代编程等宽)", labelEn: "Consolas (Code Monospace)" },
+  { value: "helvetica", label: "Helvetica (国际标准现代体)", labelEn: "Helvetica (International Sans)" },
 ];
 
 const getFontFamilyCss = (family?: string) => {
@@ -1280,9 +1280,9 @@ export default function PdfInplaceTextStudio({
                         ? "bg-amber-500 text-black shadow-sm"
                         : "text-[#7D6B5D] dark:text-[#BCA89B] hover:text-[#2D221E]"
                     }`}
-                    title="点击整句或表格单元格高亮"
+                    title={lang === "en" ? "Click sentence or table cell to highlight" : "点击整句或表格单元格高亮"}
                   >
-                    整句/单格
+                    {lang === "en" ? "Sentence/Cell" : "整句/单格"}
                   </button>
                 </div>
                 {HIGHLIGHT_COLORS.map((c) => (
@@ -1296,7 +1296,7 @@ export default function PdfInplaceTextStudio({
                         : "border-black/20 opacity-75 hover:opacity-100"
                     }`}
                     style={{ backgroundColor: c.value }}
-                    title={c.label}
+                    title={lang === "en" ? (c.labelEn || c.label) : c.label}
                   />
                 ))}
               </div>
@@ -2402,13 +2402,13 @@ export default function PdfInplaceTextStudio({
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-[#2D221E] dark:text-[#F5EBE6]">
-                  批量替换为
+                  {lang === "en" ? "Batch replace with" : "批量替换为"}
                 </label>
                 <input
                   type="text"
                   value={replaceText}
                   onChange={(e) => setReplaceText(e.target.value)}
-                  placeholder="例如：2026年 或 新公司名称"
+                  placeholder={lang === "en" ? "e.g. 2026 or New Company Name" : "例如：2026年 或 新公司名称"}
                   className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-[#201815] border border-[#D2BCAB]/40 dark:border-[#4D392E]/60 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
                 />
               </div>
@@ -2416,7 +2416,7 @@ export default function PdfInplaceTextStudio({
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div className="space-y-1">
                   <label className="text-[11px] font-semibold text-[#7D6B5D] dark:text-[#BCA89B]">
-                    字体风格
+                    {lang === "en" ? "Font Style" : "字体风格"}
                   </label>
                   <select
                     value={searchFontFamily}
@@ -2425,7 +2425,7 @@ export default function PdfInplaceTextStudio({
                   >
                     {DOCUMENT_FONTS.map((f) => (
                       <option key={f.value} value={f.value}>
-                        {f.label}
+                        {lang === "en" ? (f.labelEn || f.label) : f.label}
                       </option>
                     ))}
                   </select>
@@ -2433,7 +2433,7 @@ export default function PdfInplaceTextStudio({
 
                 <div className="space-y-1">
                   <label className="text-[11px] font-semibold text-[#7D6B5D] dark:text-[#BCA89B]">
-                    文字颜色
+                    {lang === "en" ? "Text Color" : "文字颜色"}
                   </label>
                   <div className="flex items-center gap-2">
                     <input

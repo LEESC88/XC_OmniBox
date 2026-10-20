@@ -4,6 +4,21 @@ All notable updates and releases for **XC_OmniBox** will be documented in this f
 
 For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
+## 🌟 v1.6.9 Dedicated PDF Studio Module, Reorganized Document & Spreadsheet Suites, and Full English Localization Audit
+
+- 📑 **Dedicated Top-Level PDF Studio (`pdf`)**:
+  - Extracted all 11 PDF manipulation tools (`pdf-to-word`, `word-to-pdf`, `images-to-pdf`, `pdf-merge`, `pdf-split`, `pdf-organize`, `pdf-watermark`, `pdf-compress`, `pdf-protect`, `pdf-inplace-edit`, `ai-searchable-pdf`) into an independent, clutter-free top-level module with dedicated keyboard navigation (`Ctrl+1`).
+  - Native sub-tab switcher with persistent state, drag-and-drop workflow, and visual preview cards.
+- 🗂️ **Streamlined Document & Office Suite (`document`)**:
+  - Refactored the previous 15-tool overcrowded view into a clean, focused 3-tool workspace: AI / Markdown to Standard Word (`ai-md-to-word`), Office Media Lossless Unpacker (`office-media-extract`), and AI Intelligent Multilingual OCR (`ai-ocr`).
+  - Moved Table Encoding Fixer (`table-encoding-fix`) into the dedicated **Spreadsheet & Data** module (`spreadsheet`) alongside sheet merge and split operations.
+- 🌐 **100% Comprehensive English UI Localization Audit**:
+  - Full audit across all 34 tools ensuring zero Chinese text leakage when switching the UI language to English (`lang === "en"`).
+  - Fully translated badges, dropzone guidelines, diagnosis cards, parameter controls, table column headers, and action buttons.
+  - Multi-key fallback i18n resolution to ensure audio, image, document, and utility tools display correct localized labels under all route states.
+
+---
+
 ## 🌟 v1.6.8 IDE Syntax Highlighting for Word Code Blocks, English Sample Sync & Spacious UI
 
 - 🎨 **IDE Multi-Color Syntax Highlighting in Word (.docx) & Live Preview**:

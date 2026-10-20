@@ -209,7 +209,7 @@ export default function OfficeMediaExtractStudio({
                   ? "Supports .docx, .pptx, .xlsx, .docm, .pptm, .odt"
                   : "支持 .docx、.pptx、.xlsx、.docm、.pptm、.xlsm、.odt 等标准格式"
               }
-              badge="无损解构"
+              badge={lang === "en" ? "Lossless Unpack" : "无损解构"}
             />
 
             {/* 核心亮点标签 */}
@@ -218,21 +218,27 @@ export default function OfficeMediaExtractStudio({
                 <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" />
                 <div className="text-[11px] leading-tight text-coconut-800 dark:text-darkbg-text">
                   <span className="font-bold block">{lang === "en" ? "Zero Re-compression" : "绝不二次压缩"}</span>
-                  <span className="text-coconut-500 dark:text-darkbg-muted">100% 原始分辨率原图</span>
+                  <span className="text-coconut-500 dark:text-darkbg-muted">
+                    {lang === "en" ? "100% Original Resolution" : "100% 原始分辨率原图"}
+                  </span>
                 </div>
               </div>
               <div className="p-3.5 rounded-2xl bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/15 flex items-center gap-3">
                 <Zap className="w-4 h-4 text-blue-500 flex-shrink-0" />
                 <div className="text-[11px] leading-tight text-coconut-800 dark:text-darkbg-text">
                   <span className="font-bold block">{lang === "en" ? "Milliseconds Speed" : "毫秒级极速解构"}</span>
-                  <span className="text-coconut-500 dark:text-darkbg-muted">纯本地进程内解包</span>
+                  <span className="text-coconut-500 dark:text-darkbg-muted">
+                    {lang === "en" ? "Local in-process unpacking" : "纯本地进程内解包"}
+                  </span>
                 </div>
               </div>
               <div className="p-3.5 rounded-2xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/15 flex items-center gap-3">
                 <PackageOpen className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                 <div className="text-[11px] leading-tight text-coconut-800 dark:text-darkbg-text">
                   <span className="font-bold block">{lang === "en" ? "ZIP One-Click Download" : "一键打包为 ZIP"}</span>
-                  <span className="text-coconut-500 dark:text-darkbg-muted">自动排版并序列化编号</span>
+                  <span className="text-coconut-500 dark:text-darkbg-muted">
+                    {lang === "en" ? "Auto-sorted and serialized" : "自动排版并序列化编号"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -254,7 +260,7 @@ export default function OfficeMediaExtractStudio({
                   <div className="flex items-center gap-2 text-xs text-coconut-500 dark:text-darkbg-muted mt-0.5">
                     <span>{formatBytes(file.size)}</span>
                     <span>•</span>
-                    <span className="font-mono uppercase">{file.name.split(".").pop()} 容器</span>
+                    <span className="font-mono uppercase">{file.name.split(".").pop()} {lang === "en" ? "container" : "容器"}</span>
                   </div>
                 </div>
               </div>
@@ -342,7 +348,7 @@ export default function OfficeMediaExtractStudio({
                 <span className="font-semibold">
                   {lang === "en" ? "Extracted Media Preview" : "素材预览清单（按文档出现顺序排列）"}
                 </span>
-                <span>{result.count} 个文件</span>
+                <span>{result.count} {lang === "en" ? "files" : "个文件"}</span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">

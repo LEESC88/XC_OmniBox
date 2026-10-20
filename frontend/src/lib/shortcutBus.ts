@@ -45,11 +45,11 @@ export const SHORTCUTS_LIST: ShortcutItem[] = [
     category: "action",
   },
   {
-    key: "Ctrl + 1 ~ 5",
+    key: "Ctrl + 1 ~ 6",
     labelZh: "快速切换主模块",
     labelEn: "Switch Module",
-    descZh: "1: 文档与文字 | 2: 表格 | 3: 图片 | 4: 音频 | 5: 日常",
-    descEn: "1: Docs & Text | 2: Sheets | 3: Image | 4: Audio | 5: Utils",
+    descZh: "1: PDF 工坊 | 2: 文档与办公 | 3: 表格 | 4: 图片 | 5: 音频 | 6: 日常",
+    descEn: "1: PDF | 2: Docs & Office | 3: Sheets | 4: Image | 5: Audio | 6: Utils",
     category: "nav",
   },
   {

@@ -56,6 +56,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import CoconutLogo from "@/components/CoconutLogo";
+import PdfToolbox, { PdfTabType } from "@/components/PdfToolbox";
 import DocumentToolbox, { DocTabType } from "@/components/DocumentToolbox";
 import SpreadsheetToolbox, { SpreadsheetTab } from "@/components/SpreadsheetToolbox";
 import ImageToolbox from "@/components/ImageToolbox";
@@ -97,8 +98,8 @@ type AudioTabType =
   | "volume"
   | "speed";
 type DailyTabType = "idphoto" | "organize" | "duplicate" | "qrcode" | "diff";
-type SpreadsheetTabType = "sheet-merge" | "sheet-split";
-type ModuleType = "document" | "spreadsheet" | "image" | "audio" | "utilities";
+type SpreadsheetTabType = "sheet-merge" | "sheet-split" | "table-encoding-fix";
+type ModuleType = "pdf" | "document" | "spreadsheet" | "image" | "audio" | "utilities";
 
 interface ToolItem {
   id: string;
@@ -117,13 +118,13 @@ const TOOLS_REGISTRY: {
   tools: ToolItem[];
 }[] = [
   {
-    category: "文档与文字工坊",
-    module: "document",
+    category: "PDF 专业工坊",
+    module: "pdf",
     icon: FileText,
     tools: [
       {
         id: "pdf-to-word",
-        module: "document",
+        module: "pdf",
         name: "PDF 逆向转 Word",
         desc: "智能提取表格与文本排版",
         icon: FileText,
@@ -131,15 +132,23 @@ const TOOLS_REGISTRY: {
       },
       {
         id: "word-to-pdf",
-        module: "document",
+        module: "pdf",
         name: "Word 转超清 PDF",
         desc: "矢量无损输出保留清晰度",
         icon: FileCode2,
         keywords: ["word", "转pdf", "超清", "无损", "打印"],
       },
       {
+        id: "images-to-pdf",
+        module: "pdf",
+        name: "多图一键合成 PDF",
+        desc: "多张图片拖拽排序，自由合成单页或 A4 标准文档",
+        icon: Combine,
+        keywords: ["图片", "jpg", "png", "转pdf", "合成", "相册"],
+      },
+      {
         id: "pdf-merge",
-        module: "document",
+        module: "pdf",
         name: "多 PDF 拼合合并",
         desc: "多文件按需排序混编整合",
         icon: Combine,
@@ -147,7 +156,7 @@ const TOOLS_REGISTRY: {
       },
       {
         id: "pdf-split",
-        module: "document",
+        module: "pdf",
         name: "PDF 拆分与范围提取",
         desc: "按页码区间抽取指定页面",
         icon: Scissors,
@@ -155,7 +164,7 @@ const TOOLS_REGISTRY: {
       },
       {
         id: "pdf-organize",
-        module: "document",
+        module: "pdf",
         name: "PDF 页面可视化调度",
         desc: "拖拽调序、单页独立旋转 90°/180°、剔除废页",
         icon: Layers,
@@ -163,7 +172,7 @@ const TOOLS_REGISTRY: {
       },
       {
         id: "pdf-watermark",
-        module: "document",
+        module: "pdf",
         name: "PDF 文字印章水印",
         desc: "倾斜半透明防伪防盗用标记",
         icon: Stamp,
@@ -171,23 +180,15 @@ const TOOLS_REGISTRY: {
       },
       {
         id: "pdf-compress",
-        module: "document",
+        module: "pdf",
         name: "PDF 智能极限压缩",
         desc: "消除冗余流与图像下采样，大幅瘦身体积",
         icon: Minimize2,
         keywords: ["pdf", "压缩", "瘦身", "减小", "体积", "优化"],
       },
       {
-        id: "images-to-pdf",
-        module: "document",
-        name: "多图一键合成 PDF",
-        desc: "多张图片拖拽排序，自由合成单页或 A4 标准文档",
-        icon: Combine,
-        keywords: ["图片", "jpg", "png", "转pdf", "合成", "相册"],
-      },
-      {
         id: "pdf-protect",
-        module: "document",
+        module: "pdf",
         name: "PDF 加密解密与权限管理",
         desc: "AES 工业级加密上锁、已知密码解除限制与隐私元数据一键抹除",
         icon: Lock,
@@ -195,47 +196,15 @@ const TOOLS_REGISTRY: {
       },
       {
         id: "pdf-inplace-edit",
-        module: "document",
+        module: "pdf",
         name: "PDF 局部文字原地修正",
         desc: "合同/账单/简历错字日期金额原地涂白重绘修正，保持原版面与排版",
         icon: Edit3,
         keywords: ["pdf", "修改文字", "原地修改", "错别字", "替换", "合同", "账单", "金额", "日期", "edit", "fix"],
       },
       {
-        id: "office-media-extract",
-        module: "document",
-        name: "Office 媒体资产提取",
-        desc: "一键无损批量提取 Word/PPT/Excel 内嵌的原始高清图片与音视频",
-        icon: FolderArchive,
-        keywords: ["word", "ppt", "excel", "提取图片", "图片提取", "原图", "解构", "docx", "pptx", "xlsx", "media"],
-      },
-      {
-        id: "table-encoding-fix",
-        module: "document",
-        name: "CSV / 表格乱码一键拯救",
-        desc: "智能嗅探网银/财务/ERP导出的 ANSI/GBK 字符集，一键无损还原为 Excel 双击必开表格",
-        icon: FileSpreadsheet,
-        keywords: ["csv", "乱码", "转码", "excel", "锟斤拷", "烫烫烫", "gbk", "gb18030", "utf8", "bom", "网银", "erp", "表格修复"],
-      },
-      {
-        id: "ai-md-to-word",
-        module: "document",
-        name: "AI / Markdown 转标准 Word",
-        desc: "将 DeepSeek/Kimi/ChatGPT 文本或 Markdown 一键编译为带规范红头、工整表格与标准行距的 .docx",
-        icon: FileCode2,
-        keywords: ["markdown", "md", "word", "docx", "ai", "deepseek", "kimi", "chatgpt", "红头文件", "公文", "三线表", "排版"],
-      },
-      {
-        id: "ai-ocr",
-        module: "document",
-        name: "离线文字提取 (OCR)",
-        desc: "提取中英文、书籍、发票及表格字形，支持一键复制与 TXT 导出",
-        icon: Sparkles,
-        keywords: ["ocr", "文字提取", "识别", "扫描", "文字识别"],
-      },
-      {
         id: "ai-searchable-pdf",
-        module: "document",
+        module: "pdf",
         name: "双层可搜索 PDF 制作",
         desc: "将扫描件/图像注入底层透明文字排版层，实现极速检索与精准划词复制",
         icon: FileSearch,
@@ -247,6 +216,37 @@ const TOOLS_REGISTRY: {
           "复制文字",
           "pdf",
         ],
+      },
+    ],
+  },
+  {
+    category: "文档与智能办公",
+    module: "document",
+    icon: FileCode2,
+    tools: [
+      {
+        id: "ai-md-to-word",
+        module: "document",
+        name: "AI / Markdown 转标准 Word",
+        desc: "将 DeepSeek/Kimi/ChatGPT 文本或 Markdown 一键编译为带规范红头、工整表格与标准行距的 .docx",
+        icon: FileCode2,
+        keywords: ["markdown", "md", "word", "docx", "ai", "deepseek", "kimi", "chatgpt", "红头文件", "公文", "三线表", "排版"],
+      },
+      {
+        id: "office-media-extract",
+        module: "document",
+        name: "Office 媒体资产提取",
+        desc: "一键无损批量提取 Word/PPT/Excel 内嵌的原始高清图片与音视频",
+        icon: FolderArchive,
+        keywords: ["word", "ppt", "excel", "提取图片", "图片提取", "原图", "解构", "docx", "pptx", "xlsx", "media"],
+      },
+      {
+        id: "ai-ocr",
+        module: "document",
+        name: "离线文字提取 (OCR)",
+        desc: "提取中英文、书籍、发票及表格字形，支持一键复制与 TXT 导出",
+        icon: Sparkles,
+        keywords: ["ocr", "文字提取", "识别", "扫描", "文字识别"],
       },
     ],
   },
@@ -272,6 +272,14 @@ const TOOLS_REGISTRY: {
         badge: "按列分拆",
         icon: Scissors,
         keywords: ["excel", "拆分", "分表", "分组", "split", "sheet", "csv"],
+      },
+      {
+        id: "table-encoding-fix",
+        module: "spreadsheet",
+        name: "CSV / 表格乱码一键拯救",
+        desc: "智能嗅探网银/财务/ERP导出的 ANSI/GBK 字符集，一键无损还原为 Excel 双击必开表格",
+        icon: FileSpreadsheet,
+        keywords: ["csv", "乱码", "转码", "excel", "锟斤拷", "烫烫烫", "gbk", "gb18030", "utf8", "bom", "网银", "erp", "表格修复"],
       },
     ],
   },
@@ -457,9 +465,9 @@ export default function Home() {
     () => getLocalizedTools(TOOLS_REGISTRY, lang),
     [lang],
   );
-  const [activeModule, setActiveModuleState] = useState<ModuleType>("document");
+  const [activeModule, setActiveModuleState] = useState<ModuleType>("pdf");
   const [visitedModules, setVisitedModules] = useState<Set<ModuleType>>(
-    () => new Set<ModuleType>(["document"])
+    () => new Set<ModuleType>(["pdf"])
   );
   const setActiveModule = (mod: ModuleType) => {
     setVisitedModules((prev) => {
@@ -472,13 +480,15 @@ export default function Home() {
   };
   const [expandedModule, setExpandedModule] = useState<ModuleType | null>(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
-  const [activeDocTab, setActiveDocTab] = useState<DocTabType>("pdf-to-word");
+  const [activePdfTab, setActivePdfTab] = useState<PdfTabType>("pdf-to-word");
+  const [activeDocTab, setActiveDocTab] = useState<DocTabType>("ai-md-to-word");
   const [activeImageTab, setActiveImageTab] =
     useState<ImageTabType>("compress");
   const [activeAudioTab, setActiveAudioTab] = useState<AudioTabType>("trim");
   const [activeDailyTab, setActiveDailyTab] = useState<DailyTabType>("idphoto");
   const [activeSpreadsheetTab, setActiveSpreadsheetTab] =
     useState<SpreadsheetTabType>("sheet-merge");
+  const [incomingPdfFiles, setIncomingPdfFiles] = useState<File[]>([]);
   const [incomingDocFiles, setIncomingDocFiles] = useState<File[]>([]);
   const [incomingIdPhotoFile, setIncomingIdPhotoFile] = useState<File | null>(
     null,
@@ -497,7 +507,13 @@ export default function Home() {
       const normalizedModule: ModuleType =
         target.module === "ai" ? "document" : (target.module as ModuleType);
       setActiveModule(normalizedModule);
-      if (normalizedModule === "spreadsheet") {
+      if (normalizedModule === "pdf") {
+        setActivePdfTab(target.tab as PdfTabType);
+        const f = blobToFile(payload.blob || payload.file, payload.filename);
+        if (f) {
+          setIncomingPdfFiles([f]);
+        }
+      } else if (normalizedModule === "spreadsheet") {
         setActiveSpreadsheetTab(target.tab as SpreadsheetTabType);
         const f = blobToFile(payload.blob || payload.file, payload.filename);
         if (f) {
@@ -550,7 +566,7 @@ export default function Home() {
   // 客户端自动更新弹窗状态与版本感知
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
-  const [appVersion, setAppVersion] = useState<string>("1.6.8");
+  const [appVersion, setAppVersion] = useState<string>("1.6.9");
 
   // 快捷键指南弹窗状态与全局提示
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
@@ -606,14 +622,15 @@ export default function Home() {
           return;
         }
 
-        if (!isEditable && ["1", "2", "3", "4", "5"].includes(e.key)) {
+        if (!isEditable && ["1", "2", "3", "4", "5", "6"].includes(e.key)) {
           e.preventDefault();
           const moduleMap: Record<string, ModuleType> = {
-            "1": "document",
-            "2": "spreadsheet",
-            "3": "image",
-            "4": "audio",
-            "5": "utilities",
+            "1": "pdf",
+            "2": "document",
+            "3": "spreadsheet",
+            "4": "image",
+            "5": "audio",
+            "6": "utilities",
           };
           const targetMod = moduleMap[e.key];
           if (targetMod) {
@@ -695,14 +712,21 @@ export default function Home() {
                     : "已从剪贴板接收图片至图像工坊"
                 );
               } else if (
-                activeModule === "document" &&
-                (activeDocTab === "ai-ocr" || activeDocTab === "ai-searchable-pdf")
+                activeModule === "pdf" &&
+                (activePdfTab === "ai-searchable-pdf" || activePdfTab === "images-to-pdf")
               ) {
+                setIncomingPdfFiles([namedFile]);
+                showToast(
+                  lang === "en"
+                    ? "Image pasted into PDF Studio"
+                    : "已从剪贴板接收图片至 PDF 专业工坊"
+                );
+              } else if (activeModule === "document" && activeDocTab === "ai-ocr") {
                 setIncomingDocFiles([namedFile]);
                 showToast(
                   lang === "en"
-                    ? "Image pasted into OCR / Searchable PDF Studio"
-                    : "已从剪贴板接收图片至文档与文字工坊"
+                    ? "Image pasted into OCR Studio"
+                    : "已从剪贴板接收图片至离线 OCR 工坊"
                 );
               } else if (activeModule === "utilities" && activeDailyTab === "idphoto") {
                 setIncomingIdPhotoFile(namedFile);
@@ -710,13 +734,6 @@ export default function Home() {
                   lang === "en"
                     ? "Photo pasted into ID Photo Studio"
                     : "已从剪贴板接收照片至证件照工坊"
-                );
-              } else if (activeModule === "document" && activeDocTab === "images-to-pdf") {
-                setIncomingDocFiles((prev) => [...prev, namedFile]);
-                showToast(
-                  lang === "en"
-                    ? "Image added to PDF queue"
-                    : "已从剪贴板添加图片至 PDF 队列"
                 );
               } else {
                 setActiveModule("image");
@@ -750,7 +767,7 @@ export default function Home() {
 
     window.addEventListener("paste", handleGlobalPaste);
     return () => window.removeEventListener("paste", handleGlobalPaste);
-  }, [activeModule, activeDocTab, activeDailyTab, lang]);
+  }, [activeModule, activePdfTab, activeDocTab, activeDailyTab, lang]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && (window as any).electronAPI) {
@@ -841,7 +858,9 @@ export default function Home() {
   const handleSelectTool = (item: ToolItem) => {
     setActiveModule(item.module);
     setExpandedModule(item.module);
-    if (item.module === "document") {
+    if (item.module === "pdf") {
+      setActivePdfTab(item.id as PdfTabType);
+    } else if (item.module === "document") {
       setActiveDocTab(item.id as DocTabType);
     } else if (item.module === "spreadsheet") {
       setActiveSpreadsheetTab(item.id as SpreadsheetTabType);
@@ -860,15 +879,17 @@ export default function Home() {
   const currentCategory =
     toolsRegistry.find((g) => g.module === activeModule) || toolsRegistry[0];
   const currentActiveTool =
-    activeModule === "document"
-      ? allTools.find((t) => t.id === activeDocTab)
-      : activeModule === "spreadsheet"
-        ? allTools.find((t) => t.id === activeSpreadsheetTab)
-        : activeModule === "image"
-          ? allTools.find((t) => t.id === activeImageTab)
-          : activeModule === "audio"
-            ? allTools.find((t) => t.id === activeAudioTab)
-            : allTools.find((t) => t.id === activeDailyTab);
+    activeModule === "pdf"
+      ? allTools.find((t) => t.id === activePdfTab)
+      : activeModule === "document"
+        ? allTools.find((t) => t.id === activeDocTab)
+        : activeModule === "spreadsheet"
+          ? allTools.find((t) => t.id === activeSpreadsheetTab)
+          : activeModule === "image"
+            ? allTools.find((t) => t.id === activeImageTab)
+            : activeModule === "audio"
+              ? allTools.find((t) => t.id === activeAudioTab)
+              : allTools.find((t) => t.id === activeDailyTab);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-transparent text-coconut-900 dark:text-darkbg-text subpixel-antialiased">
@@ -961,24 +982,28 @@ export default function Home() {
                 const isGroupActive = activeModule === group.module;
                 const shortLabel =
                   lang === "en"
-                    ? group.module === "document"
-                      ? "Docs"
-                      : group.module === "spreadsheet"
-                        ? "Sheet"
-                        : group.module === "image"
-                          ? "Image"
-                          : group.module === "audio"
-                            ? "Audio"
-                            : "Utils"
-                    : group.module === "document"
-                      ? "文档"
-                      : group.module === "spreadsheet"
-                        ? "表格"
-                        : group.module === "image"
-                          ? "图片"
-                          : group.module === "audio"
-                            ? "音频"
-                            : "日常";
+                    ? group.module === "pdf"
+                      ? "PDF"
+                      : group.module === "document"
+                        ? "Docs"
+                        : group.module === "spreadsheet"
+                          ? "Sheet"
+                          : group.module === "image"
+                            ? "Image"
+                            : group.module === "audio"
+                              ? "Audio"
+                              : "Utils"
+                    : group.module === "pdf"
+                      ? "PDF"
+                      : group.module === "document"
+                        ? "文档"
+                        : group.module === "spreadsheet"
+                          ? "表格"
+                          : group.module === "image"
+                            ? "图片"
+                            : group.module === "audio"
+                              ? "音频"
+                              : "日常";
 
                 return (
                   <button
@@ -1077,7 +1102,8 @@ export default function Home() {
                         const Icon = t.icon;
                         const isCur =
                           activeModule === t.module &&
-                          ((t.module === "document" && activeDocTab === t.id) ||
+                          ((t.module === "pdf" && activePdfTab === t.id) ||
+                            (t.module === "document" && activeDocTab === t.id) ||
                             (t.module === "spreadsheet" && activeSpreadsheetTab === t.id) ||
                             (t.module === "image" && activeImageTab === t.id) ||
                             (t.module === "audio" && activeAudioTab === t.id) ||
@@ -1346,7 +1372,7 @@ export default function Home() {
             </nav>
           </div>
 
-          {/* 右侧：5 大分类快速切换芯片 (自适应横向滚动，支持鼠标滚轮横移) */}
+          {/* 右侧：6 大分类快速切换芯片 (自适应横向滚动，支持鼠标滚轮横移) */}
           <div
             onWheel={(e) => {
               if (e.deltaY !== 0) {
@@ -1356,7 +1382,8 @@ export default function Home() {
             className="flex items-center gap-1.5 overflow-x-auto no-scrollbar max-w-[65vw] sm:max-w-none bg-coconut-100/80 dark:bg-darkbg-subtle p-1 rounded-2xl border border-coconut-200/80 dark:border-darkbg-border flex-shrink-0 touch-pan-x"
           >
             {[
-              { id: "document", label: t.modules.document, icon: FileText },
+              { id: "pdf", label: t.modules.pdf, icon: FileText },
+              { id: "document", label: t.modules.document, icon: FileCode2 },
               { id: "spreadsheet", label: t.modules.spreadsheet, icon: TableProperties },
               { id: "image", label: t.modules.image, icon: ImageIcon },
               { id: "audio", label: t.modules.audio, icon: Music },
@@ -1418,7 +1445,19 @@ export default function Home() {
             );
           })()}
 
-          {/* 文档与文字工坊 (Keep-Alive 存活驻留：访问过则保留 DOM，0ms 瞬切且不丢失工作现场) */}
+          {/* PDF 专业工坊 (Keep-Alive 存活驻留：访问过则保留 DOM，0ms 瞬切且不丢失工作现场) */}
+          {(visitedModules.has("pdf") || activeModule === "pdf") && (
+            <div className={activeModule === "pdf" ? "block animate-fade-in" : "hidden"}>
+              <PdfToolbox
+                currentTab={activePdfTab}
+                onTabChange={setActivePdfTab}
+                incomingFiles={incomingPdfFiles}
+                onIncomingFilesHandled={() => setIncomingPdfFiles([])}
+              />
+            </div>
+          )}
+
+          {/* 文档与智能办公 (Keep-Alive 存活驻留：访问过则保留 DOM，0ms 瞬切且不丢失工作现场) */}
           {(visitedModules.has("document") || activeModule === "document") && (
             <div className={activeModule === "document" ? "block animate-fade-in" : "hidden"}>
               <DocumentToolbox
