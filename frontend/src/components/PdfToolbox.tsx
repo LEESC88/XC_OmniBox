@@ -641,7 +641,21 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8">
+          <div className="coconut-panel p-6 sm:p-8 space-y-6">
+            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 shadow-md shadow-indigo-500/25 flex items-center justify-center text-white flex-shrink-0">
+                <Combine className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                  {t.pdfMerge.title}
+                </h3>
+                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                  {t.pdfMerge.desc}
+                </p>
+              </div>
+            </div>
+
             <Dropzone
               accept=".pdf"
               multiple={true}
@@ -678,7 +692,21 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8">
+          <div className="coconut-panel p-6 sm:p-8 space-y-6">
+            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 shadow-md shadow-rose-500/25 flex items-center justify-center text-white flex-shrink-0">
+                <Scissors className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                  {t.pdfSplit.title}
+                </h3>
+                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                  {t.pdfSplit.desc}
+                </p>
+              </div>
+            </div>
+
             <Dropzone
               accept=".pdf"
               multiple={false}
@@ -715,7 +743,24 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8">
+          <div className="coconut-panel p-6 sm:p-8 space-y-6">
+            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/25 flex items-center justify-center text-white flex-shrink-0">
+                <Sliders className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                  {t.pdfOrganize?.title || (lang === "en" ? "PDF Page Organizer" : "PDF 页面可视化调度与编排")}
+                </h3>
+                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                  {t.pdfOrganize?.desc ||
+                    (lang === "en"
+                      ? "Freely drag to reorder pages, rotate individual pages 90°/180°, delete pages, and export custom PDFs."
+                      : "自由拖拽调整页面顺序、单页独立旋转 90°/180°、剔除多余页面，一键导出定制新版 PDF。")}
+                </p>
+              </div>
+            </div>
+
             <Dropzone
               accept=".pdf"
               multiple={false}
@@ -762,7 +807,21 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8">
+          <div className="coconut-panel p-6 sm:p-8 space-y-6">
+            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 shadow-md shadow-teal-500/25 flex items-center justify-center text-white flex-shrink-0">
+                <Stamp className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                  {t.pdfWatermark.title}
+                </h3>
+                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                  {t.pdfWatermark.desc}
+                </p>
+              </div>
+            </div>
+
             <Dropzone
               accept=".pdf"
               multiple={false}
@@ -799,7 +858,24 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8">
+          <div className="coconut-panel p-6 sm:p-8 space-y-6">
+            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/25 flex items-center justify-center text-white flex-shrink-0">
+                <Zap className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                  {t.pdfCompress?.title || (lang === "en" ? "PDF Smart Compression" : "PDF 智能极限体积瘦身")}
+                </h3>
+                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                  {t.pdfCompress?.desc ||
+                    (lang === "en"
+                      ? "Features 3 optimization presets (Light, Balanced, Extreme), cleaning dead streams and downsampling images for up to 80% size savings."
+                      : "支持轻度、平衡、极限三档优化，清除孤立死对象并智能下采样高清大图，压缩比可达 50%~80%。")}
+                </p>
+              </div>
+            </div>
+
             <Dropzone
               accept=".pdf"
               multiple={false}
@@ -847,7 +923,24 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8">
+          <div className="coconut-panel p-6 sm:p-8 space-y-6">
+            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-md shadow-cyan-500/25 flex items-center justify-center text-white flex-shrink-0">
+                <ImageIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                  {t.imagesToPdf?.title || (lang === "en" ? "Images to PDF Vector Studio" : "多图片一键拼合转高清 PDF")}
+                </h3>
+                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                  {t.imagesToPdf?.desc ||
+                    (lang === "en"
+                      ? "Upload multiple photos or scans, reorder pages easily, and export as Fit or Standard A4 PDF documents."
+                      : "支持选中多张照片或扫描件批量上传，自由上下拖拽调整排版顺序，支持原图自适应与标准 A4 规格导出。")}
+                </p>
+              </div>
+            </div>
+
             <Dropzone
               accept="image/*"
               multiple={true}
@@ -1243,7 +1336,25 @@ export default function PdfToolbox({
         </div>
       ) : (
         /* PDF to Word or Word to PDF Workbench */
-        <div className="coconut-panel p-6 sm:p-8 space-y-5">
+        <div className="coconut-panel p-6 sm:p-8 space-y-6">
+          <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-orange-500/25 flex items-center justify-center text-white flex-shrink-0">
+              <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                {activeTab === "word-to-pdf"
+                  ? t.common.wordConversion
+                  : t.common.pdfConversion}
+              </h3>
+              <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                {activeTab === "word-to-pdf"
+                  ? t.common.wordDesc
+                  : t.common.pdfDesc}
+              </p>
+            </div>
+          </div>
+
           {/* Quality selector for Word to PDF */}
           {activeTab === "word-to-pdf" && (
             <div className="space-y-2">

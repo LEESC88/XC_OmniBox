@@ -282,6 +282,22 @@ export default function SpreadsheetToolbox({
       {activeTab === "sheet-merge" && (
         <div className="space-y-6">
           <div className="coconut-panel p-6 sm:p-8 space-y-6">
+            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/25 flex items-center justify-center text-white flex-shrink-0">
+                <TableProperties className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                  {t.spreadsheet.mergeTab}
+                </h3>
+                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                  {lang === "en"
+                    ? "Automatically detect headers across multiple files, align missing columns, and merge into one unified sheet."
+                    : "自动跨文件探测表头，智能列名重排对齐，缺失字段自动留空补位，秒级拼接为一份完整总表。"}
+                </p>
+              </div>
+            </div>
+
             {/* 拖拽上传区 */}
             <Dropzone
               accept=".xlsx,.xls,.csv"
@@ -490,6 +506,22 @@ export default function SpreadsheetToolbox({
       {activeTab === "sheet-split" && (
         <div className="space-y-6">
           <div className="coconut-panel p-6 sm:p-8 space-y-6">
+            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/25 flex items-center justify-center text-white flex-shrink-0">
+                <Scissors className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                  {t.spreadsheet.splitTab}
+                </h3>
+                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                  {lang === "en"
+                    ? "Pick a column as grouping key (e.g. Department, Month, City) to split tens of thousands of rows into separate files."
+                    : "任选指定数据列（如部门、业务员、月份或城市），一键将上万行大表流式拆解为数十个独立 Excel 并打包。"}
+                </p>
+              </div>
+            </div>
+
             {/* 拖拽上传区 */}
             <Dropzone
               accept=".xlsx,.xls,.csv"

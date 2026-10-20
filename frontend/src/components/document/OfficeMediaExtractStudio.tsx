@@ -159,18 +159,34 @@ export default function OfficeMediaExtractStudio({
   return (
     <div className="space-y-6">
       <div className="coconut-panel p-6 sm:p-8 space-y-6">
-        {file && (
-          <div className="flex justify-end">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-orange-500/25 flex items-center justify-center text-white flex-shrink-0">
+              <FolderArchive className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                {lang === "en" ? "Office Media Asset Extractor" : "Office 媒体资产提取"}
+              </h3>
+              <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                {lang === "en"
+                  ? "Extract 100% original, uncompressed images, photos and audio/video embedded inside Word (.docx), PPT (.pptx), and Excel (.xlsx) files without opening Office."
+                  : "免装 Office，一键深入 Word (.docx)、PPT (.pptx)、Excel (.xlsx) 容器底层，无损萃取所有未被压缩、未被裁剪的高清原图与多媒体素材。"}
+              </p>
+            </div>
+          </div>
+
+          {file && (
             <button
               onClick={handleReset}
               disabled={loading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-coconut-200 dark:border-darkbg-border text-xs font-semibold text-coconut-700 dark:text-darkbg-text hover:bg-black/5 dark:hover:bg-white/5 transition-all"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-coconut-200 dark:border-darkbg-border text-xs font-semibold text-coconut-700 dark:text-darkbg-text hover:bg-black/5 dark:hover:bg-white/5 transition-all self-start sm:self-center"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>{lang === "en" ? "Change File" : "更换文档"}</span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* 未选择文件：Dropzone 状态 */}
         {!file && (

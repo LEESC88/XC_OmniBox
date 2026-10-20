@@ -416,16 +416,29 @@ export default function AiMarkdownToWordStudio({
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* 1. 顶部宽裕卡片：版式选择与快捷定制 */}
       <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border shadow-xs space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-            <Sliders className="w-4 h-4 text-accent-solid" />
-            <span>{lang === "en" ? "Select Document Template" : "选择文档排版模板"}</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+          <div className="flex items-start gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-red-500 to-amber-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-bold text-coconut-900 dark:text-darkbg-text">
+                {lang === "en"
+                  ? "AI / Markdown to Standard Word (.docx)"
+                  : "AI / Markdown 材料一键转带样式标准 Word (.docx)"}
+              </h3>
+              <p className="text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted mt-1 leading-relaxed">
+                {lang === "en"
+                  ? "Paste DeepSeek, Kimi, or ChatGPT output directly. Automatically formats official red headers, anti-squeeze tables, IDE code syntax colors, and dual-script fonts."
+                  : "直接粘贴 DeepSeek、Kimi、ChatGPT 生成的公文、报告或表格，自动剥离首尾寒暄，编译为带规范红头、防挤压表格、IDE 多彩代码与中英双轨字体的标准 .docx。"}
+              </p>
+            </div>
           </div>
 
           <button
             type="button"
             onClick={() => setShowSettings(!showSettings)}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-coconut-100/80 hover:bg-coconut-200 dark:bg-darkbg-subtle dark:text-darkbg-text flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="self-start sm:self-center px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-coconut-100/80 hover:bg-coconut-200 dark:bg-darkbg-subtle dark:text-darkbg-text flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <span>
               {lang === "en"
@@ -433,7 +446,7 @@ export default function AiMarkdownToWordStudio({
                   ? "Hide Options"
                   : "More Options"
                 : showSettings
-                  ? "收起参数"
+                  ? "收起细节"
                   : "细节参数"}
             </span>
             {showSettings ? (

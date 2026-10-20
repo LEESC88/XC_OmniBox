@@ -170,6 +170,22 @@ export default function TableEncodingFixStudio({
 
   return (
     <div className="space-y-6">
+      <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 shadow-md shadow-teal-500/25 flex items-center justify-center text-white flex-shrink-0">
+          <FileSpreadsheet className="w-5 h-5 sm:w-6 sm:h-6" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+            {lang === "en" ? "CSV / Table Encoding Rescuer" : "表格乱码一键修复"}
+          </h3>
+          <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+            {lang === "en"
+              ? "Automatically detect and repair garbled characters (GBK, ANSI, Big5, Shift-JIS) in CSV and TSV spreadsheets."
+              : "自动探测并修复 GBK、ANSI、Big5、Shift-JIS 等老旧编码，一键消除锟斤拷与乱码，转为标准 UTF-8 或 Excel 表格。"}
+          </p>
+        </div>
+      </div>
+
       {/* 1. 文件选择或拖拽区域 */}
       {!file ? (
         <div className="space-y-4">

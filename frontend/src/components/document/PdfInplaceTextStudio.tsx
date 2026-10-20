@@ -1033,9 +1033,6 @@ export default function PdfInplaceTextStudio({
                 <h3 className="text-lg sm:text-xl font-bold tracking-tight text-[#2D221E] dark:text-[#F5EBE6]">
                   {lang === "en" ? "PDF In-place Text Fix" : "PDF 局部文字原地修正"}
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300">
-                  {lang === "en" ? "P0 Word-Like Visual Studio" : "所见即所得 · 像Word一样改"}
-                </span>
               </div>
               <p className="text-xs sm:text-sm text-[#7D6B5D] dark:text-[#BCA89B]">
                 {lang === "en"
