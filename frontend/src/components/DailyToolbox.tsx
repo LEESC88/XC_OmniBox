@@ -757,6 +757,22 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
       {/* ================= 1. 证件照换底色与排版面板 ================= */}
       {activeTab === "idphoto" && (
         <div className="space-y-6">
+          <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/25 flex items-center justify-center text-white flex-shrink-0">
+              <UserCheck className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                {lang === "en" ? "ID Photo Studio" : "证件照制作与相纸排版"}
+              </h3>
+              <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                {lang === "en"
+                  ? "Change background color to white, blue, or red, adjust to standard 1-inch/2-inch sizes, and export 6-inch print sheets."
+                  : "更换红、白、蓝等标准底色，自适应标准 1 寸/2 寸规格裁切与 KB 容积限制，支持一键导出 6 寸冲印相纸排版。"}
+              </p>
+            </div>
+          </div>
+
           {!photoPreview ? (
             <div
               onClick={() => document.getElementById("photo-upload-input")?.click()}
@@ -1079,6 +1095,22 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
       {/* ================= 2. 目录智能归类大师 ================= */}
       {activeTab === "organize" && (
         <div className="space-y-6">
+          <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 shadow-md shadow-amber-500/25 flex items-center justify-center text-white flex-shrink-0">
+              <FolderTree className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                {lang === "en" ? "Folder Organizer" : "文件夹智能归类整理"}
+              </h3>
+              <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                {lang === "en"
+                  ? "Organize messy desktop and download folders by file types or dates with safe dry-run preview."
+                  : "专为桌面与下载文件夹打造，按文档、图片、音视频等类型或修改年月自动归类，提供变更试运行预演。"}
+              </p>
+            </div>
+          </div>
+
           <input
             ref={organizeFolderInputRef}
             type="file"
@@ -1393,6 +1425,22 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
       {/* ================= 3. 重复文件极速排重 ================= */}
       {activeTab === "duplicate" && (
         <div className="space-y-6">
+          <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-md shadow-purple-500/25 flex items-center justify-center text-white flex-shrink-0">
+              <CopyCheck className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                {lang === "en" ? "Duplicate File Finder" : "重复文件快速排重与清理"}
+              </h3>
+              <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                {lang === "en"
+                  ? "Rapidly scan duplicate files via tiered hash comparison and safely move duplicates to the system recycle bin."
+                  : "基于三级哈希极速扫描目录中内容一致的重复文件，智能标记保留最新或原件，安全移入系统回收站。"}
+              </p>
+            </div>
+          </div>
+
           <input
             ref={dupFolderInputRef}
             type="file"
@@ -1749,6 +1797,22 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
       {/* ================= 4. 个性化二维码与扫码识别面板 ================= */}
       {activeTab === "qrcode" && (
         <div className="space-y-6">
+          <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/25 flex items-center justify-center text-white flex-shrink-0">
+              <QrCode className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                {lang === "en" ? "QR Code Studio" : "艺术二维码生成与离线识别"}
+              </h3>
+              <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                {lang === "en"
+                  ? "Generate custom styled QR codes with logos and colors, or scan and decode QR code images completely offline."
+                  : "生成支持自定义配色、中心 Logo、WiFi/名片的艺术二维码，或离线解析图片中的二维码内容。"}
+              </p>
+            </div>
+          </div>
+
           {/* 二维码模式切换 */}
           <div className="flex space-x-2 border-b border-coconut-200/60 dark:border-darkbg-border pb-3">
             <button
@@ -2379,6 +2443,22 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
       {/* ================= 3. 文本与代码 Diff 对比面板 ================= */}
       {activeTab === "diff" && (
         <div className="coconut-panel p-5 sm:p-6 space-y-5">
+          <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-md shadow-cyan-500/25 flex items-center justify-center text-white flex-shrink-0">
+              <GitCompare className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+                {lang === "en" ? "Text & Code Diff" : "文章与文本差异对比"}
+              </h3>
+              <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+                {lang === "en"
+                  ? "Side-by-side or unified comparison of text, articles, or code snippets with highlighted insertions and deletions."
+                  : "双栏或并排对比两段文本、文章或代码差异，字符级精细高亮标注新增、删除与修改行。"}
+              </p>
+            </div>
+          </div>
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-coconut-200/60 dark:border-darkbg-border">
             <div className="flex items-center space-x-3 flex-wrap gap-y-2">
               <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">

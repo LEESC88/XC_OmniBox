@@ -549,31 +549,33 @@ export default function ImageToolbox({
 
       {/* 参数控制面板 (根据 activeTab 变化) */}
       <div className="coconut-panel p-5 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-coconut-200/60 dark:border-darkbg-border">
-          <div className="flex items-center space-x-2 text-coconut-900 dark:text-darkbg-text font-bold text-sm">
-            <Sliders className="w-4 h-4 text-toast-500" />
-            <span>
-              {activeTab === "compress" &&
-                (lang === "en"
-                  ? "Compression Options (Smart Resampling & Size Optimization)"
-                  : "压缩选项设置 (智能重采样 & 体积优化)")}
-              {activeTab === "heic" &&
-                (lang === "en" ? "Apple HEIC/HEIF Target Format" : "苹果 HEIC/HEIF 转换目标格式")}
-              {activeTab === "convert" &&
-                (lang === "en"
-                  ? "Universal Conversion Target & Background Fill"
-                  : "万能格式转换目标与填色")}
-              {activeTab === "resize" &&
-                (lang === "en"
-                  ? "Scale Percentage & Specification Presets"
-                  : "尺寸缩放比例与规格预设")}
-              {activeTab === "exif" &&
-                (lang === "en"
-                  ? "Privacy Protection & Geo-Location Stripping"
-                  : "隐私保护与地理定位清理")}
-              {activeTab === "watermark" &&
-                (lang === "en" ? "Watermark Style, Opacity & Layout" : "水印样式、透明度与排布")}
-            </span>
+        {/* 工具专属标题与简介 (与 PDF / 文档工坊对齐) */}
+        <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
+          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-orange-500/25 flex items-center justify-center text-white flex-shrink-0">
+            {activeTab === "compress" && <Zap className="w-5 h-5 sm:w-6 sm:h-6" />}
+            {activeTab === "heic" && <Apple className="w-5 h-5 sm:w-6 sm:h-6" />}
+            {activeTab === "convert" && <RefreshCw className="w-5 h-5 sm:w-6 sm:h-6" />}
+            {activeTab === "resize" && <Maximize2 className="w-5 h-5 sm:w-6 sm:h-6" />}
+            {activeTab === "exif" && <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />}
+            {activeTab === "watermark" && <Stamp className="w-5 h-5 sm:w-6 sm:h-6" />}
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
+              {activeTab === "compress" && (lang === "en" ? "Smart Image Compression" : "智能图片压缩")}
+              {activeTab === "heic" && (lang === "en" ? "Apple HEIC / HEIF Converter" : "苹果 HEIC / HEIF 照片转换")}
+              {activeTab === "convert" && (lang === "en" ? "Universal Image Format Converter" : "图片万能格式互转")}
+              {activeTab === "resize" && (lang === "en" ? "Image Resizer & Presets" : "图片尺寸调整与规格预设")}
+              {activeTab === "exif" && (lang === "en" ? "EXIF Privacy Scrubber" : "拍摄信息 (EXIF) 隐私抹除")}
+              {activeTab === "watermark" && (lang === "en" ? "Batch Image Watermark" : "图片防盗印章与水印制作")}
+            </h3>
+            <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
+              {activeTab === "compress" && (lang === "en" ? "TinyPNG-grade visual lossless compression, smart resampling to reduce image size by up to 80%." : "TinyPNG 级智能重采样与体积优化，支持按画质或目标大小压缩，最高瘦身 80% 且保留原画质。")}
+              {activeTab === "heic" && (lang === "en" ? "Batch convert iPhone HEIC photos into JPG, PNG or WebP with original resolution and color fidelity." : "批量将苹果 iPhone 专有 HEIC / HEIF 照片秒转为通用 JPG、PNG 或 WebP，保留完整分辨率与色彩。")}
+              {activeTab === "convert" && (lang === "en" ? "Fast batch conversion between JPG, PNG, WebP, ICO, BMP, TIFF, and AVIF formats." : "支持 JPG、PNG、WebP、ICO 图标、BMP、TIFF 等多格式极速并发转码，支持透明底填色。")}
+              {activeTab === "resize" && (lang === "en" ? "Scale images by exact pixels, percentage, or one-click presets for ID photos, avatars, and social media." : "按等比百分比或精确像素缩放，内置标准证件照、微信头像、小红书与高清壁纸一键排版预设。")}
+              {activeTab === "exif" && (lang === "en" ? "Scrub GPS coordinates, camera model, shooting timestamp, and private metadata before sharing online." : "一键抹除照片中记录的拍摄 GPS 定位坐标、相机型号、拍摄日期与隐藏敏感隐私元数据。")}
+              {activeTab === "watermark" && (lang === "en" ? "Add single or full-screen repeating anti-theft text or logo stamps with customizable rotation and opacity." : "支持添加单图或全屏平铺防盗文字、自定义 Logo 贴图，灵活调节透明度、旋转角与间距。")}
+            </p>
           </div>
         </div>
 
