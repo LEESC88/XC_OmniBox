@@ -509,45 +509,38 @@ export default function ImageToolbox({
   const handleDownloadAllZip = handleExportAll;
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in">
-      {/* 6 大子功能 Tab 切换条 (支持鼠标滚轮横移、鼠标拖拽滑动、专属微滑轨与左右翻页箭头) */}
+    <div className="w-full max-w-5xl mx-auto space-y-5 animate-fade-in">
       <ScrollableTabNav
         tabs={[
           {
             id: "compress",
-            label: lang === "en" ? "Smart Image Compression" : "智能图片压缩",
+            label: lang === "en" ? "Compress Image" : "图片压缩",
             icon: Zap,
-            badge: lang === "en" ? "TinyPNG Level" : "TinyPNG级",
           },
           {
             id: "heic",
-            label: lang === "en" ? "Apple HEIC Converter" : "苹果 HEIC 秒转",
+            label: lang === "en" ? "HEIC Converter" : "HEIC 转换",
             icon: Apple,
-            badge: lang === "en" ? "iPhone Native" : "iPhone原图",
           },
           {
             id: "convert",
-            label: lang === "en" ? "Universal Format Convert" : "万能格式互转",
+            label: lang === "en" ? "Format Convert" : "格式转换",
             icon: RefreshCw,
-            badge: "WebP/ICO/PNG",
           },
           {
             id: "resize",
-            label: lang === "en" ? "Resize & Presets" : "尺寸缩放与预设",
+            label: lang === "en" ? "Resize Image" : "尺寸调整",
             icon: Maximize2,
-            badge: lang === "en" ? "ID/Social" : "证件/社交图",
           },
           {
             id: "exif",
-            label: lang === "en" ? "EXIF Privacy Scrubber" : "EXIF 隐私抹除",
+            label: lang === "en" ? "Remove EXIF" : "抹除拍摄信息",
             icon: ShieldCheck,
-            badge: lang === "en" ? "Anti-leak" : "防GPS泄露",
           },
           {
             id: "watermark",
-            label: lang === "en" ? "Batch Watermark" : "批量防盗水印",
+            label: lang === "en" ? "Image Watermark" : "图片水印",
             icon: Stamp,
-            badge: lang === "en" ? "Text/Logo" : "文字/Logo",
           },
         ]}
         activeTab={activeTab}

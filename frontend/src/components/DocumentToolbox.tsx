@@ -66,23 +66,23 @@ export default function DocumentToolbox({
   const docTabs = [
     {
       id: "ai-md-to-word",
-      label: lang === "en" ? "AI / Markdown to Standard Word" : "AI / Markdown 转标准 Word",
+      label: lang === "en" ? "Markdown to Word" : "Markdown 转 Word",
       icon: FileCode2,
     },
     {
       id: "office-media-extract",
-      label: lang === "en" ? "Office Media Extractor" : "Office 媒体资产提取",
+      label: lang === "en" ? "Office Media Extractor" : "Office 媒体提取",
       icon: FolderArchive,
     },
     {
       id: "ai-ocr",
-      label: lang === "en" ? "Offline OCR Text Extraction" : "离线文字提取 (OCR)",
+      label: lang === "en" ? "Text Recognition (OCR)" : "文字识别 (OCR)",
       icon: Sparkles,
     },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* 3 Document & Office Horizontal Sub-tabs Nav */}
       <ScrollableTabNav
         tabs={docTabs}

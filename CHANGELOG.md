@@ -4,6 +4,24 @@ All notable updates and releases for **XC_OmniBox** will be documented in this f
 
 For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
+## 🌟 v1.7.0 Streamlined Studio UI/UX Overhaul, Interactive Cat Paw Companion, Zero Red Dots & 120fps Fluid Rendering
+
+- ✨ **Elevated Studio Visual System & De-AI-ification**:
+  - Upgraded the surface palette to a refined **Warm Ivory / Alabaster Studio** light mode (`#F6F3EE` canvas, `#FFFFFF` cards, `#E6DFD5` subtle hairlines) and **Obsidian Espresso** dark mode (`#131110` canvas, `#1C1917` cards, `#302A26` borders).
+  - Eliminated exaggerated AI-generated buzzwords, redundant internal tool banners, and noisy pill badges across all 34 tools, replacing them with clean, concise, human-centered terminology (`PDF to Word`, `Merge PDF`, `Compress Image`, `HEIC Converter`, etc.).
+- 🐾 **Interactive Cat Paw Companion (`CatPawLogo`)**:
+  - Preserved and enhanced the signature 3D bouncy Cat Paw emblem in the sidebar header; users can click the `🐾` quick-switch button or right-click the emblem to cycle through 4 curated cat paw palettes (`Calico Pink`, `Palm Green`, `Roasted Mocha`, `Snow Calico`) anytime.
+- 🧭 **Uncluttered Sidebar & Unified Top Header**:
+  - Removed all pulsing red dots (`小红点`) from category navigation items in favor of a clean left accent indicator bar.
+  - Added an instant `Ctrl+K` tool filter in the sidebar to search across all 34 tools immediately.
+  - Replaced the 4 stacked sidebar footer cards with a sleek single-row utility dock (`v1.7.0`, Language toggle `中/EN`, Theme toggle, Shortcuts `Ctrl+/`, and Settings).
+  - Integrated the active tool's icon, title, and one-line subtitle directly into the top `<header>`, freeing vertical space for the workspace canvas.
+- ⚡ **120fps Fluidity & Layout Optimization**:
+  - Applied `React.useTransition` for non-blocking category and tool switches alongside CSS `content-visibility: hidden` on inactive keep-alive studio trees to skip offscreen layout calculations while preserving component state.
+  - Redesigned `ScrollableTabNav` into a clean segmented studio control bar without badge clutter.
+
+---
+
 ## 🌟 v1.6.9 Dedicated PDF Studio Module, Reorganized Document & Spreadsheet Suites, and Full English Localization Audit
 
 - 📑 **Dedicated Top-Level PDF Studio (`pdf`)**:

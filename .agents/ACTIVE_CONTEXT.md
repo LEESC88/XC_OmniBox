@@ -1,17 +1,11 @@
-# Active Context: PDF Studio & Full Localization (v1.6.9)
+# Active Context (v1.7.0 UI/UX Overhaul & Fluidity)
 
-## 1. Current Step
-- Step 1: Created dedicated top-level `PdfToolbox.tsx` hosting all 11 PDF tools with full i18n support.
-- Step 2: Streamlined `DocumentToolbox.tsx` to 3 core office tools and moved `TableEncodingFixStudio` to `SpreadsheetToolbox.tsx`.
-- Step 3: Audited and localized all sub-studios, tool registry, dictionary, badges, and controls.
-- Step 4: Next.js production build verified clean (100% static export).
-- Step 5: Packaging and publishing `v1.6.9` release.
+## 1. 当前进度
+- [x] `modern-web-guidance` 规范应用 (`defer-rendering-heavy-content`)
+- [x] `globals.css` & `themeManager.ts` 高阶质感工作台调色板与按钮微交互重塑
+- [x] `ScrollableTabNav.tsx` 改造为分段式胶囊控制栏，剔除杂乱 badge
+- [x] `page.tsx` & `i18n.tsx` & 各 Toolbox 去除 AI 营销词汇、移除分类小红点、保留并增强灵动猫肉球切换 (`CatPawLogo`)、新增 `Ctrl+K` 实时搜索与极简底栏
+- [ ] 前端构建校验与打包发布 v1.7.0
 
-## 2. Core Architecture
-- Module registry: 6 modules (`pdf`, `document`, `spreadsheet`, `image`, `audio`, `utilities`).
-- Keyboard shortcuts: `Ctrl+1` through `Ctrl+6` for lightning module switching.
-- I18n: Enhanced multi-key fallback (`tool.id-cat.module` -> `cat.module-tool.id` -> `tool.id`).
-
-## 3. Edge Cases Handled
-- Audio transcode/merge tool key collision resolved.
-- Full bilingual coverage across dropzones, diagnostics, tables, and dialogs.
+## 2. 核心约定
+- 严守前后端职责隔离与 Terse Mode。

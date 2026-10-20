@@ -4,33 +4,33 @@
 
 :root {
   --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", Roboto, sans-serif;
-  --color-canvas: #EFE4D8;         /* 柔暖生椰润肤色基底 */
-  --color-card: #FDF9F5;           /* 细腻纯净椰乳暖肤卡片底 */
+  --color-canvas: #F6F3EE;         /* 温润燕麦羊皮纸基底 */
+  --color-card: #FFFFFF;           /* 纯净高质感卡片表面 */
   --color-card-elevated: #FFFFFF;
-  --color-border: #C2A793;         /* 物理像素级高清晰对比轮廓线 */
-  --color-border-subtle: #D5C0B0;
-  --color-text-main: #140803;       /* 浓郁深焙黑，点对点极致清晰 */
-  --color-text-muted: #4A3324;      /* 暖深木辅助字色，杜绝任何发灰模糊 */
+  --color-border: #E6DFD5;         /* 细腻温润微边框 */
+  --color-border-subtle: #EFEAE2;
+  --color-text-main: #1C1613;      /* 深焙浓缩咖啡主字色 */
+  --color-text-muted: #6E5D53;     /* 柔和暖灰棕辅助字色 */
   --color-accent: #EA580C;
-  --color-accent-gradient: linear-gradient(135deg, #F59E0B 0%, #EA580C 50%, #E11D48 100%);
-  --color-accent-shadow: rgba(234, 88, 12, 0.45);
-  --color-panel-bg: rgba(253, 249, 245, 0.96);
-  --color-sidebar-bg: rgba(239, 228, 216, 0.98);
+  --color-accent-gradient: linear-gradient(135deg, #EA580C 0%, #D9460F 100%);
+  --color-accent-shadow: rgba(234, 88, 12, 0.24);
+  --color-panel-bg: rgba(255, 255, 255, 0.94);
+  --color-sidebar-bg: rgba(249, 246, 241, 0.96);
 }
 
 .dark {
-  --color-canvas: #160F0C;         /* 浓郁深焙椰炭暖木色 */
-  --color-card: #221914;           /* 烘焙椰壳卡片面 */
-  --color-card-elevated: #2C201A;
-  --color-border: #523E34;         /* 鲜明清晰的暗色椰壳轮廓线，边框笔直不虚化 */
-  --color-border-subtle: #3D2D25;
-  --color-text-main: #FFFFFF;       /* 纯净雪白高清晰主字色 */
-  --color-text-muted: #DDD0C3;      /* 调亮暖调辅助字色，夜间高对比锐利清晰 */
+  --color-canvas: #131110;         /* 深邃曜石暖炭黑 */
+  --color-card: #1C1917;           /* 柔和暗调工作台卡片面 */
+  --color-card-elevated: #26221F;
+  --color-border: #302A26;         /* 内敛克制的暗色轮廓线 */
+  --color-border-subtle: #26211E;
+  --color-text-main: #F7F4F0;      /* 柔和羊皮白主字色 */
+  --color-text-muted: #A89B91;     /* 舒适夜间阅读辅助字色 */
   --color-accent: #F97316;
-  --color-accent-gradient: linear-gradient(135deg, #F59E0B 0%, #EA580C 50%, #E11D48 100%);
-  --color-accent-shadow: rgba(234, 88, 12, 0.45);
-  --color-panel-bg: rgba(34, 25, 20, 0.96);
-  --color-sidebar-bg: rgba(22, 15, 12, 0.98);
+  --color-accent-gradient: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+  --color-accent-shadow: rgba(249, 115, 22, 0.26);
+  --color-panel-bg: rgba(28, 25, 23, 0.94);
+  --color-sidebar-bg: rgba(19, 17, 16, 0.98);
 }
 
 html {
@@ -70,57 +70,50 @@ img, svg {
 body:not(.dark) {
   background-color: var(--color-canvas);
   background-image: 
-    radial-gradient(rgba(170, 120, 90, 0.22) 1px, transparent 1px),
-    radial-gradient(at 0% 0%, rgba(250, 182, 142, 0.42) 0px, transparent 58%),
-    radial-gradient(at 100% 0%, rgba(246, 165, 105, 0.32) 0px, transparent 52%),
-    radial-gradient(at 50% 45%, rgba(255, 243, 233, 0.55) 0px, transparent 65%),
-    radial-gradient(at 15% 90%, rgba(228, 162, 122, 0.32) 0px, transparent 55%),
-    radial-gradient(at 88% 88%, rgba(245, 138, 142, 0.22) 0px, transparent 52%);
-  background-size: 28px 28px, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+    radial-gradient(at 0% 0%, rgba(251, 191, 146, 0.14) 0px, transparent 52%),
+    radial-gradient(at 100% 0%, rgba(246, 173, 123, 0.10) 0px, transparent 48%),
+    radial-gradient(at 50% 100%, rgba(235, 210, 190, 0.18) 0px, transparent 60%);
+  background-size: 100% 100%;
 }
 
-/* 深色模式背景：深焙椰炭暖木色 + 落日琥珀余晖 + 暖栗深色光影 (纯净无拖影) */
+/* 深色模式背景：深邃曜石暖炭黑 + 微弱暖琥珀环境光 */
 .dark body {
   background-color: var(--color-canvas);
   background-image: 
-    radial-gradient(rgba(75, 55, 42, 0.5) 1px, transparent 1px),
-    radial-gradient(at 95% 5%, rgba(245, 158, 11, 0.15) 0px, transparent 45%),
-    radial-gradient(at 5% 25%, rgba(234, 88, 12, 0.12) 0px, transparent 50%),
-    radial-gradient(at 85% 85%, rgba(225, 29, 72, 0.08) 0px, transparent 45%),
-    radial-gradient(at 20% 95%, rgba(150, 70, 25, 0.16) 0px, transparent 50%);
-  background-size: 28px 28px, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+    radial-gradient(at 95% 5%, rgba(249, 115, 22, 0.06) 0px, transparent 45%),
+    radial-gradient(at 5% 90%, rgba(234, 88, 12, 0.05) 0px, transparent 50%);
+  background-size: 100% 100%;
 }
 
-/* 高精质感卡片面板 (柔暖生肤微透 + 1px清晰细线边框 + 微内倒角光泽，文字100%直绘无模糊离屏) */
+/* 高精现代工作室卡片面板 (纯净细腻微边框 + 自然环境阴影) */
 .coconut-panel {
-  background: var(--color-panel-bg, rgba(247, 236, 226, 0.96));
-  border: 1px solid var(--color-border, #D2BCAB);
+  background: var(--color-panel-bg, rgba(255, 255, 255, 0.96));
+  border: 1px solid var(--color-border, #E6DFD5);
   box-shadow: 
-    0 2px 8px -1px rgba(0, 0, 0, 0.05),
-    0 12px 32px -4px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
-  border-radius: 1.5rem;
-  transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    0 1px 3px rgba(20, 14, 10, 0.03),
+    0 8px 24px -4px rgba(20, 14, 10, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border-radius: 1.25rem;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .dark .coconut-panel {
-  background: var(--color-panel-bg, rgba(41, 31, 26, 0.96));
-  border: 1px solid var(--color-border, #4D392E);
+  background: var(--color-panel-bg, rgba(28, 25, 23, 0.95));
+  border: 1px solid var(--color-border, #302A26);
   box-shadow: 
-    0 1px 2px rgba(0, 0, 0, 0.3),
-    0 8px 24px -4px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  border-radius: 1.5rem;
+    0 1px 2px rgba(0, 0, 0, 0.25),
+    0 8px 24px -4px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-radius: 1.25rem;
 }
 
-/* 3D 触感立体强调按钮 (自适应色彩渐变 + 物理厚度下沿 + 弹性按压位移) */
+/* 现代质感主操作按钮 (摒弃厚重黑底边，采用柔和立体光影与微弹回馈) */
 .btn-3d-sunset {
-  background: var(--color-accent-gradient, linear-gradient(135deg, #F59E0B 0%, #EA580C 50%, #E11D48 100%)) !important;
+  background: var(--color-accent-gradient, linear-gradient(135deg, #EA580C 0%, #D9460F 100%)) !important;
   color: #FFFFFF !important;
-  font-weight: 700;
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35), 0 8px 20px -2px var(--color-accent-shadow, rgba(234, 88, 12, 0.45)) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.4);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 6px 16px -3px var(--color-accent-shadow, rgba(234, 88, 12, 0.28)), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s cubic-bezier(0.22, 1, 0.36, 1), filter 0.18s ease;
   position: relative;
   overflow: hidden;
   display: inline-flex;
@@ -131,14 +124,14 @@ body:not(.dark) {
 }
 
 .btn-3d-sunset:hover:not(:disabled) {
-  transform: translate3d(0, -2px, 0);
-  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35), 0 14px 26px -2px var(--color-accent-shadow, rgba(234, 88, 12, 0.55)) !important;
-  filter: brightness(1.06);
+  transform: translate3d(0, -1px, 0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.14), 0 10px 20px -3px var(--color-accent-shadow, rgba(234, 88, 12, 0.36)), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+  filter: brightness(1.04);
 }
 
 .btn-3d-sunset:active:not(:disabled) {
-  transform: translate3d(0, 3px, 0);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35), 0 3px 8px var(--color-accent-shadow, rgba(234, 88, 12, 0.35)) !important;
+  transform: scale(0.985);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 2px 6px var(--color-accent-shadow, rgba(234, 88, 12, 0.22)) !important;
   transition-duration: 0.08s;
 }
 
@@ -146,12 +139,12 @@ body:not(.dark) {
   opacity: 0.45;
   cursor: not-allowed;
   box-shadow: none !important;
-  filter: grayscale(0.5);
+  filter: grayscale(0.4);
 }
 
-/* 全局动态自适应强调色通用类 (跟随自定义调色即时响应) */
+/* 全局动态自适应强调色通用类 */
 .bg-accent-gradient {
-  background: var(--color-accent-gradient, linear-gradient(135deg, #F59E0B 0%, #EA580C 50%, #E11D48 100%)) !important;
+  background: var(--color-accent-gradient, linear-gradient(135deg, #EA580C 0%, #D9460F 100%)) !important;
 }
 
 .bg-accent-solid {
@@ -159,7 +152,7 @@ body:not(.dark) {
 }
 
 .bg-accent-subtle {
-  background-color: var(--color-accent-subtle, rgba(234, 88, 12, 0.15)) !important;
+  background-color: var(--color-accent-subtle, rgba(234, 88, 12, 0.10)) !important;
 }
 
 .text-accent {
@@ -171,25 +164,24 @@ body:not(.dark) {
 }
 
 .border-accent-border {
-  border-color: var(--color-accent-border, rgba(234, 88, 12, 0.35)) !important;
+  border-color: var(--color-accent-border, rgba(234, 88, 12, 0.25)) !important;
 }
 
 .shadow-accent-glow {
-  box-shadow: 0 4px 14px var(--color-accent-shadow, rgba(234, 88, 12, 0.42)) !important;
+  box-shadow: 0 4px 12px var(--color-accent-shadow, rgba(234, 88, 12, 0.24)) !important;
 }
 
 .shadow-accent-3d {
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35), 0 8px 20px -2px var(--color-accent-shadow, rgba(234, 88, 12, 0.45)) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.10), 0 6px 14px -2px var(--color-accent-shadow, rgba(234, 88, 12, 0.26)) !important;
 }
 
-/* 3D 触感次级微立体按钮 (线条清晰分明，高对比暖润肤色底/烘焙椰壳底) */
+/* 现代次级操作按钮 (清爽平滑边框，去除厚重底边) */
 .btn-3d-secondary {
-  background: #FAF1E8;
-  color: #1C0F07 !important;
-  border: 1px solid #CBB09C;
-  box-shadow: 0 3px 0 #BCA08C, 0 4px 12px -2px rgba(120, 75, 45, 0.10);
-  border-top: 1px solid rgba(255, 255, 255, 0.95);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  background: #FFFFFF;
+  color: #1C1613 !important;
+  border: 1px solid #E2D9CE;
+  box-shadow: 0 1px 2px rgba(20, 14, 10, 0.04);
+  transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -199,33 +191,33 @@ body:not(.dark) {
 }
 
 .dark .btn-3d-secondary {
-  background: #30251F;
-  color: #FFFFFF !important;
-  border: 1px solid #564034;
-  box-shadow: 0 3px 0 #1A120E, 0 4px 12px -2px rgba(0, 0, 0, 0.45);
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  background: #26221F;
+  color: #F7F4F0 !important;
+  border: 1px solid #3A322D;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
 .btn-3d-secondary:hover:not(:disabled) {
   transform: translate3d(0, -1px, 0);
-  background: #F4E5D6;
-  border-color: #BCA08C;
-  box-shadow: 0 4px 0 #BCA08C, 0 6px 16px -2px rgba(120, 75, 45, 0.16);
+  background: #FAF7F2;
+  border-color: #D2C5B6;
+  box-shadow: 0 3px 8px -2px rgba(20, 14, 10, 0.08);
 }
 
 .dark .btn-3d-secondary:hover:not(:disabled) {
-  background: #3B2E27;
-  box-shadow: 0 4px 0 #1A120E, 0 6px 16px -2px rgba(0, 0, 0, 0.55);
+  background: #302B27;
+  border-color: #4A4039;
+  box-shadow: 0 3px 8px -2px rgba(0, 0, 0, 0.4);
 }
 
 .btn-3d-secondary:active:not(:disabled) {
-  transform: translate3d(0, 2px, 0);
-  box-shadow: 0 1px 0 #BCA08C;
+  transform: scale(0.985);
+  box-shadow: 0 1px 2px rgba(20, 14, 10, 0.04);
   transition-duration: 0.08s;
 }
 
 .dark .btn-3d-secondary:active:not(:disabled) {
-  box-shadow: 0 1px 0 #1A120E;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   transition-duration: 0.08s;
 }
 
@@ -233,7 +225,7 @@ body:not(.dark) {
 @keyframes viewFadeIn {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -242,7 +234,7 @@ body:not(.dark) {
 }
 
 .animate-fade-in {
-  animation: viewFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: viewFadeIn 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 /* 红黄橘跑马灯动态条纹进度条 */
@@ -388,7 +380,24 @@ body:not(.dark) {
 /* 视口虚拟裁剪容器：百项并发任务/长文件列表视口外节点直接跳过 Style 与 Layout 计算 */
 .virtual-scroll-item {
   content-visibility: auto;
-  contain-intrinsic-size: 0 46px;
+  contain-intrinsic-size: auto none auto 52px;
+}
+
+/* Keep-Alive 模块离屏状态保持：跳过隐藏模块的 Layout 计算，保留 Style/DOM 树状态实现 0ms 瞬切 */
+.keep-alive-inactive {
+  display: none;
+}
+
+@supports (content-visibility: hidden) {
+  .keep-alive-inactive {
+    display: block;
+    content-visibility: hidden;
+  }
+}
+
+.keep-alive-active {
+  display: block;
+  content-visibility: visible;
 }
 
 /* 极速平滑惯性滚动 */

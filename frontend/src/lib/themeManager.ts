@@ -177,23 +177,22 @@ export function previewTheme(theme: CustomThemeConfig) {
   root.style.setProperty("--color-text-muted", theme.textMuted);
   root.style.setProperty("--color-accent", theme.accent);
 
-  // 2. 动态生成配套渐变与立体阴影及高光描边
-  const accentLight = adjustHex(theme.accent, 22);
-  const accentDark = adjustHex(theme.accent, -20);
-  const accentGradient = `linear-gradient(135deg, ${accentLight} 0%, ${theme.accent} 50%, ${accentDark} 100%)`;
-  const accentShadow = hexToRgba(theme.accent, 0.42);
-  const accentSubtle = hexToRgba(theme.accent, 0.15);
-  const accentBorder = hexToRgba(theme.accent, 0.35);
+  // 2. 动态生成配套柔和渐变与环境阴影
+  const accentDark = adjustHex(theme.accent, -10);
+  const accentGradient = `linear-gradient(135deg, ${theme.accent} 0%, ${accentDark} 100%)`;
+  const accentShadow = hexToRgba(theme.accent, 0.24);
+  const accentSubtle = hexToRgba(theme.accent, 0.10);
+  const accentBorder = hexToRgba(theme.accent, 0.25);
 
   root.style.setProperty("--color-accent-gradient", accentGradient);
   root.style.setProperty("--color-accent-shadow", accentShadow);
   root.style.setProperty("--color-accent-subtle", accentSubtle);
   root.style.setProperty("--color-accent-border", accentBorder);
-  root.style.setProperty("--color-card-elevated", adjustHex(theme.foreground, theme.isDark ? 8 : 4));
+  root.style.setProperty("--color-card-elevated", adjustHex(theme.foreground, theme.isDark ? 6 : 2));
 
   // 3. 动态注入半透明面板与侧边栏底色
-  root.style.setProperty("--color-panel-bg", hexToRgba(theme.foreground, theme.isDark ? 0.94 : 0.90));
-  root.style.setProperty("--color-sidebar-bg", hexToRgba(theme.background, 0.97));
+  root.style.setProperty("--color-panel-bg", hexToRgba(theme.foreground, theme.isDark ? 0.96 : 0.96));
+  root.style.setProperty("--color-sidebar-bg", hexToRgba(theme.background, 0.98));
 
   // 4. 同步 HTML .dark 类，确保深浅基调无缝互通
   if (theme.isDark) {

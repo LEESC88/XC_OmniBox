@@ -721,39 +721,33 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in">
-      {/* 5 大功能 Tab 切换 */}
+    <div className="w-full max-w-5xl mx-auto space-y-5 animate-fade-in">
       <ScrollableTabNav
         tabs={[
           {
             id: "idphoto",
-            label: lang === "en" ? "ID Photo Studio" : "证件照换底与相纸排版",
+            label: lang === "en" ? "ID Photo Maker" : "证件照制作",
             icon: UserCheck,
-            badge: lang === "en" ? "6-Inch Print / KB Limit" : "6寸排版/KB限容",
           },
           {
             id: "organize",
-            label: lang === "en" ? "Smart Organizer" : "目录智能归类大师",
+            label: lang === "en" ? "Folder Organizer" : "文件夹整理",
             icon: FolderTree,
-            badge: lang === "en" ? "Dry Run / Rules" : "变更试运行/智能归类",
           },
           {
             id: "duplicate",
-            label: lang === "en" ? "Fast Deduplicator" : "重复文件极速排重",
+            label: lang === "en" ? "Duplicate Finder" : "重复文件清理",
             icon: CopyCheck,
-            badge: lang === "en" ? "Tiered Hash / Trash" : "三级哈希/安全回收站",
           },
           {
             id: "qrcode",
-            label: lang === "en" ? "Artistic QR Code" : "艺术二维码与扫码识别",
+            label: lang === "en" ? "QR Code Studio" : "二维码生成",
             icon: QrCode,
-            badge: lang === "en" ? "WiFi / vCard / Scan" : "WiFi/名片/离线识码",
           },
           {
             id: "diff",
-            label: lang === "en" ? "Article & Text Diff" : "文章与文本对比",
+            label: lang === "en" ? "Text Diff" : "文本差异对比",
             icon: GitCompare,
-            badge: lang === "en" ? "Article Diff" : "文章对比/精细高亮",
           },
         ]}
         activeTab={activeTab}

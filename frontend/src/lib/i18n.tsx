@@ -9,217 +9,193 @@ export const TOOL_TRANSLATIONS: Record<
   string,
   { name: string; desc: string; badge?: string }
 > = {
-  // Document
+  // PDF Studio
   "pdf-to-word": {
-    name: "PDF to Word (Reverse)",
-    desc: "Extraction of tables and formatted layouts",
+    name: "PDF to Word",
+    desc: "Convert PDF documents into editable Word files while preserving tables and layout",
   },
   "word-to-pdf": {
-    name: "Word to Ultra PDF",
-    desc: "Vector rendering with 300+ DPI fidelity",
+    name: "Word to PDF",
+    desc: "Export Word documents to high-resolution vector PDFs",
   },
   "pdf-merge": {
-    name: "Merge PDF Documents",
-    desc: "Sort, combine, and merge multiple PDFs seamlessly",
+    name: "Merge PDF",
+    desc: "Combine multiple PDF documents in custom order",
   },
   "pdf-split": {
-    name: "Split & Extract PDF",
-    desc: "Extract pages by custom range or individual slices",
+    name: "Split PDF",
+    desc: "Extract specific page ranges or split pages into separate files",
   },
   "pdf-watermark": {
-    name: "PDF Stamp & Watermark",
-    desc: "Translucent custom text watermark",
+    name: "PDF Watermark",
+    desc: "Add custom angled text watermarks to PDF pages",
   },
   "pdf-compress": {
-    name: "PDF Smart Compression",
-    desc: "Clean dead streams and smart downsampling for slim files",
+    name: "Compress PDF",
+    desc: "Reduce PDF file size while keeping text crisp",
   },
   "images-to-pdf": {
-    name: "Images to PDF Studio",
-    desc: "Merge multiple JPG/PNG/WebP into a single vector PDF",
+    name: "Images to PDF",
+    desc: "Combine multiple JPG, PNG, or WebP images into a PDF document",
   },
   "pdf-organize": {
-    name: "PDF Page Organizer",
-    desc: "Visual page reordering, individual page rotation, and page removal",
+    name: "Organize Pages",
+    desc: "Reorder, rotate, or delete individual PDF pages visually",
   },
   "pdf-protect": {
-    name: "PDF Encrypt & Unlock Studio",
-    desc: "AES encryption, authorized password unlocking & privacy metadata scrubbing",
+    name: "Protect & Unlock",
+    desc: "Add password encryption, unlock known passwords, or scrub metadata",
   },
   "pdf-inplace-edit": {
-    name: "PDF In-place Text Fix",
-    desc: "In-place text editing, baseline & font auto-match for contracts and invoices",
-  },
-  "office-media-extract": {
-    name: "Office Media Extractor",
-    desc: "Extract embedded high-res images, audio, and videos from Word/PPT/Excel",
-  },
-  "table-encoding-fix": {
-    name: "CSV / Table Encoding Rescuer",
-    desc: "Smart charset detection (GBK/ANSI/UTF-8) and lossless conversion to Excel spreadsheets",
-  },
-  "ai-md-to-word": {
-    name: "AI / Markdown to Standard Word",
-    desc: "Compile DeepSeek/Kimi/ChatGPT text or Markdown into official red-header, neat tables, and standard line-spaced .docx, with academic three-line tables",
-  },
-
-  // Image
-  "compress": {
-    name: "Smart Image Compressor",
-    desc: "TinyPNG-grade visual lossless image compression",
-    badge: "Save 90%",
-  },
-  "heic": {
-    name: "Apple HEIC Converter",
-    desc: "Convert iPhone live photos and HEIC to JPEG/PNG instantly",
-    badge: "Apple",
-  },
-  "convert": {
-    name: "Universal Image Convert",
-    desc: "Fast mutual conversion for WebP, JPG, PNG, and ICO",
-    badge: "All Formats",
-  },
-  "resize": {
-    name: "Precision Resize",
-    desc: "Smart cropping for ID photos, social media, and wallpapers",
-    badge: "Presets",
-  },
-  "exif": {
-    name: "EXIF Privacy Scrubber",
-    desc: "Strip GPS location, camera model, and private metadata",
-    badge: "Anti-leak",
-  },
-  "watermark": {
-    name: "Batch Image Watermark",
-    desc: "Tile custom text or brand logos to protect copyright",
-    badge: "Copyright",
-  },
-
-  // Audio
-  "trim": {
-    name: "Lossless Audio Cutter",
-    desc: "Millisecond-precise waveform trimming and ringtone maker",
-    badge: "Waveform",
-  },
-  "merge": {
-    name: "Seamless Audio Joiner",
-    desc: "Combine multiple audio tracks in sequential sequence",
-    badge: "Mashup",
-  },
-  "convert-audio": {
-    name: "Audio Format Transcoder",
-    desc: "High bitrate conversion for MP3, WAV, FLAC, AAC, OGG",
-    badge: "320K",
-  },
-  "audio-convert": {
-    name: "Audio Format Transcoder",
-    desc: "High bitrate conversion for MP3, WAV, FLAC, AAC, OGG",
-    badge: "320K",
-  },
-  "merge-audio": {
-    name: "Seamless Audio Joiner",
-    desc: "Combine multiple audio tracks in sequential sequence",
-    badge: "Mashup",
-  },
-  "audio-merge": {
-    name: "Seamless Audio Joiner",
-    desc: "Combine multiple audio tracks in sequential sequence",
-    badge: "Mashup",
-  },
-  "extract": {
-    name: "Video Audio Extractor",
-    desc: "Extract pristine MP3 soundtrack from MP4 / MKV videos",
-    badge: "Fast Extract",
-  },
-  "volume": {
-    name: "Volume Booster & Voice Clarity",
-    desc: "0% ~ 300% gain, low-rumble noise filter, and broadcast compression",
-    badge: "Voice Boost",
-  },
-  "speed": {
-    name: "Audio Speed Adjustment",
-    desc: "0.5x ~ 2.0x tempo adjustment with natural resampling pitch shift",
-    badge: "Speed",
-  },
-
-  // Utilities
-  "idphoto": {
-    name: "ID Photo Background",
-    desc: "Smart red/white/blue background replacement and 6-inch layout",
-    badge: "6-inch Print",
-  },
-  "organize": {
-    name: "Smart File Organizer",
-    desc: "1-click cleanup for messy desktop & downloads with preview & dry run",
-    badge: "Auto-Sort",
-  },
-  "duplicate": {
-    name: "Fast Duplicate Cleaner",
-    desc: "Tiered short-circuit hashing to purge duplicate files safely to recycle bin",
-    badge: "Deduplicate",
-  },
-  "qrcode": {
-    name: "Artistic QR Generator",
-    desc: "Gradient colors, custom styles, and embedded center logo",
-    badge: "Logo",
-  },
-  "diff": {
-    name: "Article & Text Diff",
-    desc: "Real-time side-by-side article revisions and text diff comparison",
-    badge: "Article Diff",
-  },
-
-  // Scanning & Text
-  "ai-ocr": {
-    name: "Offline Text Extraction (OCR)",
-    desc: "High-accuracy text recognition for documents, books, and receipts",
-    badge: "Multi-lang",
+    name: "Edit PDF Text",
+    desc: "Modify text directly in place while matching original font and layout",
   },
   "ai-searchable-pdf": {
-    name: "Searchable PDF Maker",
-    desc: "Inject invisible searchable text layer into scanned images/PDFs for instant text search & copy",
-    badge: "Dual-Layer PDF",
+    name: "Searchable PDF",
+    desc: "Embed an invisible text layer into scanned PDFs for text search and selection",
+  },
+
+  // Document & Office
+  "ai-md-to-word": {
+    name: "Markdown to Word",
+    desc: "Convert Markdown or AI notes into formatted .docx with standard typography and tables",
+  },
+  "office-media-extract": {
+    name: "Extract Office Media",
+    desc: "Extract original images, audio, and video assets from Word, PPT, and Excel files",
+  },
+  "ai-ocr": {
+    name: "Text Recognition (OCR)",
+    desc: "Recognize and extract text from images, scanned pages, and receipts",
   },
 
   // Spreadsheet
   "sheet-merge": {
-    name: "Smart Sheet Merge",
-    desc: "Auto align headers, fill missing columns, and batch merge sheets",
-    badge: "Auto-Align",
+    name: "Merge Sheets",
+    desc: "Align column headers and combine multiple spreadsheets into one",
   },
   "sheet-split": {
-    name: "Column Sheet Splitter",
-    desc: "Split huge datasets by specific column values into multiple files",
-    badge: "Batch Split",
+    name: "Split Sheet",
+    desc: "Split a large spreadsheet into multiple files grouped by a chosen column",
+  },
+  "table-encoding-fix": {
+    name: "CSV Encoding Fix",
+    desc: "Detect GBK/ANSI/UTF-8 encoding and fix garbled CSV or text tables for Excel",
+  },
+
+  // Image
+  "compress": {
+    name: "Compress Image",
+    desc: "Reduce image file size with minimal visual quality loss",
+  },
+  "heic": {
+    name: "HEIC Converter",
+    desc: "Batch convert Apple HEIC/HEIF photos to JPG or PNG",
+  },
+  "convert": {
+    name: "Convert Format",
+    desc: "Convert images between WebP, PNG, JPG, and ICO formats",
+  },
+  "resize": {
+    name: "Resize Image",
+    desc: "Scale images by percentage, custom dimensions, or standard presets",
+  },
+  "exif": {
+    name: "Remove EXIF",
+    desc: "Clear GPS coordinates, camera details, and shooting metadata from photos",
+  },
+  "watermark": {
+    name: "Image Watermark",
+    desc: "Add tiled text or logo watermarks to images in batch",
+  },
+
+  // Audio
+  "trim": {
+    name: "Trim Audio",
+    desc: "Cut audio clips with waveform preview and fade controls",
+  },
+  "merge": {
+    name: "Merge Audio",
+    desc: "Join multiple audio tracks sequentially into a single file",
+  },
+  "convert-audio": {
+    name: "Convert Audio",
+    desc: "Convert audio files between MP3, WAV, FLAC, AAC, and OGG",
+  },
+  "audio-convert": {
+    name: "Convert Audio",
+    desc: "Convert audio files between MP3, WAV, FLAC, AAC, and OGG",
+  },
+  "merge-audio": {
+    name: "Merge Audio",
+    desc: "Join multiple audio tracks sequentially into a single file",
+  },
+  "audio-merge": {
+    name: "Merge Audio",
+    desc: "Join multiple audio tracks sequentially into a single file",
+  },
+  "extract": {
+    name: "Extract Audio",
+    desc: "Extract audio tracks from MP4, MKV, or MOV video files",
+  },
+  "volume": {
+    name: "Volume & Denoise",
+    desc: "Adjust audio gain, normalize loudness, and reduce background noise",
+  },
+  "speed": {
+    name: "Change Speed",
+    desc: "Adjust playback tempo from 0.5x to 2.0x",
+  },
+
+  // Utilities
+  "idphoto": {
+    name: "ID Photo",
+    desc: "Change ID photo background colors and generate print layouts",
+  },
+  "organize": {
+    name: "Folder Organizer",
+    desc: "Sort files into folders by file type or date with preview",
+  },
+  "duplicate": {
+    name: "Duplicate Finder",
+    desc: "Scan folders to find and clean up identical duplicate files",
+  },
+  "qrcode": {
+    name: "QR Code",
+    desc: "Create custom styled QR codes or scan QR images",
+  },
+  "diff": {
+    name: "Text Diff",
+    desc: "Compare two texts side by side and highlight differences",
   },
 };
 
 export const CATEGORY_TRANSLATIONS: Record<string, string> = {
-  pdf: "PDF Professional Studio",
-  document: "Office & Document Studio",
-  spreadsheet: "Spreadsheet & Data Studio",
-  image: "Image & Visual Studio",
-  audio: "Audio & Sound Studio",
-  utilities: "Everyday Utilities",
+  pdf: "PDF Tools",
+  document: "Documents",
+  spreadsheet: "Spreadsheets",
+  image: "Images",
+  audio: "Audio",
+  utilities: "Utilities",
 };
 
 // UI 通用完整字典
 export const UI_DICTIONARY = {
   zh: {
-    windowTitle: "XC_OmniBox (XC 万象箱) - 极速本地多功能工具箱",
+    windowTitle: "XC OmniBox - 桌面效率工具箱",
     workspace: "工作台",
-    appName: "XC 万象箱",
-    appSubname: "本地极速多功能工具箱",
-    searchPlaceholder: "输入关键字搜索工具或功能...",
-    noResults: "未找到相关工具",
+    appName: "XC OmniBox",
+    appSubname: "桌面效率工具箱",
+    searchPlaceholder: "搜索工具...",
+    noResults: "未找到匹配工具",
 
     modules: {
-      pdf: "PDF 专业工坊",
-      document: "文档与办公",
-      spreadsheet: "表格与数据",
-      image: "图片",
-      audio: "音频",
-      utilities: "日常",
+      pdf: "PDF 工具",
+      document: "文档办公",
+      spreadsheet: "表格数据",
+      image: "图像处理",
+      audio: "音频处理",
+      utilities: "实用工具",
     },
 
     spreadsheet: {
@@ -571,18 +547,18 @@ export const UI_DICTIONARY = {
     },
   },
   en: {
-    windowTitle: "XC_OmniBox - Fast Local Offline Toolbox",
+    windowTitle: "XC OmniBox - Desktop Productivity Suite",
     workspace: "Workspace",
     appName: "XC OmniBox",
-    appSubname: "Fast Local Offline Toolbox",
-    searchPlaceholder: "Type keywords to search tools...",
-    noResults: "No tools found",
+    appSubname: "Desktop Productivity Suite",
+    searchPlaceholder: "Search tools...",
+    noResults: "No matching tools",
 
     modules: {
-      pdf: "PDF Studio",
-      document: "Docs & Office",
-      spreadsheet: "Sheets & Data",
-      image: "Image",
+      pdf: "PDF Tools",
+      document: "Documents",
+      spreadsheet: "Spreadsheets",
+      image: "Images",
       audio: "Audio",
       utilities: "Utilities",
     },

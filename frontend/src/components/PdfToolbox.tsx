@@ -556,63 +556,63 @@ export default function PdfToolbox({
   const pdfTabs = [
     {
       id: "pdf-to-word",
-      label: lang === "en" ? "PDF to Word (Reverse)" : "PDF 逆向转 Word",
+      label: lang === "en" ? "PDF to Word" : "PDF 转 Word",
       icon: FileText,
     },
     {
       id: "word-to-pdf",
-      label: lang === "en" ? "Word to Ultra PDF" : "Word 转超清 PDF",
+      label: lang === "en" ? "Word to PDF" : "Word 转 PDF",
       icon: FileCode2,
     },
     {
       id: "images-to-pdf",
-      label: lang === "en" ? "Images to PDF Studio" : "多图一键合成 PDF",
+      label: lang === "en" ? "Images to PDF" : "图片转 PDF",
       icon: Combine,
     },
     {
       id: "pdf-merge",
-      label: lang === "en" ? "Merge PDF Documents" : "多 PDF 拼合合并",
+      label: lang === "en" ? "Merge PDF" : "PDF 合并",
       icon: Combine,
     },
     {
       id: "pdf-split",
-      label: lang === "en" ? "Split & Extract PDF" : "PDF 拆分与范围提取",
+      label: lang === "en" ? "Split PDF" : "PDF 拆分",
       icon: Scissors,
     },
     {
       id: "pdf-organize",
-      label: lang === "en" ? "PDF Page Organizer" : "PDF 页面可视化调度",
+      label: lang === "en" ? "Organize Pages" : "页面管理",
       icon: Layers,
     },
     {
       id: "pdf-watermark",
-      label: lang === "en" ? "PDF Stamp & Watermark" : "PDF 文字印章水印",
+      label: lang === "en" ? "PDF Watermark" : "PDF 水印",
       icon: Stamp,
     },
     {
       id: "pdf-compress",
-      label: lang === "en" ? "PDF Smart Compression" : "PDF 智能极限压缩",
+      label: lang === "en" ? "Compress PDF" : "PDF 压缩",
       icon: Minimize2,
     },
     {
       id: "pdf-protect",
-      label: lang === "en" ? "PDF Encrypt & Unlock" : "PDF 加密解密与权限管理",
+      label: lang === "en" ? "Encrypt & Unlock" : "加密与解密",
       icon: Lock,
     },
     {
       id: "pdf-inplace-edit",
-      label: lang === "en" ? "PDF In-place Text Fix" : "PDF 局部文字原地修正",
+      label: lang === "en" ? "Edit PDF Text" : "PDF 文字修改",
       icon: Edit3,
     },
     {
       id: "ai-searchable-pdf",
-      label: lang === "en" ? "Dual-Layer Searchable PDF" : "双层可搜索 PDF 制作",
+      label: lang === "en" ? "Searchable PDF" : "可搜索 PDF",
       icon: FileSearch,
     },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* 11 PDF Dedicated Sub-tabs Nav */}
       <ScrollableTabNav
         tabs={pdfTabs}
@@ -641,32 +641,7 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="flex items-start sm:items-center gap-3.5">
-                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 shadow-md shadow-indigo-500/25 flex items-center justify-center text-white flex-shrink-0">
-                  <Combine className="w-5 h-5 sm:w-6 sm:h-6" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center flex-wrap gap-2">
-                    <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                      {t.pdfMerge.title}
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 tracking-wider uppercase">
-                      {lang === "en" ? "Lossless Join" : "多文件无损拼合"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                    {t.pdfMerge.desc}
-                  </p>
-                </div>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                <span>{lang === "en" ? "100% Local Sandbox · Zero Cloud Upload" : "100% 本地沙盒 · 零云端上传"}</span>
-              </div>
-            </div>
-
+          <div className="coconut-panel p-6 sm:p-8">
             <Dropzone
               accept=".pdf"
               multiple={true}
@@ -703,32 +678,7 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="flex items-start sm:items-center gap-3.5">
-                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 shadow-md shadow-rose-500/25 flex items-center justify-center text-white flex-shrink-0">
-                  <Scissors className="w-5 h-5 sm:w-6 sm:h-6" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center flex-wrap gap-2">
-                    <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                      {t.pdfSplit.title}
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-rose-500/10 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30 tracking-wider uppercase">
-                      {lang === "en" ? "Visual Page Pick" : "全文档点选拆分"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                    {t.pdfSplit.desc}
-                  </p>
-                </div>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                <span>{lang === "en" ? "100% Local Sandbox · Zero Cloud Upload" : "100% 本地沙盒 · 零云端上传"}</span>
-              </div>
-            </div>
-
+          <div className="coconut-panel p-6 sm:p-8">
             <Dropzone
               accept=".pdf"
               multiple={false}
@@ -765,35 +715,7 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="flex items-start sm:items-center gap-3.5">
-                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/25 flex items-center justify-center text-white flex-shrink-0">
-                  <Sliders className="w-5 h-5 sm:w-6 sm:h-6" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center flex-wrap gap-2">
-                    <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                      {t.pdfOrganize?.title || (lang === "en" ? "PDF Page Organizer" : "PDF 页面可视化调度与编排")}
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-violet-500/10 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300 border border-violet-500/30 tracking-wider uppercase">
-                      {lang === "en" ? "Reorder & Rotate" : "页面调序旋转"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                    {t.pdfOrganize?.desc ||
-                      (lang === "en"
-                        ? "Freely drag to reorder pages, rotate individual pages 90°/180°, delete pages, and export custom PDFs."
-                        : "自由拖拽调整页面顺序、单页独立旋转 90°/180°、剔除多余页面，一键导出定制新版 PDF。")}
-                  </p>
-                </div>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                <span>{lang === "en" ? "100% Local Sandbox · Zero Cloud Upload" : "100% 本地沙盒 · 零云端上传"}</span>
-              </div>
-            </div>
-
+          <div className="coconut-panel p-6 sm:p-8">
             <Dropzone
               accept=".pdf"
               multiple={false}
@@ -840,32 +762,7 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="flex items-start sm:items-center gap-3.5">
-                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 shadow-md shadow-teal-500/25 flex items-center justify-center text-white flex-shrink-0">
-                  <Stamp className="w-5 h-5 sm:w-6 sm:h-6" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center flex-wrap gap-2">
-                    <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                      {t.pdfWatermark.title}
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-teal-500/10 dark:bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/30 tracking-wider uppercase">
-                      {lang === "en" ? "Realtime Stamp" : "真底图动态水印"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                    {t.pdfWatermark.desc}
-                  </p>
-                </div>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                <span>{lang === "en" ? "100% Local Sandbox · Zero Cloud Upload" : "100% 本地沙盒 · 零云端上传"}</span>
-              </div>
-            </div>
-
+          <div className="coconut-panel p-6 sm:p-8">
             <Dropzone
               accept=".pdf"
               multiple={false}
@@ -902,35 +799,7 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="flex items-start sm:items-center gap-3.5">
-                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/25 flex items-center justify-center text-white flex-shrink-0">
-                  <Zap className="w-5 h-5 sm:w-6 sm:h-6" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center flex-wrap gap-2">
-                    <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                      {t.pdfCompress?.title || (lang === "en" ? "PDF Smart Compression" : "PDF 智能极限体积瘦身")}
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 tracking-wider uppercase">
-                      {lang === "en" ? "Slim & Optimize" : "极限智能瘦身"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                    {t.pdfCompress?.desc ||
-                      (lang === "en"
-                        ? "Features 3 optimization presets (Light, Balanced, Extreme), cleaning dead streams and downsampling images for up to 80% size savings."
-                        : "支持轻度、平衡、极限三档优化，清除孤立死对象并智能下采样高清大图，压缩比可达 50%~80%。")}
-                  </p>
-                </div>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                <span>{lang === "en" ? "100% Local Sandbox · Zero Cloud Upload" : "100% 本地沙盒 · 零云端上传"}</span>
-              </div>
-            </div>
-
+          <div className="coconut-panel p-6 sm:p-8">
             <Dropzone
               accept=".pdf"
               multiple={false}
@@ -978,35 +847,7 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="flex items-start sm:items-center gap-3.5">
-                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-md shadow-cyan-500/25 flex items-center justify-center text-white flex-shrink-0">
-                  <ImageIcon className="w-5 h-5 sm:w-6 sm:h-6" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center flex-wrap gap-2">
-                    <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                      {t.imagesToPdf?.title || (lang === "en" ? "Images to PDF Vector Studio" : "多图片一键拼合转高清 PDF")}
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 tracking-wider uppercase">
-                      {lang === "en" ? "Batch Fit" : "批量自适应拼合"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                    {t.imagesToPdf?.desc ||
-                      (lang === "en"
-                        ? "Upload multiple photos or scans, reorder pages easily, and export as Fit or Standard A4 PDF documents."
-                        : "支持选中多张照片或扫描件批量上传，自由上下拖拽调整排版顺序，支持原图自适应与标准 A4 规格导出。")}
-                  </p>
-                </div>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                <span>{lang === "en" ? "100% Local Sandbox · Zero Cloud Upload" : "100% 本地沙盒 · 零云端上传"}</span>
-              </div>
-            </div>
-
+          <div className="coconut-panel p-6 sm:p-8">
             <Dropzone
               accept="image/*"
               multiple={true}
@@ -1402,38 +1243,7 @@ export default function PdfToolbox({
         </div>
       ) : (
         /* PDF to Word or Word to PDF Workbench */
-        <div className="coconut-panel p-6 sm:p-8 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-            <div className="flex items-start sm:items-center gap-3.5">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-orange-500/25 flex items-center justify-center text-white flex-shrink-0">
-                <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center flex-wrap gap-2">
-                  <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                    {activeTab === "word-to-pdf"
-                      ? t.common.wordConversion
-                      : t.common.pdfConversion}
-                  </h3>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 tracking-wider uppercase">
-                    {activeTab === "word-to-pdf"
-                      ? lang === "en" ? "300 DPI Print" : "300 DPI 打印级"
-                      : lang === "en" ? "High Fidelity Reverse" : "高保真逆向还原"}
-                  </span>
-                </div>
-                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                  {activeTab === "word-to-pdf"
-                    ? t.common.wordDesc
-                    : t.common.pdfDesc}
-                </p>
-              </div>
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span>{lang === "en" ? "100% Local Sandbox · Zero Cloud Upload" : "100% 本地沙盒 · 零云端上传"}</span>
-            </div>
-          </div>
-
+        <div className="coconut-panel p-6 sm:p-8 space-y-5">
           {/* Quality selector for Word to PDF */}
           {activeTab === "word-to-pdf" && (
             <div className="space-y-2">

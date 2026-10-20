@@ -128,43 +128,41 @@ export default function ScrollableTabNav({
 
   return (
     <div className={`relative group w-full ${className}`}>
-      {/* 左侧遮罩与滑轮快速左翻箭头 */}
+      {/* 左侧快速左翻箭头 */}
       <div
-        className={`absolute left-0 inset-y-0 z-20 flex items-center pr-4 pointer-events-none transition-opacity duration-300 ${
+        className={`absolute left-1 inset-y-0 z-20 flex items-center pointer-events-none transition-opacity duration-200 ${
           canScrollLeft ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-[var(--color-canvas,#F2E5D8)] to-transparent pointer-events-none" />
         <button
           type="button"
-          onClick={() => scrollByAmount(-260)}
-          className="relative pointer-events-auto p-1.5 rounded-xl bg-white/90 dark:bg-darkbg-elevated/90 border border-coconut-200/90 dark:border-darkbg-border text-coconut-800 dark:text-darkbg-text shadow-md hover:scale-110 active:scale-95 transition-all backdrop-blur-xs cursor-pointer ml-1"
+          onClick={() => scrollByAmount(-240)}
+          className="relative pointer-events-auto p-1.5 rounded-xl bg-white/95 dark:bg-darkbg-elevated/95 border border-[var(--color-border)] text-coconut-800 dark:text-darkbg-text shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer"
           title={lang === "en" ? "Scroll Left" : "向左滑移"}
           aria-label={lang === "en" ? "Scroll Left" : "向左滑移"}
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* 右侧遮罩与滑轮快速右翻箭头 */}
+      {/* 右侧快速右翻箭头 */}
       <div
-        className={`absolute right-0 inset-y-0 z-20 flex items-center pl-4 justify-end pointer-events-none transition-opacity duration-300 ${
+        className={`absolute right-1 inset-y-0 z-20 flex items-center justify-end pointer-events-none transition-opacity duration-200 ${
           canScrollRight ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[var(--color-canvas,#F2E5D8)] to-transparent pointer-events-none" />
         <button
           type="button"
-          onClick={() => scrollByAmount(260)}
-          className="relative pointer-events-auto p-1.5 rounded-xl bg-white/90 dark:bg-darkbg-elevated/90 border border-coconut-200/90 dark:border-darkbg-border text-coconut-800 dark:text-darkbg-text shadow-md hover:scale-110 active:scale-95 transition-all backdrop-blur-xs cursor-pointer mr-1"
+          onClick={() => scrollByAmount(240)}
+          className="relative pointer-events-auto p-1.5 rounded-xl bg-white/95 dark:bg-darkbg-elevated/95 border border-[var(--color-border)] text-coconut-800 dark:text-darkbg-text shadow-sm hover:scale-105 active:scale-95 transition-all cursor-pointer"
           title={lang === "en" ? "Scroll Right" : "向右滑移"}
           aria-label={lang === "en" ? "Scroll Right" : "向右滑移"}
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* 横向滚动轨道：支持滚轮直接左右横滑、鼠标抓取拖拽、带有专属优雅微滑轨 */}
+      {/* 现代分段式导航轨道：纯净无冗余徽章，支持滚轮与拖拽 */}
       <div
         ref={scrollRef}
         onScroll={checkScroll}
@@ -172,7 +170,7 @@ export default function ScrollableTabNav({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUpOrLeave}
         onMouseLeave={handleMouseUpOrLeave}
-        className="w-full flex items-center gap-2 overflow-x-auto pb-2.5 pt-0.5 border-b border-coconut-200/80 dark:border-darkbg-border tab-scrollbar select-none cursor-grab active:cursor-grabbing touch-pan-x"
+        className="w-full flex items-center gap-1 overflow-x-auto p-1.5 rounded-2xl bg-black/[0.035] dark:bg-white/[0.04] border border-[var(--color-border)] no-scrollbar select-none cursor-grab active:cursor-grabbing touch-pan-x"
       >
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -183,25 +181,20 @@ export default function ScrollableTabNav({
               data-tab-id={tab.id}
               type="button"
               onClick={() => handleItemClick(tab.id)}
-              className={`flex items-center space-x-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap flex-shrink-0 active:scale-95 cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-[13px] transition-all duration-150 whitespace-nowrap flex-shrink-0 active:scale-[0.98] cursor-pointer ${
                 isActive
-                  ? "bg-accent-gradient text-white font-bold shadow-3d-sunset scale-[1.02]"
-                  : "bg-white/80 dark:bg-darkbg-card text-coconut-700 dark:text-darkbg-muted border border-coconut-200/80 dark:border-darkbg-border hover:bg-coconut-100/60 dark:hover:bg-darkbg-elevated hover:dark:text-darkbg-text"
+                  ? "bg-white dark:bg-[#2A2421] text-coconut-950 dark:text-white font-bold shadow-xs ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
+                  : "text-coconut-600 dark:text-darkbg-muted font-medium hover:text-coconut-950 dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
               }`}
             >
-              {Icon && <Icon className="w-4 h-4 flex-shrink-0" />}
-              <span>{tab.label}</span>
-              {tab.badge && (
-                <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono transition-colors ${
-                    isActive
-                      ? "bg-white/25 text-white"
-                      : "bg-coconut-200/80 dark:bg-darkbg-elevated text-coconut-700 dark:text-darkbg-muted"
+              {Icon && (
+                <Icon
+                  className={`w-4 h-4 flex-shrink-0 transition-colors ${
+                    isActive ? "text-accent" : "text-coconut-500 dark:text-darkbg-muted"
                   }`}
-                >
-                  {tab.badge}
-                </span>
+                />
               )}
+              <span>{tab.label}</span>
             </button>
           );
         })}

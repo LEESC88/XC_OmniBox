@@ -252,21 +252,18 @@ export default function SpreadsheetToolbox({
         tabs={[
           {
             id: "sheet-merge",
-            label: t.spreadsheet.mergeTab,
+            label: lang === "en" ? "Merge Sheets" : "表格合并",
             icon: Combine,
-            badge: t.spreadsheet.badgeMerge,
           },
           {
             id: "sheet-split",
-            label: t.spreadsheet.splitTab,
+            label: lang === "en" ? "Split Sheet" : "表格拆分",
             icon: Scissors,
-            badge: t.spreadsheet.badgeSplit,
           },
           {
             id: "table-encoding-fix",
-            label: lang === "en" ? "CSV / Table Encoding Rescuer" : "表格乱码一键拯救",
+            label: lang === "en" ? "Fix Table Encoding" : "表格乱码修复",
             icon: FileSpreadsheet,
-            badge: lang === "en" ? "Encoding Fix" : "智能编码拯救",
           },
         ]}
         activeTab={activeTab}
@@ -285,34 +282,6 @@ export default function SpreadsheetToolbox({
       {activeTab === "sheet-merge" && (
         <div className="space-y-6">
           <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            {/* 企业级顶栏 */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="flex items-start sm:items-center gap-3.5">
-                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/25 flex items-center justify-center text-white flex-shrink-0">
-                  <TableProperties className="w-5 h-5 sm:w-6 sm:h-6" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center flex-wrap gap-2">
-                    <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                      {t.spreadsheet.mergeTab}
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 tracking-wider uppercase">
-                      {t.spreadsheet.badgeMerge}
-                    </span>
-                  </div>
-                  <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                    {lang === "en"
-                      ? "Automatically detect headers across multiple files, align missing columns, and merge into one unified sheet."
-                      : "自动跨文件探测表头，智能列名重排对齐，缺失字段自动留空补位，秒级拼接为一份完整总表。"}
-                  </p>
-                </div>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                <span>{lang === "en" ? "100% Local Sandbox · Zero Cloud Upload" : "100% 本地沙盒 · 零云端上传"}</span>
-              </div>
-            </div>
-
             {/* 拖拽上传区 */}
             <Dropzone
               accept=".xlsx,.xls,.csv"
@@ -521,34 +490,6 @@ export default function SpreadsheetToolbox({
       {activeTab === "sheet-split" && (
         <div className="space-y-6">
           <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            {/* 企业级顶栏 */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="flex items-start sm:items-center gap-3.5">
-                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/25 flex items-center justify-center text-white flex-shrink-0">
-                  <Scissors className="w-5 h-5 sm:w-6 sm:h-6" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center flex-wrap gap-2">
-                    <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                      {t.spreadsheet.splitTab}
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 tracking-wider uppercase">
-                      {t.spreadsheet.badgeSplit}
-                    </span>
-                  </div>
-                  <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                    {lang === "en"
-                      ? "Pick a column as grouping key (e.g. Department, Month, City) to split tens of thousands of rows into separate files."
-                      : "任选指定数据列（如部门、业务员、月份或城市），一键将上万行大表流式拆解为数十个独立 Excel 并打包。"}
-                  </p>
-                </div>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold self-start sm:self-auto flex-shrink-0">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                <span>{lang === "en" ? "100% Local Sandbox · Zero Cloud Upload" : "100% 本地沙盒 · 零云端上传"}</span>
-              </div>
-            </div>
-
             {/* 拖拽上传区 */}
             <Dropzone
               accept=".xlsx,.xls,.csv"

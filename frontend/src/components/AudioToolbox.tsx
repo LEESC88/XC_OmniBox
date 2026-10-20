@@ -52,45 +52,38 @@ export default function AudioToolbox({
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in">
-      {/* 7 Tab Navigation with scroll, drag, and buttons */}
+    <div className="w-full max-w-5xl mx-auto space-y-5 animate-fade-in">
       <ScrollableTabNav
         tabs={[
           {
             id: "trim",
-            label: lang === "en" ? "Waveform Trim" : "可视化波形剪辑",
+            label: lang === "en" ? "Trim Audio" : "音频剪辑",
             icon: Scissors,
-            badge: lang === "en" ? "Milliseconds / Ringtone" : "毫秒精度/做铃声",
           },
           {
             id: "convert",
-            label: lang === "en" ? "Audio Converter" : "音频万能转码",
+            label: lang === "en" ? "Audio Converter" : "格式转换",
             icon: RefreshCw,
-            badge: lang === "en" ? "Batch MP3/WAV" : "多格式并发转码",
           },
           {
             id: "merge",
-            label: lang === "en" ? "Multi-Track Merge" : "音频无缝拼接",
+            label: lang === "en" ? "Merge Audio" : "音频合并",
             icon: Combine,
-            badge: lang === "en" ? "Lossless Stitching" : "多曲混排首尾接",
           },
           {
             id: "extract",
-            label: lang === "en" ? "Video to Audio" : "视频提取纯音频",
+            label: lang === "en" ? "Extract Audio" : "提取视频音频",
             icon: Film,
-            badge: lang === "en" ? "Lossless Demux" : "MP4/MOV提音乐",
           },
           {
             id: "volume",
-            label: lang === "en" ? "Normalize & Boost" : "音量放大与标准化",
+            label: lang === "en" ? "Volume & Clarity" : "音量与降噪",
             icon: Volume2,
-            badge: lang === "en" ? "Anti-Clipping / Voice" : "抗破音/提人声",
           },
           {
             id: "speed",
-            label: lang === "en" ? "Tempo Adjustment" : "音频调速",
+            label: lang === "en" ? "Playback Speed" : "音频变速",
             icon: Clock,
-            badge: lang === "en" ? "0.5x~2.0x" : "0.5x~2.0x 调速",
           },
         ]}
         activeTab={activeTab}
