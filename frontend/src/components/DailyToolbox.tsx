@@ -362,6 +362,20 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
   const [diffMode, setDiffMode] = useState<"lines" | "words">("lines");
   const [diffChangesOnly, setDiffChangesOnly] = useState(false);
 
+  // 当用户在不同界面语言切换时，若当前文本仍为默认示例，自动同步切换为对应语言的示例文本
+  useEffect(() => {
+    setDiffOriginal((prev) => {
+      if (prev === ARTICLE_ZH_OLD && lang === "en") return ARTICLE_EN_OLD;
+      if (prev === ARTICLE_EN_OLD && lang !== "en") return ARTICLE_ZH_OLD;
+      return prev;
+    });
+    setDiffModified((prev) => {
+      if (prev === ARTICLE_ZH_NEW && lang === "en") return ARTICLE_EN_NEW;
+      if (prev === ARTICLE_EN_NEW && lang !== "en") return ARTICLE_ZH_NEW;
+      return prev;
+    });
+  }, [lang]);
+
   useEffect(() => {
     if (incomingDiffText) {
       setActiveTab("diff");
@@ -2566,7 +2580,7 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
             <div className="flex justify-between items-center text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
               <span>{lang === "en" ? "Diff Highlight Visualizer" : "差异精准比对视图 (绿色代表新增/红色代表删除)"}</span>
               <span className="text-xs text-coconut-500 dark:text-darkbg-muted font-mono">
-                {diffResult.changes.filter((c) => c.added || c.removed).length} 处修改差异
+                {diffResult.changes.filter((c) => c.added || c.removed).length} {lang === "en" ? "changes" : "处修改差异"}
               </span>
             </div>
             <div className="p-4 bg-coconut-100/50 dark:bg-darkbg-canvas rounded-2xl border border-coconut-200/80 dark:border-darkbg-border font-mono text-xs sm:text-sm leading-relaxed max-h-80 overflow-y-auto whitespace-pre-wrap">
@@ -2576,7 +2590,9 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                   if (linesCount > 2) {
                     return (
                       <div key={index} className="py-1 px-3 bg-coconut-200/60 dark:bg-zinc-800/60 text-coconut-500 dark:text-zinc-500 rounded my-1 text-center select-none text-[11px] block">
-                        ··· 此处跳过 {linesCount} 行未变动条款 ···
+                        {lang === "en"
+                          ? `··· Skipped ${linesCount} unchanged lines ···`
+                          : `··· 此处跳过 ${linesCount} 行未变动条款 ···`}
                       </div>
                     );
                   }
