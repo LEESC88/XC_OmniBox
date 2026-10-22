@@ -709,16 +709,16 @@ function parseMarkdownToAst(rawContent, options = {}) {
     }
   }
 
-  // 自动提取主标题（若首个块为 H1 或首段短标题）
+  // 自动提取主标题（若首个块为 H1/H2 或首段独立标题）
   let detectedTitle = '';
   if (options.documentTitle && String(options.documentTitle).trim()) {
     detectedTitle = String(options.documentTitle).trim();
-  } else if (blocks.length > 0 && blocks[0].type === 'heading' && blocks[0].level === 1) {
+  } else if (blocks.length > 0 && blocks[0].type === 'heading' && blocks[0].level <= 2) {
     detectedTitle = blocks[0].text;
   } else if (
     blocks.length > 0 &&
     blocks[0].type === 'paragraph' &&
-    blocks[0].text.length <= 42 &&
+    blocks[0].text.length <= 180 &&
     !/[。！？；.!?;]$/.test(blocks[0].text)
   ) {
     detectedTitle = blocks[0].text;
@@ -1335,12 +1335,11 @@ async function markdownToWord({
   // 2. 渲染文档主标题（若指定了 documentTitle，或首个块是 H1 标题则提升为居中文档主标题）
   const explicitTitle = (documentTitle || '').trim();
   let startBlockIdx = 0;
-  let mainTitleText = explicitTitle;
+  let mainTitleText = explicitTitle || ast.detectedTitle || '';
 
-  if (!mainTitleText && ast.blocks.length > 0 && ast.blocks[0].type === 'heading' && ast.blocks[0].level === 1) {
-    mainTitleText = ast.blocks[0].text;
+  if (!explicitTitle && ast.blocks.length > 0 && (ast.blocks[0].text === mainTitleText || ast.blocks[0].level === 1)) {
     startBlockIdx = 1;
-  } else if (mainTitleText && ast.blocks.length > 0 && ast.blocks[0].type === 'heading' && ast.blocks[0].text === mainTitleText) {
+  } else if (explicitTitle && ast.blocks.length > 0 && ast.blocks[0].text === explicitTitle) {
     startBlockIdx = 1;
   }
 
@@ -1796,10 +1795,22 @@ async function markdownToWord({
   });
 
   const docxBuffer = await Packer.toBuffer(doc);
-  const baseName =
-    (mainTitleText
-      ? mainTitleText.replace(/[\\/:*?"<>|]/g, '_').slice(0, 40)
-      : fileName.replace(/\.[^/.]+$/, '')) || 'AI_Standard_Document';
+  const cleanTitle = (mainTitleText || '')
+    .replace(/[\x00-\x1f\\/:*?"<>|]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 180)
+    .replace(/[._\s]+$/, '');
+
+  const cleanFileBase = (fileName || '')
+    .replace(/\.[^/.]+$/, '')
+    .replace(/[\x00-\x1f\\/:*?"<>|]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 180)
+    .replace(/[._\s]+$/, '');
+
+  const baseName = cleanTitle || cleanFileBase || 'AI_Standard_Document';
 
   return {
     success: true,

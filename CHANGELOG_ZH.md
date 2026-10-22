@@ -4,6 +4,15 @@
 
 英文版本请参阅 [English Changelog](CHANGELOG.md)。
 
+## 🌟 v1.7.1 彻底修复 Markdown 导出 Word 英文长文件名截断与标题探测扩容
+
+- 📝 **Markdown 导出 Word (.docx) 完整长文件名修复**：
+  - 将 Word 导出文件名默认安全截断长度从 40 字符全面扩容至 **180 字符**，彻底解决英文长标题（如 `Attendance System: 5-Minute Grace Period and Flexible Working Hours Policy`）导出被截断丢失后半部分的问题。
+  - 增强 Windows / macOS 跨平台非法文件名特殊字符（`\/:*?"<>|` 与 ASCII 控制字符）智能替换与规范化，自动剔除首尾无效符号与连续空格。
+  - 放宽首段无 `#` 标题智能推断上限至 180 字符，并同步兼容识别一级与二级大纲标题（H1/H2），自动精准提取作为主标题与输出文件名。
+
+---
+
 ## 🌟 v1.7.0 全新高阶工作台 UI/UX 重塑、灵动猫肉球交互、零小红点极简导航与 120fps 丝滑渲染
 
 - ✨ **高阶质感工作台视觉升级与“去 AI 味”重构**：

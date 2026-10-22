@@ -4,6 +4,15 @@ All notable updates and releases for **XC_OmniBox** will be documented in this f
 
 For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
+## 🌟 v1.7.1 Complete Fix for Markdown Export Filename Truncation & Title Detection Expansion
+
+- 📝 **Markdown to Word (.docx) Full Filename Export**:
+  - Expanded the exported document base filename limit from 40 characters to **180 characters**, ensuring long English titles (such as `Attendance System: 5-Minute Grace Period and Flexible Working Hours Policy`) are completely preserved without being cut in half.
+  - Enhanced filesystem character sanitization (`\/:*?"<>|` and control chars) with whitespace normalization and automatic trailing punctuation cleanup.
+  - Expanded auto title detection heuristic for documents without `#` up to 180 characters, supporting both H1/H2 headings and single-line titles.
+
+---
+
 ## 🌟 v1.7.0 Streamlined Studio UI/UX Overhaul, Interactive Cat Paw Companion, Zero Red Dots & 120fps Fluid Rendering
 
 - ✨ **Elevated Studio Visual System & De-AI-ification**:
