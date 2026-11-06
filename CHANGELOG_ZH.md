@@ -4,6 +4,19 @@
 
 英文版本请参阅 [English Changelog](CHANGELOG.md)。
 
+## 🌟 v1.7.2 PDF/Word 批量多文件转换支持、彻底解决 Emoji 导致 PDF 膨胀 4MB 问题与文本差异英文预设同步
+
+- 📦 **PDF 转 Word 与 Word 转 PDF 支持批量复数文件转换**：
+  - 拖拽投放区支持一次性选择并添加多个文件（多选拖放、点击继续追加、单文件精准移除）。
+  - 采用流式批处理与实时进度感知（`正在转换 (i/N): filename...`），批量转换完成后支持「一键打包全部导出为 ZIP」或单份文档单独下载。
+- 🪶 **彻底解决 Word 转 PDF 时彩色 Emoji 导致 PDF 体积暴增至 4MB+ 的底层缺陷**：
+  - **根本原因**：Windows Word COM 在导出 PDF 时若遇到 Unicode Emoji 字符（如 `👉`、`⭐` 等），会全量强制内嵌高达 3.83 MB 的未子集化 `Segoe UI Emoji` 字体文件。
+  - **核心修复**：在 `DocumentService.wordToPdf` 与 `markdownToDocxEngine.js` 引入智能 Emoji 拦截光栅化引擎；在导出 PDF 前将 Emoji 动态栅格化为 64x64 高清透明内联微图并原位替换，保留 Emoji 原始全彩视觉呈现的同时，将生成的 PDF 文件体积从 4.1 MB 暴降至 270 KB 左右（体积缩减超 93%）。
+- 🌐 **文本差异对比工具 (Text Diff) 英文模式样例同步**：
+  - 解决切换英文模式后示例对比文本依然显示中文内容的问题，切换为英文时自动同步为英文对比样例。
+
+---
+
 ## 🌟 v1.7.1 彻底修复 Markdown 导出 Word 英文长文件名截断与标题探测扩容
 
 - 📝 **Markdown 导出 Word (.docx) 完整长文件名修复**：

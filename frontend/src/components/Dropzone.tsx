@@ -12,6 +12,7 @@ import {
   Zap,
   Sparkles,
   X,
+  Plus,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
@@ -21,6 +22,7 @@ interface DropzoneProps {
   onFilesSelected: (files: File[]) => void;
   selectedFiles: File[];
   onClear: () => void;
+  onRemoveFile?: (index: number) => void;
   title?: string;
   hint?: string;
   badge?: string;
@@ -32,6 +34,7 @@ export default function Dropzone({
   onFilesSelected,
   selectedFiles,
   onClear,
+  onRemoveFile,
   title,
   hint,
   badge,
@@ -39,6 +42,7 @@ export default function Dropzone({
   const { t, lang } = useI18n();
   const [isDragOver, setIsDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const appendInputRef = useRef<HTMLInputElement>(null);
 
   const isPdf = accept.includes(".pdf");
   const isDoc = accept.includes(".doc");
@@ -183,13 +187,42 @@ export default function Dropzone({
                 )}
               </span>
             </div>
-            <button
-              onClick={onClear}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/60 hover:bg-rose-100/90 dark:hover:bg-rose-950/60 transition-all shadow-2xs"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>{t.dropzone.reselect}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {multiple && (
+                <>
+                  <input
+                    ref={appendInputRef}
+                    type="file"
+                    accept={accept}
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        const newFiles = Array.from(e.target.files);
+                        onFilesSelected([...selectedFiles, ...newFiles]);
+                      }
+                      e.target.value = "";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => appendInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 hover:text-amber-800 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all shadow-2xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{lang === "en" ? "Add More" : "添加文件"}</span>
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={onClear}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/60 hover:bg-rose-100/90 dark:hover:bg-rose-950/60 transition-all shadow-2xs cursor-pointer"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>{t.dropzone.reselect}</span>
+              </button>
+            </div>
           </div>
 
           <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
@@ -237,6 +270,19 @@ export default function Dropzone({
                       </div>
                     </div>
                   </div>
+                  {onRemoveFile && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveFile(idx);
+                      }}
+                      className="p-1.5 rounded-xl text-coconut-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors flex-shrink-0 cursor-pointer"
+                      title={lang === "en" ? "Remove this file" : "移除此文件"}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               );
             })}

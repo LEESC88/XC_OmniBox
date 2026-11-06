@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Edit3,
   FileText,
@@ -29,6 +29,8 @@ import {
   EyeOff,
   Unlock,
   FileSearch,
+  Archive,
+  Plus,
 } from "lucide-react";
 
 import Dropzone from "@/components/Dropzone";
@@ -44,6 +46,7 @@ import AiToolbox from "@/components/AiToolbox";
 
 import { useI18n } from "@/lib/i18n";
 import { formatBytes } from "@/lib/imageProcessor";
+import { exportBatchFiles } from "@/lib/batchQueueManager";
 import {
   convertPdfToWord,
   convertWordToPdf,
@@ -102,6 +105,7 @@ export default function PdfToolbox({
     filename: string;
     size: number;
     originalSize?: number;
+    batchFiles?: Array<{ blob: Blob; filename: string; size: number }>;
   } | null>(null);
 
   // Parameter states
@@ -130,6 +134,7 @@ export default function PdfToolbox({
     numPages?: number;
     loading: boolean;
   } | null>(null);
+  const addMorePdfRef = useRef<HTMLInputElement>(null);
 
   // Synchronize language changes for default watermark text
   useEffect(() => {
@@ -154,7 +159,12 @@ export default function PdfToolbox({
   // Handle incoming files from clipboard / cross-tool bus
   useEffect(() => {
     if (incomingFiles && incomingFiles.length > 0) {
-      if (activeTab === "images-to-pdf" || activeTab === "pdf-merge") {
+      if (
+        activeTab === "images-to-pdf" ||
+        activeTab === "pdf-merge" ||
+        activeTab === "pdf-to-word" ||
+        activeTab === "word-to-pdf"
+      ) {
         setFiles((prev) => [...prev, ...incomingFiles]);
       } else {
         setFiles([incomingFiles[0]]);
@@ -166,9 +176,9 @@ export default function PdfToolbox({
     }
   }, [incomingFiles]);
 
-  // Fetch thumbnail preview for PDF to Word
+  // Fetch thumbnail preview for PDF to Word (only in single-file mode)
   useEffect(() => {
-    if (activeTab === "pdf-to-word" && files.length > 0) {
+    if (activeTab === "pdf-to-word" && files.length === 1) {
       setPdfToWordThumb({ loading: true });
       renderPdfPages(files[0], 70, 1, false)
         .then((res) => {
@@ -207,8 +217,18 @@ export default function PdfToolbox({
   const getActionBtnText = () => {
     switch (activeTab) {
       case "pdf-to-word":
+        if (files.length > 1) {
+          return lang === "en"
+            ? `Convert All ${files.length} PDFs to Word (.docx)`
+            : `开始批量转换 ${files.length} 份 PDF 为 Word`;
+        }
         return t.common.actionPdfToWord;
       case "word-to-pdf":
+        if (files.length > 1) {
+          return lang === "en"
+            ? `Convert All ${files.length} Word Docs to PDF`
+            : `开始批量转换 ${files.length} 份 Word 为 PDF`;
+        }
         return t.common.actionWordToPdf;
       case "pdf-merge":
         return t.common.actionPdfMerge.replace("{n}", String(files.length));
@@ -229,7 +249,7 @@ export default function PdfToolbox({
     let timer2: NodeJS.Timeout;
     let timer3: NodeJS.Timeout;
 
-    if (loading && activeTab === "pdf-to-word") {
+    if (loading && activeTab === "pdf-to-word" && files.length <= 1) {
       setConversionPhase(
         lang === "en"
           ? "Step 1/3: Parsing PDF layout & visual typography..."
@@ -284,24 +304,132 @@ export default function PdfToolbox({
       let resultFilename: string;
 
       if (activeTab === "pdf-to-word") {
-        if (endPage !== null && endPage < startPage + 1) {
-          throw new Error(
-            lang === "en"
-              ? "Ending page cannot be smaller than starting page"
-              : "结束页码不能小于起始页码",
+        if (files.length === 1) {
+          if (endPage !== null && endPage < startPage + 1) {
+            throw new Error(
+              lang === "en"
+                ? "Ending page cannot be smaller than starting page"
+                : "结束页码不能小于起始页码",
+            );
+          }
+          const res = await convertPdfToWord(
+            files[0],
+            startPage,
+            endPage !== null ? endPage : undefined,
           );
+          resultBlob = res.blob;
+          resultFilename = res.filename;
+        } else {
+          const batchResults: Array<{ blob: Blob; filename: string; size: number }> = [];
+          const failedFiles: Array<{ name: string; reason: string }> = [];
+
+          for (let i = 0; i < files.length; i++) {
+            const f = files[i];
+            setConversionPhase(
+              lang === "en"
+                ? `Converting (${i + 1}/${files.length}): ${f.name}...`
+                : `正在转换 (${i + 1}/${files.length}): ${f.name}...`,
+            );
+            try {
+              const res = await convertPdfToWord(f);
+              batchResults.push({
+                blob: res.blob,
+                filename: res.filename,
+                size: res.blob.size,
+              });
+            } catch (err: any) {
+              failedFiles.push({ name: f.name, reason: err.message || "Unknown error" });
+            }
+          }
+
+          if (batchResults.length === 0) {
+            throw new Error(
+              lang === "en"
+                ? `All ${files.length} files failed to convert: ${failedFiles.map((e) => e.name).join(", ")}`
+                : `全部 ${files.length} 个文件转换失败: ${failedFiles.map((e) => `${e.name} (${e.reason})`).join("; ")}`,
+            );
+          }
+
+          setExecutionResult({
+            blob: batchResults[0].blob,
+            filename: `XC_PDF_to_Word_${batchResults.length}_docs.zip`,
+            size: batchResults.reduce((acc, curr) => acc + curr.size, 0),
+            batchFiles: batchResults,
+          });
+
+          if (failedFiles.length > 0) {
+            setError(
+              lang === "en"
+                ? `Completed ${batchResults.length} files, but ${failedFiles.length} file(s) failed: ${failedFiles.map((e) => e.name).join(", ")}`
+                : `已成功转换 ${batchResults.length} 份，但有 ${failedFiles.length} 份转换失败: ${failedFiles.map((e) => e.name).join(", ")}`,
+            );
+          } else {
+            setSuccessMsg(
+              lang === "en"
+                ? `Successfully converted all ${batchResults.length} PDF documents to Word!`
+                : `批量转换完成！已成功将全部 ${batchResults.length} 份 PDF 转换为 Word 文档`,
+            );
+          }
+          return;
         }
-        const res = await convertPdfToWord(
-          files[0],
-          startPage,
-          endPage !== null ? endPage : undefined,
-        );
-        resultBlob = res.blob;
-        resultFilename = res.filename;
       } else if (activeTab === "word-to-pdf") {
-        const res = await convertWordToPdf(files[0], conversionQuality);
-        resultBlob = res.blob;
-        resultFilename = res.filename;
+        if (files.length === 1) {
+          const res = await convertWordToPdf(files[0], conversionQuality);
+          resultBlob = res.blob;
+          resultFilename = res.filename;
+        } else {
+          const batchResults: Array<{ blob: Blob; filename: string; size: number }> = [];
+          const failedFiles: Array<{ name: string; reason: string }> = [];
+
+          for (let i = 0; i < files.length; i++) {
+            const f = files[i];
+            setConversionPhase(
+              lang === "en"
+                ? `Converting (${i + 1}/${files.length}): ${f.name}...`
+                : `正在转换 (${i + 1}/${files.length}): ${f.name}...`,
+            );
+            try {
+              const res = await convertWordToPdf(f, conversionQuality);
+              batchResults.push({
+                blob: res.blob,
+                filename: res.filename,
+                size: res.blob.size,
+              });
+            } catch (err: any) {
+              failedFiles.push({ name: f.name, reason: err.message || "Unknown error" });
+            }
+          }
+
+          if (batchResults.length === 0) {
+            throw new Error(
+              lang === "en"
+                ? `All ${files.length} files failed to convert: ${failedFiles.map((e) => e.name).join(", ")}`
+                : `全部 ${files.length} 个文件转换失败: ${failedFiles.map((e) => `${e.name} (${e.reason})`).join("; ")}`,
+            );
+          }
+
+          setExecutionResult({
+            blob: batchResults[0].blob,
+            filename: `XC_Word_to_PDF_${batchResults.length}_docs.zip`,
+            size: batchResults.reduce((acc, curr) => acc + curr.size, 0),
+            batchFiles: batchResults,
+          });
+
+          if (failedFiles.length > 0) {
+            setError(
+              lang === "en"
+                ? `Completed ${batchResults.length} files, but ${failedFiles.length} file(s) failed: ${failedFiles.map((e) => e.name).join(", ")}`
+                : `已成功转换 ${batchResults.length} 份，但有 ${failedFiles.length} 份转换失败: ${failedFiles.map((e) => e.name).join(", ")}`,
+            );
+          } else {
+            setSuccessMsg(
+              lang === "en"
+                ? `Successfully converted all ${batchResults.length} Word documents to PDF!`
+                : `批量转换完成！已成功将全部 ${batchResults.length} 份 Word 转换为 PDF 文档`,
+            );
+          }
+          return;
+        }
       } else if (activeTab === "pdf-merge") {
         if (files.length < 2) {
           throw new Error(t.common.mergeAtLeastTwo);
@@ -662,6 +790,7 @@ export default function PdfToolbox({
               selectedFiles={files}
               onFilesSelected={setFiles}
               onClear={() => setFiles([])}
+              onRemoveFile={(idx) => setFiles((prev) => prev.filter((_, i) => i !== idx))}
               title={t.pdfMerge.dropzoneTitle}
               hint={t.pdfMerge.dropzoneHint}
             />
@@ -1434,8 +1563,8 @@ export default function PdfToolbox({
             </div>
           )}
 
-          {/* First page thumbnail preview card for PDF to Word */}
-          {activeTab === "pdf-to-word" && files.length > 0 ? (
+          {/* First page thumbnail preview card for PDF to Word (Single-file mode) */}
+          {activeTab === "pdf-to-word" && files.length === 1 ? (
             <div className="p-4 rounded-2xl bg-coconut-50/80 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border flex flex-col sm:flex-row items-center gap-4">
               <div className="w-16 h-22 rounded-xl overflow-hidden border border-coconut-300 dark:border-darkbg-border bg-white dark:bg-darkbg-card flex items-center justify-center flex-shrink-0 shadow-xs">
                 {pdfToWordThumb?.url ? (
@@ -1522,37 +1651,79 @@ export default function PdfToolbox({
                 </div>
               </div>
 
-              <button
-                onClick={() => {
-                  setFiles([]);
-                  setPdfToWordThumb(null);
-                }}
-                className="p-2 rounded-xl text-coconut-500 hover:text-rose-600 hover:bg-rose-500/10 transition-colors"
-                title={t.common.changeFile}
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <input
+                  ref={addMorePdfRef}
+                  type="file"
+                  accept=".pdf"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      const newFiles = Array.from(e.target.files);
+                      setFiles((prev) => [...prev, ...newFiles]);
+                    }
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => addMorePdfRef.current?.click()}
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all flex items-center gap-1 cursor-pointer"
+                  title={lang === "en" ? "Add more files for batch conversion" : "添加更多 PDF 开启批量转换"}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{lang === "en" ? "Add More" : "添加文件"}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setFiles([]);
+                    setPdfToWordThumb(null);
+                  }}
+                  className="p-2 rounded-xl text-coconut-500 hover:text-rose-600 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                  title={t.common.changeFile}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           ) : (
-            <Dropzone
-              accept={
-                activeTab === "word-to-pdf" ? ".docx,.doc" : ".pdf"
-              }
-              multiple={false}
-              selectedFiles={files}
-              onFilesSelected={setFiles}
-              onClear={() => setFiles([])}
-              title={
-                activeTab === "word-to-pdf"
-                  ? t.common.uploadWordHint
-                  : t.common.uploadPdfHint
-              }
-              hint={
-                activeTab === "word-to-pdf"
-                  ? t.common.supportsWord
-                  : t.common.supportsPdf
-              }
-            />
+            <div className="space-y-3">
+              <Dropzone
+                accept={
+                  activeTab === "word-to-pdf" ? ".docx,.doc" : ".pdf"
+                }
+                multiple={true}
+                selectedFiles={files}
+                onFilesSelected={setFiles}
+                onClear={() => setFiles([])}
+                onRemoveFile={(idx) => setFiles((prev) => prev.filter((_, i) => i !== idx))}
+                title={
+                  activeTab === "word-to-pdf"
+                    ? (files.length > 0
+                        ? (lang === "en" ? `Selected ${files.length} Word Documents` : `已选择 ${files.length} 份 Word 文档`)
+                        : (lang === "en" ? "Select Word Documents (.docx, .doc)" : t.common.uploadWordHint))
+                    : (files.length > 0
+                        ? (lang === "en" ? `Selected ${files.length} PDF Documents (Batch Mode)` : `已选择 ${files.length} 份 PDF 文档 (批量转换)`)
+                        : t.common.uploadPdfHint)
+                }
+                hint={
+                  activeTab === "word-to-pdf"
+                    ? (lang === "en" ? "Supports single or multiple Word files batch conversion" : "支持单个或多个 Word 文档批量转为高保真 PDF")
+                    : (lang === "en" ? "Supports single or multiple PDF files batch conversion" : "支持单个或多个 PDF 文档批量逆向转为 Word")
+                }
+              />
+              {activeTab === "pdf-to-word" && files.length > 1 && (
+                <div className="p-3 rounded-2xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/20 text-amber-800 dark:text-amber-200 text-xs flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                  <span>
+                    {lang === "en"
+                      ? `Batch Mode: All ${files.length} PDF documents will be converted in full.`
+                      : `批量模式已就绪：选中的全部 ${files.length} 份 PDF 文档将依次进行整篇全文转换。`}
+                  </span>
+                </div>
+              )}
+            </div>
           )}
 
           {activeTab === "pdf-to-word" && (
@@ -1595,7 +1766,11 @@ export default function PdfToolbox({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 truncate">
                   <div className="w-10 h-10 rounded-xl bg-accent-gradient text-white flex items-center justify-center flex-shrink-0 shadow-sm">
-                    <FileCheck className="w-5 h-5 text-white" />
+                    {executionResult.batchFiles && executionResult.batchFiles.length > 1 ? (
+                      <Archive className="w-5 h-5 text-white" />
+                    ) : (
+                      <FileCheck className="w-5 h-5 text-white" />
+                    )}
                   </div>
                   <div className="truncate">
                     <h4 className="text-sm font-bold text-coconut-950 dark:text-white truncate">
@@ -1603,7 +1778,11 @@ export default function PdfToolbox({
                     </h4>
                     <p className="text-xs text-orange-800 dark:text-amber-300 font-mono font-medium">
                       {formatBytes(executionResult.size)} ·{" "}
-                      {t.common.readyForDownload}
+                      {executionResult.batchFiles && executionResult.batchFiles.length > 1
+                        ? (lang === "en"
+                            ? `${executionResult.batchFiles.length} files converted successfully`
+                            : `已完成 ${executionResult.batchFiles.length} 份文档转换`)
+                        : t.common.readyForDownload}
                     </p>
                   </div>
                 </div>
@@ -1614,17 +1793,28 @@ export default function PdfToolbox({
 
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <button
-                  onClick={() =>
-                    downloadBlob(
-                      executionResult.blob,
-                      executionResult.filename,
-                    )
-                  }
+                  onClick={async () => {
+                    if (executionResult.batchFiles && executionResult.batchFiles.length > 1) {
+                      await exportBatchFiles(executionResult.batchFiles, {
+                        zipName: executionResult.filename,
+                        lang,
+                      });
+                    } else {
+                      downloadBlob(
+                        executionResult.blob,
+                        executionResult.filename,
+                      );
+                    }
+                  }}
                   data-download-result="true"
-                  className="flex-1 py-3 px-4 rounded-xl btn-3d-sunset text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-coconut-sm"
+                  className="flex-1 py-3 px-4 rounded-xl btn-3d-sunset text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-coconut-sm cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
-                  <span>{t.common.downloadNow}</span>
+                  <span>
+                    {executionResult.batchFiles && executionResult.batchFiles.length > 1
+                      ? (lang === "en" ? "Export All / Download ZIP" : "批量导出全部 / 打包 ZIP")
+                      : t.common.downloadNow}
+                  </span>
                 </button>
 
                 <button
@@ -1634,12 +1824,49 @@ export default function PdfToolbox({
                     setSuccessMsg(null);
                     setError(null);
                   }}
-                  className="py-3 px-4 rounded-xl btn-3d-secondary font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5"
+                  className="py-3 px-4 rounded-xl btn-3d-secondary font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>{t.common.convertAnother}</span>
                 </button>
               </div>
+
+              {/* Converted Files Breakdown for Batch Mode */}
+              {executionResult.batchFiles && executionResult.batchFiles.length > 1 && (
+                <div className="pt-3 border-t border-accent-border/60 space-y-2.5">
+                  <div className="text-xs font-semibold text-coconut-700 dark:text-darkbg-muted flex items-center justify-between">
+                    <span>{lang === "en" ? "Converted Documents:" : "已转换完成的文档清单:"}</span>
+                    <span className="text-[11px] text-coconut-500 dark:text-darkbg-muted">
+                      {lang === "en" ? "Click icon to download single file" : "可单独点击右侧图标下载单份"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                    {executionResult.batchFiles.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="p-2.5 bg-white/80 dark:bg-darkbg-card rounded-xl border border-coconut-200/60 dark:border-darkbg-border/60 flex items-center justify-between gap-2 shadow-2xs"
+                      >
+                        <div className="min-w-0 pr-2">
+                          <p className="text-xs font-semibold text-coconut-900 dark:text-darkbg-text truncate" title={item.filename}>
+                            {item.filename}
+                          </p>
+                          <p className="text-[10px] font-mono text-coconut-500 dark:text-darkbg-muted">
+                            {formatBytes(item.size)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => downloadBlob(item.blob, item.filename)}
+                          className="p-1.5 rounded-lg text-coconut-600 dark:text-darkbg-muted hover:text-amber-600 hover:bg-amber-500/10 transition-colors flex-shrink-0 cursor-pointer"
+                          title={lang === "en" ? "Download this file" : "下载此文件"}
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <button

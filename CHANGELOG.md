@@ -4,6 +4,19 @@ All notable updates and releases for **XC_OmniBox** will be documented in this f
 
 For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
+## 🌟 v1.7.2 Batch PDF/Word Multi-File Conversion, Zero-Bloat Color Emoji Word-to-PDF Engine & Text Diff i18n Fix
+
+- 📦 **Batch Multi-File Conversion for PDF to Word & Word to PDF**:
+  - The dropzone now accepts multiple files simultaneously, with options to append more files or remove specific files individually.
+  - Features sequential batch execution with real-time progress indicators (`Converting (i/N): filename...`) and an "Export All as ZIP" batch download action alongside individual file downloads.
+- 🪶 **Eliminated 4MB+ Font Bloat Caused by Color Emojis in Word-to-PDF**:
+  - **Root Cause**: When Microsoft Word COM exports `.docx` files containing Unicode emojis (such as `👉`) to PDF, it embeds the complete 3.83 MB unsubsetted `Segoe UI Emoji` font stream into `/FontFile2`.
+  - **Solution**: Implemented an automated Emoji pre-processing and rasterization engine in `DocumentService.wordToPdf` and `markdownToDocxEngine.js`. Emojis are dynamically rasterized into 64x64 high-resolution transparent inline micro-images before PDF export, preserving color vibrancy while slashing output PDF file size from 4.1 MB down to ~270 KB (>93% size reduction).
+- 🌐 **Text Diff English Sample Synchronization**:
+  - Fixed an issue where the Text Diff sample text remained in Chinese when toggling the UI to English; switching languages now automatically populates localized sample text.
+
+---
+
 ## 🌟 v1.7.1 Complete Fix for Markdown Export Filename Truncation & Title Detection Expansion
 
 - 📝 **Markdown to Word (.docx) Full Filename Export**:

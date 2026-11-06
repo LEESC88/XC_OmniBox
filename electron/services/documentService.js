@@ -730,7 +730,82 @@ class DocumentService {
       const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
       fs.writeFileSync(inputDocx, buffer);
 
+      // 扫描已有 .docx 文档正文中的彩色 Emoji，预先光栅化为高清透明微缩 PNG 并通过 Word COM 原位替换为 InlineShape
+      // 彻底阻断 Microsoft Word 导出 PDF 时全量嵌入 3.83MB 未子集化的 Segoe UI Emoji (seguiemj.ttf) 字体流
+      const emojiItems = [];
+      try {
+        const unzipper = getUnzipper();
+        const dir = await unzipper.Open.buffer(buffer);
+        const emojiRegex = /(?:\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*|\p{Emoji_Presentation})/gu;
+        const uniqueEmojis = new Set();
+        for (const f of dir.files) {
+          if (/^word\/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$/i.test(f.path)) {
+            const xmlText = (await f.buffer()).toString('utf8');
+            const matches = xmlText.match(emojiRegex);
+            if (matches) {
+              for (const m of matches) {
+                const cp = m.codePointAt(0);
+                if (cp === 0x00A9 || cp === 0x00AE || cp === 0x2122) continue;
+                if (cp >= 0x25A0 && cp <= 0x25FF && !m.includes('\uFE0F')) continue;
+                uniqueEmojis.add(m);
+              }
+            }
+          }
+        }
+        if (uniqueEmojis.size > 0) {
+          const { createCanvas } = getCanvasModule();
+          let idx = 0;
+          for (const emojiStr of uniqueEmojis) {
+            const size = 64;
+            const canvas = createCanvas(size, size);
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, size, size);
+            ctx.font = `${Math.round(size * 0.82)}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(emojiStr, size / 2, size / 2 + size * 0.03);
+            const pngPath = path.join(tempDir, `emoji_${idx++}.png`);
+            fs.writeFileSync(pngPath, canvas.toBuffer('image/png'));
+            const charCodes = [];
+            for (let i = 0; i < emojiStr.length; i++) {
+              charCodes.push(`0x${emojiStr.charCodeAt(i).toString(16).toUpperCase()}`);
+            }
+            emojiItems.push({
+              charCodesExpr: `(-join [char[]]@(${charCodes.join(', ')}))`,
+              pngPath: pngPath.replace(/\\/g, '\\\\'),
+            });
+          }
+        }
+      } catch (_) {}
+
       const optimizeCode = quality === 'low' ? '1' : '0';
+      const readOnlyFlag = emojiItems.length > 0 ? '$false' : '$true';
+      const emojiReplacePsLines = emojiItems.flatMap((item) => [
+        `  try {`,
+        `    $emojiStr = ${item.charCodesExpr}`,
+        `    $rng = $doc.Content`,
+        `    $find = $rng.Find`,
+        `    $find.ClearFormatting()`,
+        `    $find.Forward = $true`,
+        `    $find.Wrap = 0`,
+        `    $guard = 0`,
+        `    while ($find.Execute($emojiStr)) {`,
+        `      $guard++`,
+        `      $fSize = $rng.Font.Size`,
+        `      if (-not $fSize -or $fSize -le 0 -or $fSize -gt 100) { $fSize = 11 }`,
+        `      $rng.Text = ""`,
+        `      $pic = $rng.InlineShapes.AddPicture("${item.pngPath}", $false, $true)`,
+        `      $pic.Width = $fSize`,
+        `      $pic.Height = $fSize`,
+        `      $rng.SetRange($pic.Range.End, $doc.Content.End)`,
+        `      $find = $rng.Find`,
+        `      $find.Forward = $true`,
+        `      $find.Wrap = 0`,
+        `      if ($guard -gt 300) { break }`,
+        `    }`,
+        `  } catch {}`,
+      ]);
+
       const psContent = [
         `$ErrorActionPreference = "Stop"`,
         `$word = $null`,
@@ -740,7 +815,8 @@ class DocumentService {
         `$word.Visible = $false`,
         `$word.DisplayAlerts = 0`,
         `try {`,
-        `  $doc = $word.Documents.Open("${inputDocx.replace(/\\/g, '\\\\')}", $false, $true)`,
+        `  $doc = $word.Documents.Open("${inputDocx.replace(/\\/g, '\\\\')}", $false, ${readOnlyFlag})`,
+        ...emojiReplacePsLines,
         `  $doc.ExportAsFixedFormat("${outputPdf.replace(/\\/g, '\\\\')}", 17, $false, ${optimizeCode})`,
         `  $doc.Close($false)`,
         `} finally {`,

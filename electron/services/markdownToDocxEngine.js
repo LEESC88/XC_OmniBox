@@ -21,6 +21,7 @@ const {
   Header,
   Footer,
   PageNumber,
+  ImageRun,
 } = require('docx');
 
 let Prism;
@@ -50,6 +51,72 @@ try {
   }
 } catch (e) {
   console.warn('[markdownToDocxEngine] Prism load error:', e.message);
+}
+
+let createCanvasFn;
+try {
+  createCanvasFn = require('@napi-rs/canvas').createCanvas;
+} catch (_) {}
+
+const emojiPngCache = new Map();
+
+/**
+ * 现代 Emoji 正则（匹配标准单个、复合肤色及 ZWJ 序列）
+ */
+const EMOJI_INLINE_REGEX = /(?:\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*|\p{Emoji_Presentation})/gu;
+
+/**
+ * 内存动态光栅化 Emoji 为 64x64 高清内联微图（带缓存，杜绝 Word 导出 PDF 时内嵌 4MB 系统字体）
+ */
+function getEmojiPngBuffer(emojiChar) {
+  if (!createCanvasFn) return null;
+  if (emojiPngCache.has(emojiChar)) {
+    return emojiPngCache.get(emojiChar);
+  }
+  try {
+    const canvas = createCanvasFn(64, 64);
+    const ctx = canvas.getContext('2d');
+    ctx.font = '48px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emojiChar, 32, 34);
+    const buf = canvas.toBuffer('image/png');
+    emojiPngCache.set(emojiChar, buf);
+    return buf;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * 将含 Emoji 的文本切分为普通文字与 Emoji 碎片
+ */
+function splitTextAndEmoji(text) {
+  const parts = [];
+  let lastIdx = 0;
+  let m;
+  const re = new RegExp(EMOJI_INLINE_REGEX.source, 'gu');
+  while ((m = re.exec(text)) !== null) {
+    const token = m[0];
+    const cp = token.codePointAt(0);
+    if (
+      cp === 0x00A9 ||
+      cp === 0x00AE ||
+      cp === 0x2122 ||
+      (cp >= 0x25A0 && cp <= 0x25FF && !token.includes('\uFE0F'))
+    ) {
+      continue;
+    }
+    if (m.index > lastIdx) {
+      parts.push({ isEmoji: false, text: text.slice(lastIdx, m.index) });
+    }
+    parts.push({ isEmoji: true, text: token });
+    lastIdx = m.index + token.length;
+  }
+  if (lastIdx < text.length) {
+    parts.push({ isEmoji: false, text: text.slice(lastIdx) });
+  }
+  return parts;
 }
 
 // 仿真 VS Code Dark+ IDE 高保真语法色彩板（100% 还原现代编辑器视觉）
@@ -962,30 +1029,91 @@ function buildDocxRuns(runs, baseStyle) {
 
     const lines = String(r.text || '').split('\n');
     lines.forEach((seg, idx) => {
-      const tr = new TextRun({
-        text: seg,
-        break: idx > 0 ? 1 : undefined,
-        font,
-        size,
-        color,
-        bold: Boolean(r.bold || baseStyle.bold),
-        italics: Boolean(r.italic || baseStyle.italic),
-        strike: r.strike || undefined,
-        underline: isLink ? { type: 'single', color: '2563EB' } : undefined,
-        shading,
-        border,
-        noProof: true,
-      });
+      const containsEmoji = !isCode && !isMath && EMOJI_INLINE_REGEX.test(seg);
 
-      if (isLink) {
-        out.push(
-          new ExternalHyperlink({
-            link: r.href,
-            children: [tr],
-          })
-        );
+      if (!containsEmoji) {
+        const tr = new TextRun({
+          text: seg,
+          break: idx > 0 ? 1 : undefined,
+          font,
+          size,
+          color,
+          bold: Boolean(r.bold || baseStyle.bold),
+          italics: Boolean(r.italic || baseStyle.italic),
+          strike: r.strike || undefined,
+          underline: isLink ? { type: 'single', color: '2563EB' } : undefined,
+          shading,
+          border,
+          noProof: true,
+        });
+
+        if (isLink) {
+          out.push(
+            new ExternalHyperlink({
+              link: r.href,
+              children: [tr],
+            })
+          );
+        } else {
+          out.push(tr);
+        }
       } else {
-        out.push(tr);
+        const fragments = splitTextAndEmoji(seg);
+        const emojiPx = Math.max(12, Math.min(36, Math.round((size / 2) * 1.05)));
+
+        fragments.forEach((frag, fragIdx) => {
+          const isFirstItem = idx > 0 && fragIdx === 0;
+
+          if (frag.isEmoji) {
+            const pngBuf = getEmojiPngBuffer(frag.text);
+            if (pngBuf) {
+              if (isFirstItem) {
+                out.push(new TextRun({ break: 1, noProof: true }));
+              }
+              const imgRun = new ImageRun({
+                data: pngBuf,
+                transformation: {
+                  width: emojiPx,
+                  height: emojiPx,
+                },
+                type: 'png',
+              });
+
+              if (isLink) {
+                out.push(new ExternalHyperlink({ link: r.href, children: [imgRun] }));
+              } else {
+                out.push(imgRun);
+              }
+              return;
+            }
+          }
+
+          const tr = new TextRun({
+            text: frag.text,
+            break: isFirstItem ? 1 : undefined,
+            font,
+            size,
+            color,
+            bold: Boolean(r.bold || baseStyle.bold),
+            italics: Boolean(r.italic || baseStyle.italic),
+            strike: r.strike || undefined,
+            underline: isLink ? { type: 'single', color: '2563EB' } : undefined,
+            shading,
+            border,
+            noProof: true,
+          });
+
+          if (isLink) {
+            out.push(
+              new ExternalHyperlink({
+                link: r.href,
+                children: [tr],
+              })
+            );
+          } else {
+            out.push(tr);
+          }
+        });
       }
     });
   }
@@ -1366,16 +1494,16 @@ async function markdownToWord({
           line: template === 'gov-redhead' ? 560 : 320,
           lineRule: template === 'gov-redhead' ? LineRuleType.EXACT : LineRuleType.AUTO,
         },
-        children: [
-          new TextRun({
-            text: mainTitleText,
+        children: buildDocxRuns(
+          [{ type: 'text', text: mainTitleText }],
+          {
             font: theme.titleFont,
             size: theme.titleSize,
             bold: true,
             color: theme.titleColor,
-            noProof: true,
-          }),
-        ],
+          },
+          template
+        ),
       })
     );
   }
