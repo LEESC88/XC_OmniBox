@@ -722,8 +722,10 @@ class DocumentService {
    */
   static async wordToPdf({ fileBuffer, fileName = 'document.docx', quality = 'high' }) {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'xc_w2p_'));
-    const inputDocx = path.join(tempDir, fileName);
-    const outputPdf = path.join(tempDir, `${fileName.replace(/\.[^/.]+$/, '')}.pdf`);
+    const safeExt = (path.extname(fileName) || '.docx').replace(/[^a-zA-Z0-9.]/g, '') || '.docx';
+    const inputDocx = path.join(tempDir, `input_doc${safeExt}`);
+    const outputPdf = path.join(tempDir, 'output_doc.pdf');
+    const finalPdfName = `${path.basename(fileName).replace(/\.[^/.]+$/, '')}.pdf`;
     const psScriptPath = path.join(tempDir, 'convert.ps1');
 
     try {
@@ -827,7 +829,7 @@ class DocumentService {
         `}`,
       ].join('\r\n');
 
-      fs.writeFileSync(psScriptPath, psContent, 'utf8');
+      fs.writeFileSync(psScriptPath, '\uFEFF' + psContent, 'utf8');
 
       try {
         execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psScriptPath}"`, {
@@ -841,7 +843,7 @@ class DocumentService {
         const pdfData = fs.readFileSync(outputPdf);
         return {
           buffer: pdfData,
-          filename: path.basename(outputPdf),
+          filename: finalPdfName,
         };
       }
 
@@ -858,9 +860,20 @@ class DocumentService {
         }
       }
       const page = doc.addPage([595.28, 841.89]);
-      const rawXml = buffer.toString('utf8');
-      const matches = rawXml.match(/<w:t[^>]*>([^<]+)<\/w:t>/g) || [];
-      const extractedText = matches.map((m) => m.replace(/<[^>]+>/g, '')).join(' ') || fileName;
+      let extractedText = '';
+      try {
+        const unzipper = getUnzipper();
+        const dir = await unzipper.Open.buffer(buffer);
+        const docXmlFile = dir.files.find((f) => f.path === 'word/document.xml');
+        if (docXmlFile) {
+          const rawXml = (await docXmlFile.buffer()).toString('utf8');
+          const matches = rawXml.match(/<w:t[^>]*>([^<]+)<\/w:t>/g) || [];
+          extractedText = matches.map((m) => m.replace(/<[^>]+>/g, '')).join(' ');
+        }
+      } catch (_) {}
+      if (!extractedText) {
+        extractedText = fileName;
+      }
       page.drawText(extractedText.slice(0, 1500), {
         x: 50,
         y: 780,
@@ -871,7 +884,7 @@ class DocumentService {
       const fallbackBytes = await doc.save();
       return {
         buffer: Buffer.from(fallbackBytes),
-        filename: path.basename(outputPdf),
+        filename: finalPdfName,
       };
     } finally {
       try {
@@ -1522,7 +1535,8 @@ class DocumentService {
    * Office 多媒体资产一键无损提取 (Word / PPT / Excel 原图与音视频解构)
    * 零失真直接抽取 OpenXML 容器内的原始文件流，并统一重新命名与打包为 ZIP
    */
-  static async extractOfficeMedia({ fileBuffer, fileName = 'document.docx', onProgress }) {
+  static async extractOfficeMedia({ fileBuffer, fileName = 'document.docx', onProgress: inlineProgress }, onProgressArg) {
+    const onProgress = onProgressArg || inlineProgress;
     const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
     const unzipper = getUnzipper();
     let directory;

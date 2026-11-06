@@ -1,16 +1,40 @@
 const { autoUpdater } = require('electron-updater');
 const { ipcMain, app } = require('electron');
 
+let currentMainWindow = null;
+let updaterInitialized = false;
+
+function sendStatus(status, payload = {}) {
+  if (currentMainWindow && !currentMainWindow.isDestroyed()) {
+    currentMainWindow.webContents.send('app:update-status', { status, ...payload });
+  }
+}
+
+async function checkForUpdatesSilently() {
+  try {
+    if (!app.isPackaged) {
+      sendStatus('not-available', {
+        version: app.getVersion(),
+        currentVersion: app.getVersion(),
+        isDev: true,
+      });
+      return { isDev: true, message: '开发模式下无需检查实际更新' };
+    }
+    const result = await autoUpdater.checkForUpdates();
+    return { success: true, result };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
 function initUpdater(mainWindow) {
+  currentMainWindow = mainWindow;
+  if (updaterInitialized) return;
+  updaterInitialized = true;
+
   // 不自动下载，由前端界面提示后用户点击才下载
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
-
-  const sendStatus = (status, payload = {}) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('app:update-status', { status, ...payload });
-    }
-  };
 
   autoUpdater.on('checking-for-update', () => {
     sendStatus('checking');
@@ -93,4 +117,4 @@ function initUpdater(mainWindow) {
   });
 }
 
-module.exports = { initUpdater };
+module.exports = { initUpdater, checkForUpdatesSilently };

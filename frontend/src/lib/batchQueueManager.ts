@@ -228,7 +228,7 @@ export async function exportBatchFiles(
       });
 
       if (res?.success) {
-        if ((window as any).electronAPI.openPath && res.folder) {
+        if (res.openFolderAfterExport && (window as any).electronAPI.openPath && res.folder) {
           (window as any).electronAPI.openPath(res.folder);
         }
         return {

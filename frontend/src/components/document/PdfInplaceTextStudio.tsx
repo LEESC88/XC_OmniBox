@@ -356,7 +356,7 @@ export default function PdfInplaceTextStudio({
         }
       } catch (err: any) {
         if (isMounted) {
-          setInspectError(err.message || "PDF 解析失败，请确认文档未损坏");
+          setInspectError(err.message || (lang === "en" ? "PDF parsing failed. Please verify the file is not corrupted." : "PDF 解析失败，请确认文档未损坏"));
         }
       } finally {
         if (isMounted) {
@@ -701,7 +701,7 @@ export default function PdfInplaceTextStudio({
 
       setActiveEditingItem({
         id: `draw_${Date.now()}`,
-        originalText: "（自由框选区域）",
+        originalText: lang === "en" ? "(Free-draw area)" : "（自由框选区域）",
         newText: "",
         leftPercent: Math.round(minX * 100) / 100,
         topPercent: Math.round(minY * 100) / 100,
@@ -1000,7 +1000,7 @@ export default function PdfInplaceTextStudio({
       });
       downloadBlob(res.blob, res.filename);
     } catch (err: any) {
-      setExportError(err.message || "原地修正导出失败，请重试");
+      setExportError(err.message || (lang === "en" ? "In-place PDF export failed, please try again" : "原地修正导出失败，请重试"));
     } finally {
       setApplying(false);
     }
@@ -1171,7 +1171,7 @@ export default function PdfInplaceTextStudio({
               disabled={historyIndex <= 0}
               onClick={handleUndo}
               className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-[#2D221E] disabled:opacity-30 transition-colors"
-              title="撤销 (Ctrl+Z)"
+              title={lang === "en" ? "Undo (Ctrl+Z)" : "撤销 (Ctrl+Z)"}
             >
               <Undo2 className="w-3.5 h-3.5" />
             </button>
@@ -1180,7 +1180,7 @@ export default function PdfInplaceTextStudio({
               disabled={historyIndex >= history.length - 1}
               onClick={handleRedo}
               className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-[#2D221E] disabled:opacity-30 transition-colors"
-              title="重做 (Ctrl+Y)"
+              title={lang === "en" ? "Redo (Ctrl+Y)" : "重做 (Ctrl+Y)"}
             >
               <Redo2 className="w-3.5 h-3.5" />
             </button>
@@ -1198,10 +1198,10 @@ export default function PdfInplaceTextStudio({
                   ? "bg-white dark:bg-[#2D221E] text-amber-600 dark:text-amber-400 shadow-sm"
                   : "text-[#7D6B5D] dark:text-[#BCA89B] hover:text-[#2D221E]"
               }`}
-              title="单字/单个词汇独立修改 (修改或加粗单字绝不波及整句)"
+              title={lang === "en" ? "Single word/token edit" : "单字/单个词汇独立修改 (修改或加粗单字绝不波及整句)"}
             >
               <Type className="w-3.5 h-3.5" />
-              <span>单字</span>
+              <span>{lang === "en" ? "Word" : "单字"}</span>
             </button>
             <button
               onClick={() => {
@@ -1213,10 +1213,10 @@ export default function PdfInplaceTextStudio({
                   ? "bg-white dark:bg-[#2D221E] text-amber-600 dark:text-amber-400 shadow-sm"
                   : "text-[#7D6B5D] dark:text-[#BCA89B] hover:text-[#2D221E]"
               }`}
-              title="整行或完整句子同时编辑"
+              title={lang === "en" ? "Full line/sentence edit" : "整行或完整句子同时编辑"}
             >
               <AlignLeft className="w-3.5 h-3.5" />
-              <span>整行</span>
+              <span>{lang === "en" ? "Line" : "整行"}</span>
             </button>
             <button
               onClick={() => {
@@ -1228,10 +1228,10 @@ export default function PdfInplaceTextStudio({
                   ? "bg-amber-600 text-white shadow-sm"
                   : "text-[#7D6B5D] dark:text-[#BCA89B] hover:text-[#2D221E]"
               }`}
-              title="自由画框涂抹编辑"
+              title={lang === "en" ? "Draw custom bounding box to edit" : "自由画框涂抹编辑"}
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span>画框</span>
+              <span>{lang === "en" ? "Box" : "画框"}</span>
             </button>
             <button
               onClick={() => {
@@ -1243,10 +1243,10 @@ export default function PdfInplaceTextStudio({
                   ? "bg-amber-600 text-white shadow-sm"
                   : "text-[#7D6B5D] dark:text-[#BCA89B] hover:text-[#2D221E]"
               }`}
-              title="荧光高亮笔标注 (点击任意文字/单元格自动贴合高亮)"
+              title={lang === "en" ? "Highlighter pen (click text or cell to highlight)" : "荧光高亮笔标注 (点击任意文字/单元格自动贴合高亮)"}
             >
               <Highlighter className="w-3.5 h-3.5" />
-              <span>高亮</span>
+              <span>{lang === "en" ? "Highlight" : "高亮"}</span>
               <span
                 className="w-2.5 h-2.5 rounded-full border border-black/20 shadow-inner flex-shrink-0"
                 style={{ backgroundColor: currentHighlightColor }}
@@ -1265,9 +1265,9 @@ export default function PdfInplaceTextStudio({
                         ? "bg-amber-500 text-black shadow-sm"
                         : "text-[#7D6B5D] dark:text-[#BCA89B] hover:text-[#2D221E]"
                     }`}
-                    title="点击单字高亮"
+                    title={lang === "en" ? "Click single word to highlight" : "点击单字高亮"}
                   >
-                    单字
+                    {lang === "en" ? "Word" : "单字"}
                   </button>
                   <button
                     type="button"
@@ -1310,7 +1310,7 @@ export default function PdfInplaceTextStudio({
                   setCurrentPageIndex((p) => Math.max(0, p - 1));
                 }}
                 className="p-1 rounded-lg hover:bg-white dark:hover:bg-[#2D221E] disabled:opacity-40 transition-colors"
-                title="上一页"
+                title={lang === "en" ? "Previous Page" : "上一页"}
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -1324,7 +1324,7 @@ export default function PdfInplaceTextStudio({
                   setCurrentPageIndex((p) => Math.min(inspectResult.numPages - 1, p + 1));
                 }}
                 className="p-1 rounded-lg hover:bg-white dark:hover:bg-[#2D221E] disabled:opacity-40 transition-colors"
-                title="下一页"
+                title={lang === "en" ? "Next Page" : "下一页"}
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -1336,7 +1336,7 @@ export default function PdfInplaceTextStudio({
             <button
               onClick={() => setZoomScale((s) => Math.max(0.6, s - 0.15))}
               className="p-1 rounded-lg hover:bg-white dark:hover:bg-[#2D221E] transition-colors"
-              title="缩小"
+              title={lang === "en" ? "Zoom Out" : "缩小"}
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
@@ -1344,7 +1344,7 @@ export default function PdfInplaceTextStudio({
             <button
               onClick={() => setZoomScale((s) => Math.min(2.0, s + 0.15))}
               className="p-1 rounded-lg hover:bg-white dark:hover:bg-[#2D221E] transition-colors"
-              title="放大"
+              title={lang === "en" ? "Zoom In" : "放大"}
             >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
@@ -1355,10 +1355,14 @@ export default function PdfInplaceTextStudio({
             disabled={applying || (patches.length === 0 && !activeEditingItem)}
             onClick={handleExportFixedPdf}
             className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white transition-all shadow-sm"
-            title="应用当前全部补丁并保存下载 PDF"
+            title={lang === "en" ? "Apply all patches and export PDF" : "应用当前全部补丁并保存下载 PDF"}
           >
             {applying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-            <span>{applying ? "正在重绘..." : `导出 PDF (${patches.length + (activeEditingItem && !activeEditingItem.isExistingPatch ? 1 : 0)})`}</span>
+            <span>
+              {applying
+                ? (lang === "en" ? "Rendering..." : "正在重绘...")
+                : `${lang === "en" ? "Export PDF" : "导出 PDF"} (${patches.length + (activeEditingItem && !activeEditingItem.isExistingPatch ? 1 : 0)})`}
+            </span>
           </button>
 
           {/* 全屏模式切换器 */}
@@ -1369,17 +1373,21 @@ export default function PdfInplaceTextStudio({
                 ? "bg-amber-500 text-white border-amber-600 shadow-sm"
                 : "bg-white/80 dark:bg-[#2D221E] border-[#D2BCAB]/40 dark:border-[#4D392E]/60 text-[#2D221E] dark:text-[#F5EBE6] hover:bg-amber-50 dark:hover:bg-amber-950/20"
             }`}
-            title={isFullscreen ? "退出全屏工作台 (Esc)" : "进入全屏工作台模式，享受更大视野与精细编辑"}
+            title={
+              isFullscreen
+                ? (lang === "en" ? "Exit Fullscreen (Esc)" : "退出全屏工作台 (Esc)")
+                : (lang === "en" ? "Enter Fullscreen Workbench" : "进入全屏工作台模式，享受更大视野与精细编辑")
+            }
           >
             {isFullscreen ? (
               <>
                 <Minimize2 className="w-3.5 h-3.5 text-white" />
-                <span>退出全屏 (Esc)</span>
+                <span>{lang === "en" ? "Exit Fullscreen (Esc)" : "退出全屏 (Esc)"}</span>
               </>
             ) : (
               <>
                 <Maximize2 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                <span>全屏编辑</span>
+                <span>{lang === "en" ? "Fullscreen" : "全屏编辑"}</span>
               </>
             )}
           </button>
@@ -1389,7 +1397,7 @@ export default function PdfInplaceTextStudio({
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border border-[#D2BCAB]/40 dark:border-[#4D392E]/50 hover:bg-[#D2BCAB]/15 transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>换文档</span>
+            <span>{lang === "en" ? "Change File" : "换文档"}</span>
           </button>
         </div>
       </div>
@@ -1400,7 +1408,9 @@ export default function PdfInplaceTextStudio({
           <div className="flex items-center gap-3 text-emerald-700 dark:text-emerald-300">
             <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
             <div className="text-xs sm:text-sm">
-              <span className="font-bold">局部文字修正完成并已自动下载！</span>
+              <span className="font-bold">
+                {lang === "en" ? "In-place text edits applied & downloaded!" : "局部文字修正完成并已自动下载！"}
+              </span>
               <span className="block opacity-80">{exportSuccess.filename}</span>
             </div>
           </div>
@@ -1409,7 +1419,7 @@ export default function PdfInplaceTextStudio({
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>再次下载</span>
+            <span>{lang === "en" ? "Download Again" : "再次下载"}</span>
           </button>
         </div>
       )}
@@ -1682,7 +1692,7 @@ export default function PdfInplaceTextStudio({
                               <span
                                 key={wordPatch.id}
                                 onMouseDown={(e) => handlePatchMouseDown(e, wordPatch)}
-                                title="已擦除此词（点击可恢复或重新编辑）"
+                                title={lang === "en" ? "Word erased (Click to restore or re-edit)" : "已擦除此词（点击可恢复或重新编辑）"}
                                 className="px-1 py-0.5 text-[9px] text-amber-600 bg-amber-50 border border-dashed border-amber-400 rounded cursor-pointer select-none leading-none"
                               >
                                 ⌫
@@ -1693,7 +1703,7 @@ export default function PdfInplaceTextStudio({
                             <div
                               key={wordPatch.id}
                               onMouseDown={(e) => handlePatchMouseDown(e, wordPatch)}
-                              title={`点击编辑，按住可拖动位置: "${wordPatch.newText}"`}
+                              title={lang === "en" ? `Click to edit, hold to drag: "${wordPatch.newText}"` : `点击编辑，按住可拖动位置: "${wordPatch.newText}"`}
                               className="h-full cursor-move flex items-center px-0.5 group hover:ring-2 hover:ring-amber-500 rounded-[2px] transition-shadow flex-shrink-0"
                               style={{
                                 backgroundColor:
@@ -1730,7 +1740,7 @@ export default function PdfInplaceTextStudio({
                               e.stopPropagation();
                               handleStartInplaceEdit(wordIt);
                             }}
-                            title={`点击原地修改此词: "${wordIt.str}"`}
+                            title={lang === "en" ? `Click to edit word in-place: "${wordIt.str}"` : `点击原地修改此词: "${wordIt.str}"`}
                             className={`whitespace-nowrap leading-none select-none rounded-[2px] transition-colors flex-shrink-0 ${
                               isMatch
                                 ? "bg-indigo-500/35 ring-1 ring-indigo-600 cursor-pointer"
@@ -1764,7 +1774,7 @@ export default function PdfInplaceTextStudio({
                       <div
                         key={patch.id}
                         onMouseDown={(e) => handlePatchMouseDown(e, patch)}
-                        title="荧光高亮 (点击可更换颜色或删除，按住可拖动微调)"
+                        title={lang === "en" ? "Highlight (Click to change color/delete, hold to drag)" : "荧光高亮 (点击可更换颜色或删除，按住可拖动微调)"}
                         className="absolute z-20 cursor-pointer group hover:ring-2 hover:ring-amber-500 rounded-[2px] transition-shadow"
                         style={{
                           left: `${patch.leftPercent}%`,
@@ -1779,22 +1789,22 @@ export default function PdfInplaceTextStudio({
                         {/* 8方向调整手柄 */}
                         <div
                           onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "n")}
-                          title="向上拉伸/压缩高亮范围"
+                          title={lang === "en" ? "Resize top edge" : "向上拉伸/压缩高亮范围"}
                           className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-1.5 bg-amber-500 hover:bg-amber-400 border border-white rounded-full cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity z-30"
                         />
                         <div
                           onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "s")}
-                          title="向下拉伸/压缩高亮范围"
+                          title={lang === "en" ? "Resize bottom edge" : "向下拉伸/压缩高亮范围"}
                           className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-1.5 bg-amber-500 hover:bg-amber-400 border border-white rounded-full cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity z-30"
                         />
                         <div
                           onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "w")}
-                          title="向左拉伸/压缩高亮范围"
+                          title={lang === "en" ? "Resize left edge" : "向左拉伸/压缩高亮范围"}
                           className="absolute top-1/2 -translate-y-1/2 -left-1 w-1.5 h-3 bg-amber-500 hover:bg-amber-400 border border-white rounded-full cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-30"
                         />
                         <div
                           onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "e")}
-                          title="向右拉伸/压缩高亮范围"
+                          title={lang === "en" ? "Resize right edge" : "向右拉伸/压缩高亮范围"}
                           className="absolute top-1/2 -translate-y-1/2 -right-1 w-1.5 h-3 bg-amber-500 hover:bg-amber-400 border border-white rounded-full cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-30"
                         />
                         <div
@@ -1822,7 +1832,7 @@ export default function PdfInplaceTextStudio({
                     <div
                       key={patch.id}
                       onMouseDown={(e) => handlePatchMouseDown(e, patch)}
-                      title={`点击编辑，按住可拖动位置: "${patch.newText || '已擦除'}"`}
+                      title={lang === "en" ? `Click to edit, hold to drag: "${patch.newText || 'Erased'}"` : `点击编辑，按住可拖动位置: "${patch.newText || '已擦除'}"`}
                       className="absolute z-25 cursor-move flex items-center px-0.5 group hover:ring-2 hover:ring-amber-500 rounded-[2px] transition-shadow"
                       style={{
                         left: `${patch.leftPercent}%`,
@@ -1846,51 +1856,51 @@ export default function PdfInplaceTextStudio({
                           fontSize: `${Math.max(6, (patch.fontSize || 12) * scaleRatio)}px`,
                         }}
                       >
-                        {patch.newText || "（已涂白擦除）"}
+                        {patch.newText || (lang === "en" ? "(Erased)" : "（已涂白擦除）")}
                       </span>
 
                       {/* 8方向独立缩放手柄 (Independent 4-Side & 4-Corner Resizing) */}
                       {/* 上、下、左、右独立单边手柄 */}
                       <div
                         onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "n")}
-                        title="向上拉伸/压缩上间距 (根除留白)"
+                        title={lang === "en" ? "Resize top padding" : "向上拉伸/压缩上间距 (根除留白)"}
                         className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-1.5 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-full cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
                       />
                       <div
                         onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "s")}
-                        title="向下拉伸/压缩下间距 (根除留白)"
+                        title={lang === "en" ? "Resize bottom padding" : "向下拉伸/压缩下间距 (根除留白)"}
                         className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-1.5 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-full cursor-ns-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
                       />
                       <div
                         onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "w")}
-                        title="向左拉伸/压缩左边距"
+                        title={lang === "en" ? "Resize left padding" : "向左拉伸/压缩左边距"}
                         className="absolute top-1/2 -translate-y-1/2 -left-1 w-1.5 h-3 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-full cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
                       />
                       <div
                         onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "e")}
-                        title="向右拉伸/压缩右边距"
+                        title={lang === "en" ? "Resize right padding" : "向右拉伸/压缩右边距"}
                         className="absolute top-1/2 -translate-y-1/2 -right-1 w-1.5 h-3 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-full cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
                       />
 
                       {/* 4个对角手柄 (同步联动字号) */}
                       <div
                         onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "nw")}
-                        title="左上角缩放"
+                        title={lang === "en" ? "Resize top-left corner" : "左上角缩放"}
                         className="absolute -top-1 -left-1 w-2.5 h-2.5 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-sm cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
                       />
                       <div
                         onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "ne")}
-                        title="右上角缩放"
+                        title={lang === "en" ? "Resize top-right corner" : "右上角缩放"}
                         className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-sm cursor-nesw-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
                       />
                       <div
                         onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "sw")}
-                        title="左下角缩放"
+                        title={lang === "en" ? "Resize bottom-left corner" : "左下角缩放"}
                         className="absolute -bottom-1 -left-1 w-2.5 h-2.5 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-sm cursor-nesw-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
                       />
                       <div
                         onMouseDown={(e) => handlePatchResizeMouseDown(e, patch, "se")}
-                        title="右下角缩放 (联动字号)"
+                        title={lang === "en" ? "Resize bottom-right corner (Syncs font size)" : "右下角缩放 (联动字号)"}
                         className="absolute -bottom-1 -right-1 w-2.5 h-2.5 bg-amber-500 hover:bg-amber-400 border border-black/30 rounded-sm cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-sm"
                       />
                     </div>
@@ -1987,7 +1997,11 @@ export default function PdfInplaceTextStudio({
                       {/* 紧凑版自动匹配指示标签 */}
                       <span
                         className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono text-[10px] border border-amber-500/30 flex-shrink-0 cursor-default"
-                        title={`已自动匹配原版排版: ${activeEditingItem.displayFamily || "Times New Roman"} · ${activeEditingItem.fontSize}pt ${activeEditingItem.isBold ? "· 粗体" : ""} ${activeEditingItem.isItalic ? "· 斜体" : ""}`}
+                        title={
+                          lang === "en"
+                            ? `Auto-matched typography: ${activeEditingItem.displayFamily || "Times New Roman"} · ${activeEditingItem.fontSize}pt ${activeEditingItem.isBold ? "· Bold" : ""} ${activeEditingItem.isItalic ? "· Italic" : ""}`
+                            : `已自动匹配原版排版: ${activeEditingItem.displayFamily || "Times New Roman"} · ${activeEditingItem.fontSize}pt ${activeEditingItem.isBold ? "· 粗体" : ""} ${activeEditingItem.isItalic ? "· 斜体" : ""}`
+                        }
                       >
                         <Sparkles className="w-2.5 h-2.5 text-amber-400" />
                         <span className="max-w-[70px] truncate font-semibold text-white">
@@ -2013,11 +2027,11 @@ export default function PdfInplaceTextStudio({
                           );
                         }}
                         className="bg-[#2A201C] text-white px-2 py-0.5 rounded-lg text-[11px] border border-white/10 focus:outline-none max-w-[110px] truncate flex-shrink-0"
-                        title="选择字体"
+                        title={lang === "en" ? "Select font" : "选择字体"}
                       >
                         {DOCUMENT_FONTS.map((f) => (
                           <option key={f.value} value={f.value}>
-                            {f.label.split(" (")[0]}
+                            {lang === "en" ? (f.labelEn || f.label).split(" (")[0] : f.label.split(" (")[0]}
                           </option>
                         ))}
                       </select>
@@ -2034,7 +2048,7 @@ export default function PdfInplaceTextStudio({
                           className={`w-5 h-5 flex items-center justify-center rounded text-xs font-bold transition-colors ${
                             activeEditingItem.isBold ? "bg-amber-500 text-black shadow-sm font-extrabold" : "text-white/70 hover:text-white"
                           }`}
-                          title="粗体 (Bold)"
+                          title={lang === "en" ? "Bold" : "粗体 (Bold)"}
                         >
                           B
                         </button>
@@ -2048,7 +2062,7 @@ export default function PdfInplaceTextStudio({
                           className={`w-5 h-5 flex items-center justify-center rounded italic font-serif text-xs transition-colors ${
                             activeEditingItem.isItalic ? "bg-amber-500 text-black shadow-sm" : "text-white/70 hover:text-white"
                           }`}
-                          title="斜体 (Italic)"
+                          title={lang === "en" ? "Italic" : "斜体 (Italic)"}
                         >
                           I
                         </button>
@@ -2072,7 +2086,7 @@ export default function PdfInplaceTextStudio({
                             })
                           }
                           className="hover:text-amber-400 p-0.5"
-                          title="减小字号 (同步缩小边框)"
+                          title={lang === "en" ? "Decrease font size" : "减小字号 (同步缩小边框)"}
                         >
                           <Minus className="w-2.5 h-2.5" />
                         </button>
@@ -2093,7 +2107,7 @@ export default function PdfInplaceTextStudio({
                             })
                           }
                           className="hover:text-amber-400 p-0.5"
-                          title="增大字号 (同步放大边框)"
+                          title={lang === "en" ? "Increase font size" : "增大字号 (同步放大边框)"}
                         >
                           <Plus className="w-2.5 h-2.5" />
                         </button>
@@ -2119,18 +2133,20 @@ export default function PdfInplaceTextStudio({
                         }`}
                         title={
                           activeEditingItem.bgHex === "transparent"
-                            ? "当前为透明底色（点击切换为白色遮罩）"
-                            : "当前为白色遮罩（点击切换为透明底色）"
+                            ? lang === "en" ? "Background: Transparent (Click for white mask)" : "当前为透明底色（点击切换为白色遮罩）"
+                            : lang === "en" ? "Background: White Mask (Click for transparent)" : "当前为白色遮罩（点击切换为透明底色）"
                         }
                       >
-                        {activeEditingItem.bgHex === "transparent" ? "底:透明" : "底:遮白"}
+                        {activeEditingItem.bgHex === "transparent"
+                          ? lang === "en" ? "BG: Clear" : "底:透明"
+                          : lang === "en" ? "BG: White" : "底:遮白"}
                       </button>
 
                       {/* 颜色选择球 */}
                       <label
                         className="w-5 h-5 rounded-full border border-white/40 cursor-pointer overflow-hidden flex-shrink-0 relative shadow-inner inline-block"
                         style={{ backgroundColor: activeEditingItem.colorHex || "#000000" }}
-                        title="自定义文字颜色"
+                        title={lang === "en" ? "Custom text color" : "自定义文字颜色"}
                       >
                         <input
                           type="color"
@@ -2153,9 +2169,9 @@ export default function PdfInplaceTextStudio({
                             if (p) handleAutoFitPatch(p);
                           }}
                           className="px-1.5 py-0.5 rounded-lg text-[10px] bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 transition-colors"
-                          title="一键收紧四周间距，去除多余留白"
+                          title={lang === "en" ? "Tighten bounding box around text" : "一键收紧四周间距，去除多余留白"}
                         >
-                          贴合
+                          {lang === "en" ? "Fit" : "贴合"}
                         </button>
                       )}
 
@@ -2166,7 +2182,11 @@ export default function PdfInplaceTextStudio({
                           setToolbarPlacement((prev) => (prev === "below" ? "above" : "below"))
                         }
                         className="p-1 rounded-lg hover:bg-white/20 text-white/70 hover:text-white transition-colors flex-shrink-0"
-                        title={showBelow ? "将工具栏移到上方" : "将工具栏移到下方（避免遮挡上文）"}
+                        title={
+                          showBelow
+                            ? lang === "en" ? "Move toolbar above" : "将工具栏移到上方"
+                            : lang === "en" ? "Move toolbar below" : "将工具栏移到下方（避免遮挡上文）"
+                        }
                       >
                         {showBelow ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
                       </button>
@@ -2177,17 +2197,17 @@ export default function PdfInplaceTextStudio({
                           type="button"
                           onClick={handleCommitInplaceEdit}
                           className="flex items-center gap-0.5 px-2.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition-colors shadow-sm"
-                          title="完成并暂存修正 (Enter)"
+                          title={lang === "en" ? "Apply edit (Enter)" : "完成并暂存修正 (Enter)"}
                         >
                           <Check className="w-3 h-3" />
-                          <span>确定</span>
+                          <span>{lang === "en" ? "OK" : "确定"}</span>
                         </button>
                         {activeEditingItem.isExistingPatch && (
                           <button
                             type="button"
                             onClick={handleDeleteCurrentEditingPatch}
                             className="p-1 rounded-lg hover:bg-red-500/20 text-red-400 transition-colors"
-                            title="删除此修补项"
+                            title={lang === "en" ? "Delete patch" : "删除此修补项"}
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
@@ -2196,7 +2216,7 @@ export default function PdfInplaceTextStudio({
                           type="button"
                           onClick={handleCancelInplaceEdit}
                           className="p-1 rounded-lg hover:bg-white/20 text-white/70 transition-colors"
-                          title="取消 (Esc)"
+                          title={lang === "en" ? "Cancel (Esc)" : "取消 (Esc)"}
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -2230,14 +2250,20 @@ export default function PdfInplaceTextStudio({
               <HelpCircle className="w-3.5 h-3.5 text-amber-500" />
               <span>
                 {editGranularity === "highlight"
-                  ? "高亮模式：直接点击文字或表格单元格自动贴合高亮，再次点击同色文字可取消。"
+                  ? lang === "en"
+                    ? "Highlight Mode: Click any word or table cell to highlight; click again with the same color to remove."
+                    : "高亮模式：直接点击文字或表格单元格自动贴合高亮，再次点击同色文字可取消。"
                   : editGranularity === "draw"
-                  ? "画框模式：在画板上按住鼠标左键拖拽任意矩形，释放即可直接原位打字涂改。"
+                  ? lang === "en"
+                    ? "Free-Draw Mode: Drag a rectangle anywhere on the page and release to type over the area."
+                    : "画框模式：在画板上按住鼠标左键拖拽任意矩形，释放即可直接原位打字涂改。"
+                  : lang === "en"
+                  ? "Word Mode: Click any word to edit in-place; press Enter to apply."
                   : "Word 模式：点击任意文字即可原地激活打字输入框，回车即可完成修改。"}
               </span>
             </div>
             <span className="text-[11px] opacity-75">
-              提示：点击已修改的黄色虚线框可二次修改
+              {lang === "en" ? "Tip: Click any amber dashed box to re-edit" : "提示：点击已修改的黄色虚线框可二次修改"}
             </span>
           </div>
         </div>
@@ -2255,7 +2281,7 @@ export default function PdfInplaceTextStudio({
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>修改清单 ({patches.length})</span>
+              <span>{lang === "en" ? `Edits (${patches.length})` : `修改清单 (${patches.length})`}</span>
             </button>
             <button
               onClick={() => setSidePanelMode("search")}
@@ -2266,7 +2292,7 @@ export default function PdfInplaceTextStudio({
               }`}
             >
               <Search className="w-3.5 h-3.5" />
-              <span>全文搜索替换</span>
+              <span>{lang === "en" ? "Find & Replace" : "全文搜索替换"}</span>
             </button>
           </div>
 
@@ -2276,10 +2302,10 @@ export default function PdfInplaceTextStudio({
               <div className="flex items-center justify-between pb-2 border-b border-[#D2BCAB]/20 dark:border-[#4D392E]/30">
                 <div className="flex items-center gap-2">
                   <h4 className="font-bold text-xs sm:text-sm text-[#2D221E] dark:text-[#F5EBE6]">
-                    待生效修改项目
+                    {lang === "en" ? "Pending Edits" : "待生效修改项目"}
                   </h4>
                   <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-600">
-                    {patches.length} 处
+                    {lang === "en" ? `${patches.length}` : `${patches.length} 处`}
                   </span>
                 </div>
                 {patches.length > 0 && (
@@ -2288,7 +2314,7 @@ export default function PdfInplaceTextStudio({
                     className="text-[11px] text-red-500 hover:text-red-700 transition-colors flex items-center gap-1"
                   >
                     <Trash2 className="w-3 h-3" />
-                    <span>全部清空</span>
+                    <span>{lang === "en" ? "Clear All" : "全部清空"}</span>
                   </button>
                 )}
               </div>
@@ -2297,9 +2323,9 @@ export default function PdfInplaceTextStudio({
                 <div className="py-12 text-center space-y-2 text-[#7D6B5D]/70 dark:text-[#BCA89B]/60">
                   <Edit3 className="w-8 h-8 mx-auto opacity-30 text-amber-500" />
                   <p className="text-xs">
-                    暂无待应用的修改项
+                    {lang === "en" ? "No pending edits yet" : "暂无待应用的修改项"}
                     <span className="block text-[11px] opacity-75 mt-1">
-                      在左侧文档画面中直接点击文字开始修改
+                      {lang === "en" ? "Click any text on the page to start editing" : "在左侧文档画面中直接点击文字开始修改"}
                     </span>
                   </p>
                 </div>
@@ -2314,12 +2340,12 @@ export default function PdfInplaceTextStudio({
                       <div className="space-y-0.5 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-600">
-                            第 {p.pageIndex + 1} 页
+                            {lang === "en" ? `Page ${p.pageIndex + 1}` : `第 ${p.pageIndex + 1} 页`}
                           </span>
                           {p.isHighlight ? (
                             <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-500">
                               <Highlighter className="w-3 h-3" />
-                              <span>荧光笔高亮标注</span>
+                              <span>{lang === "en" ? "Highlighter Mark" : "荧光笔高亮标注"}</span>
                             </span>
                           ) : (
                             <span className="truncate line-through opacity-50 text-[11px]">
@@ -2330,7 +2356,7 @@ export default function PdfInplaceTextStudio({
                         {!p.isHighlight && (
                           <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold truncate">
                             <CornerDownRight className="w-3 h-3 flex-shrink-0" />
-                            <span className="truncate">{p.newText || "（已涂白擦除）"}</span>
+                            <span className="truncate">{p.newText || (lang === "en" ? "(Erased)" : "（已涂白擦除）")}</span>
                           </div>
                         )}
                       </div>
@@ -2340,7 +2366,7 @@ export default function PdfInplaceTextStudio({
                           handleDeletePatch(p.id);
                         }}
                         className="p-1 rounded-lg hover:bg-red-500/10 text-red-500 transition-colors flex-shrink-0"
-                        title="删除此项"
+                        title={lang === "en" ? "Delete item" : "删除此项"}
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -2358,14 +2384,16 @@ export default function PdfInplaceTextStudio({
                 {applying ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>正在原版高保真重绘导出...</span>
+                    <span>{lang === "en" ? "Exporting lossless PDF..." : "正在原版高保真重绘导出..."}</span>
                   </>
                 ) : (
                   <>
                     <Download className="w-4 h-4" />
                     <span>
                       {patches.length === 0
-                        ? "请先在页面上修改文字"
+                        ? lang === "en" ? "Edit text on the page first" : "请先在页面上修改文字"
+                        : lang === "en"
+                        ? `🚀 Apply & Export PDF (${patches.length} edits)`
                         : `🚀 确认应用并导出 PDF (${patches.length} 处修正)`}
                     </span>
                   </>
@@ -2379,19 +2407,19 @@ export default function PdfInplaceTextStudio({
             <div className="coconut-panel p-4 sm:p-5 space-y-4 border border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-[#2D221E] dark:text-[#F5EBE6]">
-                  查找原文字
+                  {lang === "en" ? "Find original text" : "查找原文字"}
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="例如：2025年 或 旧公司名称"
+                    placeholder={lang === "en" ? "e.g. 2025 or Old Company Name" : "例如：2025年 或 旧公司名称"}
                     className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-[#201815] border border-[#D2BCAB]/40 dark:border-[#4D392E]/60 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
                   />
                   {searchQuery && (
                     <span className="absolute right-2.5 top-2 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 font-semibold">
-                      {searchMatches.length} 处匹配
+                      {lang === "en" ? `${searchMatches.length} matches` : `${searchMatches.length} 处匹配`}
                     </span>
                   )}
                 </div>
@@ -2450,7 +2478,11 @@ export default function PdfInplaceTextStudio({
                 className="w-full py-2.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white transition-all shadow-md shadow-amber-600/20 flex items-center justify-center gap-2"
               >
                 <Replace className="w-3.5 h-3.5" />
-                <span>一键批量替换 ({searchMatches.length} 处匹配)</span>
+                <span>
+                  {lang === "en"
+                    ? `Batch Replace All (${searchMatches.length} matches)`
+                    : `一键批量替换 (${searchMatches.length} 处匹配)`}
+                </span>
               </button>
             </div>
           )}

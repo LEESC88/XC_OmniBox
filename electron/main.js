@@ -156,7 +156,8 @@ function createTray() {
           mainWindow.show();
           if (mainWindow.isMinimized()) mainWindow.restore();
           mainWindow.focus();
-          mainWindow.webContents.send('app:update-status', { status: 'checking' });
+          mainWindow.webContents.send('app:update-status', { status: 'checking', fromTray: true });
+          getUpdater().checkForUpdatesSilently();
         }
       },
     },
@@ -165,7 +166,6 @@ function createTray() {
       label: '彻底退出',
       click: () => {
         isQuitting = true;
-        stopBackendService();
         app.quit();
       },
     },
@@ -277,6 +277,11 @@ function createWindow() {
   // 初始化自动更新监听（延迟至下一事件循环按需加载 electron-updater，零阻塞首屏）
   setImmediate(() => {
     getUpdater().initUpdater(mainWindow);
+    if (desktopConfig.autoCheckUpdate && app.isPackaged) {
+      setTimeout(() => {
+        getUpdater().checkForUpdatesSilently();
+      }, 3000);
+    }
   });
 }
 

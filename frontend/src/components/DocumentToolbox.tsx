@@ -51,6 +51,9 @@ export default function DocumentToolbox({
   // Handle incoming files from clipboard / cross-tool bus
   useEffect(() => {
     if (incomingFiles && incomingFiles.length > 0) {
+      if (currentTab && currentTab !== activeTab) {
+        setActiveTab(currentTab);
+      }
       setFiles(incomingFiles);
       onIncomingFilesHandled?.();
     }

@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCacheSize: () => ipcRenderer.invoke('settings:get-cache-size'),
   clearCache: () => ipcRenderer.invoke('settings:clear-cache'),
   getAutoStart: () => ipcRenderer.invoke('settings:get-autostart'),
+  setAutoStart: (enable) => ipcRenderer.invoke('settings:set-autostart', enable),
   saveBatchFiles: (payload) => ipcRenderer.invoke('files:save-batch', payload),
   scanFolder: (payload) => ipcRenderer.invoke('files:scan-folder', payload),
   organizeExecute: (payload) => ipcRenderer.invoke('files:organize-execute', payload),

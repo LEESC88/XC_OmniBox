@@ -18,6 +18,7 @@ import {
   FileSearch,
 } from "lucide-react";
 import { toolBus, ToolTarget, ToolTransferPayload } from "../lib/toolBus";
+import { useI18n } from "@/lib/i18n";
 
 interface SendToButtonProps {
   payload: ToolTransferPayload;
@@ -41,8 +42,10 @@ export default function SendToButton({
   category,
   compact = false,
   className = "",
-  lang = "zh",
+  lang: propLang,
 }: SendToButtonProps) {
+  const { lang: i18nLang } = useI18n();
+  const lang = propLang || i18nLang;
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -94,12 +97,20 @@ export default function SendToButton({
       target: { module: "document", tab: "ai-ocr" },
     },
     {
+      label: "图片合成 PDF",
+      labelEn: "Images to PDF",
+      desc: "将图片合成为高清矢量 PDF 文档",
+      descEn: "Combine images into a crisp PDF document",
+      icon: Layers,
+      target: { module: "pdf", tab: "images-to-pdf" },
+    },
+    {
       label: "双层可搜索 PDF 制作",
       labelEn: "Searchable PDF Maker",
       desc: "注入底层透明文字排版层",
       descEn: "Inject invisible searchable text layer",
       icon: FileSearch,
-      target: { module: "document", tab: "ai-searchable-pdf" },
+      target: { module: "pdf", tab: "ai-searchable-pdf" },
     },
     {
       label: "批量水印工坊",

@@ -87,6 +87,14 @@ export default function PdfWatermarkStudio({
   const [watermarkAngle, setWatermarkAngle] = useState<number>(45);
   const [layout, setLayout] = useState<"center" | "tile">("center");
 
+  useEffect(() => {
+    setWatermarkText((prev) => {
+      if (lang === "en" && prev === "内部机密 严禁外传") return "CONFIDENTIAL";
+      if (lang !== "en" && prev === "CONFIDENTIAL") return "内部机密 严禁外传";
+      return prev;
+    });
+  }, [lang]);
+
   const [pages, setPages] = useState<PageData[]>([]);
   const [numPages, setNumPages] = useState<number>(1);
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);

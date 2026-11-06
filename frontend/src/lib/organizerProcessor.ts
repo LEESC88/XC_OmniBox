@@ -179,6 +179,12 @@ export function generateOrganizePlan(
       const m = String(d.getMonth() + 1).padStart(2, "0");
       category = `${y}年${m}月`;
       targetSubDir = `${y}-${m}`;
+    } else if (rule === "clean-empty") {
+      if (file.size !== 0) {
+        continue;
+      }
+      category = "0KB 空文件 (Empty Files)";
+      targetSubDir = "0KB_空文件隔离区";
     }
 
     const targetRelativePath = `${targetSubDir}/${file.name}`;
@@ -186,6 +192,13 @@ export function generateOrganizePlan(
     if (baseFolderPath) {
       const sep = baseFolderPath.includes("/") ? "/" : "\\";
       targetFullPath = `${baseFolderPath}${sep}${targetSubDir}${sep}${file.name}`;
+      if (
+        file.path &&
+        file.path.replace(/\//g, "\\").toLowerCase() ===
+          targetFullPath.replace(/\//g, "\\").toLowerCase()
+      ) {
+        continue;
+      }
     }
 
     plan.push({
@@ -204,6 +217,10 @@ export function generateOrganizePlan(
   return plan;
 }
 
+function isAbsoluteLocalPath(p?: string): boolean {
+  return Boolean(p && (/^[a-zA-Z]:[\\/]/.test(p) || p.startsWith("/")));
+}
+
 /**
  * 三级阶梯极速查重引擎 (调用后端 Node.js 极速文件流哈希)
  */
@@ -220,7 +237,7 @@ export async function findDuplicatesFast(
       name: f.name,
       size: f.size,
       mtime: f.mtime,
-      buffer: f.fileObj && !f.path ? await f.fileObj.arrayBuffer() : undefined,
+      buffer: f.fileObj && !isAbsoluteLocalPath(f.path) ? await f.fileObj.arrayBuffer() : undefined,
     }))
   );
 
@@ -245,7 +262,7 @@ export async function exportOrganizedZip(
     plan.map(async (item) => ({
       sourcePath: item.sourcePath,
       targetRelativePath: item.targetRelativePath,
-      buffer: item.fileObj && !item.sourcePath ? await item.fileObj.arrayBuffer() : undefined,
+      buffer: item.fileObj && !isAbsoluteLocalPath(item.sourcePath) ? await item.fileObj.arrayBuffer() : undefined,
     }))
   );
 

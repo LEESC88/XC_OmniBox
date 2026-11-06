@@ -195,10 +195,14 @@ function registerIpcHandlers(options = {}) {
 
   ipcMain.handle('files:save-batch', async (_e, payload) => {
     const config = getDesktopConfig();
-    return await getUtilityService().saveBatch({
+    const res = await getUtilityService().saveBatch({
       ...payload,
       defaultPath: config.customExportPath,
     });
+    return {
+      ...res,
+      openFolderAfterExport: Boolean(config.openFolderAfterExport),
+    };
   });
 
   ipcMain.handle('files:find-duplicates', async (_e, payload) => {

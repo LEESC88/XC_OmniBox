@@ -84,6 +84,15 @@ export default function SpreadsheetToolbox({
 
   const [error, setError] = useState<string | null>(null);
 
+  // 响应语言切换时同步默认来源列名
+  useEffect(() => {
+    setSourceColName((prev) => {
+      if (prev === "数据来源文件" && lang === "en") return "Source_File";
+      if (prev === "Source_File" && lang !== "en") return "数据来源文件";
+      return prev;
+    });
+  }, [lang]);
+
   // 响应外部传入 Tab 切换
   useEffect(() => {
     if (currentTab && currentTab !== activeTab) {
@@ -95,14 +104,18 @@ export default function SpreadsheetToolbox({
   // 响应外部拖入/关联文件
   useEffect(() => {
     if (incomingFiles && incomingFiles.length > 0) {
-      if (activeTab === "sheet-merge") {
+      const targetTab = currentTab || activeTab;
+      if (currentTab && currentTab !== activeTab) {
+        setActiveTab(currentTab);
+      }
+      if (targetTab === "sheet-merge") {
         setMergeFiles((prev) => [...prev, ...incomingFiles]);
       } else {
         setSplitFile(incomingFiles[0]);
       }
       onIncomingFilesHandled?.();
     }
-  }, [incomingFiles]);
+  }, [incomingFiles, currentTab]);
 
   const handleTabSelect = (tabId: SpreadsheetTab) => {
     setActiveTab(tabId);
@@ -141,7 +154,7 @@ export default function SpreadsheetToolbox({
         })
         .catch((err) => {
           setSplitProbe(null);
-          setError(err?.message || "解析表格失败");
+          setError(err?.message || (lang === "en" ? "Failed to parse spreadsheet" : "解析表格失败"));
         });
     } else {
       setSplitProbe(null);
@@ -233,7 +246,11 @@ export default function SpreadsheetToolbox({
           targetSheetName: splitSheetName || undefined,
         },
         (progress) => {
-          setSplitProgressText(`[${progress.current}/${progress.total}] 正在生成分组: ${progress.currentKey}`);
+          setSplitProgressText(
+            lang === "en"
+              ? `[${progress.current}/${progress.total}] Generating group: ${progress.currentKey}`
+              : `[${progress.current}/${progress.total}] 正在生成分组: ${progress.currentKey}`
+          );
         }
       );
       setSplitResult(result);

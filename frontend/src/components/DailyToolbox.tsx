@@ -211,11 +211,29 @@ export default function DailyToolbox({
   const [wifiHidden, setWifiHidden] = useState(false);
 
   // vCard 电子名片专属字段
-  const [vcardName, setVcardName] = useState("张经理");
+  const [vcardName, setVcardName] = useState(() => (lang === "en" ? "Alex Zhang" : "张经理"));
   const [vcardPhone, setVcardPhone] = useState("13800138000");
-  const [vcardCompany, setVcardCompany] = useState("科技创新发展有限公司");
-  const [vcardTitle, setVcardTitle] = useState("业务总监");
+  const [vcardCompany, setVcardCompany] = useState(() => (lang === "en" ? "Tech Innovation Ltd." : "科技创新发展有限公司"));
+  const [vcardTitle, setVcardTitle] = useState(() => (lang === "en" ? "Business Director" : "业务总监"));
   const [vcardEmail, setVcardEmail] = useState("contact@example.com");
+
+  useEffect(() => {
+    setVcardName((prev) => {
+      if (prev === "张经理" && lang === "en") return "Alex Zhang";
+      if (prev === "Alex Zhang" && lang !== "en") return "张经理";
+      return prev;
+    });
+    setVcardCompany((prev) => {
+      if (prev === "科技创新发展有限公司" && lang === "en") return "Tech Innovation Ltd.";
+      if (prev === "Tech Innovation Ltd." && lang !== "en") return "科技创新发展有限公司";
+      return prev;
+    });
+    setVcardTitle((prev) => {
+      if (prev === "业务总监" && lang === "en") return "Business Director";
+      if (prev === "Business Director" && lang !== "en") return "业务总监";
+      return prev;
+    });
+  }, [lang]);
 
   const [qrText, setQrText] = useState("https://github.com/LEESC88/XC_OmniBox");
   const [qrFgColor, setQrFgColor] = useState("#2b1e16");
@@ -471,7 +489,7 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
     const folderRoot = firstRel ? firstRel.split("/")[0] : "Folder";
     setOrganizeFolderPath(folderRoot);
     const metas: FileItemMeta[] = fileList.map((f) => ({
-      path: f.webkitRelativePath || f.name,
+      path: (f as any).path || f.webkitRelativePath || f.name,
       name: f.name,
       size: f.size,
       mtime: f.lastModified,
@@ -616,7 +634,7 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
     const folderRoot = firstRel ? firstRel.split("/")[0] : "Folder";
     setDupFolderPath(folderRoot);
     const metas: FileItemMeta[] = fileList.map((f) => ({
-      path: f.webkitRelativePath || f.name,
+      path: (f as any).path || f.webkitRelativePath || f.name,
       name: f.name,
       size: f.size,
       mtime: f.lastModified,
@@ -827,11 +845,11 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                 </div>
                 <div className="flex items-center flex-wrap justify-center gap-2 pt-1 text-[11px] font-medium text-coconut-600 dark:text-darkbg-muted">
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
-                    ⚡ 边缘羽化抠图算法
+                    {lang === "en" ? "⚡ Edge-Feathered Cutout" : "⚡ 边缘羽化抠图算法"}
                   </span>
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-semibold">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                    100% 本地沙盒保密
+                    {lang === "en" ? "100% Local Sandbox Privacy" : "100% 本地沙盒保密"}
                   </span>
                 </div>
               </div>
@@ -1163,14 +1181,14 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                 </div>
                 <div className="flex items-center flex-wrap justify-center gap-2 pt-1 text-[11px] font-medium text-coconut-600 dark:text-darkbg-muted">
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
-                    ⚡ 变更试运行预演 (Dry Run)
+                    {lang === "en" ? "⚡ Dry-Run Preview" : "⚡ 变更试运行预演 (Dry Run)"}
                   </span>
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
-                    🛡️ 重名冲突自动追加序号
+                    {lang === "en" ? "🛡️ Auto Rename on Conflict" : "🛡️ 重名冲突自动追加序号"}
                   </span>
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-semibold">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                    100% 本地极速处理
+                    {lang === "en" ? "100% Local Processing" : "100% 本地极速处理"}
                   </span>
                 </div>
               </div>
@@ -1493,14 +1511,14 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                 </div>
                 <div className="flex items-center flex-wrap justify-center gap-2 pt-1 text-[11px] font-medium text-coconut-600 dark:text-darkbg-muted">
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
-                    ⚡ 三级阶梯短路哈希 (Level 1-3)
+                    {lang === "en" ? "⚡ 3-Tier Short-Circuit Hash" : "⚡ 三级阶梯短路哈希 (Level 1-3)"}
                   </span>
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
-                    🛡️ 原件/副本智能区分标注
+                    {lang === "en" ? "🛡️ Smart Original/Replica Tagging" : "🛡️ 原件/副本智能区分标注"}
                   </span>
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 text-rose-700 dark:text-rose-400 font-semibold">
                     <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                    系统回收站防误删保障
+                    {lang === "en" ? "Safe Recycle Bin Protection" : "系统回收站防误删保障"}
                   </span>
                 </div>
               </div>
@@ -2064,7 +2082,9 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                       </div>
                       <div className="grid grid-cols-2 gap-3 text-xs">
                         <div>
-                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">姓名</label>
+                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">
+                            {lang === "en" ? "Full Name" : "姓名"}
+                          </label>
                           <input
                             type="text"
                             value={vcardName}
@@ -2073,7 +2093,9 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                           />
                         </div>
                         <div>
-                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">手机号码</label>
+                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">
+                            {lang === "en" ? "Phone Number" : "手机号码"}
+                          </label>
                           <input
                             type="text"
                             value={vcardPhone}
@@ -2082,7 +2104,9 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                           />
                         </div>
                         <div>
-                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">公司/机构</label>
+                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">
+                            {lang === "en" ? "Company / Organization" : "公司/机构"}
+                          </label>
                           <input
                             type="text"
                             value={vcardCompany}
@@ -2091,7 +2115,9 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                           />
                         </div>
                         <div>
-                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">电子邮箱</label>
+                          <label className="text-[11px] text-coconut-600 dark:text-darkbg-muted block mb-1">
+                            {lang === "en" ? "Email Address" : "电子邮箱"}
+                          </label>
                           <input
                             type="text"
                             value={vcardEmail}
@@ -2110,7 +2136,7 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                         rows={3}
                         value={qrText}
                         onChange={(e) => setQrText(e.target.value)}
-                        placeholder="输入需要生成二维码的网页链接或任意文字..."
+                        placeholder={lang === "en" ? "Enter URL or any text to encode into QR code..." : "输入需要生成二维码的网页链接或任意文字..."}
                         className="w-full p-3.5 text-sm bg-white/70 dark:bg-darkbg-subtle border border-coconut-300/80 dark:border-darkbg-border rounded-2xl font-mono text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
                       />
                     </div>

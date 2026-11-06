@@ -87,7 +87,16 @@ class UtilityService {
           continue;
         }
 
-        fs.renameSync(task.sourcePath, finalTarget);
+        try {
+          fs.renameSync(task.sourcePath, finalTarget);
+        } catch (renameErr) {
+          if (renameErr && renameErr.code === 'EXDEV') {
+            fs.copyFileSync(task.sourcePath, finalTarget);
+            fs.unlinkSync(task.sourcePath);
+          } else {
+            throw renameErr;
+          }
+        }
         executed.push({ source: task.sourcePath, target: finalTarget });
       } catch (err) {
         errors.push({ source: task.sourcePath, error: err.message });
@@ -320,6 +329,13 @@ class UtilityService {
         continue;
       }
 
+      if (options?.onlyTopLevel && file.relPath) {
+        const segments = String(file.relPath).replace(/\\/g, '/').split('/').filter(Boolean);
+        if (segments.length > 1) {
+          continue;
+        }
+      }
+
       let category = '其他文件 (Others)';
       let targetSubDir = '其他文件';
 
@@ -332,10 +348,20 @@ class UtilityService {
         const m = String(d.getMonth() + 1).padStart(2, '0');
         category = `${y}年${m}月`;
         targetSubDir = `${y}-${m}`;
+      } else if (rule === 'clean-empty') {
+        if (file.size !== 0) {
+          continue;
+        }
+        category = '0KB 空文件 (Empty Files)';
+        targetSubDir = '0KB_空文件隔离区';
       }
 
       const targetRelativePath = `${targetSubDir}/${file.name}`;
       const targetFullPath = baseFolderPath ? path.join(baseFolderPath, targetSubDir, file.name) : undefined;
+
+      if (targetFullPath && file.path && path.resolve(file.path) === path.resolve(targetFullPath)) {
+        continue;
+      }
 
       plan.push({
         id: `plan_${file.name}_${file.size}_${file.mtime}`,

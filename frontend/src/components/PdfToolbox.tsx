@@ -159,13 +159,18 @@ export default function PdfToolbox({
   // Handle incoming files from clipboard / cross-tool bus
   useEffect(() => {
     if (incomingFiles && incomingFiles.length > 0) {
+      const effectiveTab = currentTab || activeTab;
+      const isSwitchingTab = Boolean(currentTab && currentTab !== activeTab);
+      if (isSwitchingTab) {
+        setActiveTab(currentTab!);
+      }
       if (
-        activeTab === "images-to-pdf" ||
-        activeTab === "pdf-merge" ||
-        activeTab === "pdf-to-word" ||
-        activeTab === "word-to-pdf"
+        effectiveTab === "images-to-pdf" ||
+        effectiveTab === "pdf-merge" ||
+        effectiveTab === "pdf-to-word" ||
+        effectiveTab === "word-to-pdf"
       ) {
-        setFiles((prev) => [...prev, ...incomingFiles]);
+        setFiles((prev) => (isSwitchingTab ? incomingFiles : [...prev, ...incomingFiles]));
       } else {
         setFiles([incomingFiles[0]]);
       }
@@ -1793,18 +1798,11 @@ export default function PdfToolbox({
 
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <button
-                  onClick={async () => {
-                    if (executionResult.batchFiles && executionResult.batchFiles.length > 1) {
-                      await exportBatchFiles(executionResult.batchFiles, {
-                        zipName: executionResult.filename,
-                        lang,
-                      });
-                    } else {
-                      downloadBlob(
-                        executionResult.blob,
-                        executionResult.filename,
-                      );
-                    }
+                  onClick={() => {
+                    downloadBlob(
+                      executionResult.blob,
+                      executionResult.filename,
+                    );
                   }}
                   data-download-result="true"
                   className="flex-1 py-3 px-4 rounded-xl btn-3d-sunset text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-coconut-sm cursor-pointer"
@@ -1812,10 +1810,25 @@ export default function PdfToolbox({
                   <Download className="w-4 h-4" />
                   <span>
                     {executionResult.batchFiles && executionResult.batchFiles.length > 1
-                      ? (lang === "en" ? "Export All / Download ZIP" : "批量导出全部 / 打包 ZIP")
+                      ? (lang === "en" ? "Download ZIP Archive" : "打包下载 ZIP")
                       : t.common.downloadNow}
                   </span>
                 </button>
+
+                {executionResult.batchFiles && executionResult.batchFiles.length > 1 && (
+                  <button
+                    onClick={async () => {
+                      await exportBatchFiles(executionResult.batchFiles!, {
+                        zipName: executionResult.filename,
+                        lang,
+                      });
+                    }}
+                    className="py-3 px-4 rounded-xl btn-3d-secondary font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Archive className="w-3.5 h-3.5" />
+                    <span>{lang === "en" ? "Save All to Folder" : "全部导出至文件夹"}</span>
+                  </button>
+                )}
 
                 <button
                   onClick={() => {
@@ -1883,9 +1896,7 @@ export default function PdfToolbox({
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span>
-                    {activeTab === "pdf-to-word" && conversionPhase
-                      ? conversionPhase
-                      : t.common.processing}
+                    {conversionPhase || t.common.processing}
                   </span>
                 </>
               ) : (

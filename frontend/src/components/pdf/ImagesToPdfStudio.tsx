@@ -190,7 +190,7 @@ export default function ImagesToPdfStudio({
                   onClick={() => moveUp(idx)}
                   disabled={idx === 0}
                   className="w-6 h-6 rounded-lg bg-black/60 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/80 disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="上移"
+                  title={lang === "en" ? "Move Up" : "上移"}
                 >
                   <ArrowUp className="w-3.5 h-3.5" />
                 </button>
@@ -198,14 +198,14 @@ export default function ImagesToPdfStudio({
                   onClick={() => moveDown(idx)}
                   disabled={idx === files.length - 1}
                   className="w-6 h-6 rounded-lg bg-black/60 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/80 disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="下移"
+                  title={lang === "en" ? "Move Down" : "下移"}
                 >
                   <ArrowDown className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => removeFile(idx)}
                   className="w-6 h-6 rounded-lg bg-rose-600/80 backdrop-blur-md text-white flex items-center justify-center hover:bg-rose-700"
-                  title="删除"
+                  title={lang === "en" ? "Remove" : "删除"}
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>

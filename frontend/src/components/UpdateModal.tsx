@@ -32,7 +32,7 @@ export default function UpdateModal({
 }) {
   const { t, lang } = useI18n();
   const [updateState, setUpdateState] = useState<UpdateInfo>({ status: "idle" });
-  const [currentVersion, setCurrentVersion] = useState<string>("1.6.1");
+  const [currentVersion, setCurrentVersion] = useState<string>("1.7.3");
   const [isElectron, setIsElectron] = useState(false);
 
   useEffect(() => {
@@ -78,7 +78,17 @@ export default function UpdateModal({
     if (typeof window !== "undefined" && (window as any).electronAPI) {
       setUpdateState({ status: "checking" });
       try {
-        await (window as any).electronAPI.checkForUpdates();
+        const res = await (window as any).electronAPI.checkForUpdates();
+        if (res?.isDev) {
+          setUpdateState({ status: "not-available", version: currentVersion });
+        } else if (res && res.success === false && res.error) {
+          const msg = res.error || "";
+          if (msg.includes("No published") || msg.includes("404") || msg.includes("Cannot find")) {
+            setUpdateState({ status: "not-available" });
+          } else {
+            setUpdateState({ status: "error", message: msg });
+          }
+        }
       } catch (err: any) {
         setUpdateState({
           status: "error",

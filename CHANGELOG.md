@@ -4,6 +4,25 @@ All notable updates and releases for **XC_OmniBox** will be documented in this f
 
 For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
+## 🌟 v1.7.3 Comprehensive System Bug Fixes, Tray & Auto-Update Stability, Organizer Logic & Cross-Tool Routing Fixes
+
+- 🖥️ **Desktop Tray, Auto-Start & Auto-Updater Stability Fixes**:
+  - Fixed a `ReferenceError` crash (`stopBackendService is not defined`) when clicking **"Exit Completely (彻底退出)"** in the system tray menu.
+  - Connected the **"Auto-Start on Boot (开机自动启动)"** toggle in Settings by exposing `setAutoStart` in `preload.js`.
+  - Fixed the system tray **"Check for Updates"** action to properly open `UpdateModal` and trigger a silent update check, implemented startup update checking when `autoCheckUpdate` is enabled, and added singleton IPC guard protection in `updater.js`.
+  - Respected the **"Automatically open output folder after export"** user setting during batch file exports.
+- 📄 **Document Engine & Unicode Filename Reliability**:
+  - Fixed `wordToPdf` conversion failures on `.docx` files with Chinese, spaces, or special characters in their filenames by using pure-ASCII temporary workspace paths and writing `convert.ps1` with a UTF-8 BOM for Windows PowerShell 5.1 compatibility.
+  - Fixed the pure-Node.js `wordToPdf` fallback to properly unzip `word/document.xml` before extracting text runs, and aligned `extractOfficeMedia` progress callback signatures.
+- 🗂️ **Smart Folder Organizer & Deduplicator Fixes**:
+  - Fixed a critical bug in **"Isolate 0KB Files (`clean-empty`)"** where non-empty files were inadvertently categorized into `"其他文件"`; now strictly filters for `file.size === 0`.
+  - Added cross-drive (`EXDEV`) copy-and-unlink fallback when moving files across different disk partitions, and improved local path handling for dragged directories.
+- 🔗 **Cross-Tool Bus (`SendTo`) & Full Bilingual Polish**:
+  - Updated `SendToButton` routing for **Searchable PDF** and **Images to PDF** to target the dedicated `pdf` module, eliminating tab-switching race conditions across `PdfToolbox`, `DocumentToolbox`, and `SpreadsheetToolbox`.
+  - Added dual **"Download ZIP Archive"** and **"Save All to Folder"** actions for batch PDF/Word conversions, and localized all remaining floating toolbars, tooltips, and default form values in `PdfInplaceTextStudio`, `PdfWatermarkStudio`, `SpreadsheetToolbox`, and `DailyToolbox`.
+
+---
+
 ## 🌟 v1.7.2 Batch PDF/Word Multi-File Conversion, Zero-Bloat Color Emoji Word-to-PDF Engine & Text Diff i18n Fix
 
 - 📦 **Batch Multi-File Conversion for PDF to Word & Word to PDF**:

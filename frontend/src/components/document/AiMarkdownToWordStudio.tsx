@@ -278,7 +278,7 @@ export default function AiMarkdownToWordStudio({
       setInspectResult(res);
       setLastExported(null);
     } catch (err: any) {
-      setError(err?.message || "读取文件失败");
+      setError(err?.message || (lang === "en" ? "Failed to read file" : "读取文件失败"));
     } finally {
       setInspecting(false);
     }

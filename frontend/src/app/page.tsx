@@ -552,7 +552,7 @@ export default function Home() {
   // 客户端自动更新弹窗状态与版本感知
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
-  const [appVersion, setAppVersion] = useState<string>("1.7.2");
+  const [appVersion, setAppVersion] = useState<string>("1.7.3");
 
   // 快捷键指南弹窗状态与全局提示
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
@@ -799,6 +799,9 @@ export default function Home() {
       }
       const unsubscribe = api.onUpdateStatus(
         (data: any) => {
+          if (data?.fromTray) {
+            setUpdateModalOpen(true);
+          }
           if (data.status === "available" || data.status === "ready") {
             setHasUpdate(true);
           }

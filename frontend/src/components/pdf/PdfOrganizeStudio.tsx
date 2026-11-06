@@ -392,7 +392,7 @@ export default function PdfOrganizeStudio({
                   </div>
 
                   <span className="text-[10px] text-coconut-500 dark:text-darkbg-muted font-mono">
-                    原第 {p.originalIndex + 1} 页
+                    {lang === "en" ? `Orig. P${p.originalIndex + 1}` : `原第 ${p.originalIndex + 1} 页`}
                   </span>
 
                   <div className="flex items-center gap-0.5">
@@ -460,7 +460,7 @@ export default function PdfOrganizeStudio({
                 </span>
                 {zoomedItem.page.rotation !== 0 && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-palm-500/20 text-palm-800 dark:text-palm-300 font-mono">
-                    旋转 {zoomedItem.page.rotation}°
+                    {lang === "en" ? `Rotated ${zoomedItem.page.rotation}°` : `旋转 ${zoomedItem.page.rotation}°`}
                   </span>
                 )}
               </div>
@@ -491,14 +491,14 @@ export default function PdfOrganizeStudio({
                   className="py-2 px-3 rounded-xl bg-coconut-100 dark:bg-darkbg-subtle text-xs font-bold flex items-center gap-1.5"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>左转 90°</span>
+                  <span>{lang === "en" ? "Rotate Left 90°" : "左转 90°"}</span>
                 </button>
                 <button
                   onClick={() => rotatePageCw(zoomedItem.index)}
                   className="py-2 px-3 rounded-xl bg-coconut-100 dark:bg-darkbg-subtle text-xs font-bold flex items-center gap-1.5"
                 >
                   <RotateCw className="w-3.5 h-3.5" />
-                  <span>右转 90°</span>
+                  <span>{lang === "en" ? "Rotate Right 90°" : "右转 90°"}</span>
                 </button>
               </div>
 
