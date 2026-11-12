@@ -27,6 +27,7 @@ import {
   convertMarkdownToWord,
   downloadBlob,
   MarkdownInspectResult,
+  MarkdownInlineRun,
   WordTemplateType,
 } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -273,8 +274,14 @@ export default function AiMarkdownToWordStudio({
       const res = await inspectMarkdown({
         file,
         cleanAiArtifacts,
+        lang,
       });
-      setContent(res.normalizedMarkdown);
+      if (/\.html?$/i.test(file.name)) {
+        setContent(res.normalizedMarkdown);
+      } else {
+        const rawFileText = await file.text();
+        setContent(rawFileText || res.normalizedMarkdown);
+      }
       setInspectResult(res);
       setLastExported(null);
     } catch (err: any) {
@@ -411,6 +418,58 @@ export default function AiMarkdownToWordStudio({
           : "border-coconut-200/90 dark:border-darkbg-border bg-white dark:bg-darkbg-card hover:border-emerald-300",
     },
   ];
+
+  const renderInlineRunsPreview = (runs?: MarkdownInlineRun[], fallbackText?: string) => {
+    if (!runs || runs.length === 0) return fallbackText || "";
+    return runs.map((r, rIdx) => {
+      const isCode = r.type === "code" || r.mono;
+      const isBadge = r.isBadge;
+      const style: React.CSSProperties = {};
+      if (r.color) style.color = `#${r.color}`;
+      if (r.highlight) style.backgroundColor = `#${r.highlight}`;
+      if (r.fontSizePt) style.fontSize = `${Math.max(10, r.fontSizePt)}px`;
+
+      if (isBadge) {
+        return (
+          <span
+            key={rIdx}
+            style={{
+              ...style,
+              border: r.color ? `1px solid #${r.color}55` : "1px solid #cbd5e1",
+            }}
+            className="inline-block px-2 py-0.5 rounded font-semibold text-[10px] leading-tight mx-0.5"
+          >
+            {r.text.trim()}
+          </span>
+        );
+      }
+
+      if (isCode) {
+        return (
+          <code
+            key={rIdx}
+            className={`px-1 py-0.5 rounded bg-slate-100 text-pink-700 border border-slate-200 font-mono text-[10px] ${
+              r.bold ? "font-bold" : ""
+            }`}
+          >
+            {r.text}
+          </code>
+        );
+      }
+
+      return (
+        <span
+          key={rIdx}
+          style={style}
+          className={`${r.bold ? "font-bold" : ""} ${r.italic ? "italic" : ""} ${
+            r.strike ? "line-through" : ""
+          } ${r.highlight && !isBadge ? "px-1 rounded" : ""}`}
+        >
+          {r.text}
+        </span>
+      );
+    });
+  };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -834,7 +893,7 @@ export default function AiMarkdownToWordStudio({
                           key={idx}
                           className="pl-3 py-1.5 bg-blue-50 border-l-4 border-blue-600 font-bold text-blue-950 text-xs sm:text-sm mt-4 rounded-r-lg"
                         >
-                          {b.text}
+                          {renderInlineRunsPreview(b.runs, b.text)}
                         </div>
                       );
                     }
@@ -844,7 +903,7 @@ export default function AiMarkdownToWordStudio({
                           key={idx}
                           className="font-bold text-slate-900 text-xs sm:text-sm mt-3 pb-1 border-b border-slate-200"
                         >
-                          {b.text}
+                          {renderInlineRunsPreview(b.runs, b.text)}
                         </div>
                       );
                     }
@@ -855,7 +914,7 @@ export default function AiMarkdownToWordStudio({
                           lvl === 1 ? "text-xs sm:text-sm" : "text-xs"
                         } ${template === "gov-redhead" && firstLineIndent ? "indent-6 font-serif" : ""}`}
                       >
-                        {b.text}
+                        {renderInlineRunsPreview(b.runs, b.text)}
                       </div>
                     );
                   }
@@ -868,22 +927,29 @@ export default function AiMarkdownToWordStudio({
                           firstLineIndent ? "indent-6" : ""
                         } ${template !== "business-report" ? "font-serif" : ""}`}
                       >
-                        {b.text}
+                        {renderInlineRunsPreview(b.runs, b.text)}
                       </p>
                     );
                   }
 
                   if (b.type === "blockquote") {
+                    const quoteLines = (b.text || "").split(/\r?\n/).filter((l) => l.trim().length > 0);
                     return (
                       <div
                         key={idx}
-                        className={`px-3.5 py-2.5 rounded-r-xl border-l-4 text-[11px] leading-relaxed ${
+                        className={`px-3.5 py-2.5 rounded-r-xl border-l-4 text-[11px] leading-relaxed space-y-1 ${
                           template === "gov-redhead"
                             ? "border-[#D40000] bg-red-50/70 text-slate-800"
                             : "border-blue-500 bg-slate-50 text-slate-700"
                         }`}
                       >
-                        {b.text}
+                        {quoteLines.length <= 1 ? (
+                          <div>{renderInlineRunsPreview(b.runs, b.text)}</div>
+                        ) : (
+                          quoteLines.map((ql, qIdx) => (
+                            <div key={qIdx}>{ql}</div>
+                          ))
+                        )}
                       </div>
                     );
                   }
@@ -930,16 +996,29 @@ export default function AiMarkdownToWordStudio({
                                   isBusiness && rIdx % 2 === 1 ? "bg-slate-50" : "bg-white"
                                 }
                               >
-                                {row.map((cell, cIdx) => (
-                                  <td
-                                    key={cIdx}
-                                    className={`px-2.5 py-1.5 text-slate-800 ${
-                                      isThreeLine ? "" : "border border-slate-300"
-                                    }`}
-                                  >
-                                    {cell}
-                                  </td>
-                                ))}
+                                {row.map((cell, cIdx) => {
+                                  const richCellLines = b.richRows?.[rIdx]?.[cIdx];
+                                  return (
+                                    <td
+                                      key={cIdx}
+                                      className={`px-2.5 py-1.5 text-slate-800 align-middle ${
+                                        isThreeLine ? "" : "border border-slate-300"
+                                      }`}
+                                    >
+                                      {richCellLines && richCellLines.length > 0 ? (
+                                        <div className="space-y-0.5">
+                                          {richCellLines.map((lineRuns, lIdx) => (
+                                            <div key={lIdx}>
+                                              {renderInlineRunsPreview(lineRuns, "")}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        cell
+                                      )}
+                                    </td>
+                                  );
+                                })}
                               </tr>
                             ))}
                           </tbody>
@@ -962,7 +1041,7 @@ export default function AiMarkdownToWordStudio({
                                   ? `${iIdx + 1}.`
                                   : "•"}
                             </span>
-                            <span>{it.text}</span>
+                            <span>{renderInlineRunsPreview(it.runs, it.text)}</span>
                           </div>
                         ))}
                       </div>

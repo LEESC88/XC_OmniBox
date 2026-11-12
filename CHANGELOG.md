@@ -4,6 +4,23 @@ All notable updates and releases for **XC_OmniBox** will be documented in this f
 
 For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
+## 🌟 v1.7.4 High-Fidelity Markdown-to-Word (.docx) Engine Overhaul: Code Block Shielding, Inline HTML Badge Rendering, Recursive Inline Formatting & Table Layout Fixes
+
+- 🛡️ **Fenced & Inline Code Block Zero-Loss Shielding**:
+  - Fixed a critical pre-processing bug in `normalizeInputContent` where HTML tags (`<div>`, `<span>`, `<th>`, `<a>`) inside fenced code blocks (```` ```javascript ... ``` ````) were stripped or replaced with newlines.
+  - Added placeholder shielding for all fenced and inline code blocks prior to HTML-to-Markdown normalization, converted leading indentation spaces/tabs on code lines into non-breaking spaces (`\u00A0`) so Word preserves code indentation, and added `html`/`xml`/`svg`/`vue` syntax highlighting aliases.
+- 📊 **Markdown Table Row Protection & `<span style="...">` Pill Badge / `<br>` Rendering**:
+  - Prevented inline `<span>` tags inside Markdown table rows (`| ... |`) from being replaced with `\n`, fixing broken table rows, blank columns, and raw pipe (`|`) text leaking outside tables.
+  - Protected pipe characters (`|`) inside backtick code spans (e.g. `` `a | b` ``) from splitting table columns during cell parsing.
+  - Added `parseCssInlineStyle` to extract CSS colors, `rgba()` background fills (blended onto white paper), and border pill badges (`Full-Time` / `Part-Time`), and split table cells containing `<br>` into independent centered/aligned sub-paragraphs.
+- ✍️ **Recursive Inline Rich-Text Parser & Multi-Line Blockquotes**:
+  - Upgraded `parseInlineRuns` to recursively inherit styles, properly rendering bold inline code combinations such as `**`-`**`, `**`Absent`**`, and `**`[ 📊 Export Excel ]`**` without leaving raw backticks.
+  - Split multi-line blockquotes (`> ...`) into distinct styled paragraphs and tuned `keepNext` thresholds on medium/large tables and long code blocks to eliminate large blank page gaps.
+- 🖥️ **Source-Preserving File Import & Live Rich-Text Preview**:
+  - Updated `AiMarkdownToWordStudio.tsx` so importing `.md` files preserves the original raw Markdown source in the editor, while upgrading the simulated A4 preview to render pill badges, inline code chips, and multi-line table cells.
+
+---
+
 ## 🌟 v1.7.3 Comprehensive System Bug Fixes, Tray & Auto-Update Stability, Organizer Logic & Cross-Tool Routing Fixes
 
 - 🖥️ **Desktop Tray, Auto-Start & Auto-Updater Stability Fixes**:

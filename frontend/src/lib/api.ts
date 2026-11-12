@@ -626,15 +626,32 @@ export async function convertTableEncoding(
 
 export type WordTemplateType = "gov-redhead" | "business-report" | "academic-paper";
 
+export interface MarkdownInlineRun {
+  type: "text" | "code" | "math" | "link";
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  strike?: boolean;
+  mono?: boolean;
+  color?: string;
+  highlight?: string;
+  isBadge?: boolean;
+  fontSizePt?: number;
+  href?: string;
+}
+
 export interface MarkdownPreviewBlock {
   type: "heading" | "paragraph" | "table" | "code" | "blockquote" | "list" | "hr";
   level?: number;
   text?: string;
+  runs?: MarkdownInlineRun[];
   headers?: string[];
   rows?: string[][];
+  richRows?: MarkdownInlineRun[][][][];
   alignments?: ("left" | "center" | "right")[];
   items?: Array<{
     text: string;
+    runs?: MarkdownInlineRun[];
     ordered: boolean;
     level: number;
     checked?: boolean | null;

@@ -157,6 +157,10 @@ const LANG_ALIAS = {
   golang: 'go',
   rs: 'rust',
   rb: 'ruby',
+  html: 'markup',
+  xml: 'markup',
+  svg: 'markup',
+  vue: 'markup',
 };
 
 function tokenizeCode(codeText, langName = '') {
@@ -304,8 +308,9 @@ function decodeInputBuffer(fileBuffer) {
 
 /**
  * 预处理与规范化文本：
- * 1. 将网页复制粘贴带入的 HTML 表格 / 标题 / 列表无损转译为标准 Markdown 结构
- * 2. 可选清理 AI 对话首尾客套寒暄语（如“好的，以下是为您生成的...”）
+ * 1. 先隔离保护所有围栏代码块 (```...``` / ~~~...~~~) 与行内代码 (`...`)，绝不让 HTML/实体替换破坏代码内容
+ * 2. 将网页复制粘贴带入的 HTML 表格 / 标题 / 列表无损转译为标准 Markdown 结构（同时保留 <span style="..."> 与 <br>）
+ * 3. 可选清理 AI 对话首尾客套寒暄语（如“好的，以下是为您生成的...”）
  */
 function normalizeInputContent(rawText, cleanAiArtifacts = true) {
   let text = String(rawText || '')
@@ -313,7 +318,23 @@ function normalizeInputContent(rawText, cleanAiArtifacts = true) {
     .replace(/\r/g, '\n')
     .replace(/\u200B|\u200C|\u200D|\uFEFF/g, '');
 
-  // 将 HTML <table> 转换为标准 Markdown 表格
+  // 1. 隔离保护围栏代码块（支持缩进围栏、3个及以上反引号或波浪号）
+  const fencedShields = [];
+  text = text.replace(/^[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?^[ \t]*\1[ \t]*$/gm, (match) => {
+    const idx = fencedShields.length;
+    fencedShields.push(match);
+    return `\x00FENCED_CODE_${idx}\x00`;
+  });
+
+  // 2. 隔离保护行内代码（支持单反引号与双反引号 `` `code` ``）
+  const inlineShields = [];
+  text = text.replace(/(`+)([^`\n]+?)\1/g, (match) => {
+    const idx = inlineShields.length;
+    inlineShields.push(match);
+    return `\x00INLINE_CODE_${idx}\x00`;
+  });
+
+  // 3. 将 HTML <table> 转换为标准 Markdown 表格（保留 <br> 与 <span style="...">）
   if (/<table[\s>]/i.test(text)) {
     text = text.replace(/<table[^>]*>([\s\S]*?)<\/table>/gi, (_match, tableInner) => {
       const rows = [];
@@ -325,14 +346,15 @@ function normalizeInputContent(rawText, cleanAiArtifacts = true) {
         let cellMatch;
         while ((cellMatch = cellRegex.exec(trMatch[1])) !== null) {
           const cellText = cellMatch[2]
-            .replace(/<br\s*\/?>/gi, ' / ')
-            .replace(/<\/p>\s*<p[^>]*>/gi, ' / ')
-            .replace(/<[^>]+>/g, '')
+            .replace(/<br\s*\/?>/gi, '<br>')
+            .replace(/<\/p>\s*<p[^>]*>/gi, '<br>')
+            .replace(/<(?!\/?(?:span|br|strong|b|em|i|mark|code|sub|sup)\b)[^>]+>/gi, '')
             .replace(/&nbsp;/gi, ' ')
             .replace(/&amp;/gi, '&')
             .replace(/&lt;/gi, '<')
             .replace(/&gt;/gi, '>')
-            .replace(/\s+/g, ' ')
+            .replace(/\s*\n\s*/g, ' ')
+            .replace(/[ \t]{2,}/g, ' ')
             .trim();
           cells.push(cellText);
         }
@@ -352,7 +374,7 @@ function normalizeInputContent(rawText, cleanAiArtifacts = true) {
     });
   }
 
-  // 将常见 HTML 块级与内联标签转为 Markdown
+  // 4. 将常见 HTML 内联格式化标签转为 Markdown（保留 <span style="..."> 与 <br> 供行内富文本解析器消费）
   text = text
     .replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, '\n# $1\n')
     .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, '\n## $1\n')
@@ -362,13 +384,37 @@ function normalizeInputContent(rawText, cleanAiArtifacts = true) {
     .replace(/<(em|i)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/gi, '*$2*')
     .replace(/<mark(?:\s[^>]*)?>([\s\S]*?)<\/mark>/gi, '==$1==')
     .replace(/<code(?:\s[^>]*)?>([\s\S]*?)<\/code>/gi, '`$1`')
-    .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '- $1\n')
-    .replace(/<\/?(ul|ol|p|div|section|article|span|thead|tbody)[^>]*>/gi, '\n')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"');
+    .replace(/<span(?![^>]*style=)[^>]*>([\s\S]*?)<\/span>/gi, '$1');
+
+  // 5. 逐行处理块级 HTML 标签：严禁在 Markdown 表格行（含 | 的行）中把任何标签替换成 \n，防止把表格行炸碎
+  text = text
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trim();
+      const isTableRow = trimmed.startsWith('|') || (trimmed.includes('|') && /\|.*\|/.test(trimmed));
+      if (isTableRow) {
+        return line
+          .replace(/<\/?(?:div|p|section|article|ul|ol|li|thead|tbody)[^>]*>/gi, ' ')
+          .replace(/&nbsp;/gi, ' ')
+          .replace(/&amp;/gi, '&')
+          .replace(/&lt;/gi, '<')
+          .replace(/&gt;/gi, '>')
+          .replace(/&quot;/gi, '"');
+      }
+      return line
+        .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '- $1\n')
+        .replace(/<\/?(?:ul|ol|p|div|section|article|thead|tbody)[^>]*>/gi, '\n')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"');
+    })
+    .join('\n');
+
+  // 6. 还原行内代码与围栏代码块（原封不动恢复，0 损耗）
+  text = text.replace(/\x00INLINE_CODE_(\d+)\x00/g, (_m, idx) => inlineShields[Number(idx)] ?? '');
+  text = text.replace(/\x00FENCED_CODE_(\d+)\x00/g, (_m, idx) => fencedShields[Number(idx)] ?? '');
 
   if (cleanAiArtifacts) {
     // 清理首行典型 AI 导语（仅当紧跟空行或标题/分隔线时移除，绝不误伤正文）
@@ -411,65 +457,197 @@ function normalizeInputContent(rawText, cleanAiArtifacts = true) {
 }
 
 /**
- * 解析行内富文本 Runs：支持粗斜体、加粗、斜体、删除线、高亮、行内代码、超链接、上下标、行内数学公式与换行 <br>
+ * 解析内联 CSS style 字符串，提取文字颜色、背景底纹（自动将半透明 rgba 混合至白底以适配浅色纸张）、加粗与字号
  */
-function parseInlineRuns(text) {
-  if (!text) return [];
-  const raw = String(text).replace(/<br\s*\/?>/gi, '\n');
+function parseCssInlineStyle(styleStr) {
+  const s = String(styleStr || '');
+  let colorHex = null;
+  let bgHex = null;
+  let isBadge = false;
+  let bold = false;
+  let fontSizePt = null;
 
-  // 综合行内 Token 正则
+  const parseColorVal = (val, isBg = false) => {
+    if (!val) return null;
+    const hexM = /#([0-9a-fA-F]{3,6})\b/.exec(val);
+    if (hexM) {
+      let h = hexM[1].toUpperCase();
+      if (h.length === 3) {
+        h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+      }
+      return h.slice(0, 6);
+    }
+    const rgbM = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)/i.exec(val);
+    if (rgbM) {
+      let r = Math.min(255, parseInt(rgbM[1], 10));
+      let g = Math.min(255, parseInt(rgbM[2], 10));
+      let b = Math.min(255, parseInt(rgbM[3], 10));
+      const a = rgbM[4] !== undefined ? Math.max(0, Math.min(1, parseFloat(rgbM[4]))) : 1;
+      if (isBg && a < 1) {
+        const effA = Math.max(a, 0.16);
+        r = Math.round(r * effA + 255 * (1 - effA));
+        g = Math.round(g * effA + 255 * (1 - effA));
+        b = Math.round(b * effA + 255 * (1 - effA));
+      }
+      return [r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('').toUpperCase();
+    }
+    return null;
+  };
+
+  const darkenBrightTextOnLightBg = (hex) => {
+    if (!hex || hex.length !== 6) return hex;
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    if (lum > 0.62) {
+      return [Math.round(r * 0.58), Math.round(g * 0.58), Math.round(b * 0.58)]
+        .map((x) => x.toString(16).padStart(2, '0'))
+        .join('')
+        .toUpperCase();
+    }
+    return hex;
+  };
+
+  const bgMatch = /(?:^|;)\s*background(?:-color)?\s*:\s*([^;]+)/i.exec(s);
+  if (bgMatch) {
+    bgHex = parseColorVal(bgMatch[1], true);
+  }
+  const colorMatch = /(?:^|;)\s*color\s*:\s*([^;]+)/i.exec(s);
+  if (colorMatch) {
+    colorHex = parseColorVal(colorMatch[1], false);
+    if (colorHex) colorHex = darkenBrightTextOnLightBg(colorHex);
+  }
+  if (/padding|border-radius|border\s*:/i.test(s) && bgHex) {
+    isBadge = true;
+  }
+  if (/font-weight\s*:\s*(?:bold|[6-9]00)/i.test(s)) {
+    bold = true;
+  }
+  const fsMatch = /font-size\s*:\s*(\d+(?:\.\d+)?)px/i.exec(s);
+  if (fsMatch) {
+    fontSizePt = Math.max(8, Math.min(18, Math.round(parseFloat(fsMatch[1]) * 0.75)));
+  }
+
+  return { colorHex, bgHex, isBadge, bold, fontSizePt };
+}
+
+/**
+ * 解析行内富文本 Runs：支持 <span style="..."> 胶囊徽章/着色、双反引号代码、加粗内嵌行内代码（如 **`-`**）、粗斜体、删除线、高亮、超链接、行内数学公式与换行 <br>
+ */
+function parseInlineRuns(text, inheritedStyle = {}) {
+  if (!text) return [];
+  const raw = String(text)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/?(?:div|p)[^>]*>/gi, '');
+
+  // 综合行内 Token 正则（优先级：<span style="..."> -> 双反引号代码 -> 单反引号代码 -> 粗斜体 -> 加粗 -> 斜体 -> 删除线 -> 高亮 -> 数学公式 -> 超链接）
   const tokenRegex =
-    /(\*\*\*([^*]+)\*\*\*|\*\*([^*]+)\*\*|__([^_]+)__|\*([^*\n]+)\*|_([^_\n]+)_|~~([^~]+)~~|==([^=]+)==|`([^`]+)`|\$\$([^$]+)\$\$|\$([^$\n]+)\$|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))/g;
+    /(<span\s+[^>]*style=(["'])([\s\S]*?)\2[^>]*>([\s\S]*?)<\/span>|``([^`\n]+?)``|`([^`\n]+?)`|\*\*\*([\s\S]+?)\*\*\*|\*\*([\s\S]+?)\*\*|__([\s\S]+?)__|\*([^*\n]+?)\*|_([^_\n]+?)_|~~([^~\n]+?)~~|==([^=\n]+?)==|\$\$([^$\n]+?)\$\$|\$([^$\n]+?)\$|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))/gi;
 
   const runs = [];
   let lastIndex = 0;
   let match;
 
+  const pushInherited = (r) => {
+    const cleanedText =
+      r.type === 'text'
+        ? String(r.text || '').replace(/<\/?(?:span|div|p|font)[^>]*>/gi, '')
+        : r.text;
+    if (r.type === 'text' && !cleanedText) return;
+    runs.push({
+      ...r,
+      text: cleanedText,
+      bold: Boolean(r.bold || inheritedStyle.bold),
+      italic: Boolean(r.italic || inheritedStyle.italic),
+      strike: Boolean(r.strike || inheritedStyle.strike),
+      color: r.color || inheritedStyle.color,
+      highlight: r.highlight || inheritedStyle.highlight,
+      isBadge: Boolean(r.isBadge || inheritedStyle.isBadge),
+      fontSizePt: r.fontSizePt || inheritedStyle.fontSizePt,
+    });
+  };
+
   while ((match = tokenRegex.exec(raw)) !== null) {
     if (match.index > lastIndex) {
-      runs.push({ type: 'text', text: raw.slice(lastIndex, match.index) });
+      pushInherited({ type: 'text', text: raw.slice(lastIndex, match.index) });
     }
 
-    if (match[2] !== undefined) {
-      runs.push({ type: 'text', text: match[2], bold: true, italic: true });
-    } else if (match[3] !== undefined || match[4] !== undefined) {
-      runs.push({ type: 'text', text: match[3] ?? match[4], bold: true });
+    if (match[3] !== undefined && match[4] !== undefined) {
+      // <span style="...">inner</span>
+      const css = parseCssInlineStyle(match[3]);
+      const spanInner = match[4];
+      const childRuns = parseInlineRuns(spanInner, {
+        ...inheritedStyle,
+        bold: inheritedStyle.bold || css.bold,
+        color: css.colorHex || inheritedStyle.color,
+        highlight: css.bgHex || inheritedStyle.highlight,
+        isBadge: css.isBadge || inheritedStyle.isBadge,
+        fontSizePt: css.fontSizePt || inheritedStyle.fontSizePt,
+      });
+      if (css.isBadge && childRuns.length > 0) {
+        childRuns[0].text = ` ${childRuns[0].text}`;
+        childRuns[childRuns.length - 1].text = `${childRuns[childRuns.length - 1].text} `;
+      }
+      runs.push(...childRuns);
     } else if (match[5] !== undefined || match[6] !== undefined) {
-      runs.push({ type: 'text', text: match[5] ?? match[6], italic: true });
+      // ``code`` or `code`
+      pushInherited({ type: 'code', text: (match[5] ?? match[6]).trim(), mono: true });
     } else if (match[7] !== undefined) {
-      runs.push({ type: 'text', text: match[7], strike: true });
-    } else if (match[8] !== undefined) {
-      runs.push({ type: 'text', text: match[8], highlight: 'FEF08A' });
-    } else if (match[9] !== undefined) {
-      runs.push({ type: 'code', text: match[9], mono: true });
+      // ***bold italic***
+      const innerRuns = parseInlineRuns(match[7], { ...inheritedStyle, bold: true, italic: true });
+      runs.push(...innerRuns);
+    } else if (match[8] !== undefined || match[9] !== undefined) {
+      // **bold** or __bold__（支持递归解析内嵌行内代码，如 **`Absent`** 或 **`[ 📊 Export Excel ]`**）
+      const innerRuns = parseInlineRuns(match[8] ?? match[9], { ...inheritedStyle, bold: true });
+      runs.push(...innerRuns);
     } else if (match[10] !== undefined || match[11] !== undefined) {
-      const mathClean = cleanLatexMath(match[10] ?? match[11]);
-      runs.push({ type: 'math', text: mathClean, italic: true });
-    } else if (match[12] !== undefined && match[13] !== undefined) {
-      runs.push({ type: 'link', text: match[12], href: match[13] });
+      // *italic* or _italic_
+      const innerRuns = parseInlineRuns(match[10] ?? match[11], { ...inheritedStyle, italic: true });
+      runs.push(...innerRuns);
+    } else if (match[12] !== undefined) {
+      // ~~strike~~
+      const innerRuns = parseInlineRuns(match[12], { ...inheritedStyle, strike: true });
+      runs.push(...innerRuns);
+    } else if (match[13] !== undefined) {
+      // ==highlight==
+      const innerRuns = parseInlineRuns(match[13], { ...inheritedStyle, highlight: 'FEF08A' });
+      runs.push(...innerRuns);
+    } else if (match[14] !== undefined || match[15] !== undefined) {
+      // $$math$$ or $math$
+      const mathClean = cleanLatexMath(match[14] ?? match[15]);
+      pushInherited({ type: 'math', text: mathClean, italic: true });
+    } else if (match[16] !== undefined && match[17] !== undefined) {
+      // [label](url)
+      pushInherited({ type: 'link', text: match[16], href: match[17] });
     }
 
     lastIndex = tokenRegex.lastIndex;
   }
 
   if (lastIndex < raw.length) {
-    runs.push({ type: 'text', text: raw.slice(lastIndex) });
+    pushInherited({ type: 'text', text: raw.slice(lastIndex) });
   }
 
   return runs;
 }
 
 /**
- * 提取纯文本（用于统计与预览）
+ * 提取纯文本（用于统计与预览，保留 <br> 换行）
  */
 function stripInlineMarkdown(text) {
-  return parseInlineRuns(text)
-    .map((r) => r.text || '')
-    .join('');
+  return String(text || '')
+    .split(/<br\s*\/?>|\n/i)
+    .map((line) =>
+      parseInlineRuns(line)
+        .map((r) => r.text || '')
+        .join('')
+    )
+    .join('\n');
 }
 
 /**
- * 切分 Markdown 表格行单元格（支持转义竖线 \|）
+ * 切分 Markdown 表格行单元格（支持转义竖线 \| 以及行内代码 `a | b` 内的竖线保护）
  */
 function splitTableCells(line) {
   let trimmed = line.trim();
@@ -478,11 +656,15 @@ function splitTableCells(line) {
 
   const cells = [];
   let current = '';
+  let inBacktick = false;
   for (let i = 0; i < trimmed.length; i++) {
-    if (trimmed[i] === '\\' && trimmed[i + 1] === '|') {
+    if (trimmed[i] === '`' && (i === 0 || trimmed[i - 1] !== '\\')) {
+      inBacktick = !inBacktick;
+      current += trimmed[i];
+    } else if (trimmed[i] === '\\' && trimmed[i + 1] === '|') {
       current += '|';
       i++;
-    } else if (trimmed[i] === '|') {
+    } else if (trimmed[i] === '|' && !inBacktick) {
       cells.push(current.trim());
       current = '';
     } else {
@@ -530,11 +712,13 @@ function parseMarkdownToAst(rawContent, options = {}) {
     // 2. 围栏代码块 ```lang ... ```
     const fenceMatch = /^(`{3,}|~{3,})\s*([^\s`~]*)/.exec(trimmed);
     if (fenceMatch) {
-      const fence = fenceMatch[1];
+      const fenceChar = fenceMatch[1][0];
+      const fenceLen = fenceMatch[1].length;
+      const closeFenceRe = new RegExp(`^\\s*${fenceChar}{${fenceLen},}\\s*$`);
       const language = fenceMatch[2] || '';
       const codeLines = [];
       i++;
-      while (i < lines.length && !lines[i].trim().startsWith(fence)) {
+      while (i < lines.length && !closeFenceRe.test(lines[i])) {
         codeLines.push(lines[i]);
         i++;
       }
@@ -704,12 +888,21 @@ function parseMarkdownToAst(rawContent, options = {}) {
       continue;
     }
 
-    // 9. 列表项（无序 -/*/+、有序 1./1)、任务复选框 - [x]）
+    // 9. 列表项（无序 -/*/+、有序 1./1)、任务复选框 - [x]，并兼容列表中夹杂缩进代码块与多行内容）
     const listMatch = /^(\s*)(?:([-*+•])|(\d+)[.)])\s+(.*)$/.exec(line);
     if (listMatch) {
       const items = [];
       while (i < lines.length) {
         const curLine = lines[i];
+        const curTrim = curLine.trim();
+        if (!curTrim) {
+          // 列表中间的单个空行：若下一行仍是列表项则继续合并为同一列表块
+          if (i + 1 < lines.length && /^(\s*)(?:([-*+•])|(\d+)[.)])\s+/.test(lines[i + 1])) {
+            i++;
+            continue;
+          }
+          break;
+        }
         const m = /^(\s*)(?:([-*+•])|(\d+)[.)])\s+(.*)$/.exec(curLine);
         if (!m) break;
         const indentSpaces = (m[1] || '').replace(/\t/g, '  ').length;
@@ -1002,9 +1195,11 @@ function buildDocxRuns(runs, baseStyle) {
         ? { ascii: 'Cambria Math', hAnsi: 'Cambria Math', eastAsia: baseStyle.font.eastAsia }
         : baseStyle.font;
 
-    const size = isCode
-      ? Math.max(18, baseStyle.size - 2)
-      : baseStyle.size;
+    const size = r.fontSizePt
+      ? Math.max(16, Math.round(r.fontSizePt * 2))
+      : isCode
+        ? Math.max(18, baseStyle.size - 2)
+        : baseStyle.size;
 
     const color = isLink
       ? '2563EB'
@@ -1025,7 +1220,14 @@ function buildDocxRuns(runs, baseStyle) {
           color: 'CBD5E1',
           space: 1,
         }
-      : undefined;
+      : r.isBadge
+        ? {
+            style: BorderStyle.SINGLE,
+            size: 4,
+            color: r.color || '94A3B8',
+            space: 1,
+          }
+        : undefined;
 
     const lines = String(r.text || '').split('\n');
     lines.forEach((seg, idx) => {
@@ -1201,7 +1403,7 @@ function renderDocxTable(tableBlock, theme) {
   const colWidths = computeSmartColumnWidths(tableBlock, theme.contentDxa);
   const colCount = colWidths.length;
   const allRows = [tableBlock.headers, ...tableBlock.rows];
-  const keepWhole = allRows.length <= 12; // 12 行以内短表保持同页不拆断
+  const keepWhole = allRows.length <= 6; // 6 行以内短表保持同页不拆断，中长表自然跨页并自动重复表头
 
   const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: 'auto' };
   const gridBorder = {
@@ -1226,7 +1428,6 @@ function renderDocxTable(tableBlock, theme) {
               ? AlignmentType.CENTER
               : AlignmentType.LEFT;
 
-      const cellRuns = parseInlineRuns(rawCell);
       const cellFontSize = Math.max(20, theme.bodySize - (theme.id === 'gov-redhead' ? 6 : 2)); // 表格字号适度精炼(如公文表用小四 24 / 五号 21)
 
       let borders;
@@ -1264,6 +1465,33 @@ function renderDocxTable(tableBlock, theme) {
           ? { type: ShadingType.CLEAR, fill: fillHex }
           : undefined;
 
+      // 将单元格内通过 <br> 换行的内容拆分为独立子段落，确保每一行都严格遵循居中/左对齐且徽章与副标题上下间距优雅
+      const rawLines = String(rawCell).split(/<br\s*\/?>|\n/i);
+      const cellParagraphs = rawLines.map((lineText, lineIdx) => {
+        const lineRuns = parseInlineRuns(lineText.trim());
+        const isLastLineInCell = lineIdx === rawLines.length - 1;
+        return new Paragraph({
+          alignment,
+          keepNext: (keepWhole && !isLastRow) || !isLastLineInCell ? true : undefined,
+          keepLines: true,
+          spacing: {
+            before: lineIdx === 0 ? 20 : 12,
+            after: isLastLineInCell ? 20 : 12,
+            line: 260,
+            lineRule: LineRuleType.AUTO,
+          },
+          children:
+            lineRuns.length > 0
+              ? buildDocxRuns(lineRuns, {
+                  font: isHeader ? theme.h2Font : theme.bodyFont,
+                  size: cellFontSize,
+                  color: isHeader ? theme.tableHeaderColor : theme.bodyColor,
+                  bold: isHeader,
+                })
+              : [new TextRun({ text: '' })],
+        });
+      });
+
       return new TableCell({
         width: { size: colWidths[colIdx], type: WidthType.DXA },
         verticalAlign: VerticalAlign.CENTER,
@@ -1275,23 +1503,7 @@ function renderDocxTable(tableBlock, theme) {
           left: 140,
           right: 140,
         },
-        children: [
-          new Paragraph({
-            alignment,
-            keepNext: keepWhole && !isLastRow ? true : undefined,
-            keepLines: true,
-            spacing: { before: 20, after: 20, line: 280, lineRule: LineRuleType.AUTO },
-            children:
-              cellRuns.length > 0
-                ? buildDocxRuns(cellRuns, {
-                    font: isHeader ? theme.h2Font : theme.bodyFont,
-                    size: cellFontSize,
-                    color: isHeader ? theme.tableHeaderColor : theme.bodyColor,
-                    bold: isHeader,
-                  })
-                : [new TextRun({ text: '' })],
-          }),
-        ],
+        children: cellParagraphs,
       });
     });
 
@@ -1351,24 +1563,37 @@ async function inspectMarkdown({
     detectedTitle: ast.detectedTitle,
     stats: ast.stats,
     outline: ast.outline,
-    previewBlocks: ast.blocks.slice(0, 80).map((b) => ({
+    previewBlocks: ast.blocks.slice(0, 250).map((b) => ({
       type: b.type,
       level: b.level,
       text: b.text,
-      headers: b.headers,
-      rows: b.rows ? b.rows.slice(0, 15) : undefined,
+      runs: b.runs,
+      headers: b.headers ? b.headers.map((h) => stripInlineMarkdown(h)) : undefined,
+      rows: b.rows
+        ? b.rows.slice(0, 50).map((r) => r.map((c) => stripInlineMarkdown(c)))
+        : undefined,
+      richRows: b.rows
+        ? b.rows.slice(0, 50).map((r) =>
+            r.map((c) =>
+              String(c)
+                .split(/<br\s*\/?>|\n/i)
+                .map((lineStr) => parseInlineRuns(lineStr.trim()))
+            )
+          )
+        : undefined,
       alignments: b.alignments,
       items: b.items
-        ? b.items.slice(0, 20).map((it) => ({
+        ? b.items.slice(0, 50).map((it) => ({
             text: it.text,
+            runs: it.runs,
             ordered: it.ordered,
             level: it.level,
             checked: it.checked,
           }))
         : undefined,
       language: b.language,
-      lines: b.lines ? b.lines.slice(0, 20) : undefined,
-      tokenizedLines: b.tokenizedLines ? b.tokenizedLines.slice(0, 80) : undefined,
+      lines: b.lines ? b.lines.slice(0, 120) : undefined,
+      tokenizedLines: b.tokenizedLines ? b.tokenizedLines.slice(0, 150) : undefined,
     })),
   };
 }
@@ -1531,13 +1756,13 @@ async function markdownToWord({
       const headingSize = lvl === 1 ? theme.h1Size : lvl === 2 ? theme.h2Size : theme.h3Size;
       const headingColor = lvl === 1 ? theme.h1Color : lvl === 2 ? theme.h2Color : theme.h3Color;
 
-      // 公文模式下，若一级标题未带“一、”或“第X章”编号，且存在多个章节，保持原样或赋予标准缩进
+      // 公文模式下，若一级标题未带“一、”或“第X章”或“Part X”编号，且存在多个章节，赋予标准中文序号
       let runsToRender = block.runs;
       if (
         !isEn &&
         template === 'gov-redhead' &&
         lvl === 1 &&
-        !/^([一二三四五六七八九十百]+、|第[一二三四五六七八九十百\d]+[章节部分]|\d+[.、])/.test(block.text)
+        !/^([一二三四五六七八九十百]+、|第[一二三四五六七八九十百\d]+[章节部分]|\d+[.、]|(?:Part|Step|Section|Chapter|Phase)\s*\d+)/i.test(block.text)
       ) {
         const cnPrefix = CN_NUMS[autoH1Index] ? `${CN_NUMS[autoH1Index]}、` : '';
         autoH1Index++;
@@ -1632,35 +1857,44 @@ async function markdownToWord({
     }
 
     if (block.type === 'blockquote') {
-      children.push(
-        new Paragraph({
-          indent: { left: 420, right: 240 },
-          border: {
-            left: {
-              style: BorderStyle.SINGLE,
-              size: 18,
-              color: template === 'gov-redhead' ? 'D40000' : '3B82F6',
-              space: 10,
+      const quoteSubLines = String(block.rawText || block.text || '').split('\n');
+      quoteSubLines.forEach((qLine, qIdx) => {
+        const qRuns = parseInlineRuns(qLine.trim());
+        const isFirstQ = qIdx === 0;
+        const isLastQ = qIdx === quoteSubLines.length - 1;
+        children.push(
+          new Paragraph({
+            indent: { left: 420, right: 240 },
+            border: {
+              left: {
+                style: BorderStyle.SINGLE,
+                size: 18,
+                color: template === 'gov-redhead' ? 'D40000' : '3B82F6',
+                space: 10,
+              },
             },
-          },
-          shading: {
-            type: ShadingType.CLEAR,
-            fill: template === 'gov-redhead' ? 'FEF2F2' : 'F8FAFC',
-          },
-          spacing: {
-            before: 120,
-            after: 120,
-            line: 340,
-            lineRule: LineRuleType.AUTO,
-          },
-          children: buildDocxRuns(block.runs, {
-            font: theme.bodyFont,
-            size: Math.max(20, theme.bodySize - 2),
-            color: '334155',
-            italic: false,
-          }),
-        })
-      );
+            shading: {
+              type: ShadingType.CLEAR,
+              fill: template === 'gov-redhead' ? 'FEF2F2' : 'F8FAFC',
+            },
+            spacing: {
+              before: isFirstQ ? 100 : 20,
+              after: isLastQ ? 100 : 20,
+              line: 320,
+              lineRule: LineRuleType.AUTO,
+            },
+            children:
+              qRuns.length > 0
+                ? buildDocxRuns(qRuns, {
+                    font: theme.bodyFont,
+                    size: Math.max(20, theme.bodySize - 2),
+                    color: '334155',
+                    italic: false,
+                  })
+                : [new TextRun({ text: ' ' })],
+          })
+        );
+      });
       continue;
     }
 
@@ -1717,19 +1951,29 @@ async function markdownToWord({
         block.tokenizedLines || tokenizeCode((block.lines || []).join('\n'), block.language);
       const codeParagraphs = tokenizedLines.map((lineTokens, lineIdx) => {
         const runs = (lineTokens.length > 0 ? lineTokens : [{ text: ' ', color: 'D4D4D4' }]).map(
-          (tok) =>
-            new TextRun({
-              text: tok.text || ' ',
+          (tok, tokIdx) => {
+            let txt = tok.text || ' ';
+            if (tokIdx === 0) {
+              // 将代码行首缩进空格转为不间断空格 \u00A0，防止 Word XML 吞噬前导缩进
+              txt = txt.replace(/^[ \t]+/, (m) => m.replace(/\t/g, '  ').replace(/ /g, '\u00A0'));
+            }
+            return new TextRun({
+              text: txt,
               font: { ascii: 'Consolas', hAnsi: 'Consolas', eastAsia: 'Microsoft YaHei' },
               size: 19, // 9.5pt
               color: tok.color || 'D4D4D4',
               italics: Boolean(tok.italic),
               noProof: true,
-            })
+            });
+          }
         );
         return new Paragraph({
+          alignment: AlignmentType.LEFT,
           keepLines: true,
-          keepNext: lineIdx < tokenizedLines.length - 1 ? true : undefined,
+          keepNext:
+            tokenizedLines.length <= 15 && lineIdx < tokenizedLines.length - 1
+              ? true
+              : undefined,
           spacing: {
             before: 0,
             after: 0,
