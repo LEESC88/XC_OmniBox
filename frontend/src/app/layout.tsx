@@ -12,8 +12,8 @@ export const viewport: Viewport = {
   maximumScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F8FAFC" },
-    { media: "(prefers-color-scheme: dark)", color: "#0F172A" },
+    { media: "(prefers-color-scheme: light)", color: "#F6F3EE" },
+    { media: "(prefers-color-scheme: dark)", color: "#131110" },
   ],
 };
 
@@ -74,11 +74,12 @@ export default function RootLayout({
                 const savedFont = localStorage.getItem('xc_custom_font');
                 if (savedFont) {
                   const fontMap = {
-                    'system': 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-                    'inter': '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                    'roboto': '"Roboto", "Segoe UI", Arial, sans-serif',
-                    'segoe': '"Segoe UI", -apple-system, Arial, sans-serif',
-                    'mono': '"Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace'
+                    'system': '"Segoe UI", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif',
+                    'inter': '"Century Gothic", "Trebuchet MS", "DengXian", "等线", "PingFang SC", "Microsoft JhengHei UI", sans-serif',
+                    'roboto': 'Georgia, "Cambria", "Times New Roman", "STZhongsong", "华文中宋", "Songti SC", "SimSun", "宋体", serif',
+                    'segoe': '"Palatino Linotype", "Book Antiqua", "STKaiti", "华文楷体", "KaiTi", "楷体", "Kaiti SC", serif',
+                    'rounded': 'Verdana, "Trebuchet MS", "YouYuan", "幼圆", "STYuanti", "Microsoft YaHei UI", sans-serif',
+                    'mono': '"Cascadia Code", "JetBrains Mono", Consolas, "Courier New", "NSimSun", "新宋体", monospace'
                   };
                   if (fontMap[savedFont]) {
                     document.documentElement.style.setProperty('--font-family', fontMap[savedFont]);

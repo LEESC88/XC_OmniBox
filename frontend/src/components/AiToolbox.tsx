@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import {
   FileText,
-  UploadCloud,
   Download,
   Copy,
   Check,
@@ -23,6 +22,7 @@ import {
 } from "@/lib/aiProcessor";
 import { downloadBlob } from "@/lib/api";
 import { formatBytes } from "@/lib/imageProcessor";
+import Dropzone from "@/components/Dropzone";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
 import { useI18n } from "@/lib/i18n";
 import SendToButton from "@/components/SendToButton";
@@ -88,12 +88,14 @@ export default function AiToolbox({
   const handleOcrFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (ocrPreviewUrl) URL.revokeObjectURL(ocrPreviewUrl);
     setOcrFile(file);
     setOcrPreviewUrl(URL.createObjectURL(file));
     setOcrResult(null);
     setOcrEditableText("");
     setOcrError(null);
     setOcrProgress(0);
+    if (e.target && "value" in e.target) e.target.value = "";
   };
 
   const handleExecuteOcr = async () => {
@@ -158,11 +160,13 @@ export default function AiToolbox({
   const handleSearchablePdfFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (searchablePdfPreviewUrl) URL.revokeObjectURL(searchablePdfPreviewUrl);
     setSearchablePdfFile(file);
     setSearchablePdfPreviewUrl(URL.createObjectURL(file));
     setSearchablePdfResult(null);
     setSearchablePdfError(null);
     setSearchablePdfProgress(0);
+    if (e.target && "value" in e.target) e.target.value = "";
   };
 
   const handleExecuteSearchablePdf = async () => {
@@ -250,7 +254,7 @@ export default function AiToolbox({
             {/* 语言选择 */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
-                {lang === "en" ? "OCR Language Thesaurus" : "文字识别语言字库"}
+                {lang === "en" ? "Recognition Language Pack" : "文字识别语言字库"}
               </label>
               <div className="space-y-2.5">
                 {OCR_LANGUAGES.map((item) => (
@@ -302,39 +306,26 @@ export default function AiToolbox({
           {/* 右侧展示与文字编辑区域 */}
           <div className="lg:col-span-7 space-y-5">
             {!ocrFile ? (
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+              <Dropzone
+                accept="image/png,image/jpeg,image/webp,image/bmp"
+                multiple={false}
+                selectedFiles={[]}
+                onFilesSelected={(incoming) => {
+                  if (incoming[0]) handleOcrFileSelect({ target: { files: [incoming[0]] } } as any);
                 }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const file = e.dataTransfer.files?.[0];
-                  if (file) handleOcrFileSelect({ target: { files: [file] } } as any);
-                }}
-                className="bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center transition-all cursor-pointer relative group"
-              >
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/bmp"
-                  onChange={handleOcrFileSelect}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-coconut-100/80 dark:bg-darkbg-subtle flex items-center justify-center text-coconut-600 dark:text-darkbg-muted group-hover:scale-110 group-hover:text-amber-600 transition-all mb-4">
-                  <UploadCloud className="w-7 h-7" />
-                </div>
-                <h4 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text mb-1">
-                  {lang === "en"
+                onClear={() => {}}
+                title={
+                  lang === "en"
                     ? "Drag image or screenshot here, or click to upload"
-                    : "拖入需要识别的图片或截图，或点击上传"}
-                </h4>
-                <p className="text-xs text-coconut-500 dark:text-darkbg-muted max-w-sm mx-auto">
-                  {lang === "en"
+                    : "拖入需要识别的图片或截图，或点击上传"
+                }
+                hint={
+                  lang === "en"
                     ? "Supports scanned contracts, textbooks, e-invoices, receipts, and web screenshots"
-                    : "支持拍照合同、教材书籍、电子发票、证件单据与网页截图"}
-                </p>
-              </div>
+                    : "支持拍照合同、教材书籍、电子发票、证件单据与网页截图"
+                }
+                badge="OCR"
+              />
             ) : (
               <div className="coconut-panel p-5 sm:p-6 space-y-4">
                 {/* 状态与切换 */}
@@ -364,7 +355,7 @@ export default function AiToolbox({
                         setOcrResult(null);
                         setOcrEditableText("");
                       }}
-                      className="text-toast-500 hover:text-toast-600 flex items-center gap-1 font-medium"
+                      className="text-rose-500 hover:text-rose-600 flex items-center gap-1 font-medium"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>{lang === "en" ? "Clear" : "清空"}</span>
@@ -395,8 +386,8 @@ export default function AiToolbox({
                 )}
 
                 {ocrError && (
-                  <div className="p-3 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-2 text-toast-700 dark:text-toast-300 text-xs">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0 text-toast-500" />
+                  <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
                     <span>{ocrError}</span>
                   </div>
                 )}
@@ -484,7 +475,7 @@ export default function AiToolbox({
                           category="text"
                           payload={{
                             text: ocrEditableText,
-                            sourceTitle: "离线文字提取 (OCR)",
+                            sourceTitle: lang === "en" ? "Offline OCR Text" : "离线文字提取 (OCR)",
                           }}
                           lang={lang}
                         />
@@ -598,40 +589,26 @@ export default function AiToolbox({
           {/* 右侧工作台 */}
           <div className="lg:col-span-7 coconut-panel p-5 sm:p-6 space-y-4">
             {!searchablePdfFile ? (
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+              <Dropzone
+                accept="image/*"
+                multiple={false}
+                selectedFiles={[]}
+                onFilesSelected={(incoming) => {
+                  if (incoming[0]) handleSearchablePdfFileSelect({ target: { files: [incoming[0]] } } as any);
                 }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const file = e.dataTransfer.files?.[0];
-                  if (file) handleSearchablePdfFileSelect({ target: { files: [file] } } as any);
-                }}
-                className="border-2 border-dashed border-coconut-300/80 dark:border-darkbg-border rounded-3xl p-10 flex flex-col items-center justify-center text-center hover:border-orange-500 transition-colors bg-coconut-50/50 dark:bg-darkbg-subtle relative min-h-[380px]"
-              >
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleSearchablePdfFileSelect}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-                <div className="w-16 h-16 rounded-3xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 shadow-sm">
-                  <FileSearch className="w-8 h-8" />
-                </div>
-                <h3 className="font-bold text-base text-coconut-900 dark:text-darkbg-text mb-1">
-                  {lang === "en" ? "Upload Scanned Document or Image" : "上传扫描件、纸质文档照片或图书页面"}
-                </h3>
-                <p className="text-xs text-coconut-600 dark:text-darkbg-muted max-w-sm mb-4">
-                  {lang === "en"
-                    ? "Supports PNG, JPG, WEBP. The engine will extract all text geometry and produce a dual-layer PDF."
-                    : "支持常见图片。引擎将智能分析字形拓扑并注入底层透明文字，输出支持划词搜索的双层 PDF。"}
-                </p>
-                <span className="btn-3d-sunset text-xs py-2 px-5 rounded-2xl text-white font-bold pointer-events-none">
-                  {lang === "en" ? "Select Scanned Document" : "选择扫描件图片"}
-                </span>
-              </div>
+                onClear={() => {}}
+                title={
+                  lang === "en"
+                    ? "Upload Scanned Document or Image"
+                    : "上传扫描件、纸质文档照片或图书页面"
+                }
+                hint={
+                  lang === "en"
+                    ? "Supports PNG, JPG, WEBP. Extracts text geometry and produces a dual-layer searchable PDF."
+                    : "支持常见图片，智能分析字形拓扑并注入底层透明文字，输出支持划词搜索的双层 PDF"
+                }
+                badge="SCAN PDF"
+              />
             ) : (
               <div className="space-y-4">
                 {/* 文件信息 */}
@@ -647,15 +624,32 @@ export default function AiToolbox({
                       <div className="text-[11px] text-coconut-500 font-mono">{formatBytes(searchablePdfFile.size)}</div>
                     </div>
                   </div>
-                  <label className="cursor-pointer text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/40">
-                    {lang === "en" ? "Replace" : "更换文件"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleSearchablePdfFileSelect}
-                      className="hidden"
-                    />
-                  </label>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <label className="cursor-pointer text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/40">
+                      {lang === "en" ? "Replace" : "更换文件"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleSearchablePdfFileSelect}
+                        className="hidden"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (searchablePdfPreviewUrl) URL.revokeObjectURL(searchablePdfPreviewUrl);
+                        setSearchablePdfFile(null);
+                        setSearchablePdfPreviewUrl(null);
+                        setSearchablePdfResult(null);
+                        setSearchablePdfError(null);
+                        setSearchablePdfProgress(0);
+                      }}
+                      className="text-xs font-semibold text-rose-500 hover:text-rose-600 flex items-center gap-1 px-2 py-1 rounded-xl hover:bg-rose-500/10 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{lang === "en" ? "Clear" : "清空"}</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* 预览与结果输出 */}

@@ -23,6 +23,7 @@ import {
 import { formatBytes } from "@/lib/imageProcessor";
 import { downloadBlob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import Dropzone from "@/components/Dropzone";
 import SendToButton from "@/components/SendToButton";
 import { AudioStudioProps } from "./types";
 
@@ -220,59 +221,34 @@ export default function AudioVolumeStudio({
         </div>
       )}
 
-      <div className="coconut-panel p-5 sm:p-6 space-y-5">
-        <div>
-          <h3 className="text-base font-bold text-coconut-900 dark:text-darkbg-text">
-            {lang === "en" ? "Audio Volume Normalizer & Booster" : "音频音量智能增强与防破音标准化"}
-          </h3>
-          <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
-            {lang === "en"
-              ? "Fix quiet phone recordings, lectures, or interviews. Supports peak normalization (anti-clipping) or manual gain boost."
-              : "解决手机录音、网课授课、采访录音声音太小的问题。支持自动峰值标准化（消除破音）或手动倍数放大。"}
-          </p>
-        </div>
-
-        {!volumeBuffer ? (
-          <div
-            onClick={() => document.getElementById("volume-upload-input")?.click()}
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const f = e.dataTransfer.files?.[0];
-              if (f) handleVolumeFileSelected(f);
-            }}
-            className="border-2 border-dashed border-coconut-300 dark:border-darkbg-border hover:border-coconut-500 dark:hover:border-palm-500 rounded-3xl p-10 text-center cursor-pointer transition-all bg-coconut-50/40 dark:bg-darkbg-card"
-          >
-            <input
-              id="volume-upload-input"
-              type="file"
-              accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac,.wma"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  handleVolumeFileSelected(e.target.files[0]);
-                }
-              }}
-              className="hidden"
-            />
-            <Volume2 className="w-10 h-10 text-toast-500 mx-auto mb-2" />
-            <div className="text-xs text-coconut-600 dark:text-darkbg-muted">
-              {lang === "en" ? "Click or drag audio file here to adjust volume" : "点击或拖拽上传音频文件调节音量"}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-5">
+      {!volumeBuffer ? (
+        <Dropzone
+          accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac,.wma"
+          multiple={false}
+          selectedFiles={[]}
+          onFilesSelected={(f) => f[0] && handleVolumeFileSelected(f[0])}
+          onClear={() => {}}
+          title={lang === "en" ? "Click or drag audio file here to adjust volume" : "点击或拖拽上传音频文件调节音量"}
+          hint={
+            lang === "en"
+              ? "Fix quiet phone recordings, lectures, or interviews with EBU peak normalization"
+              : "智能放大微弱录音、网课人声，支持峰值标准化防破音保护"
+          }
+          badge="VOLUME & CLARITY"
+        />
+      ) : (
+        <div className="coconut-panel p-5 sm:p-6 space-y-5">
             <div className="p-3 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/70 dark:border-darkbg-border flex items-center justify-between">
               <span className="text-xs font-semibold text-coconut-900 dark:text-darkbg-text truncate">
                 {volumeFile?.name}
               </span>
               <button
                 onClick={() => {
+                  stopPreview();
                   setVolumeBuffer(null);
                   setVolumeFile(null);
+                  setVolumeResult(null);
+                  setError(null);
                 }}
                 className="text-xs text-coconut-600 hover:text-coconut-900 dark:text-darkbg-muted dark:hover:text-darkbg-text"
               >
@@ -495,8 +471,7 @@ export default function AudioVolumeStudio({
               </button>
             </div>
           </div>
-        )}
-      </div>
+      )}
 
       {/* Volume result card */}
       {volumeResult && (

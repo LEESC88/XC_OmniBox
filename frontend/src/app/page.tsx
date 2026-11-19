@@ -552,7 +552,7 @@ export default function Home() {
   // 客户端自动更新弹窗状态与版本感知
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
-  const [appVersion, setAppVersion] = useState<string>("1.7.4");
+  const [appVersion, setAppVersion] = useState<string>("1.7.5");
 
   // 快捷键指南弹窗状态与全局提示
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
@@ -913,18 +913,21 @@ export default function Home() {
 
   const currentCategory =
     toolsRegistry.find((g) => g.module === activeModule) || toolsRegistry[0];
-  const currentActiveTool =
+  const currentActiveToolId =
     activeModule === "pdf"
-      ? allTools.find((t) => t.id === activePdfTab)
+      ? activePdfTab
       : activeModule === "document"
-        ? allTools.find((t) => t.id === activeDocTab)
+        ? activeDocTab
         : activeModule === "spreadsheet"
-          ? allTools.find((t) => t.id === activeSpreadsheetTab)
+          ? activeSpreadsheetTab
           : activeModule === "image"
-            ? allTools.find((t) => t.id === activeImageTab)
+            ? activeImageTab
             : activeModule === "audio"
-              ? allTools.find((t) => t.id === activeAudioTab)
-              : allTools.find((t) => t.id === activeDailyTab);
+              ? activeAudioTab
+              : activeDailyTab;
+  const currentActiveTool =
+    currentCategory.tools.find((t) => t.id === currentActiveToolId) ||
+    currentCategory.tools[0];
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-transparent text-coconut-900 dark:text-darkbg-text subpixel-antialiased">
@@ -1353,44 +1356,57 @@ export default function Home() {
             })()}
           </div>
 
-          {/* 右侧：6 大工作台分段快速切换器 */}
-          <div
-            onWheel={(e) => {
-              if (e.deltaY !== 0) {
-                e.currentTarget.scrollLeft += e.deltaY * 0.9;
-              }
-            }}
-            className="hidden sm:flex items-center gap-1 overflow-x-auto no-scrollbar bg-black/[0.035] dark:bg-white/[0.04] p-1 rounded-xl border border-[var(--color-border)] flex-shrink-0"
-          >
-            {[
-              { id: "pdf", label: t.modules.pdf, icon: FileText },
-              { id: "document", label: t.modules.document, icon: FileCode2 },
-              { id: "spreadsheet", label: t.modules.spreadsheet, icon: TableProperties },
-              { id: "image", label: t.modules.image, icon: ImageIcon },
-              { id: "audio", label: t.modules.audio, icon: Music },
-              { id: "utilities", label: t.modules.utilities, icon: Wrench },
-            ].map((m) => {
-              const Icon = m.icon;
-              const isCur = activeModule === m.id;
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => {
-                    setActiveModule(m.id as ModuleType);
-                    setExpandedModule(m.id as ModuleType);
-                  }}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all whitespace-nowrap flex-shrink-0 cursor-pointer ${
-                    isCur
-                      ? "bg-white dark:bg-[#2A2421] text-coconut-950 dark:text-white font-semibold shadow-2xs ring-1 ring-black/[0.05] dark:ring-white/[0.08]"
-                      : "text-coconut-600 dark:text-darkbg-muted hover:text-coconut-950 dark:hover:text-white font-medium"
-                  }`}
-                >
-                  <Icon className={`w-3.5 h-3.5 ${isCur ? "text-accent" : ""}`} />
-                  <span>{m.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          {/* 侧边栏折叠时显示紧凑型 6 模块顶栏切换器，兼顾宽敞画布与 1-click 跨模块直达 */}
+          {sidebarCollapsed && (
+            <div className="hidden lg:flex items-center gap-1 p-1 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-[var(--color-border)] flex-shrink-0">
+              {toolsRegistry.map((group) => {
+                const Icon = group.icon;
+                const isActive = activeModule === group.module;
+                const shortName =
+                  lang === "en"
+                    ? group.module === "pdf"
+                      ? "PDF"
+                      : group.module === "document"
+                        ? "Docs"
+                        : group.module === "spreadsheet"
+                          ? "Sheet"
+                          : group.module === "image"
+                            ? "Image"
+                            : group.module === "audio"
+                              ? "Audio"
+                              : "Utils"
+                    : group.module === "pdf"
+                      ? "PDF"
+                      : group.module === "document"
+                        ? "文档"
+                        : group.module === "spreadsheet"
+                          ? "表格"
+                          : group.module === "image"
+                            ? "图像"
+                            : group.module === "audio"
+                              ? "音频"
+                              : "实用";
+                return (
+                  <button
+                    key={group.module}
+                    type="button"
+                    onClick={() => {
+                      setActiveModule(group.module);
+                      setExpandedModule(group.module);
+                    }}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-accent-gradient text-white shadow-xs"
+                        : "text-coconut-600 dark:text-darkbg-muted hover:text-coconut-900 dark:hover:text-white"
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{shortName}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </header>
 
         {/* 主工作区滚动容器：去除冗余横幅卡片，直接呈现核心工具画布 */}
@@ -1483,6 +1499,7 @@ export default function Home() {
         onClose={() => setSettingsModalOpen(false)}
         isDark={isDark}
         onToggleTheme={toggleTheme}
+        onThemeSync={(dark) => setIsDark(dark)}
         onOpenUpdateModal={() => setUpdateModalOpen(true)}
       />
 

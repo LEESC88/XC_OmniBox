@@ -135,6 +135,14 @@ export default function PdfToolbox({
     loading: boolean;
   } | null>(null);
   const addMorePdfRef = useRef<HTMLInputElement>(null);
+  const replacePdfRef = useRef<HTMLInputElement>(null);
+
+  // Whenever the selected file list changes (replaced, cleared, or modified), automatically clear stale conversion results
+  useEffect(() => {
+    setExecutionResult(null);
+    setSuccessMsg(null);
+    setError(null);
+  }, [files]);
 
   // Synchronize language changes for default watermark text
   useEffect(() => {
@@ -774,21 +782,7 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 shadow-md shadow-indigo-500/25 flex items-center justify-center text-white flex-shrink-0">
-                <Combine className="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                  {t.pdfMerge.title}
-                </h3>
-                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                  {t.pdfMerge.desc}
-                </p>
-              </div>
-            </div>
-
+          <div className="coconut-panel p-6 sm:p-8">
             <Dropzone
               accept=".pdf"
               multiple={true}
@@ -826,21 +820,7 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 shadow-md shadow-rose-500/25 flex items-center justify-center text-white flex-shrink-0">
-                <Scissors className="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                  {t.pdfSplit.title}
-                </h3>
-                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                  {t.pdfSplit.desc}
-                </p>
-              </div>
-            </div>
-
+          <div className="coconut-panel p-6 sm:p-8">
             <Dropzone
               accept=".pdf"
               multiple={false}
@@ -877,24 +857,7 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/25 flex items-center justify-center text-white flex-shrink-0">
-                <Sliders className="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                  {t.pdfOrganize?.title || (lang === "en" ? "PDF Page Organizer" : "PDF 页面可视化调度与编排")}
-                </h3>
-                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                  {t.pdfOrganize?.desc ||
-                    (lang === "en"
-                      ? "Freely drag to reorder pages, rotate individual pages 90°/180°, delete pages, and export custom PDFs."
-                      : "自由拖拽调整页面顺序、单页独立旋转 90°/180°、剔除多余页面，一键导出定制新版 PDF。")}
-                </p>
-              </div>
-            </div>
-
+          <div className="coconut-panel p-6 sm:p-8">
             <Dropzone
               accept=".pdf"
               multiple={false}
@@ -941,21 +904,7 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 shadow-md shadow-teal-500/25 flex items-center justify-center text-white flex-shrink-0">
-                <Stamp className="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                  {t.pdfWatermark.title}
-                </h3>
-                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                  {t.pdfWatermark.desc}
-                </p>
-              </div>
-            </div>
-
+          <div className="coconut-panel p-6 sm:p-8">
             <Dropzone
               accept=".pdf"
               multiple={false}
@@ -992,24 +941,7 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/25 flex items-center justify-center text-white flex-shrink-0">
-                <Zap className="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                  {t.pdfCompress?.title || (lang === "en" ? "PDF Smart Compression" : "PDF 智能极限体积瘦身")}
-                </h3>
-                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                  {t.pdfCompress?.desc ||
-                    (lang === "en"
-                      ? "Features 3 optimization presets (Light, Balanced, Extreme), cleaning dead streams and downsampling images for up to 80% size savings."
-                      : "支持轻度、平衡、极限三档优化，清除孤立死对象并智能下采样高清大图，压缩比可达 50%~80%。")}
-                </p>
-              </div>
-            </div>
-
+          <div className="coconut-panel p-6 sm:p-8">
             <Dropzone
               accept=".pdf"
               multiple={false}
@@ -1057,24 +989,7 @@ export default function PdfToolbox({
             />
           </div>
         ) : (
-          <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-md shadow-cyan-500/25 flex items-center justify-center text-white flex-shrink-0">
-                <ImageIcon className="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                  {t.imagesToPdf?.title || (lang === "en" ? "Images to PDF Vector Studio" : "多图片一键拼合转高清 PDF")}
-                </h3>
-                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                  {t.imagesToPdf?.desc ||
-                    (lang === "en"
-                      ? "Upload multiple photos or scans, reorder pages easily, and export as Fit or Standard A4 PDF documents."
-                      : "支持选中多张照片或扫描件批量上传，自由上下拖拽调整排版顺序，支持原图自适应与标准 A4 规格导出。")}
-                </p>
-              </div>
-            </div>
-
+          <div className="coconut-panel p-6 sm:p-8">
             <Dropzone
               accept="image/*"
               multiple={true}
@@ -1349,8 +1264,8 @@ export default function PdfToolbox({
             />
 
             {error && (
-              <div className="p-3 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-2 text-toast-700 dark:text-toast-300 text-xs">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 text-toast-500" />
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
                 <span>{error}</span>
               </div>
             )}
@@ -1471,103 +1386,6 @@ export default function PdfToolbox({
       ) : (
         /* PDF to Word or Word to PDF Workbench */
         <div className="coconut-panel p-6 sm:p-8 space-y-6">
-          <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-orange-500/25 flex items-center justify-center text-white flex-shrink-0">
-              <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                {activeTab === "word-to-pdf"
-                  ? t.common.wordConversion
-                  : t.common.pdfConversion}
-              </h3>
-              <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                {activeTab === "word-to-pdf"
-                  ? t.common.wordDesc
-                  : t.common.pdfDesc}
-              </p>
-            </div>
-          </div>
-
-          {/* Quality selector for Word to PDF */}
-          {activeTab === "word-to-pdf" && (
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-coconut-800 dark:text-darkbg-text">
-                {t.quality.label}
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  {
-                    key: "light" as const,
-                    label: t.quality.light,
-                    icon: "📄",
-                    dpi: t.quality.lightDpi,
-                    desc: t.quality.lightDesc,
-                    size: t.quality.lightSize,
-                  },
-                  {
-                    key: "standard" as const,
-                    label: t.quality.standard,
-                    icon: "📋",
-                    dpi: t.quality.standardDpi,
-                    desc: t.quality.standardDesc,
-                    size: t.quality.standardSize,
-                  },
-                  {
-                    key: "high" as const,
-                    label: t.quality.high,
-                    icon: "🖨️",
-                    dpi: t.quality.highDpi,
-                    desc: t.quality.highDesc,
-                    size: t.quality.highSize,
-                  },
-                ].map((q) => (
-                  <button
-                    key={q.key}
-                    onClick={() => setConversionQuality(q.key)}
-                    className={`relative p-3 rounded-xl border-2 text-left transition-all ${
-                      conversionQuality === q.key
-                        ? "border-accent-solid bg-accent-subtle shadow-sm"
-                        : "border-coconut-200 dark:border-darkbg-border bg-coconut-50/50 dark:bg-darkbg-subtle hover:border-coconut-300 dark:hover:border-darkbg-border/80"
-                    }`}
-                  >
-                    <div className="text-base leading-none mb-1">
-                      {q.icon}
-                    </div>
-                    <div
-                      className={`text-xs font-bold ${conversionQuality === q.key ? "text-accent-solid" : "text-coconut-900 dark:text-darkbg-text"}`}
-                    >
-                      {q.label}
-                    </div>
-                    <div className="text-[10px] font-mono text-coconut-500 dark:text-darkbg-muted mt-0.5">
-                      {q.dpi}
-                    </div>
-                    <div className="text-[10px] text-coconut-400 dark:text-darkbg-muted">
-                      {q.size}
-                    </div>
-                    {conversionQuality === q.key && (
-                      <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-accent-solid text-white flex items-center justify-center">
-                        <svg
-                          className="w-2.5 h-2.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={3}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* First page thumbnail preview card for PDF to Word (Single-file mode) */}
           {activeTab === "pdf-to-word" && files.length === 1 ? (
             <div className="p-4 rounded-2xl bg-coconut-50/80 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border flex flex-col sm:flex-row items-center gap-4">
@@ -1658,6 +1476,29 @@ export default function PdfToolbox({
 
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <input
+                  ref={replacePdfRef}
+                  type="file"
+                  accept=".pdf"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      const newFiles = Array.from(e.target.files);
+                      setFiles(newFiles);
+                    }
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => replacePdfRef.current?.click()}
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all flex items-center gap-1 cursor-pointer"
+                  title={lang === "en" ? "Select a new PDF file and replace the current one" : "选择新 PDF 并直接替换当前文件"}
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>{lang === "en" ? "Change File" : "更换文件"}</span>
+                </button>
+                <input
                   ref={addMorePdfRef}
                   type="file"
                   accept=".pdf"
@@ -1666,7 +1507,9 @@ export default function PdfToolbox({
                   onChange={(e) => {
                     if (e.target.files && e.target.files.length > 0) {
                       const newFiles = Array.from(e.target.files);
-                      setFiles((prev) => [...prev, ...newFiles]);
+                      setFiles((prev) =>
+                        executionResult ? newFiles : [...prev, ...newFiles]
+                      );
                     }
                     e.target.value = "";
                   }}
@@ -1674,19 +1517,22 @@ export default function PdfToolbox({
                 <button
                   type="button"
                   onClick={() => addMorePdfRef.current?.click()}
-                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all flex items-center gap-1 cursor-pointer"
-                  title={lang === "en" ? "Add more files for batch conversion" : "添加更多 PDF 开启批量转换"}
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-coconut-700 dark:text-darkbg-text bg-coconut-200/60 dark:bg-darkbg-card hover:bg-coconut-200 border border-coconut-300/60 dark:border-darkbg-border transition-all flex items-center gap-1 cursor-pointer"
+                  title={lang === "en" ? "Add more files for batch conversion" : "追加更多 PDF 开启批量转换"}
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{lang === "en" ? "Add More" : "添加文件"}</span>
+                  <span className="hidden sm:inline">{lang === "en" ? "Add Batch" : "追加批量"}</span>
                 </button>
                 <button
                   onClick={() => {
                     setFiles([]);
                     setPdfToWordThumb(null);
+                    setExecutionResult(null);
+                    setSuccessMsg(null);
+                    setError(null);
                   }}
                   className="p-2 rounded-xl text-coconut-500 hover:text-rose-600 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                  title={t.common.changeFile}
+                  title={lang === "en" ? "Clear" : "清空"}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1700,8 +1546,14 @@ export default function PdfToolbox({
                 }
                 multiple={true}
                 selectedFiles={files}
+                hasCompletedResult={Boolean(executionResult)}
                 onFilesSelected={setFiles}
-                onClear={() => setFiles([])}
+                onClear={() => {
+                  setFiles([]);
+                  setExecutionResult(null);
+                  setSuccessMsg(null);
+                  setError(null);
+                }}
                 onRemoveFile={(idx) => setFiles((prev) => prev.filter((_, i) => i !== idx))}
                 title={
                   activeTab === "word-to-pdf"
@@ -1731,6 +1583,85 @@ export default function PdfToolbox({
             </div>
           )}
 
+          {/* Quality selector for Word to PDF (选定文件后渐进展开) */}
+          {activeTab === "word-to-pdf" && files.length > 0 && (
+            <div className="space-y-2 animate-fade-in">
+              <label className="text-xs font-bold text-coconut-800 dark:text-darkbg-text">
+                {t.quality.label}
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  {
+                    key: "light" as const,
+                    label: t.quality.light,
+                    icon: "📄",
+                    dpi: t.quality.lightDpi,
+                    desc: t.quality.lightDesc,
+                    size: t.quality.lightSize,
+                  },
+                  {
+                    key: "standard" as const,
+                    label: t.quality.standard,
+                    icon: "📋",
+                    dpi: t.quality.standardDpi,
+                    desc: t.quality.standardDesc,
+                    size: t.quality.standardSize,
+                  },
+                  {
+                    key: "high" as const,
+                    label: t.quality.high,
+                    icon: "🖨️",
+                    dpi: t.quality.highDpi,
+                    desc: t.quality.highDesc,
+                    size: t.quality.highSize,
+                  },
+                ].map((q) => (
+                  <button
+                    key={q.key}
+                    onClick={() => setConversionQuality(q.key)}
+                    className={`relative p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                      conversionQuality === q.key
+                        ? "border-accent-solid bg-accent-subtle shadow-sm"
+                        : "border-coconut-200 dark:border-darkbg-border bg-coconut-50/50 dark:bg-darkbg-subtle hover:border-coconut-300 dark:hover:border-darkbg-border/80"
+                    }`}
+                  >
+                    <div className="text-base leading-none mb-1">
+                      {q.icon}
+                    </div>
+                    <div
+                      className={`text-xs font-bold ${conversionQuality === q.key ? "text-accent-solid" : "text-coconut-900 dark:text-darkbg-text"}`}
+                    >
+                      {q.label}
+                    </div>
+                    <div className="text-[10px] font-mono text-coconut-500 dark:text-darkbg-muted mt-0.5">
+                      {q.dpi}
+                    </div>
+                    <div className="text-[10px] text-coconut-400 dark:text-darkbg-muted">
+                      {q.size}
+                    </div>
+                    {conversionQuality === q.key && (
+                      <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-accent-solid text-white flex items-center justify-center">
+                        <svg
+                          className="w-2.5 h-2.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {activeTab === "pdf-to-word" && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div className="p-2.5 rounded-xl bg-coconut-100/60 dark:bg-darkbg-subtle/60 border border-coconut-200/50 dark:border-darkbg-border/50 text-coconut-700 dark:text-darkbg-muted flex items-center gap-2 shadow-2xs">
@@ -1746,15 +1677,15 @@ export default function PdfToolbox({
                 <span className="font-medium truncate">{lang === "en" ? "Flowing Paragraphs" : "自然流动段落"}</span>
               </div>
               <div className="p-2.5 rounded-xl bg-coconut-100/60 dark:bg-darkbg-subtle/60 border border-coconut-200/50 dark:border-darkbg-border/50 text-coconut-700 dark:text-darkbg-muted flex items-center gap-2 shadow-2xs">
-                <Type className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                <Type className="w-4 h-4 text-accent flex-shrink-0" />
                 <span className="font-medium truncate">{lang === "en" ? "Fonts & Headings" : "保留标题与粗斜体"}</span>
               </div>
             </div>
           )}
 
           {error && (
-            <div className="p-3 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-2 text-toast-700 dark:text-toast-300 text-xs">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 text-toast-500" />
+            <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
               <span>{error}</span>
             </div>
           )}

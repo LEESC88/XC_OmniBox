@@ -23,6 +23,7 @@ import {
 import { formatBytes } from "@/lib/imageProcessor";
 import { downloadBlob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import Dropzone from "@/components/Dropzone";
 import SendToButton from "@/components/SendToButton";
 import { BatchTaskItem, executeBatchQueue } from "@/lib/batchQueueManager";
 import { MergeTrack, AudioStudioProps } from "./types";
@@ -99,6 +100,7 @@ export default function AudioMergeStudio({
         buffer: buf,
       };
       setMergeTracks((prev) => [...prev, newTrack]);
+      setMergeResult(null);
     } catch (err: any) {
       setError(err?.message || (lang === "en" ? "Failed to decode incoming audio" : "解析传入音频失败"));
     } finally {
@@ -107,7 +109,7 @@ export default function AudioMergeStudio({
     }
   };
 
-  const handleAddMergeTracks = async (files: FileList | null) => {
+  const handleAddMergeTracks = async (files: FileList | File[] | null) => {
     if (!files || files.length === 0) return;
     setIsProcessing(true);
     setProgressMsg(lang === "en" ? "Decoding audio tracks in parallel..." : "正在并发解析音轨数据...");
@@ -155,6 +157,7 @@ export default function AudioMergeStudio({
     }
 
     setMergeTracks((prev) => [...prev, ...incoming]);
+    setMergeResult(null);
     setIsProcessing(false);
     setProgressMsg("");
   };
@@ -203,61 +206,74 @@ export default function AudioMergeStudio({
         </div>
       )}
 
-      <div className="coconut-panel p-5 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-coconut-200/60 dark:border-darkbg-border">
-          <div>
-            <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-              {lang === "en"
-                ? `Audio Merge Queue (${mergeTracks.length} tracks)`
-                : `多段音频拼接队列 (${mergeTracks.length} 段)`}
-            </h3>
-            <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-0.5">
-              {lang === "en"
-                ? "Reorder audio clips as needed. Audio streams will be seamlessly concatenated and resampled."
-                : "上下调整音频先后顺序，算法将自动统一对齐重采样无缝首尾连接"}
-            </p>
-          </div>
-          <input
-            id="merge-upload-input"
-            type="file"
-            multiple
-            accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac,.wma"
-            onChange={(e) => handleAddMergeTracks(e.target.files)}
-            className="hidden"
-          />
-          <button
-            onClick={() => document.getElementById("merge-upload-input")?.click()}
-            className="px-3.5 py-1.5 bg-coconut-100 dark:bg-darkbg-subtle text-coconut-800 dark:text-darkbg-text hover:bg-coconut-200 dark:hover:bg-darkbg-hover border border-transparent dark:border-darkbg-border rounded-xl text-xs font-bold transition-all"
-          >
-            {lang === "en" ? "+ Add Audio Clips" : "+ 添加音频片段"}
-          </button>
-        </div>
+      <input
+        id="merge-upload-input"
+        type="file"
+        multiple
+        accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac,.wma"
+        onChange={(e) => {
+          handleAddMergeTracks(e.target.files);
+          e.target.value = "";
+        }}
+        className="hidden"
+      />
 
-        {mergeTracks.length === 0 ? (
-          <div
-            onClick={() => document.getElementById("merge-upload-input")?.click()}
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (e.dataTransfer.files) {
-                handleAddMergeTracks(e.dataTransfer.files);
-              }
-            }}
-            className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center cursor-pointer transition-all bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85"
-          >
-            <Combine className="w-8 h-8 text-coconut-400 dark:text-darkbg-muted mx-auto mb-2" />
-            <div className="text-sm font-semibold text-coconut-800 dark:text-darkbg-text mb-1">
-              {lang === "en" ? "Drag or click to add audio clips to merge" : "点击或拖拽添加两段或多段音频开始拼接"}
+      {mergeTracks.length === 0 ? (
+        <Dropzone
+          accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac,.wma"
+          multiple={true}
+          selectedFiles={[]}
+          onFilesSelected={(files) => handleAddMergeTracks(files)}
+          onClear={() => {}}
+          title={lang === "en" ? "Drag or click to add audio clips to merge" : "点击或拖拽添加两段或多段音频开始拼接"}
+          hint={
+            lang === "en"
+              ? "Supports MP3, WAV, AAC, M4A, FLAC, OGG · Seamlessly resampled & concatenated"
+              : "支持 MP3, WAV, AAC, M4A, FLAC, OGG 等常见格式，自动重采样对齐并无缝首尾连接"
+          }
+          badge="AUDIO MERGE"
+        />
+      ) : (
+        <div className="coconut-panel p-5 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-coconut-200/60 dark:border-darkbg-border">
+            <div>
+              <h3 className="text-sm font-bold text-coconut-900 dark:text-darkbg-text">
+                {lang === "en"
+                  ? `Audio Merge Queue (${mergeTracks.length} tracks)`
+                  : `多段音频拼接队列 (${mergeTracks.length} 段)`}
+              </h3>
+              <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-0.5">
+                {lang === "en"
+                  ? "Reorder audio clips as needed. Audio streams will be seamlessly concatenated and resampled."
+                  : "上下调整音频先后顺序，算法将自动统一对齐重采样无缝首尾连接"}
+              </p>
             </div>
-            <div className="text-xs text-coconut-500 dark:text-darkbg-muted">
-              {lang === "en" ? "Supports MP3, WAV, AAC, M4A, FLAC, OGG" : "支持 MP3, WAV, AAC, M4A, FLAC, OGG 等常见格式"}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    trackSourceRef.current?.stop();
+                  } catch {}
+                  trackSourceRef.current = null;
+                  setPlayingTrackId(null);
+                  setMergeTracks([]);
+                  setMergeResult(null);
+                  setError(null);
+                }}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+              >
+                {lang === "en" ? "Clear All" : "清空列表"}
+              </button>
+              <button
+                onClick={() => document.getElementById("merge-upload-input")?.click()}
+                className="px-3.5 py-1.5 bg-coconut-100 dark:bg-darkbg-subtle text-coconut-800 dark:text-darkbg-text hover:bg-coconut-200 dark:hover:bg-darkbg-hover border border-transparent dark:border-darkbg-border rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                {lang === "en" ? "+ Add Audio Clips" : "+ 添加音频片段"}
+              </button>
             </div>
           </div>
-        ) : (
+
           <div className="space-y-2">
             {mergeTracks.map((track, idx) => (
               <div
@@ -303,6 +319,7 @@ export default function AudioMergeStudio({
                       arr[idx - 1] = arr[idx];
                       arr[idx] = temp;
                       setMergeTracks(arr);
+                      setMergeResult(null);
                     }}
                     className="p-1 text-coconut-400 dark:text-darkbg-muted hover:text-coconut-700 dark:hover:text-darkbg-text disabled:opacity-30"
                     title={lang === "en" ? "Move Up" : "上移"}
@@ -317,6 +334,7 @@ export default function AudioMergeStudio({
                       arr[idx + 1] = arr[idx];
                       arr[idx] = temp;
                       setMergeTracks(arr);
+                      setMergeResult(null);
                     }}
                     className="p-1 text-coconut-400 dark:text-darkbg-muted hover:text-coconut-700 dark:hover:text-darkbg-text disabled:opacity-30"
                     title={lang === "en" ? "Move Down" : "下移"}
@@ -330,6 +348,7 @@ export default function AudioMergeStudio({
                         setPlayingTrackId(null);
                       }
                       setMergeTracks((prev) => prev.filter((_, i) => i !== idx));
+                      setMergeResult(null);
                     }}
                     className="p-1 text-rose-400 hover:text-rose-600 ml-2"
                     title={lang === "en" ? "Remove" : "移除"}
@@ -408,8 +427,8 @@ export default function AudioMergeStudio({
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Merged result card */}
       {mergeResult && (

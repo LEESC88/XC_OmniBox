@@ -1023,26 +1023,6 @@ export default function PdfInplaceTextStudio({
   if (!file) {
     return (
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-          <div className="flex items-start sm:items-center gap-3.5">
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-amber-500/25 flex items-center justify-center text-white flex-shrink-0">
-              <Edit3 className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg sm:text-xl font-bold tracking-tight text-[#2D221E] dark:text-[#F5EBE6]">
-                  {lang === "en" ? "PDF In-place Text Fix" : "PDF 局部文字原地修正"}
-                </h3>
-              </div>
-              <p className="text-xs sm:text-sm text-[#7D6B5D] dark:text-[#BCA89B]">
-                {lang === "en"
-                  ? "Click anywhere on the document to edit text in-place. Preserves 100% vectors, stamps, and layout."
-                  : "直接在文档画面上点击或整行打字修改，无需转 Word，100% 保持原矢量排版与印章！"}
-              </p>
-            </div>
-          </div>
-        </div>
-
         <Dropzone
           accept=".pdf"
           selectedFiles={[]}
@@ -1065,7 +1045,7 @@ export default function PdfInplaceTextStudio({
             </p>
           </div>
           <div className="p-4 rounded-xl border border-[#D2BCAB]/30 dark:border-[#4D392E]/40 bg-white/40 dark:bg-[#201815]/40 space-y-1.5">
-            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold text-xs sm:text-sm">
+            <div className="flex items-center gap-2 text-accent font-semibold text-xs sm:text-sm">
               <Search className="w-4 h-4" />
               <span>{lang === "en" ? "Global Search & Replace" : "全文搜索定位与批量替换"}</span>
             </div>
@@ -2379,7 +2359,7 @@ export default function PdfInplaceTextStudio({
               <button
                 disabled={patches.length === 0 || applying}
                 onClick={handleExportFixedPdf}
-                className="w-full py-3 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 disabled:opacity-40 text-white transition-all shadow-md shadow-orange-600/25 flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-xl text-xs sm:text-sm font-bold btn-3d-sunset disabled:opacity-40 text-white transition-all flex items-center justify-center gap-2"
               >
                 {applying ? (
                   <>

@@ -5,7 +5,6 @@ import {
   UserCheck,
   QrCode,
   GitCompare,
-  UploadCloud,
   Download,
   Copy,
   Check,
@@ -56,6 +55,7 @@ import {
 } from "@/lib/organizerProcessor";
 import { downloadBlob } from "@/lib/api";
 import { formatBytes } from "@/lib/imageProcessor";
+import Dropzone from "@/components/Dropzone";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
 import SendToButton from "@/components/SendToButton";
 import { useI18n } from "@/lib/i18n";
@@ -428,6 +428,7 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
   const [isScanningOrganize, setIsScanningOrganize] = useState<boolean>(false);
   const [isExecutingOrganize, setIsExecutingOrganize] = useState<boolean>(false);
   const [organizeSuccessMsg, setOrganizeSuccessMsg] = useState<string | null>(null);
+  const [confirmOrganizeOpen, setConfirmOrganizeOpen] = useState<boolean>(false);
   const [organizeSearch, setOrganizeSearch] = useState<string>("");
   const organizeFolderInputRef = useRef<HTMLInputElement>(null);
 
@@ -503,6 +504,7 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
 
   const handleExecuteOrganize = async () => {
     if (organizePlan.length === 0) return;
+    setConfirmOrganizeOpen(false);
     setIsExecutingOrganize(true);
     setError(null);
     setOrganizeSuccessMsg(null);
@@ -555,20 +557,28 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
   const [isTrashingDup, setIsTrashingDup] = useState<boolean>(false);
   const [dupProgress, setDupProgress] = useState<{ stage: string; current: number; total: number } | null>(null);
   const [dupSuccessMsg, setDupSuccessMsg] = useState<string | null>(null);
+  const [confirmTrashDupOpen, setConfirmTrashDupOpen] = useState<boolean>(false);
   const dupFolderInputRef = useRef<HTMLInputElement>(null);
 
   const dupStats = React.useMemo(() => {
     let duplicateFileCount = 0;
     let reclaimableBytes = 0;
+    let selectedBytes = 0;
     dupGroups.forEach((g) => {
       const duplicates = g.files.slice(1);
       duplicateFileCount += duplicates.length;
       reclaimableBytes += duplicates.reduce((acc, f) => acc + f.size, 0);
+      g.files.forEach((f) => {
+        if (dupSelectedPaths.has(f.path)) {
+          selectedBytes += f.size;
+        }
+      });
     });
     return {
       groupCount: dupGroups.length,
       duplicateFileCount,
       reclaimableBytes,
+      selectedBytes,
       selectedCount: dupSelectedPaths.size,
     };
   }, [dupGroups, dupSelectedPaths]);
@@ -702,6 +712,7 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
 
   const handleTrashDuplicates = async () => {
     if (dupSelectedPaths.size === 0) return;
+    setConfirmTrashDupOpen(false);
     setIsTrashingDup(true);
     setError(null);
     setDupSuccessMsg(null);
@@ -789,71 +800,21 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
       {/* ================= 1. 证件照换底色与排版面板 ================= */}
       {activeTab === "idphoto" && (
         <div className="space-y-6">
-          <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/25 flex items-center justify-center text-white flex-shrink-0">
-              <UserCheck className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                {lang === "en" ? "ID Photo Studio" : "证件照制作与相纸排版"}
-              </h3>
-              <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                {lang === "en"
-                  ? "Change background color to white, blue, or red, adjust to standard 1-inch/2-inch sizes, and export 6-inch print sheets."
-                  : "更换红、白、蓝等标准底色，自适应标准 1 寸/2 寸规格裁切与 KB 容积限制，支持一键导出 6 寸冲印相纸排版。"}
-              </p>
-            </div>
-          </div>
-
           {!photoPreview ? (
-            <div
-              onClick={() => document.getElementById("photo-upload-input")?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                  handlePhotoUpload(e.dataTransfer.files[0]);
-                }
-              }}
-              className="group relative overflow-hidden border-2 border-dashed border-[#D2BCAB]/70 dark:border-[#4D392E]/60 hover:border-amber-500/70 dark:hover:border-amber-500/70 bg-gradient-to-b from-[#FBF8F4]/80 to-[#F5ECE1]/60 dark:from-[#211713]/70 dark:to-[#18110D]/70 hover:from-[#FFFDF9] hover:to-[#FDF4EB] dark:hover:from-[#291D17] dark:hover:to-[#1F1511] rounded-3xl p-8 sm:p-12 text-center cursor-pointer transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-amber-900/5 select-none"
-            >
-              <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_40%,rgba(245,158,11,0.08),transparent_65%)]" />
-              <input
-                id="photo-upload-input"
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    handlePhotoUpload(e.target.files[0]);
-                  }
-                }}
-                className="hidden"
-              />
-              <div className="relative flex flex-col items-center space-y-3.5">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center group-hover:scale-105 group-hover:-translate-y-0.5 transition-all duration-300 shadow-md shadow-orange-500/25">
-                  <UploadCloud className="w-7 h-7" />
-                </div>
-                <div>
-                  <div className="text-base font-bold text-coconut-900 dark:text-darkbg-text tracking-tight group-hover:text-amber-800 dark:group-hover:text-amber-300 transition-colors">
-                    {lang === "en" ? "Click or drag portrait photo here" : "点击或拖拽上传人像证件照"}
-                  </div>
-                  <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1 max-w-md mx-auto">
-                    {lang === "en"
-                      ? "Supports white, blue, red or plain color background portraits. Smart replacement and automatic layout"
-                      : "支持白底、蓝底、红底或纯色背景自拍照，智能平滑替换底色并自动排版"}
-                  </div>
-                </div>
-                <div className="flex items-center flex-wrap justify-center gap-2 pt-1 text-[11px] font-medium text-coconut-600 dark:text-darkbg-muted">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
-                    {lang === "en" ? "⚡ Edge-Feathered Cutout" : "⚡ 边缘羽化抠图算法"}
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-semibold">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                    {lang === "en" ? "100% Local Sandbox Privacy" : "100% 本地沙盒保密"}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <Dropzone
+              accept="image/*"
+              multiple={false}
+              selectedFiles={[]}
+              onFilesSelected={(f) => f[0] && handlePhotoUpload(f[0])}
+              onClear={() => {}}
+              title={lang === "en" ? "Click or drag portrait photo here" : "点击或拖拽上传人像证件照"}
+              hint={
+                lang === "en"
+                  ? "Supports white, blue, red or plain color background portraits. Smart replacement and automatic layout"
+                  : "支持白底、蓝底、红底或纯色背景自拍照，智能平滑替换底色并自动排版"
+              }
+              badge="ID PHOTO"
+            />
           ) : (
             <div className="coconut-panel p-5 sm:p-6 space-y-6">
               <div className="flex items-center justify-between pb-4 border-b border-coconut-200/60 dark:border-darkbg-border">
@@ -967,31 +928,45 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
 
                   {/* 4. 容差与边缘羽化微调 */}
                   <div className="p-4 bg-coconut-100/40 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/60 dark:border-darkbg-border space-y-3 text-xs sm:text-sm">
-                    <div className="flex justify-between items-center text-coconut-900 dark:text-darkbg-text font-semibold">
-                      <span>{lang === "en" ? "Tolerance Threshold" : "抠图容差阈值 (Tolerance)"}</span>
-                      <span className="font-mono text-palm-700 dark:text-palm-400 font-bold">{tolerance}</span>
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center text-coconut-900 dark:text-darkbg-text font-semibold">
+                        <span>{lang === "en" ? "Tolerance Threshold" : "抠图容差阈值 (Tolerance)"}</span>
+                        <span className="font-mono text-palm-700 dark:text-palm-400 font-bold">{tolerance}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="10"
+                        max="80"
+                        value={tolerance}
+                        onChange={(e) => setTolerance(Number(e.target.value))}
+                        className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-palm-600 dark:accent-palm-400"
+                      />
+                      <p className="text-[11px] leading-snug text-coconut-500 dark:text-darkbg-muted">
+                        {lang === "en"
+                          ? "Lower = stricter match (protects light clothing/hair); Higher = removes uneven background shadows."
+                          : "数值越小越严谨（可防误抠浅色衣领或发丝）；数值越大越能清理杂色或阴影底色。"}
+                      </p>
                     </div>
-                    <input
-                      type="range"
-                      min="10"
-                      max="80"
-                      value={tolerance}
-                      onChange={(e) => setTolerance(Number(e.target.value))}
-                      className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-palm-600 dark:accent-palm-400"
-                    />
 
-                    <div className="flex justify-between items-center text-coconut-900 dark:text-darkbg-text font-semibold pt-1">
-                      <span>{lang === "en" ? "Edge Feathering" : "边缘羽化模糊度 (Feather)"}</span>
-                      <span className="font-mono text-palm-700 dark:text-palm-400 font-bold">{feather} px</span>
+                    <div className="space-y-1 pt-1">
+                      <div className="flex justify-between items-center text-coconut-900 dark:text-darkbg-text font-semibold">
+                        <span>{lang === "en" ? "Edge Feathering" : "边缘羽化模糊度 (Feather)"}</span>
+                        <span className="font-mono text-palm-700 dark:text-palm-400 font-bold">{feather} px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="1"
+                        max="30"
+                        value={feather}
+                        onChange={(e) => setFeather(Number(e.target.value))}
+                        className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-palm-600 dark:accent-palm-400"
+                      />
+                      <p className="text-[11px] leading-snug text-coconut-500 dark:text-darkbg-muted">
+                        {lang === "en"
+                          ? "Softens hair & shoulder contours to eliminate jagged edges or color fringes."
+                          : "柔化头发与肩部轮廓边缘，适当调高可消除锯齿或背景色边残影。"}
+                      </p>
                     </div>
-                    <input
-                      type="range"
-                      min="1"
-                      max="30"
-                      value={feather}
-                      onChange={(e) => setFeather(Number(e.target.value))}
-                      className="w-full h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none cursor-pointer accent-palm-600 dark:accent-palm-400"
-                    />
                   </div>
 
                   {/* 5. 立即重新处理按钮 */}
@@ -1127,72 +1102,34 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
       {/* ================= 2. 目录智能归类大师 ================= */}
       {activeTab === "organize" && (
         <div className="space-y-6">
-          <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 shadow-md shadow-amber-500/25 flex items-center justify-center text-white flex-shrink-0">
-              <FolderTree className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                {lang === "en" ? "Folder Organizer" : "文件夹智能归类整理"}
-              </h3>
-              <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                {lang === "en"
-                  ? "Organize messy desktop and download folders by file types or dates with safe dry-run preview."
-                  : "专为桌面与下载文件夹打造，按文档、图片、音视频等类型或修改年月自动归类，提供变更试运行预演。"}
-              </p>
-            </div>
-          </div>
-
           <input
             ref={organizeFolderInputRef}
             type="file"
             multiple
             {...({ webkitdirectory: "", directory: "" } as any)}
-            onChange={(e) => handleOrganizeWebFiles(e.target.files)}
+            onChange={(e) => {
+              handleOrganizeWebFiles(e.target.files);
+              e.target.value = "";
+            }}
             className="hidden"
           />
 
           {!organizeFolderPath ? (
-            <div
-              onClick={handleSelectOrganizeFolder}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                  handleOrganizeWebFiles(e.dataTransfer.files);
-                }
-              }}
-              className="group relative overflow-hidden border-2 border-dashed border-[#D2BCAB]/70 dark:border-[#4D392E]/60 hover:border-amber-500/70 dark:hover:border-amber-500/70 bg-gradient-to-b from-[#FBF8F4]/80 to-[#F5ECE1]/60 dark:from-[#211713]/70 dark:to-[#18110D]/70 hover:from-[#FFFDF9] hover:to-[#FDF4EB] dark:hover:from-[#291D17] dark:hover:to-[#1F1511] rounded-3xl p-8 sm:p-12 text-center cursor-pointer transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-amber-900/5 select-none"
-            >
-              <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_40%,rgba(245,158,11,0.08),transparent_65%)]" />
-              <div className="relative flex flex-col items-center space-y-3.5">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white flex items-center justify-center group-hover:scale-105 group-hover:-translate-y-0.5 transition-all duration-300 shadow-md shadow-amber-600/25">
-                  <FolderTree className="w-7 h-7" />
-                </div>
-                <div>
-                  <div className="text-base font-bold text-coconut-900 dark:text-darkbg-text tracking-tight group-hover:text-amber-800 dark:group-hover:text-amber-300 transition-colors">
-                    {lang === "en" ? "Select or Drop Directory to Organize" : "选择或拖拽需要规整的混乱目录"}
-                  </div>
-                  <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1 max-w-md mx-auto">
-                    {lang === "en"
-                      ? "Ideal for cluttered Desktop and Downloads. Auto classify into Documents, Images, Media, Archives with safe Dry-Run."
-                      : "专为桌面、下载文件夹量身打造，按文档、图片、音视频、压缩包自动分流归档，提供变更试运行预演"}
-                  </div>
-                </div>
-                <div className="flex items-center flex-wrap justify-center gap-2 pt-1 text-[11px] font-medium text-coconut-600 dark:text-darkbg-muted">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
-                    {lang === "en" ? "⚡ Dry-Run Preview" : "⚡ 变更试运行预演 (Dry Run)"}
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
-                    {lang === "en" ? "🛡️ Auto Rename on Conflict" : "🛡️ 重名冲突自动追加序号"}
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-semibold">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                    {lang === "en" ? "100% Local Processing" : "100% 本地极速处理"}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <Dropzone
+              accept="*"
+              multiple={true}
+              selectedFiles={[]}
+              onClickOverride={handleSelectOrganizeFolder}
+              onFilesSelected={(f) => handleOrganizeWebFiles(f as any)}
+              onClear={() => {}}
+              title={lang === "en" ? "Select or Drop Directory to Organize" : "选择或拖拽需要规整的混乱目录"}
+              hint={
+                lang === "en"
+                  ? "Ideal for cluttered Desktop and Downloads. Auto classify into Documents, Images, Media, Archives with safe Dry-Run."
+                  : "专为桌面、下载文件夹量身打造，按文档、图片、音视频、压缩包自动分流归档，提供变更试运行预演"
+              }
+              badge="FOLDER ORGANIZER"
+            />
           ) : (
             <div className="coconut-panel p-5 sm:p-6 space-y-6">
               {/* 顶部路径与操作栏 */}
@@ -1428,9 +1365,9 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                 </div>
 
                 <button
-                  onClick={handleExecuteOrganize}
+                  onClick={() => setConfirmOrganizeOpen(true)}
                   disabled={organizePlan.length === 0 || isExecutingOrganize}
-                  className="w-full sm:w-auto px-6 py-2.5 rounded-2xl text-xs sm:text-sm font-bold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-md shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-2xl text-xs sm:text-sm font-bold btn-3d-sunset text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all cursor-pointer"
                 >
                   {isExecutingOrganize ? (
                     <>
@@ -1449,6 +1386,62 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                   )}
                 </button>
               </div>
+
+              {confirmOrganizeOpen && (
+                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+                  <div className="bg-[#FDFBF7] dark:bg-[#1E1713] border border-[#D2BCAB] dark:border-[#4D392E] rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+                    <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">
+                      <AlertCircle className="w-6 h-6 flex-shrink-0" />
+                      <h3 className="text-base font-bold text-coconut-950 dark:text-white">
+                        {typeof window !== "undefined" && (window as any).electronAPI?.organizeExecute && organizeFolderPath
+                          ? (lang === "en" ? "Confirm Batch Directory Organization?" : "确认执行目录批量归档移动？")
+                          : (lang === "en" ? "Confirm Export Organized Archive?" : "确认打包导出整理后的目录结构？")}
+                      </h3>
+                    </div>
+                    <div className="text-xs sm:text-sm text-coconut-700 dark:text-darkbg-muted leading-relaxed space-y-2">
+                      {typeof window !== "undefined" && (window as any).electronAPI?.organizeExecute && organizeFolderPath ? (
+                        <p>
+                          {lang === "en"
+                            ? `You are about to move ${organizeStats.totalCount} files into ${organizeStats.categoryCount} category subfolders inside:`
+                            : `即将把 ${organizeStats.totalCount} 个文件按规则移动归类至 ${organizeStats.categoryCount} 个子目录，目标根目录：`}
+                        </p>
+                      ) : (
+                        <p>
+                          {lang === "en"
+                            ? `You are about to package ${organizeStats.totalCount} files across ${organizeStats.categoryCount} category folders into a downloadable ZIP archive from:`
+                            : `即将按 ${organizeStats.categoryCount} 个分类将 ${organizeStats.totalCount} 个文件重新编排打包为 ZIP 下载，源目录：`}
+                        </p>
+                      )}
+                      {organizeFolderPath && (
+                        <div className="px-3 py-2 rounded-xl bg-coconut-100/80 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border font-mono text-[11px] text-coconut-900 dark:text-darkbg-text break-all">
+                          {organizeFolderPath}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-end gap-2.5 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setConfirmOrganizeOpen(false)}
+                        className="px-4 py-2 rounded-xl border border-coconut-300 dark:border-darkbg-border text-xs sm:text-sm font-semibold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-subtle transition-colors cursor-pointer"
+                      >
+                        {lang === "en" ? "Cancel" : "取消"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleExecuteOrganize}
+                        className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <FolderTree className="w-3.5 h-3.5" />
+                        <span>
+                          {typeof window !== "undefined" && (window as any).electronAPI?.organizeExecute && organizeFolderPath
+                            ? (lang === "en" ? "Confirm & Organize" : "确认执行归档")
+                            : (lang === "en" ? "Confirm & Export ZIP" : "确认打包导出")}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1457,72 +1450,34 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
       {/* ================= 3. 重复文件极速排重 ================= */}
       {activeTab === "duplicate" && (
         <div className="space-y-6">
-          <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-md shadow-purple-500/25 flex items-center justify-center text-white flex-shrink-0">
-              <CopyCheck className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                {lang === "en" ? "Duplicate File Finder" : "重复文件快速排重与清理"}
-              </h3>
-              <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                {lang === "en"
-                  ? "Rapidly scan duplicate files via tiered hash comparison and safely move duplicates to the system recycle bin."
-                  : "基于三级哈希极速扫描目录中内容一致的重复文件，智能标记保留最新或原件，安全移入系统回收站。"}
-              </p>
-            </div>
-          </div>
-
           <input
             ref={dupFolderInputRef}
             type="file"
             multiple
             {...({ webkitdirectory: "", directory: "" } as any)}
-            onChange={(e) => handleDupWebFiles(e.target.files)}
+            onChange={(e) => {
+              handleDupWebFiles(e.target.files);
+              e.target.value = "";
+            }}
             className="hidden"
           />
 
           {!dupFolderPath && dupGroups.length === 0 && !isScanningDup ? (
-            <div
-              onClick={handleSelectDupFolder}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                  handleDupWebFiles(e.dataTransfer.files);
-                }
-              }}
-              className="group relative overflow-hidden border-2 border-dashed border-[#D2BCAB]/70 dark:border-[#4D392E]/60 hover:border-rose-500/70 dark:hover:border-rose-500/70 bg-gradient-to-b from-[#FBF8F4]/80 to-[#F5ECE1]/60 dark:from-[#211713]/70 dark:to-[#18110D]/70 hover:from-[#FFFDF9] hover:to-[#FDF4EB] dark:hover:from-[#291D17] dark:hover:to-[#1F1511] rounded-3xl p-8 sm:p-12 text-center cursor-pointer transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-rose-900/5 select-none"
-            >
-              <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_40%,rgba(244,63,94,0.08),transparent_65%)]" />
-              <div className="relative flex flex-col items-center space-y-3.5">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 text-white flex items-center justify-center group-hover:scale-105 group-hover:-translate-y-0.5 transition-all duration-300 shadow-md shadow-rose-500/25">
-                  <CopyCheck className="w-7 h-7" />
-                </div>
-                <div>
-                  <div className="text-base font-bold text-coconut-900 dark:text-darkbg-text tracking-tight group-hover:text-rose-800 dark:group-hover:text-rose-300 transition-colors">
-                    {lang === "en" ? "Select Directory to Scan Duplicates" : "选择需要极速查重的目标目录"}
-                  </div>
-                  <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1 max-w-md mx-auto">
-                    {lang === "en"
-                      ? "Tiered short-circuit hashing engine. Rapidly scans duplicates and safely moves replicas to Recycle Bin."
-                      : "对标 czkawka 三级阶梯哈希引擎，秒级识别相同文件，智能建议清理并安全移入系统回收站"}
-                  </div>
-                </div>
-                <div className="flex items-center flex-wrap justify-center gap-2 pt-1 text-[11px] font-medium text-coconut-600 dark:text-darkbg-muted">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
-                    {lang === "en" ? "⚡ 3-Tier Short-Circuit Hash" : "⚡ 三级阶梯短路哈希 (Level 1-3)"}
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
-                    {lang === "en" ? "🛡️ Smart Original/Replica Tagging" : "🛡️ 原件/副本智能区分标注"}
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 text-rose-700 dark:text-rose-400 font-semibold">
-                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                    {lang === "en" ? "Safe Recycle Bin Protection" : "系统回收站防误删保障"}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <Dropzone
+              accept="*"
+              multiple={true}
+              selectedFiles={[]}
+              onClickOverride={handleSelectDupFolder}
+              onFilesSelected={(f) => handleDupWebFiles(f as any)}
+              onClear={() => {}}
+              title={lang === "en" ? "Select Directory to Scan Duplicates" : "选择需要极速查重的目标目录"}
+              hint={
+                lang === "en"
+                  ? "Tiered short-circuit hashing engine. Rapidly scans duplicates and safely moves replicas to Recycle Bin."
+                  : "基于三级阶梯哈希引擎秒级识别相同文件，智能建议清理并安全移入系统回收站"
+              }
+              badge="DUPLICATE SCAN"
+            />
           ) : (
             <div className="coconut-panel p-5 sm:p-6 space-y-6">
               {/* 顶部路径与操作栏 */}
@@ -1796,9 +1751,9 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                         </div>
 
                         <button
-                          onClick={handleTrashDuplicates}
+                          onClick={() => setConfirmTrashDupOpen(true)}
                           disabled={dupSelectedPaths.size === 0 || isTrashingDup}
-                          className="w-full sm:w-auto px-6 py-2.5 rounded-2xl text-xs sm:text-sm font-bold bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white shadow-md shadow-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all"
+                          className="w-full sm:w-auto px-6 py-2.5 rounded-2xl text-xs sm:text-sm font-bold bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white shadow-md shadow-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all cursor-pointer"
                         >
                           {isTrashingDup ? (
                             <>
@@ -1817,6 +1772,41 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                           )}
                         </button>
                       </div>
+
+                      {confirmTrashDupOpen && (
+                        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+                          <div className="bg-[#FDFBF7] dark:bg-[#1E1713] border border-[#D2BCAB] dark:border-[#4D392E] rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+                            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+                              <AlertCircle className="w-6 h-6 flex-shrink-0" />
+                              <h3 className="text-base font-bold text-coconut-950 dark:text-white">
+                                {lang === "en" ? "Confirm Moving Replicas to Recycle Bin?" : "确认将选中副本移入回收站？"}
+                              </h3>
+                            </div>
+                            <p className="text-xs sm:text-sm text-coconut-700 dark:text-darkbg-muted leading-relaxed">
+                              {lang === "en"
+                                ? `You are about to move ${dupSelectedPaths.size} duplicate replica files (${formatBytes(dupStats.selectedBytes)}) to the system Recycle Bin. One original file per group is safely kept, and you can restore items from the Recycle Bin at any time.`
+                                : `即将把已勾选的 ${dupSelectedPaths.size} 个重复副本文件（共约 ${formatBytes(dupStats.selectedBytes)}）移入系统回收站。每组均已自动保留 1 份原件，移入后如发现误删仍可随时从系统回收站还原。`}
+                            </p>
+                            <div className="flex items-center justify-end gap-2.5 pt-2">
+                              <button
+                                type="button"
+                                onClick={() => setConfirmTrashDupOpen(false)}
+                                className="px-4 py-2 rounded-xl border border-coconut-300 dark:border-darkbg-border text-xs sm:text-sm font-semibold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-subtle transition-colors cursor-pointer"
+                              >
+                                {lang === "en" ? "Cancel" : "取消"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleTrashDuplicates}
+                                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>{lang === "en" ? "Confirm Move to Recycle Bin" : "确认移入回收站"}</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </>
@@ -1829,22 +1819,6 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
       {/* ================= 4. 个性化二维码与扫码识别面板 ================= */}
       {activeTab === "qrcode" && (
         <div className="space-y-6">
-          <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/25 flex items-center justify-center text-white flex-shrink-0">
-              <QrCode className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                {lang === "en" ? "QR Code Studio" : "艺术二维码生成与离线识别"}
-              </h3>
-              <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                {lang === "en"
-                  ? "Generate custom styled QR codes with logos and colors, or scan and decode QR code images completely offline."
-                  : "生成支持自定义配色、中心 Logo、WiFi/名片的艺术二维码，或离线解析图片中的二维码内容。"}
-              </p>
-            </div>
-          </div>
-
           {/* 二维码模式切换 */}
           <div className="flex space-x-2 border-b border-coconut-200/60 dark:border-darkbg-border pb-3">
             <button
@@ -1873,29 +1847,9 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
 
           {qrMode === "scan" ? (
             <div className="coconut-panel p-5 sm:p-6 space-y-5">
-              <div>
-                <h3 className="text-base font-bold text-coconut-900 dark:text-darkbg-text flex items-center space-x-2">
-                  <ScanLine className="w-5 h-5 text-palm-600 dark:text-palm-400" />
-                  <span>{lang === "en" ? "Offline QR Code Scanner & Decoder" : "二维码离线智能识别与解码"}</span>
-                </h3>
-                <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1 leading-relaxed">
-                  {lang === "en"
-                    ? "Drag or paste any QR code image. 100% offline local parsing with jsQR, zero data upload."
-                    : "直接上传或拖拽电脑上的二维码截图、微信名片码、WiFi码等，100% 浏览器本地离线解析，无需掏出手机扫屏幕。"}
-                </p>
-              </div>
-
               {!scanFile ? (
                 <div
                   tabIndex={0}
-                  onClick={() => document.getElementById("qr-scan-upload")?.click()}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                      handleScanQrFile(e.dataTransfer.files[0]);
-                    }
-                  }}
                   onPaste={(e) => {
                     const items = e.clipboardData?.items;
                     if (!items) return;
@@ -1910,26 +1864,26 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                       }
                     }
                   }}
-                  className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center cursor-pointer transition-all bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                  className="focus:outline-none focus:ring-2 focus:ring-amber-500/40 rounded-3xl"
                 >
-                  <input
-                    id="qr-scan-upload"
-                    type="file"
+                  <Dropzone
                     accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        handleScanQrFile(e.target.files[0]);
-                      }
-                    }}
-                    className="hidden"
+                    multiple={false}
+                    selectedFiles={[]}
+                    onFilesSelected={(f) => f[0] && handleScanQrFile(f[0])}
+                    onClear={() => {}}
+                    title={
+                      lang === "en"
+                        ? "Click, drag, or press Ctrl+V to paste QR code"
+                        : "点击、拖拽或直接按 Ctrl+V 粘贴二维码图片"
+                    }
+                    hint={
+                      lang === "en"
+                        ? "Supports PNG, JPG, WebP screenshots & clipboard paste · 100% offline local decoding"
+                        : "支持常见截图、照片、PNG、JPG、WebP 与剪贴板截图 · 纯本地离线极速解码"
+                    }
+                    badge="QR SCAN"
                   />
-                  <ScanLine className="w-10 h-10 text-toast-500 mx-auto mb-2" />
-                  <div className="text-sm sm:text-base font-bold text-coconut-900 dark:text-darkbg-text">
-                    {lang === "en" ? "Click, drag, or press Ctrl+V to paste QR code" : "点击、拖拽或直接按 Ctrl+V 粘贴二维码图片"}
-                  </div>
-                  <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
-                    {lang === "en" ? "Supports PNG, JPG, WebP screenshots & clipboard paste" : "支持常见截图、照片、PNG、JPG、WebP 格式与剪贴板截图"}
-                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -2393,6 +2347,7 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
                         if (e.target.files && e.target.files[0]) {
                           setQrLogoFile(e.target.files[0]);
                         }
+                        e.target.value = "";
                       }}
                       className="hidden"
                     />
@@ -2483,22 +2438,6 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
       {/* ================= 3. 文本与代码 Diff 对比面板 ================= */}
       {activeTab === "diff" && (
         <div className="coconut-panel p-5 sm:p-6 space-y-5">
-          <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-md shadow-cyan-500/25 flex items-center justify-center text-white flex-shrink-0">
-              <GitCompare className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                {lang === "en" ? "Text & Code Diff" : "文章与文本差异对比"}
-              </h3>
-              <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                {lang === "en"
-                  ? "Side-by-side or unified comparison of text, articles, or code snippets with highlighted insertions and deletions."
-                  : "双栏或并排对比两段文本、文章或代码差异，字符级精细高亮标注新增、删除与修改行。"}
-              </p>
-            </div>
-          </div>
-
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-coconut-200/60 dark:border-darkbg-border">
             <div className="flex items-center space-x-3 flex-wrap gap-y-2">
               <span className="text-sm font-semibold text-coconut-900 dark:text-darkbg-text">
@@ -2656,8 +2595,8 @@ Nevertheless, synthetic code introduces critical risks around logical hallucinat
 
       {/* 错误提示 */}
       {error && (
-        <div className="p-4 rounded-2xl bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 flex items-center space-x-3 text-toast-700 dark:text-toast-400 text-sm animate-shake">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-center space-x-3 text-rose-700 dark:text-rose-300 text-sm animate-shake">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-500" />
           <span>{error}</span>
         </div>
       )}

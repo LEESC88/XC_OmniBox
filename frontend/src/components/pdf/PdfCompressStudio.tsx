@@ -206,7 +206,10 @@ export default function PdfCompressStudio({
               return (
                 <div
                   key={opt.id}
-                  onClick={() => setLevel(opt.id)}
+                  onClick={() => {
+                    setLevel(opt.id);
+                    if (executionResult) onReset();
+                  }}
                   className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                     isSelected
                       ? "bg-accent-subtle/80 border-orange-500/60 shadow-coconut-xs dark:border-orange-500/50"
@@ -248,7 +251,10 @@ export default function PdfCompressStudio({
                     type="radio"
                     name="compress-level"
                     checked={isSelected}
-                    onChange={() => setLevel(opt.id)}
+                    onChange={() => {
+                      setLevel(opt.id);
+                      if (executionResult) onReset();
+                    }}
                     className="accent-palm-500 w-4 h-4 flex-shrink-0 cursor-pointer"
                   />
                 </div>
@@ -260,8 +266,8 @@ export default function PdfCompressStudio({
 
       {/* 提示与错误 */}
       {error && (
-        <div className="p-3 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-2 text-toast-700 dark:text-toast-300 text-xs">
-          <AlertCircle className="w-4 h-4 flex-shrink-0 text-toast-500" />
+        <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
           <span>{error}</span>
         </div>
       )}

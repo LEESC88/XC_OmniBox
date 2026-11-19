@@ -477,7 +477,7 @@ export default function AiMarkdownToWordStudio({
       <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
           <div className="flex items-start gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-red-500 to-amber-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+            <div className="w-11 h-11 rounded-2xl bg-accent-gradient text-white flex items-center justify-center flex-shrink-0 shadow-sm">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
@@ -497,7 +497,7 @@ export default function AiMarkdownToWordStudio({
           <button
             type="button"
             onClick={() => setShowSettings(!showSettings)}
-            className="self-start sm:self-center px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-coconut-100/80 hover:bg-coconut-200 dark:bg-darkbg-subtle dark:text-darkbg-text flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="self-start sm:self-center px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-coconut-100/80 hover:bg-coconut-200 dark:bg-darkbg-subtle dark:text-darkbg-text flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap flex-shrink-0"
           >
             <span>
               {lang === "en"
@@ -1142,7 +1142,7 @@ export default function AiMarkdownToWordStudio({
               type="button"
               onClick={handleConvertAndDownload}
               disabled={!content.trim() || converting}
-              className="w-full sm:w-auto px-7 py-3 rounded-2xl text-xs sm:text-sm font-bold bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white shadow-md shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 transition-all cursor-pointer"
+              className="w-full sm:w-auto px-7 py-3 rounded-2xl text-xs sm:text-sm font-bold btn-3d-sunset text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 transition-all cursor-pointer"
             >
               {converting ? (
                 <>

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  TableProperties,
   Combine,
   Scissors,
   ShieldCheck,
@@ -289,8 +288,8 @@ export default function SpreadsheetToolbox({
 
       {/* 错误提示条 */}
       {error && (
-        <div className="p-4 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-3 text-toast-700 dark:text-toast-300 text-xs sm:text-sm animate-fade-in">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 text-toast-500" />
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl flex items-center gap-3 text-rose-700 dark:text-rose-300 text-xs sm:text-sm animate-fade-in">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-500" />
           <span className="font-medium">{error}</span>
         </div>
       )}
@@ -299,28 +298,20 @@ export default function SpreadsheetToolbox({
       {activeTab === "sheet-merge" && (
         <div className="space-y-6">
           <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/25 flex items-center justify-center text-white flex-shrink-0">
-                <TableProperties className="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                  {t.spreadsheet.mergeTab}
-                </h3>
-                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                  {lang === "en"
-                    ? "Automatically detect headers across multiple files, align missing columns, and merge into one unified sheet."
-                    : "自动跨文件探测表头，智能列名重排对齐，缺失字段自动留空补位，秒级拼接为一份完整总表。"}
-                </p>
-              </div>
-            </div>
-
             {/* 拖拽上传区 */}
             <Dropzone
               accept=".xlsx,.xls,.csv"
               multiple={true}
               selectedFiles={mergeFiles}
-              onFilesSelected={(newFiles) => setMergeFiles((prev) => [...prev, ...newFiles])}
+              hasCompletedResult={Boolean(mergeResult)}
+              onFilesSelected={(newFiles) => {
+                setMergeFiles(newFiles);
+                setMergeResult(null);
+              }}
+              onRemoveFile={(idx) => {
+                setMergeFiles((prev) => prev.filter((_, i) => i !== idx));
+                setMergeResult(null);
+              }}
               onClear={() => {
                 setMergeFiles([]);
                 setMergeResult(null);
@@ -351,6 +342,15 @@ export default function SpreadsheetToolbox({
                       <option value="union">{t.spreadsheet.modeUnion}</option>
                       <option value="intersection">{t.spreadsheet.modeIntersection}</option>
                     </select>
+                    <p className="text-[11px] leading-snug text-coconut-500 dark:text-darkbg-muted">
+                      {mergeMode === "union"
+                        ? lang === "en"
+                          ? "Keeps every column across all files and fills missing fields with blanks."
+                          : "保留全部文件中的每一列字段，个别表格缺失的列自动留空补齐。"
+                        : lang === "en"
+                          ? "Keeps only columns shared by all selected files and drops mismatched ones."
+                          : "仅保留全部表格均包含的共有字段，其余非共有列将被过滤。"}
+                    </p>
                   </div>
 
                   {/* 表头所在行号 */}
@@ -466,7 +466,7 @@ export default function SpreadsheetToolbox({
                   <button
                     onClick={handleExecuteMerge}
                     disabled={isMerging}
-                    className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm shadow-md shadow-emerald-600/25 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-95"
+                    className="w-full sm:w-auto px-7 py-3.5 rounded-2xl btn-3d-sunset text-white font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-95"
                   >
                     {isMerging ? (
                       <>
@@ -523,29 +523,16 @@ export default function SpreadsheetToolbox({
       {activeTab === "sheet-split" && (
         <div className="space-y-6">
           <div className="coconut-panel p-6 sm:p-8 space-y-6">
-            <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/25 flex items-center justify-center text-white flex-shrink-0">
-                <Scissors className="w-5 h-5 sm:w-6 sm:h-6" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-                  {t.spreadsheet.splitTab}
-                </h3>
-                <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-                  {lang === "en"
-                    ? "Pick a column as grouping key (e.g. Department, Month, City) to split tens of thousands of rows into separate files."
-                    : "任选指定数据列（如部门、业务员、月份或城市），一键将上万行大表流式拆解为数十个独立 Excel 并打包。"}
-                </p>
-              </div>
-            </div>
-
             {/* 拖拽上传区 */}
             <Dropzone
               accept=".xlsx,.xls,.csv"
               multiple={false}
               selectedFiles={splitFile ? [splitFile] : []}
               onFilesSelected={(newFiles) => {
-                if (newFiles.length > 0) setSplitFile(newFiles[0]);
+                if (newFiles.length > 0) {
+                  setSplitFile(newFiles[0]);
+                  setSplitResult(null);
+                }
               }}
               onClear={() => {
                 setSplitFile(null);
@@ -559,7 +546,7 @@ export default function SpreadsheetToolbox({
             {splitFile && splitProbe && (
               <div className="p-5 sm:p-6 bg-coconut-100/40 dark:bg-darkbg-subtle/40 border border-coconut-200/80 dark:border-darkbg-border rounded-2xl space-y-5">
                 <div className="flex items-center gap-2 text-sm font-bold text-coconut-900 dark:text-darkbg-text">
-                  <Filter className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <Filter className="w-4 h-4 text-accent" />
                   <span>{lang === "en" ? "Split Grouping Configuration" : "拆分分组条件设置"}</span>
                 </div>
 
@@ -573,7 +560,7 @@ export default function SpreadsheetToolbox({
                       value={splitSheetName || (splitProbe.activeSheet || "")}
                       onChange={(e) => setSplitSheetName(e.target.value)}
                       disabled={splitProbe.sheetNames.length <= 1}
-                      className="w-full px-3.5 py-2 text-xs sm:text-sm bg-white/90 dark:bg-darkbg-card border border-coconut-300 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text disabled:opacity-60 focus:outline-none focus:border-indigo-500 shadow-2xs font-medium"
+                      className="w-full px-3.5 py-2 text-xs sm:text-sm bg-white/90 dark:bg-darkbg-card border border-coconut-300 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text disabled:opacity-60 focus:outline-none focus:border-accent shadow-2xs font-medium"
                     >
                       {splitProbe.sheetNames.map((name) => (
                         <option key={name} value={name}>
@@ -591,7 +578,7 @@ export default function SpreadsheetToolbox({
                     <select
                       value={splitHeaderRowIndex}
                       onChange={(e) => setSplitHeaderRowIndex(parseInt(e.target.value))}
-                      className="w-full px-3.5 py-2 text-xs sm:text-sm bg-white/90 dark:bg-darkbg-card border border-coconut-300 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-indigo-500 shadow-2xs font-medium"
+                      className="w-full px-3.5 py-2 text-xs sm:text-sm bg-white/90 dark:bg-darkbg-card border border-coconut-300 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-accent shadow-2xs font-medium"
                     >
                       <option value={0}>{lang === "en" ? "Row 1 (Default)" : "第 1 行 (标准单表头)"}</option>
                       <option value={1}>{lang === "en" ? "Row 2 (Title banner in row 1)" : "第 2 行 (第1行为大标题)"}</option>
@@ -609,7 +596,7 @@ export default function SpreadsheetToolbox({
                     <select
                       value={splitColIndex}
                       onChange={(e) => setSplitColIndex(parseInt(e.target.value))}
-                      className="w-full px-3.5 py-2 text-xs sm:text-sm bg-white/90 dark:bg-darkbg-card border border-coconut-300 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-indigo-500 shadow-2xs font-medium"
+                      className="w-full px-3.5 py-2 text-xs sm:text-sm bg-white/90 dark:bg-darkbg-card border border-coconut-300 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-accent shadow-2xs font-medium"
                     >
                       {splitProbe.headers.map((h, i) => (
                         <option key={i} value={i}>
@@ -626,7 +613,7 @@ export default function SpreadsheetToolbox({
                         type="checkbox"
                         checked={includeHeader}
                         onChange={(e) => setIncludeHeader(e.target.checked)}
-                        className="rounded accent-indigo-600"
+                        className="rounded accent-orange-600"
                       />
                       <span>{t.spreadsheet.includeHeader}</span>
                     </label>
@@ -639,7 +626,7 @@ export default function SpreadsheetToolbox({
                         type="checkbox"
                         checked={prefixWithOriginalName}
                         onChange={(e) => setPrefixWithOriginalName(e.target.checked)}
-                        className="rounded accent-indigo-600"
+                        className="rounded accent-orange-600"
                       />
                       <span>{t.spreadsheet.prefixFileName}</span>
                     </label>
@@ -691,7 +678,7 @@ export default function SpreadsheetToolbox({
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-semibold text-coconut-800 dark:text-darkbg-text flex items-center gap-1.5">
                           <span>{lang === "en" ? "Estimated split: " : "预计拆解出 "}</span>
-                          <span className="font-bold text-indigo-600 dark:text-indigo-400 font-mono px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 rounded">
+                          <span className="font-bold text-accent font-mono px-2 py-0.5 bg-accent-subtle border border-accent-border rounded">
                             {splitGroupInfo.distinctCount}
                           </span>
                           <span>
@@ -743,7 +730,7 @@ export default function SpreadsheetToolbox({
                       isSplitting ||
                       Boolean(splitGroupInfo?.isHighCardinality && !forceSplitHighCardinality)
                     }
-                    className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-md shadow-indigo-600/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all active:scale-95"
+                    className="w-full sm:w-auto px-7 py-3.5 rounded-2xl btn-3d-sunset text-white font-bold text-sm shadow-coconut-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all active:scale-95"
                   >
                     {isSplitting ? (
                       <>

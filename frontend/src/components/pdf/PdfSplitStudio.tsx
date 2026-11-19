@@ -155,6 +155,7 @@ export default function PdfSplitStudio({
 
   // 点击单张卡片切换选中
   const togglePageSelection = (pageNum: number) => {
+    if (executionResult) onReset();
     setSelectedPages((prev) => {
       const next = new Set(prev);
       if (next.has(pageNum)) {
@@ -169,6 +170,7 @@ export default function PdfSplitStudio({
 
   // 用户在文本框输入范围
   const handleRangeInputChange = (val: string) => {
+    if (executionResult) onReset();
     setRangeInput(val);
     const parsed = parseRangeStringToPages(val, numPages);
     setSelectedPages(parsed);
@@ -176,6 +178,7 @@ export default function PdfSplitStudio({
 
   // 全选
   const handleSelectAll = () => {
+    if (executionResult) onReset();
     const all = new Set<number>();
     for (let i = 1; i <= numPages; i++) {
       all.add(i);
@@ -186,12 +189,14 @@ export default function PdfSplitStudio({
 
   // 清空选择
   const handleDeselectAll = () => {
+    if (executionResult) onReset();
     setSelectedPages(new Set());
     setRangeInput("");
   };
 
   // 反选
   const handleInvertSelection = () => {
+    if (executionResult) onReset();
     const next = new Set<number>();
     for (let i = 1; i <= numPages; i++) {
       if (!selectedPages.has(i)) {
@@ -204,6 +209,7 @@ export default function PdfSplitStudio({
 
   // 奇数页
   const handleSelectOdd = () => {
+    if (executionResult) onReset();
     const odds = new Set<number>();
     for (let i = 1; i <= numPages; i += 2) {
       odds.add(i);
@@ -214,6 +220,7 @@ export default function PdfSplitStudio({
 
   // 偶数页
   const handleSelectEven = () => {
+    if (executionResult) onReset();
     const evens = new Set<number>();
     for (let i = 2; i <= numPages; i += 2) {
       evens.add(i);
@@ -268,7 +275,10 @@ export default function PdfSplitStudio({
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <div className="p-1 rounded-2xl bg-coconut-100 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border flex items-center gap-1">
             <button
-              onClick={() => setSplitMode("extract")}
+              onClick={() => {
+                setSplitMode("extract");
+                if (executionResult) onReset();
+              }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 splitMode === "extract"
                   ? "bg-accent-gradient text-white shadow-2xs"
@@ -278,7 +288,10 @@ export default function PdfSplitStudio({
               {lang === "en" ? "Extract Selected Pages" : "提取选中页面为新 PDF"}
             </button>
             <button
-              onClick={() => setSplitMode("split-all")}
+              onClick={() => {
+                setSplitMode("split-all");
+                if (executionResult) onReset();
+              }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 splitMode === "split-all"
                   ? "bg-accent-gradient text-white shadow-2xs"
@@ -385,8 +398,8 @@ export default function PdfSplitStudio({
           </p>
         </div>
       ) : renderError ? (
-        <div className="p-6 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-3 text-toast-700 dark:text-toast-300 text-xs">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 text-toast-500" />
+        <div className="p-6 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl flex items-center gap-3 text-rose-700 dark:text-rose-300 text-xs">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-500" />
           <div>
             <div className="font-bold">{lang === "en" ? "Failed to render thumbnails" : "缩略图解析失败"}</div>
             <div className="mt-1">{renderError}</div>
@@ -564,8 +577,8 @@ export default function PdfSplitStudio({
 
       {/* 提示与错误 */}
       {error && (
-        <div className="p-3 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-2 text-toast-700 dark:text-toast-300 text-xs">
-          <AlertCircle className="w-4 h-4 flex-shrink-0 text-toast-500" />
+        <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
           <span>{error}</span>
         </div>
       )}

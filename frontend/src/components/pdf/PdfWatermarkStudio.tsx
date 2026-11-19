@@ -194,7 +194,10 @@ export default function PdfWatermarkStudio({
             <input
               type="text"
               value={watermarkText}
-              onChange={(e) => setWatermarkText(e.target.value)}
+              onChange={(e) => {
+                setWatermarkText(e.target.value);
+                if (executionResult) onReset();
+              }}
               placeholder={lang === "en" ? "Enter watermark text..." : "请输入防伪/防盗水印文字"}
               className="w-full text-sm p-3 bg-white/90 dark:bg-darkbg-subtle border border-[#CBB09C] dark:border-darkbg-border rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-coconut-950 dark:text-darkbg-text font-medium"
             />
@@ -205,7 +208,10 @@ export default function PdfWatermarkStudio({
                 <button
                   key={t}
                   type="button"
-                  onClick={() => setWatermarkText(t)}
+                  onClick={() => {
+                    setWatermarkText(t);
+                    if (executionResult) onReset();
+                  }}
                   className={`text-[11px] px-2 py-0.5 rounded-lg border transition-all active:scale-95 ${
                     watermarkText === t
                       ? "bg-orange-500/15 text-orange-800 dark:text-orange-200 border-orange-500/40 font-bold"
@@ -232,7 +238,10 @@ export default function PdfWatermarkStudio({
               max="0.85"
               step="0.05"
               value={watermarkOpacity}
-              onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
+              onChange={(e) => {
+                setWatermarkOpacity(parseFloat(e.target.value));
+                if (executionResult) onReset();
+              }}
               className="w-full accent-orange-600 cursor-pointer h-2 bg-coconut-200 dark:bg-darkbg-border rounded-lg appearance-none"
             />
 
@@ -242,7 +251,10 @@ export default function PdfWatermarkStudio({
                 <button
                   key={item.val}
                   type="button"
-                  onClick={() => setWatermarkOpacity(item.val)}
+                  onClick={() => {
+                    setWatermarkOpacity(item.val);
+                    if (executionResult) onReset();
+                  }}
                   className={`text-[10px] py-1 px-1 rounded-lg border font-semibold text-center transition-all active:scale-95 ${
                     Math.abs(watermarkOpacity - item.val) < 0.02
                       ? "bg-accent-gradient text-white border-transparent"
@@ -265,7 +277,10 @@ export default function PdfWatermarkStudio({
                 <button
                   key={ang.val}
                   type="button"
-                  onClick={() => setWatermarkAngle(ang.val)}
+                  onClick={() => {
+                    setWatermarkAngle(ang.val);
+                    if (executionResult) onReset();
+                  }}
                   className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all active:scale-95 text-center ${
                     watermarkAngle === ang.val
                       ? "bg-accent-gradient text-white border-transparent shadow-xs"
@@ -286,7 +301,10 @@ export default function PdfWatermarkStudio({
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setLayout("center")}
+                onClick={() => {
+                  setLayout("center");
+                  if (executionResult) onReset();
+                }}
                 className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all text-center ${
                   layout === "center"
                     ? "bg-accent-gradient text-white border-transparent shadow-xs"
@@ -297,7 +315,10 @@ export default function PdfWatermarkStudio({
               </button>
               <button
                 type="button"
-                onClick={() => setLayout("tile")}
+                onClick={() => {
+                  setLayout("tile");
+                  if (executionResult) onReset();
+                }}
                 className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all text-center ${
                   layout === "tile"
                     ? "bg-accent-gradient text-white border-transparent shadow-xs"
@@ -311,8 +332,8 @@ export default function PdfWatermarkStudio({
 
           {/* 错误提示 */}
           {error && (
-            <div className="p-3 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-2 text-toast-700 dark:text-toast-300 text-xs">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 text-toast-500" />
+            <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
               <span>{error}</span>
             </div>
           )}

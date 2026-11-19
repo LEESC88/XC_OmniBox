@@ -23,9 +23,11 @@ interface DropzoneProps {
   selectedFiles: File[];
   onClear: () => void;
   onRemoveFile?: (index: number) => void;
+  hasCompletedResult?: boolean;
   title?: string;
   hint?: string;
   badge?: string;
+  onClickOverride?: () => void;
 }
 
 export default function Dropzone({
@@ -35,26 +37,56 @@ export default function Dropzone({
   selectedFiles,
   onClear,
   onRemoveFile,
+  hasCompletedResult = false,
   title,
   hint,
   badge,
+  onClickOverride,
 }: DropzoneProps) {
   const { t, lang } = useI18n();
   const [isDragOver, setIsDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
   const appendInputRef = useRef<HTMLInputElement>(null);
 
   const isPdf = accept.includes(".pdf");
   const isDoc = accept.includes(".doc");
+  const isSheet = accept.includes(".xlsx") || accept.includes(".xls") || accept.includes(".csv");
   const isImg = accept.includes("image");
+  const isAudio = accept.includes("audio");
+  const isVideo = accept.includes("video");
 
   const formatTag = isPdf
     ? "PDF"
     : isDoc
     ? "DOCX / DOC"
+    : isSheet
+    ? "EXCEL / CSV"
     : isImg
     ? "IMAGE"
-    : "DOC";
+    : isAudio
+    ? "AUDIO"
+    : isVideo
+    ? "VIDEO"
+    : "FILE";
+
+  const formatAcceptLabel = (rawAccept: string) => {
+    const tokens = rawAccept
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s && s !== "*");
+    if (tokens.length === 0) return "";
+    const mapped = tokens.map((token) => {
+      if (token === "image/*") return lang === "en" ? "Images" : "主流图片";
+      if (token === "audio/*") return lang === "en" ? "Audio" : "音频格式";
+      if (token === "video/*") return lang === "en" ? "Video" : "视频格式";
+      if (token.startsWith("image/")) return "." + token.slice(6).toUpperCase();
+      return token;
+    });
+    const deduped = Array.from(new Set(mapped));
+    return deduped.slice(0, 6).join(", ") + (deduped.length > 6 ? " ..." : "");
+  };
+  const acceptSummary = formatAcceptLabel(accept);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -79,6 +111,7 @@ export default function Dropzone({
       const files = Array.from(e.target.files);
       onFilesSelected(multiple ? files : [files[0]]);
     }
+    e.target.value = "";
   };
 
   const formatSize = (bytes: number) => {
@@ -97,7 +130,7 @@ export default function Dropzone({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => inputRef.current?.click()}
+          onClick={() => (onClickOverride ? onClickOverride() : inputRef.current?.click())}
           className={`group relative rounded-3xl border-2 border-dashed p-8 sm:p-12 text-center cursor-pointer transition-all duration-300 select-none overflow-hidden ${
             isDragOver
               ? "border-amber-500 bg-amber-500/10 dark:bg-amber-500/15 scale-[0.992] shadow-[0_16px_48px_rgba(245,158,11,0.22)] ring-4 ring-amber-500/20"
@@ -119,7 +152,7 @@ export default function Dropzone({
           <div className="relative z-10 flex flex-col items-center justify-center space-y-4">
             {/* 顶栏微标签 (若有外部传入或格式识别) */}
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-white/90 dark:bg-[#30251F] text-coconut-800 dark:text-amber-400 border border-[#D2BCAB]/70 dark:border-[#523E33] shadow-2xs group-hover:border-amber-500/40 transition-colors">
-              <Sparkles className="w-3 h-3 text-amber-500" />
+              <Sparkles className="w-3 h-3 text-accent" />
               <span>{badge || formatTag}</span>
             </div>
 
@@ -130,8 +163,8 @@ export default function Dropzone({
               <div
                 className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl flex items-center justify-center transition-all duration-300 shadow-md ${
                   isDragOver
-                    ? "bg-amber-500 text-white scale-110 shadow-lg shadow-amber-500/30"
-                    : "bg-white/95 dark:bg-[#342821] text-amber-600 dark:text-amber-400 border border-white dark:border-[#523E33] group-hover:scale-105 group-hover:-translate-y-1 group-hover:shadow-lg"
+                    ? "bg-accent-solid text-white scale-110 shadow-lg shadow-amber-500/30"
+                    : "bg-white/95 dark:bg-[#342821] text-accent border border-white dark:border-[#523E33] group-hover:scale-105 group-hover:-translate-y-1 group-hover:shadow-lg"
                 }`}
               >
                 <UploadCloud className="w-8 h-8 sm:w-10 sm:h-10 transition-transform duration-300 group-hover:scale-110" />
@@ -147,7 +180,7 @@ export default function Dropzone({
                     : t.dropzone.dragOrClick || "拖拽文件至此区域，或"}
                 </span>
                 {!isDragOver && (
-                  <span className="text-amber-600 dark:text-amber-400 underline decoration-amber-500/40 underline-offset-4 group-hover:decoration-amber-500 transition-colors font-semibold">
+                  <span className="text-accent underline decoration-current/40 underline-offset-4 group-hover:decoration-current transition-colors font-semibold">
                     {t.dropzone.clickToBrowse || "点击浏览本地文件"}
                   </span>
                 )}
@@ -159,10 +192,12 @@ export default function Dropzone({
 
             {/* 企业级特性微标识行 */}
             <div className="flex items-center justify-center flex-wrap gap-2 pt-1 text-[11px] font-medium text-coconut-600 dark:text-darkbg-muted">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-coconut-200/50 dark:bg-darkbg-subtle/80 border border-coconut-300/40 dark:border-darkbg-border">
-                <FileText className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                <span>{accept.replace(/\*/g, "")}</span>
-              </span>
+              {acceptSummary && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-coconut-200/50 dark:bg-darkbg-subtle/80 border border-coconut-300/40 dark:border-darkbg-border">
+                  <FileText className="w-3 h-3 text-accent" />
+                  <span>{acceptSummary}</span>
+                </span>
+              )}
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-coconut-200/50 dark:bg-darkbg-subtle/80 border border-coconut-300/40 dark:border-darkbg-border">
                 <Zap className="w-3 h-3 text-amber-500" />
                 <span>{t.dropzone.localSandbox || "本地毫秒级解析"}</span>
@@ -175,9 +210,18 @@ export default function Dropzone({
           </div>
         </div>
       ) : (
-        /* 文件已就绪状态卡片 */
-        <div className="bg-gradient-to-b from-white/95 via-[#FAF1E8]/70 to-[#F4E6D8]/80 dark:from-[#281F1A] dark:via-[#221A15] dark:to-[#1A1410] border border-[#D2BCAB] dark:border-[#4D392E] rounded-3xl p-5 sm:p-6 shadow-coconut-md backdrop-blur-md space-y-4">
-          <div className="flex items-center justify-between pb-1 border-b border-[#D2BCAB]/40 dark:border-[#4D392E]/60">
+        /* 文件已就绪状态卡片（同样支持直接拖入新文件替换） */
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`bg-gradient-to-b from-white/95 via-[#FAF1E8]/70 to-[#F4E6D8]/80 dark:from-[#281F1A] dark:via-[#221A15] dark:to-[#1A1410] border rounded-3xl p-5 sm:p-6 shadow-coconut-md backdrop-blur-md space-y-4 transition-all ${
+            isDragOver
+              ? "border-amber-500 ring-4 ring-amber-500/20"
+              : "border-[#D2BCAB] dark:border-[#4D392E]"
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-[#D2BCAB]/40 dark:border-[#4D392E]/60">
             <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-bold">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>
@@ -187,7 +231,32 @@ export default function Dropzone({
                 )}
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* 更换文件（直接覆盖旧文件并重置下方转换结果） */}
+              <input
+                ref={replaceInputRef}
+                type="file"
+                accept={accept}
+                multiple={multiple}
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    const newFiles = Array.from(e.target.files);
+                    onFilesSelected(multiple ? newFiles : [newFiles[0]]);
+                  }
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => replaceInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 hover:text-amber-800 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all shadow-2xs cursor-pointer"
+                title={lang === "en" ? "Select new file(s) and replace current selection" : "直接选择新文件并替换当前列表"}
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>{lang === "en" ? "Change File" : "更换文件"}</span>
+              </button>
+
               {multiple && (
                 <>
                   <input
@@ -199,7 +268,9 @@ export default function Dropzone({
                     onChange={(e) => {
                       if (e.target.files && e.target.files.length > 0) {
                         const newFiles = Array.from(e.target.files);
-                        onFilesSelected([...selectedFiles, ...newFiles]);
+                        onFilesSelected(
+                          hasCompletedResult ? newFiles : [...selectedFiles, ...newFiles]
+                        );
                       }
                       e.target.value = "";
                     }}
@@ -207,10 +278,11 @@ export default function Dropzone({
                   <button
                     type="button"
                     onClick={() => appendInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 hover:text-amber-800 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all shadow-2xs cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-coconut-700 dark:text-darkbg-text hover:text-coconut-950 dark:hover:text-white bg-coconut-200/50 dark:bg-darkbg-subtle hover:bg-coconut-200/80 border border-coconut-300/60 dark:border-darkbg-border transition-all shadow-2xs cursor-pointer"
+                    title={lang === "en" ? "Append more files for batch processing" : "追加更多文件进行批量处理"}
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>{lang === "en" ? "Add More" : "添加文件"}</span>
+                    <span>{lang === "en" ? "Add Batch" : "追加批量"}</span>
                   </button>
                 </>
               )}
@@ -219,8 +291,8 @@ export default function Dropzone({
                 onClick={onClear}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/60 hover:bg-rose-100/90 dark:hover:bg-rose-950/60 transition-all shadow-2xs cursor-pointer"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>{t.dropzone.reselect}</span>
+                <X className="w-3.5 h-3.5" />
+                <span>{lang === "en" ? "Clear" : "清空"}</span>
               </button>
             </div>
           </div>

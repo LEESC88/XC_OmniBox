@@ -123,10 +123,13 @@ export default function ImagesToPdfStudio({
         </div>
 
         {/* 排版规格胶囊切换 */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
           <div className="p-1 rounded-2xl bg-coconut-100 dark:bg-darkbg-subtle border border-coconut-200 dark:border-darkbg-border flex items-center gap-1">
             <button
-              onClick={() => setPageSize("fit")}
+              onClick={() => {
+                setPageSize("fit");
+                if (executionResult) onReset();
+              }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 pageSize === "fit"
                   ? "bg-accent-gradient text-white shadow-2xs"
@@ -136,7 +139,10 @@ export default function ImagesToPdfStudio({
               {lang === "en" ? "Fit Image (No Border)" : "原图自适应 (无白边)"}
             </button>
             <button
-              onClick={() => setPageSize("a4")}
+              onClick={() => {
+                setPageSize("a4");
+                if (executionResult) onReset();
+              }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 pageSize === "a4"
                   ? "bg-accent-gradient text-white shadow-2xs"
@@ -167,6 +173,15 @@ export default function ImagesToPdfStudio({
               className="hidden"
             />
           </label>
+
+          <button
+            onClick={onClearFiles}
+            className="p-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors flex items-center gap-1 text-xs font-semibold cursor-pointer"
+            title={lang === "en" ? "Clear All" : "清空全部"}
+          >
+            <Trash2 className="w-4 h-4" />
+            <span className="hidden md:inline">{lang === "en" ? "Clear" : "清空"}</span>
+          </button>
         </div>
       </div>
 
@@ -237,8 +252,8 @@ export default function ImagesToPdfStudio({
 
       {/* 提示与错误 */}
       {error && (
-        <div className="p-3 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-2 text-toast-700 dark:text-toast-300 text-xs">
-          <AlertCircle className="w-4 h-4 flex-shrink-0 text-toast-500" />
+        <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
           <span>{error}</span>
         </div>
       )}

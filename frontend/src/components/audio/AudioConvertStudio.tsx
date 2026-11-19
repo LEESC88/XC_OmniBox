@@ -3,13 +3,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   RefreshCw,
-  UploadCloud,
   Download,
   CheckCircle2,
   AlertCircle,
   Archive,
   Sparkles,
-  ShieldCheck,
   Trash2,
 } from "lucide-react";
 import {
@@ -20,6 +18,7 @@ import {
 import { formatBytes } from "@/lib/imageProcessor";
 import { downloadBlob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import Dropzone from "@/components/Dropzone";
 import BatchQueueProgress from "@/components/BatchQueueProgress";
 import SendToButton from "@/components/SendToButton";
 import {
@@ -82,7 +81,14 @@ export default function AudioConvertStudio({
       );
     }
     if (valid.length > 0) {
-      setConvertFiles((prev) => [...prev, ...valid]);
+      if (convertResults.length > 0) {
+        setConvertFiles(valid);
+        setConvertResults([]);
+        setConvertQueueItems([]);
+        setConvertQueueSummary({ total: 0, completed: 0, failed: 0, active: 0, waiting: 0, percent: 0, etaSeconds: null });
+      } else {
+        setConvertFiles((prev) => [...prev, ...valid]);
+      }
     }
   };
 
@@ -207,120 +213,31 @@ export default function AudioConvertStudio({
         </div>
       )}
 
-      <div className="coconut-panel p-5 sm:p-6 space-y-4">
-        <div className="font-bold text-sm text-coconut-900 dark:text-darkbg-text flex items-center space-x-2">
-          <RefreshCw className="w-4 h-4 text-toast-500" />
-          <span>{lang === "en" ? "Target Conversion Settings" : "设置批量转换目标参数"}</span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <span className="text-sm text-coconut-900 dark:text-darkbg-text font-semibold">
-              {lang === "en" ? "Target Audio Format" : "目标音频格式"}
-            </span>
-            <div className="flex space-x-2">
-              {(["mp3", "wav"] as const).map((fmt) => (
-                <button
-                  key={fmt}
-                  onClick={() => setConvertTargetFormat(fmt)}
-                  className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold uppercase transition-all active:scale-95 ${
-                    convertTargetFormat === fmt
-                      ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 font-bold shadow-sm"
-                      : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:dark:text-darkbg-text border border-transparent dark:border-darkbg-border"
-                  }`}
-                >
-                  {fmt}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {convertTargetFormat === "mp3" && (
-            <div className="space-y-1.5">
-              <span className="text-sm text-coconut-900 dark:text-darkbg-text font-semibold">
-                {lang === "en" ? "MP3 Bitrate" : "MP3 压缩比特率"}
-              </span>
-              <select
-                value={convertKbps}
-                onChange={(e) => setConvertKbps(parseInt(e.target.value))}
-                className="w-full px-3.5 py-2.5 text-sm bg-white/70 dark:bg-darkbg-subtle border border-coconut-300/80 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-palm-500 shadow-2xs"
-              >
-                <option value={320} className="dark:bg-darkbg-card dark:text-darkbg-text">
-                  {lang === "en" ? "320 kbps (Studio Master Music)" : "320 kbps (录音室母带级音乐)"}
-                </option>
-                <option value={256} className="dark:bg-darkbg-card dark:text-darkbg-text">
-                  {lang === "en" ? "256 kbps (High Fidelity Music)" : "256 kbps (高保真音乐)"}
-                </option>
-                <option value={192} className="dark:bg-darkbg-card dark:text-darkbg-text">
-                  {lang === "en" ? "192 kbps (Standard CD Quality)" : "192 kbps (通用标准 CD 级)"}
-                </option>
-                <option value={128} className="dark:bg-darkbg-card dark:text-darkbg-text">
-                  {lang === "en" ? "128 kbps (Compact Podcast)" : "128 kbps (网络播客省流)"}
-                </option>
-              </select>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Drag & drop upload area */}
-      <div
-        onClick={() => document.getElementById("audio-convert-upload")?.click()}
-        onDragOver={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
+      {/* 1. 统一文件输入在前 */}
+      <Dropzone
+        accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac,.wma"
+        multiple={true}
+        selectedFiles={[]}
+        onFilesSelected={handleAddConvertFiles}
+        onClear={() => {
+          if (convertAbortCtrlRef.current) convertAbortCtrlRef.current.abort();
+          setConvertFiles([]);
+          setConvertQueueItems([]);
+          setConvertResults([]);
+          setConvertQueueSummary({ total: 0, completed: 0, failed: 0, active: 0, waiting: 0, percent: 0, etaSeconds: null });
         }}
-        onDrop={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (e.dataTransfer.files) {
-            handleAddConvertFiles(e.dataTransfer.files);
-          }
-        }}
-        className="group relative overflow-hidden border-2 border-dashed border-[#D2BCAB]/70 dark:border-[#4D392E]/60 hover:border-amber-500/70 dark:hover:border-amber-500/70 bg-gradient-to-b from-[#FBF8F4]/80 to-[#F5ECE1]/60 dark:from-[#211713]/70 dark:to-[#18110D]/70 hover:from-[#FFFDF9] hover:to-[#FDF4EB] dark:hover:from-[#291D17] dark:hover:to-[#1F1511] rounded-3xl p-8 sm:p-11 text-center cursor-pointer transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-amber-900/5 select-none"
-      >
-        <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_40%,rgba(245,158,11,0.08),transparent_65%)]" />
-        <input
-          id="audio-convert-upload"
-          type="file"
-          multiple
-          accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac,.wma"
-          onChange={(e) => {
-            if (e.target.files) {
-              handleAddConvertFiles(e.target.files);
-            }
-          }}
-          className="hidden"
-        />
-        <div className="relative flex flex-col items-center space-y-3.5">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center group-hover:scale-105 group-hover:-translate-y-0.5 transition-all duration-300 shadow-md shadow-orange-500/25">
-            <UploadCloud className="w-7 h-7" />
-          </div>
-          <div>
-            <div className="text-base font-bold text-coconut-900 dark:text-darkbg-text tracking-tight group-hover:text-amber-800 dark:group-hover:text-amber-300 transition-colors">
-              {lang === "en" ? "Click or drag audio files here" : "点击或拖拽多个音频文件至此处"}
-            </div>
-            <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1 max-w-md mx-auto">
-              {lang === "en"
-                ? "Supports MP3, WAV, AAC, M4A, OGG, FLAC and more (Batch queue ready)"
-                : "支持 MP3, WAV, AAC, M4A, OGG, FLAC 等全部音频格式（支持并发批量转码）"}
-            </div>
-          </div>
-          <div className="flex items-center flex-wrap justify-center gap-2 pt-1 text-[11px] font-medium text-coconut-600 dark:text-darkbg-muted">
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
-              ⚡ 多线程并发流水线
-            </span>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-semibold">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              100% 本地沙盒保密
-            </span>
-          </div>
-        </div>
-      </div>
+        title={lang === "en" ? "Click or drag audio files here" : "点击或拖拽多个音频文件至此处"}
+        hint={
+          lang === "en"
+            ? "Supports MP3, WAV, AAC, M4A, OGG, FLAC and more (Multi-thread batch queue ready)"
+            : "支持 MP3, WAV, AAC, M4A, OGG, FLAC 等常见音频格式（支持并发批量转码）"
+        }
+        badge="BATCH AUDIO"
+      />
 
-      {/* Files pending list */}
+      {/* 2. 待处理列表 + 参数渐进展开 + 主操作按钮 */}
       {convertFiles.length > 0 && (
-        <div className="coconut-panel p-5 space-y-4">
+        <div className="coconut-panel p-5 sm:p-6 space-y-5 animate-fade-in">
           <div className="flex items-center justify-between">
             <span className="font-bold text-xs text-coconut-900 dark:text-darkbg-text">
               {lang === "en" ? `Pending Audio (${convertFiles.length})` : `待转码音频 (${convertFiles.length} 首)`}
@@ -333,7 +250,7 @@ export default function AudioConvertStudio({
                 setConvertResults([]);
                 setConvertQueueSummary({ total: 0, completed: 0, failed: 0, active: 0, waiting: 0, percent: 0, etaSeconds: null });
               }}
-              className="text-xs text-rose-500 hover:text-rose-600 font-medium"
+              className="text-xs text-rose-500 hover:text-rose-600 font-medium cursor-pointer"
             >
               {lang === "en" ? "Clear List" : "清空列表"}
             </button>
@@ -371,8 +288,12 @@ export default function AudioConvertStudio({
                   {!isProcessing && (
                     <button
                       type="button"
-                      onClick={() => setConvertFiles((prev) => prev.filter((_, idx) => idx !== i))}
-                      className="p-1 rounded-md hover:bg-coconut-200/80 dark:hover:bg-darkbg-hover text-coconut-400 hover:text-rose-500 transition-colors"
+                      onClick={() => {
+                        setConvertFiles((prev) => prev.filter((_, idx) => idx !== i));
+                        setConvertQueueItems((prev) => prev.filter((it) => it.name !== f.name));
+                        setConvertResults((prev) => prev.filter((r) => r.originalName !== f.name));
+                      }}
+                      className="p-1 rounded-md hover:bg-coconut-200/80 dark:hover:bg-darkbg-hover text-coconut-400 hover:text-rose-500 transition-colors cursor-pointer"
                       title={lang === "en" ? "Remove this file" : "移除此文件"}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -381,6 +302,63 @@ export default function AudioConvertStudio({
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* 渐进展开的转码参数区 */}
+          <div className="pt-4 border-t border-coconut-200/60 dark:border-darkbg-border space-y-4">
+            <div className="font-bold text-sm text-coconut-900 dark:text-darkbg-text flex items-center space-x-2">
+              <RefreshCw className="w-4 h-4 text-accent" />
+              <span>{lang === "en" ? "Target Conversion Settings" : "设置批量转换目标参数"}</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <span className="text-sm text-coconut-900 dark:text-darkbg-text font-semibold">
+                  {lang === "en" ? "Target Audio Format" : "目标音频格式"}
+                </span>
+                <div className="flex space-x-2">
+                  {(["mp3", "wav"] as const).map((fmt) => (
+                    <button
+                      key={fmt}
+                      onClick={() => setConvertTargetFormat(fmt)}
+                      className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold uppercase transition-all active:scale-95 cursor-pointer ${
+                        convertTargetFormat === fmt
+                          ? "bg-coconut-800 text-coconut-50 dark:bg-white dark:text-zinc-950 font-bold shadow-sm"
+                          : "bg-coconut-100/70 dark:bg-darkbg-subtle text-coconut-700 dark:text-darkbg-muted hover:dark:text-darkbg-text border border-transparent dark:border-darkbg-border"
+                      }`}
+                    >
+                      {fmt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {convertTargetFormat === "mp3" && (
+                <div className="space-y-1.5">
+                  <span className="text-sm text-coconut-900 dark:text-darkbg-text font-semibold">
+                    {lang === "en" ? "MP3 Bitrate" : "MP3 压缩比特率"}
+                  </span>
+                  <select
+                    value={convertKbps}
+                    onChange={(e) => setConvertKbps(parseInt(e.target.value))}
+                    className="w-full px-3.5 py-2.5 text-sm bg-white/70 dark:bg-darkbg-subtle border border-coconut-300/80 dark:border-darkbg-border rounded-xl text-coconut-900 dark:text-darkbg-text focus:outline-none focus:border-accent shadow-2xs"
+                  >
+                    <option value={320} className="dark:bg-darkbg-card dark:text-darkbg-text">
+                      {lang === "en" ? "320 kbps (Studio Master Music)" : "320 kbps (录音室母带级音乐)"}
+                    </option>
+                    <option value={256} className="dark:bg-darkbg-card dark:text-darkbg-text">
+                      {lang === "en" ? "256 kbps (High Fidelity Music)" : "256 kbps (高保真音乐)"}
+                    </option>
+                    <option value={192} className="dark:bg-darkbg-card dark:text-darkbg-text">
+                      {lang === "en" ? "192 kbps (Standard CD Quality)" : "192 kbps (通用标准 CD 级)"}
+                    </option>
+                    <option value={128} className="dark:bg-darkbg-card dark:text-darkbg-text">
+                      {lang === "en" ? "128 kbps (Compact Podcast)" : "128 kbps (网络播客省流)"}
+                    </option>
+                  </select>
+                </div>
+              )}
+            </div>
           </div>
 
           {!isProcessing && (

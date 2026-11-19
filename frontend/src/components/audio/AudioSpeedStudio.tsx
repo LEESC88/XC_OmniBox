@@ -21,6 +21,7 @@ import {
 import { formatBytes } from "@/lib/imageProcessor";
 import { downloadBlob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import Dropzone from "@/components/Dropzone";
 import SendToButton from "@/components/SendToButton";
 import { AudioStudioProps } from "./types";
 
@@ -168,54 +169,23 @@ export default function AudioSpeedStudio({
         </div>
       )}
 
-      <div className="coconut-panel p-5 sm:p-6 space-y-5">
-        <div>
-          <h3 className="text-base font-bold text-coconut-900 dark:text-darkbg-text">
-            {lang === "en" ? "Audio Speed Adjustment" : "音频变速变调调节"}
-          </h3>
-          <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
-            {lang === "en"
-              ? "Change tempo/playback speed (0.5x to 2.0x) with hardware-accelerated offline audio processing."
-              : "支持 0.5x 到 2.0x 任意倍速调节，纯本地离线硬件加速重采样。"}
-          </p>
-        </div>
-
-        {!speedBuffer ? (
-          <div
-            onClick={() => document.getElementById("speed-upload-input")?.click()}
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const f = e.dataTransfer.files?.[0];
-              if (f) handleSpeedFileSelected(f);
-            }}
-            className="border-2 border-dashed border-[#D2BCAB] dark:border-[#4D392E] hover:border-amber-500 dark:hover:border-amber-400 rounded-3xl p-10 text-center cursor-pointer transition-all bg-[#FAF1E8]/75 dark:bg-[#251E1A]/70 hover:bg-[#F4E6D8]/85"
-          >
-            <input
-              id="speed-upload-input"
-              type="file"
-              accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac,.wma"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  handleSpeedFileSelected(e.target.files[0]);
-                }
-              }}
-              className="hidden"
-            />
-            <Clock className="w-10 h-10 text-toast-500 mx-auto mb-2" />
-            <div className="text-sm sm:text-base font-bold text-coconut-900 dark:text-darkbg-text">
-              {lang === "en" ? "Click or drag audio file here for speed adjustment" : "点击或拖拽上传音频调节倍速"}
-            </div>
-            <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1">
-              {lang === "en" ? "Supports MP3, WAV, AAC, OGG, FLAC and more" : "支持 MP3, WAV, AAC, OGG, FLAC 等主流音频格式"}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-5">
+      {!speedBuffer ? (
+        <Dropzone
+          accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac,.wma"
+          multiple={false}
+          selectedFiles={[]}
+          onFilesSelected={(f) => f[0] && handleSpeedFileSelected(f[0])}
+          onClear={() => {}}
+          title={lang === "en" ? "Click or drag audio file here for speed adjustment" : "点击或拖拽上传音频调节倍速"}
+          hint={
+            lang === "en"
+              ? "Supports MP3, WAV, AAC, OGG, FLAC (0.5x to 2.0x offline speed processing)"
+              : "支持 MP3, WAV, AAC, OGG, FLAC 等主流音频格式（0.5x ~ 2.0x 本地硬件加速重采样）"
+          }
+          badge="TEMPO & SPEED"
+        />
+      ) : (
+        <div className="coconut-panel p-5 sm:p-6 space-y-5">
             <div className="p-3 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/70 dark:border-darkbg-border flex items-center justify-between">
               <div className="truncate pr-2">
                 <span className="text-xs font-semibold text-coconut-900 dark:text-darkbg-text truncate block">
@@ -227,9 +197,11 @@ export default function AudioSpeedStudio({
               </div>
               <button
                 onClick={() => {
+                  stopPreview();
                   setSpeedBuffer(null);
                   setSpeedFile(null);
                   setSpeedResult(null);
+                  setError(null);
                 }}
                 className="text-xs text-coconut-600 hover:text-coconut-900 dark:text-darkbg-muted dark:hover:text-darkbg-text flex-shrink-0"
               >
@@ -360,8 +332,7 @@ export default function AudioSpeedStudio({
               </button>
             </div>
           </div>
-        )}
-      </div>
+      )}
 
       {/* Speed result card */}
       {speedResult && (

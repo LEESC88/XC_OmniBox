@@ -28,99 +28,121 @@ export interface FontOption {
   fontFamily: string;
 }
 
-// 纯粹、高对比、现代专业的纯白 (White) 与极简深黑 (Dark) 主题
+// 生椰暖白 (Warm Light) 与曜石暖黑 (Warm Dark) 主题预设（与 globals.css 默认变量严格对齐）
 export const DEFAULT_WHITE_THEME: CustomThemeConfig = {
   id: "white",
-  name: "极简白 (White)",
-  nameEn: "Clean White",
-  background: "#F8FAFC",
+  name: "生椰暖白 (Warm Light)",
+  nameEn: "Warm Coconut Light",
+  background: "#F6F3EE",
   foreground: "#FFFFFF",
-  accent: "#2563EB",
-  textMain: "#0F172A",
-  textMuted: "#64748B",
-  border: "#E2E8F0",
+  accent: "#EA580C",
+  textMain: "#1C1613",
+  textMuted: "#6E5D53",
+  border: "#E6DFD5",
   isDark: false,
 };
 
 export const DEFAULT_DARK_THEME: CustomThemeConfig = {
   id: "dark",
-  name: "极简黑 (Dark)",
-  nameEn: "Minimal Dark",
-  background: "#0F172A",
-  foreground: "#1E293B",
-  accent: "#3B82F6",
-  textMain: "#F8FAFC",
-  textMuted: "#94A3B8",
-  border: "#334155",
+  name: "曜石暖黑 (Warm Dark)",
+  nameEn: "Obsidian Warm Dark",
+  background: "#131110",
+  foreground: "#1C1917",
+  accent: "#F97316",
+  textMain: "#F7F4F0",
+  textMuted: "#A89B91",
+  border: "#302A26",
   isDark: true,
 };
+
+function normalizeLegacyThemePreset(theme: CustomThemeConfig): CustomThemeConfig {
+  if (!theme.isDark && theme.background === "#F8FAFC" && theme.accent === "#2563EB") {
+    return DEFAULT_WHITE_THEME;
+  }
+  if (theme.isDark && theme.background === "#0F172A" && theme.accent === "#3B82F6") {
+    return DEFAULT_DARK_THEME;
+  }
+  return theme;
+}
 
 export const THEME_PRESETS: CustomThemeConfig[] = [
   DEFAULT_WHITE_THEME,
   DEFAULT_DARK_THEME,
 ];
 
-// 常用正规标准英文字体体系 (杜绝奇形怪状的毛笔与仿宋字体，统一规范屏显)
+// 6 款风格鲜明、中英双语特征突出且 100% 离线零延迟渲染的界面字体预设
 export const FONT_PRESETS: FontOption[] = [
   {
     id: "system",
-    name: "System Default / 系统默认",
-    nameEn: "System Default",
-    badge: "Default",
+    name: "现代黑体 · 系统默认",
+    nameEn: "Modern UI Sans (Default)",
+    badge: "默认推荐",
     badgeEn: "Default",
-    desc: "System UI native standard font",
-    descEn: "System UI native standard font",
-    sample: "The quick brown fox jumps over the lazy dog 1234567890",
-    sampleEn: "The quick brown fox jumps over the lazy dog 1234567890",
-    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    desc: "Windows 微软雅黑 + Segoe UI，均衡清晰的标准桌面无衬线体",
+    descEn: "Balanced native desktop sans-serif (Segoe UI & YaHei)",
+    sample: "万象全能工作台 · The quick brown fox 123456",
+    sampleEn: "XC OmniBox Studio · The quick brown fox 123456",
+    fontFamily: '"Segoe UI", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif',
   },
   {
     id: "inter",
-    name: "Inter / Modern Sans",
-    nameEn: "Inter / Modern Sans",
-    badge: "Modern",
-    badgeEn: "Modern",
-    desc: "Clean geometric sans-serif for UI clarity",
-    descEn: "Clean geometric sans-serif for UI clarity",
-    sample: "The quick brown fox jumps over the lazy dog 1234567890",
-    sampleEn: "The quick brown fox jumps over the lazy dog 1234567890",
-    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    name: "纤巧等线 · 极简几何",
+    nameEn: "Sleek Geometric (DengXian & Gothic)",
+    badge: "纤巧现代",
+    badgeEn: "Geometric",
+    desc: "等线体搭配 Century Gothic 几何字形，笔画纤细通透、现代感强",
+    descEn: "Slender geometric letterforms with airy modern spacing",
+    sample: "万象全能工作台 · The quick brown fox 123456",
+    sampleEn: "XC OmniBox Studio · The quick brown fox 123456",
+    fontFamily: '"Century Gothic", "Trebuchet MS", "DengXian", "等线", "PingFang SC", "Microsoft JhengHei UI", sans-serif',
   },
   {
     id: "roboto",
-    name: "Roboto / Clean",
-    nameEn: "Roboto / Clean",
-    badge: "Readable",
-    badgeEn: "Readable",
-    desc: "High legibility grotesque sans-serif",
-    descEn: "High legibility grotesque sans-serif",
-    sample: "The quick brown fox jumps over the lazy dog 1234567890",
-    sampleEn: "The quick brown fox jumps over the lazy dog 1234567890",
-    fontFamily: '"Roboto", "Segoe UI", Arial, sans-serif',
+    name: "典雅书宋 · 刊物衬线",
+    nameEn: "Editorial Serif (Georgia & Song)",
+    badge: "书刊衬线",
+    badgeEn: "Editorial",
+    desc: "华文中宋/宋体搭配 Georgia 经典衬线，横细竖粗、书卷出版质感",
+    descEn: "High-contrast classic editorial serif for long-form reading",
+    sample: "万象全能工作台 · The quick brown fox 123456",
+    sampleEn: "XC OmniBox Studio · The quick brown fox 123456",
+    fontFamily: 'Georgia, "Cambria", "Times New Roman", "STZhongsong", "华文中宋", "Songti SC", "SimSun", "宋体", serif',
   },
   {
     id: "segoe",
-    name: "Segoe UI / Windows",
-    nameEn: "Segoe UI / Windows",
-    badge: "Windows",
-    badgeEn: "Windows",
-    desc: "Windows official clear desktop font",
-    descEn: "Windows official clear desktop font",
-    sample: "The quick brown fox jumps over the lazy dog 1234567890",
-    sampleEn: "The quick brown fox jumps over the lazy dog 1234567890",
-    fontFamily: '"Segoe UI", -apple-system, Arial, sans-serif',
+    name: "温润楷书 · 人文手写",
+    nameEn: "Humanist Calligraphic (Palatino & Kai)",
+    badge: "温润书卷",
+    badgeEn: "Humanist",
+    desc: "楷体搭配 Palatino 人文衬线，笔触温润舒展，富有东方人文气息",
+    descEn: "Warm calligraphic brush strokes paired with Palatino serif",
+    sample: "万象全能工作台 · The quick brown fox 123456",
+    sampleEn: "XC OmniBox Studio · The quick brown fox 123456",
+    fontFamily: '"Palatino Linotype", "Book Antiqua", "STKaiti", "华文楷体", "KaiTi", "楷体", "Kaiti SC", serif',
+  },
+  {
+    id: "rounded",
+    name: "圆润亲和 · 柔滑圆体",
+    nameEn: "Soft Rounded (Verdana & YouYuan)",
+    badge: "圆润亲和",
+    badgeEn: "Rounded",
+    desc: "幼圆体搭配 Verdana 宽博字形，转角圆润柔和，视觉轻松不刺眼",
+    descEn: "Wide, friendly rounded terminals for relaxed screen viewing",
+    sample: "万象全能工作台 · The quick brown fox 123456",
+    sampleEn: "XC OmniBox Studio · The quick brown fox 123456",
+    fontFamily: 'Verdana, "Trebuchet MS", "YouYuan", "幼圆", "STYuanti", "Microsoft YaHei UI", sans-serif',
   },
   {
     id: "mono",
-    name: "Monospace / Code",
-    nameEn: "Monospace / Code",
-    badge: "Monospace",
+    name: "极客等宽 · 编程代码",
+    nameEn: "Developer Mono (Cascadia & Consolas)",
+    badge: "极客等宽",
     badgeEn: "Monospace",
-    desc: "Strict fixed-width characters for digits and data",
-    descEn: "Strict fixed-width characters for digits and data",
-    sample: "The quick brown fox jumps over the lazy dog 1234567890",
-    sampleEn: "The quick brown fox jumps over the lazy dog 1234567890",
-    fontFamily: '"Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace',
+    desc: "Cascadia Code / Consolas 严格等宽字符，数字与代码对齐分明",
+    descEn: "Strict fixed-width characters ideal for data, digits and code",
+    sample: "万象全能工作台 · The quick brown fox 123456",
+    sampleEn: "XC OmniBox Studio · The quick brown fox 123456",
+    fontFamily: '"Cascadia Code", "JetBrains Mono", Consolas, "Courier New", "NSimSun", "新宋体", monospace',
   },
 ];
 
@@ -227,7 +249,7 @@ export function getSavedWhiteTheme(): CustomThemeConfig {
   if (typeof window !== "undefined") {
     try {
       const saved = localStorage.getItem("xc_custom_white_theme");
-      if (saved) return JSON.parse(saved);
+      if (saved) return normalizeLegacyThemePreset(JSON.parse(saved));
     } catch (_) {}
   }
   return DEFAULT_WHITE_THEME;
@@ -240,7 +262,7 @@ export function getSavedDarkTheme(): CustomThemeConfig {
   if (typeof window !== "undefined") {
     try {
       const saved = localStorage.getItem("xc_custom_dark_theme");
-      if (saved) return JSON.parse(saved);
+      if (saved) return normalizeLegacyThemePreset(JSON.parse(saved));
     } catch (_) {}
   }
   return DEFAULT_DARK_THEME;
@@ -289,7 +311,7 @@ export function getSavedTheme(): CustomThemeConfig {
       const isDark = document.documentElement.classList.contains("dark") || localStorage.getItem("xc_theme") === "dark";
       const saved = localStorage.getItem("xc_custom_theme");
       if (saved) {
-        const parsed = JSON.parse(saved);
+        const parsed = normalizeLegacyThemePreset(JSON.parse(saved));
         if (Boolean(parsed.isDark) === isDark) {
           return parsed;
         }

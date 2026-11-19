@@ -18,5 +18,10 @@ echo  Press Ctrl+C to stop all services.
 echo =======================================================
 echo.
 
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":3000 " ^| findstr "LISTENING"') do (
+    echo [Notice] Releasing occupied port 3000 ^(PID: %%a^)...
+    taskkill /F /PID %%a >nul 2>&1
+)
+
 call npm run dev:electron
 pause

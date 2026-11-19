@@ -815,10 +815,11 @@ export function buildWifiQrString(
   encryption: "WPA" | "WEP" | "nopass" = "WPA",
   hidden: boolean = false
 ): string {
+  const esc = (s: string) => s.replace(/([\\;,:""])/g, "\\$1");
   const enc = encryption === "nopass" ? "nopass" : encryption;
-  const passPart = encryption === "nopass" ? "" : `P:${password};`;
+  const passPart = encryption === "nopass" ? "" : `P:${esc(password)};`;
   const hidPart = hidden ? "H:true;" : "";
-  return `WIFI:T:${enc};S:${ssid};${passPart}${hidPart};`;
+  return `WIFI:T:${enc};S:${esc(ssid)};${passPart}${hidPart};`;
 }
 
 export function buildVCardQrString(info: {
@@ -937,8 +938,8 @@ export function analyzeTextStatistics(text: string): TextStatistics {
     ? text.split(/\n+/).filter((p) => p.trim().length > 0).length
     : 0;
   const effectiveWords = chineseChars + englishWords;
-  const readTimeMin = +(effectiveWords / 450).toFixed(1);
-  const speakTimeMin = +(effectiveWords / 260).toFixed(1);
+  const readTimeMin = effectiveWords === 0 ? 0 : Math.max(0.1, +(effectiveWords / 450).toFixed(1));
+  const speakTimeMin = effectiveWords === 0 ? 0 : Math.max(0.1, +(effectiveWords / 260).toFixed(1));
 
   return {
     totalChars,
@@ -950,10 +951,10 @@ export function analyzeTextStatistics(text: string): TextStatistics {
     punctuation,
     lines,
     paragraphs,
-    readTimeMin: Math.max(0.1, readTimeMin),
-    readingMinutes: Math.max(0.1, readTimeMin),
-    speakTimeMin: Math.max(0.1, speakTimeMin),
-    speechMinutes: Math.max(0.1, speakTimeMin),
+    readTimeMin,
+    readingMinutes: readTimeMin,
+    speakTimeMin,
+    speechMinutes: speakTimeMin,
   };
 }
 

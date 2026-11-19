@@ -164,8 +164,18 @@ class AudioService {
    * 音频多轨合并拼接
    */
   static concatAudio({ tracks, sampleRate }) {
-    const totalFrames = tracks.reduce((sum, t) => sum + t.length, 0);
-    const numChannels = tracks[0].channels || tracks[0].channelData.length;
+    if (!Array.isArray(tracks) || tracks.length === 0) {
+      return { channelData: [], sampleRate, length: 0 };
+    }
+
+    const getTrackLength = (t) =>
+      t.length || (t.channelData && t.channelData[0] ? t.channelData[0].length : 0);
+
+    const totalFrames = tracks.reduce((sum, t) => sum + getTrackLength(t), 0);
+    const numChannels = Math.max(
+      ...tracks.map((t) => t.channels || (t.channelData ? t.channelData.length : 1)),
+      1
+    );
 
     const mergedChannels = [];
     for (let ch = 0; ch < numChannels; ch++) {
@@ -173,8 +183,10 @@ class AudioService {
       let offset = 0;
       for (const t of tracks) {
         const chData = t.channelData[ch] || t.channelData[0];
-        merged.set(chData instanceof Float32Array ? chData : new Float32Array(chData), offset);
-        offset += t.length;
+        if (chData) {
+          merged.set(chData instanceof Float32Array ? chData : new Float32Array(chData), offset);
+        }
+        offset += getTrackLength(t);
       }
       mergedChannels.push(merged);
     }

@@ -230,8 +230,9 @@ function createWindow() {
     autoHideMenuBar: true,
   });
 
+  const devPort = process.env.XC_DEV_PORT || '3000';
   if (isDev) {
-    mainWindow.loadURL('http://localhost:3000');
+    mainWindow.loadURL(`http://localhost:${devPort}`);
   } else {
     mainWindow.loadURL('app://localhost/index.html');
   }
@@ -263,7 +264,10 @@ function createWindow() {
   // 拦截非本地的外部页面导航跳转
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (url.startsWith('http:') || url.startsWith('https:')) {
-      if (!url.startsWith('http://localhost:3000') && !url.startsWith('http://127.0.0.1:3000')) {
+      if (
+        !url.startsWith(`http://localhost:${devPort}`) &&
+        !url.startsWith(`http://127.0.0.1:${devPort}`)
+      ) {
         event.preventDefault();
         shell.openExternal(url);
       }

@@ -61,6 +61,7 @@ interface SettingsModalProps {
   onClose: () => void;
   isDark: boolean;
   onToggleTheme: () => void;
+  onThemeSync?: (isDark: boolean) => void;
   onOpenUpdateModal: () => void;
 }
 
@@ -69,6 +70,7 @@ export default function SettingsModal({
   onClose,
   isDark,
   onToggleTheme,
+  onThemeSync,
   onOpenUpdateModal,
 }: SettingsModalProps) {
   const { lang, setLang, t } = useI18n();
@@ -100,7 +102,7 @@ export default function SettingsModal({
   const [clearingCache, setClearingCache] = useState(false);
   const [isElectron, setIsElectron] = useState(false);
   const [defaultDownloadsPath, setDefaultDownloadsPath] = useState<string>("");
-  const [appVersion, setAppVersion] = useState<string>("1.7.4");
+  const [appVersion, setAppVersion] = useState<string>("1.7.5");
 
   // 快照：记录打开弹窗时的已持久化状态，用于判断 isDirty 以及取消时还原
   const snapshotRef = useRef<{
@@ -344,6 +346,7 @@ export default function SettingsModal({
     // 2. 根据选定的模式持久化并生效主题
     const activeTheme = draftThemeMode === "dark" ? draftDarkTheme : draftWhiteTheme;
     applyCustomTheme(activeTheme);
+    onThemeSync?.(Boolean(activeTheme.isDark));
 
     // 3. 应用并持久化字体与肉球
     applyCustomFont(draftFont);
@@ -414,6 +417,7 @@ export default function SettingsModal({
       const snap = snapshotRef.current;
       const initialTheme = snap.themeMode === "dark" ? snap.darkTheme : snap.whiteTheme;
       previewTheme(initialTheme);
+      onThemeSync?.(Boolean(initialTheme.isDark));
       previewFont(snap.font);
       if (snap.lang !== lang) {
         setLang(snap.lang);
@@ -511,8 +515,10 @@ export default function SettingsModal({
               )}
             </div>
             <button
+              type="button"
               onClick={handleRequestClose}
-              className="p-1.5 rounded-full text-coconut-700 hover:text-coconut-950 dark:text-neutral-200 dark:hover:text-white hover:bg-coconut-200/60 dark:hover:bg-neutral-800 transition-colors flex-shrink-0 cursor-pointer"
+              aria-label={lang === "en" ? "Close settings" : "关闭设置"}
+              className="p-1.5 rounded-full bg-coconut-100/80 dark:bg-[#2E241E] border border-coconut-300/60 dark:border-[#5C4639] text-coconut-900 dark:text-white hover:bg-coconut-200 dark:hover:bg-[#3A2D25] transition-colors flex-shrink-0 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -772,12 +778,8 @@ export default function SettingsModal({
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {CAT_PAW_PRESETS.map((paw) => {
                       const isSelected = draftPaw === paw.id;
-                      const pawDisplayName = lang === "en"
-                        ? (paw.id === "1_tabby_brown" ? "Brown Tabby" : paw.id === "2_ginger_orange" ? "Ginger Orange" : paw.id === "3_calico_pink" ? "Calico Pink" : "Tuxedo Black")
-                        : paw.name;
-                      const pawDisplayTag = lang === "en"
-                        ? (paw.id === "3_calico_pink" ? "Default" : "Paw")
-                        : paw.tag;
+                      const pawDisplayName = lang === "en" ? (paw.nameEn || paw.name) : paw.name;
+                      const pawDisplayTag = lang === "en" ? (paw.tagEn || paw.tag) : paw.tag;
                       return (
                         <button
                           key={paw.id}
@@ -862,7 +864,7 @@ export default function SettingsModal({
                         <span className="w-4 h-4 rounded-md shadow-xs border border-black/15" style={{ backgroundColor: draftWhiteTheme.foreground }} />
                         <span className="w-4 h-4 rounded-md shadow-xs border border-black/15" style={{ backgroundColor: draftWhiteTheme.accent }} />
                         <span className="text-xs font-bold text-coconut-800 dark:text-neutral-200 ml-auto font-mono">
-                          #F8FAFC
+                          {draftWhiteTheme.background.toUpperCase()}
                         </span>
                       </div>
                     </button>
@@ -896,7 +898,7 @@ export default function SettingsModal({
                         <span className="w-4 h-4 rounded-md shadow-xs border border-white/10" style={{ backgroundColor: draftDarkTheme.foreground }} />
                         <span className="w-4 h-4 rounded-md shadow-xs border border-white/10" style={{ backgroundColor: draftDarkTheme.accent }} />
                         <span className="text-xs font-bold text-coconut-800 dark:text-neutral-200 ml-auto font-mono">
-                          #0F172A
+                          {draftDarkTheme.background.toUpperCase()}
                         </span>
                       </div>
                     </button>
@@ -928,7 +930,7 @@ export default function SettingsModal({
                     <button
                       type="button"
                       onClick={handleResetCurrentModeTheme}
-                      className="text-xs font-bold px-3 py-1.5 rounded-xl border border-coconut-300 dark:border-neutral-600 bg-white dark:bg-[#2E241E] hover:border-accent text-coconut-900 dark:text-neutral-100 flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                      className="text-xs font-bold px-3 py-1.5 rounded-xl border border-coconut-300 dark:border-[#5C4639] bg-white dark:bg-[#2E241E] hover:border-accent text-coconut-950 dark:text-white flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
                       title={lang === "en" ? "Reset to Default for this mode" : "恢复当前模式默认配色"}
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
@@ -1052,7 +1054,9 @@ export default function SettingsModal({
                           </span>
                         </div>
                         <div className="text-xs text-coconut-700 dark:text-neutral-200 mt-0.5">
-                          {lang === "en" ? "Standard UI fonts with live English rendering preview" : "标准清晰界面英文字体，实时预览与排版渲染"}
+                          {lang === "en"
+                            ? "6 distinct Chinese & English typography styles with live global rendering"
+                            : "6 款风格鲜明的中英双语界面字体（黑体 / 等线 / 书宋 / 楷体 / 幼圆 / 等宽），点击即可实时预览"}
                         </div>
                       </div>
                     </div>
@@ -1093,14 +1097,17 @@ export default function SettingsModal({
                             </div>
 
                             <div
-                              className="my-2 p-2.5 rounded-xl border border-coconut-200 dark:border-[#3D2E26] bg-coconut-50/70 dark:bg-[#140E0C] text-coconut-900 dark:text-neutral-100 text-xs sm:text-sm font-semibold truncate shadow-inner select-none font-mono"
+                              className="my-2 p-2.5 rounded-xl border border-coconut-200 dark:border-[#3D2E26] bg-coconut-50/70 dark:bg-[#140E0C] text-coconut-900 dark:text-neutral-100 text-xs sm:text-sm font-semibold truncate shadow-inner select-none"
                               style={{ fontFamily: f.fontFamily }}
                             >
-                              {f.sample}
+                              {lang === "en" ? (f.sampleEn || f.sample) : f.sample}
                             </div>
                           </div>
 
-                          <p className="text-[11px] text-coconut-700 dark:text-neutral-300 leading-snug mt-1">
+                          <p
+                            className="text-[11px] text-coconut-700 dark:text-neutral-300 leading-snug mt-1"
+                            style={{ fontFamily: f.fontFamily }}
+                          >
                             {lang === "en" ? (f.descEn || f.desc) : f.desc}
                           </p>
                         </button>
@@ -1270,7 +1277,7 @@ export default function SettingsModal({
               <button
                 type="button"
                 onClick={handleRequestClose}
-                className="px-4 py-2 rounded-xl border border-coconut-300 dark:border-neutral-600 hover:bg-coconut-100 dark:hover:bg-neutral-800 text-coconut-800 dark:text-neutral-200 text-xs sm:text-sm font-semibold transition-all cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-coconut-300 dark:border-[#5C4639] bg-white dark:bg-[#2E241E] hover:bg-coconut-100 dark:hover:bg-[#3A2D25] text-coconut-950 dark:text-white text-xs sm:text-sm font-semibold transition-all cursor-pointer"
               >
                 {lang === "en" ? "Cancel" : "取消"}
               </button>
@@ -1290,14 +1297,14 @@ export default function SettingsModal({
         {/* 放弃修改确认对话框 */}
         {showDiscardConfirm && (
           <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-            <div className="bg-white dark:bg-[#1E293B] border border-neutral-200 dark:border-neutral-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+            <div className="bg-[#FDFBF7] dark:bg-[#1E1713] border border-[#D2BCAB] dark:border-[#4D392E] rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
               <div className="flex items-center gap-3 text-amber-500">
                 <AlertCircle className="w-6 h-6 flex-shrink-0" />
-                <h3 className="text-base font-bold text-neutral-900 dark:text-white">
+                <h3 className="text-base font-bold text-coconut-950 dark:text-white">
                   {lang === "en" ? "Discard Unsaved Changes?" : "是否取消修改？"}
                 </h3>
               </div>
-              <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
+              <p className="text-xs sm:text-sm text-coconut-700 dark:text-darkbg-muted leading-relaxed">
                 {lang === "en"
                   ? "You have unsaved changes. Exiting now will discard all modifications and restore previous settings."
                   : "检测到未保存的设置变更。未保存的设置将不会生效，是否确定放弃修改并退出？"}
@@ -1306,7 +1313,7 @@ export default function SettingsModal({
                 <button
                   type="button"
                   onClick={() => setShowDiscardConfirm(false)}
-                  className="px-4 py-2 rounded-xl border border-neutral-300 dark:border-neutral-600 text-xs sm:text-sm font-semibold text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-coconut-300 dark:border-darkbg-border text-xs sm:text-sm font-semibold text-coconut-800 dark:text-darkbg-text hover:bg-coconut-100 dark:hover:bg-darkbg-subtle transition-colors cursor-pointer"
                 >
                   {lang === "en" ? "Keep Editing" : "继续编辑"}
                 </button>

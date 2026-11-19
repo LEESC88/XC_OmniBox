@@ -169,7 +169,7 @@ class SpreadsheetService {
 
       const colMap = {};
       unifiedHeaders.forEach((uh) => {
-        colMap[uh] = pt.fileHeader.indexOf(uh);
+        colMap[uh] = pt.validColumns.findIndex((c) => c.name === uh);
       });
 
       const dataRows = pt.rawRows.slice(headerRowIndex + 1);
@@ -690,11 +690,12 @@ class SpreadsheetService {
     const detected = SpreadsheetService.detectEncoding(buffer);
     const activeEncoding = overrideEncoding || detected.encoding;
 
-    // 2. 解码文本 (使用指定的编码或探测到的编码)
+    // 2. 解码文本 (使用指定的编码或探测到的编码，若存在匹配 BOM 则自动剥离)
     let fullText = '';
     try {
       const decoder = new TextDecoder(activeEncoding);
-      const sliceBuffer = detected.hasBom && !overrideEncoding ? buffer.subarray(detected.bomLength) : buffer;
+      const shouldStripBom = detected.hasBom && (!overrideEncoding || overrideEncoding === detected.encoding);
+      const sliceBuffer = shouldStripBom ? buffer.subarray(detected.bomLength) : buffer;
       fullText = decoder.decode(sliceBuffer);
     } catch (_) {
       fullText = new TextDecoder('utf-8').decode(buffer);
@@ -752,7 +753,8 @@ class SpreadsheetService {
     let fullText = '';
     try {
       const decoder = new TextDecoder(encodingToUse);
-      const sliceBuffer = detected.hasBom && !sourceEncoding ? buffer.subarray(detected.bomLength) : buffer;
+      const shouldStripBom = detected.hasBom && (!sourceEncoding || sourceEncoding === detected.encoding);
+      const sliceBuffer = shouldStripBom ? buffer.subarray(detected.bomLength) : buffer;
       fullText = decoder.decode(sliceBuffer);
     } catch (_) {
       fullText = new TextDecoder('utf-8').decode(buffer);

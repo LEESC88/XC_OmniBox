@@ -9,7 +9,6 @@ import {
   Maximize2,
   ShieldCheck,
   Stamp,
-  UploadCloud,
   FileImage,
   Trash2,
   Download,
@@ -35,6 +34,7 @@ import {
   createZipBundle,
 } from "@/lib/imageProcessor";
 import { downloadBlob } from "@/lib/api";
+import Dropzone from "@/components/Dropzone";
 import ScrollableTabNav from "@/components/ScrollableTabNav";
 import { useI18n } from "@/lib/i18n";
 import ImageCompareModal, { ImageCompareItem } from "@/components/ImageCompareModal";
@@ -128,6 +128,11 @@ export default function ImageToolbox({
   const handleTabSelect = (tab: ImageToolTab) => {
     setActiveTab(tab);
     setResults([]);
+    setQueueItems([]);
+    setQueueSummary({ total: 0, completed: 0, failed: 0, active: 0, waiting: 0, percent: 0, etaSeconds: null });
+    if (tab === "heic") {
+      setFiles((prev) => prev.filter(isHeicFile));
+    }
     setError(null);
     onTabChange?.(tab);
   };
@@ -168,8 +173,6 @@ export default function ImageToolbox({
 
   // --- 待处理图片缩略图映射 (消除 HEIC 与批量图片盲选黑盒) ---
   const [fileThumbnails, setFileThumbnails] = useState<Record<string, string>>({});
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 严格且大小写不敏感的 HEIC 后缀与类型识别
   const isHeicFile = (f: File) =>
@@ -223,36 +226,25 @@ export default function ImageToolbox({
     };
   }, [files]);
 
-  // 添加文件
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      let incoming = Array.from(e.target.files);
-      if (activeTab === "heic") {
-        incoming = incoming.filter(isHeicFile);
-        if (incoming.length === 0) {
-          setError(lang === "en" ? "Only .HEIC and .HEIF formats are supported here" : "此处仅支持上传苹果 .HEIC / .HEIF 格式照片");
-          return;
-        }
+  // 统一文件接收处理
+  const handleFilesSelected = (incomingRaw: File[]) => {
+    let incoming = incomingRaw;
+    if (activeTab === "heic") {
+      incoming = incoming.filter(isHeicFile);
+      if (incoming.length === 0) {
+        setError(lang === "en" ? "Only .HEIC and .HEIF formats are supported here" : "此处仅支持上传苹果 .HEIC / .HEIF 格式照片");
+        return;
       }
-      setFiles((prev) => [...prev, ...incoming]);
-      setError(null);
     }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (e.dataTransfer.files) {
-      let incoming = Array.from(e.dataTransfer.files);
-      if (activeTab === "heic") {
-        incoming = incoming.filter(isHeicFile);
-        if (incoming.length === 0) {
-          setError(lang === "en" ? "Only .HEIC and .HEIF formats are supported here" : "此处仅支持上传苹果 .HEIC / .HEIF 格式照片");
-          return;
-        }
-      }
+    if (results.length > 0) {
+      setFiles(incoming);
+      setResults([]);
+      setQueueItems([]);
+      setQueueSummary({ total: 0, completed: 0, failed: 0, active: 0, waiting: 0, percent: 0, etaSeconds: null });
+    } else {
       setFiles((prev) => [...prev, ...incoming]);
-      setError(null);
     }
+    setError(null);
   };
 
   const removeFile = (index: number) => {
@@ -260,6 +252,7 @@ export default function ImageToolbox({
     setFiles((prev) => prev.filter((_, i) => i !== index));
     if (fileToRemove) {
       setQueueItems((prev) => prev.filter((it) => it.name !== fileToRemove.name));
+      setResults((prev) => prev.filter((r) => r.originalName !== fileToRemove.name));
     }
   };
 
@@ -547,173 +540,36 @@ export default function ImageToolbox({
         onTabChange={(id) => handleTabSelect(id as ImageToolTab)}
       />
 
-      {/* 参数控制面板 (根据 activeTab 变化) */}
-      <div className="coconut-panel p-5 sm:p-6 space-y-4">
-        {/* 工具专属标题与简介 (与 PDF / 文档工坊对齐) */}
-        <div className="flex items-start sm:items-center gap-3.5 pb-2 border-b border-[#D2BCAB]/30 dark:border-[#4D392E]/40">
-          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-orange-500/25 flex items-center justify-center text-white flex-shrink-0">
-            {activeTab === "compress" && <Zap className="w-5 h-5 sm:w-6 sm:h-6" />}
-            {activeTab === "heic" && <Apple className="w-5 h-5 sm:w-6 sm:h-6" />}
-            {activeTab === "convert" && <RefreshCw className="w-5 h-5 sm:w-6 sm:h-6" />}
-            {activeTab === "resize" && <Maximize2 className="w-5 h-5 sm:w-6 sm:h-6" />}
-            {activeTab === "exif" && <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />}
-            {activeTab === "watermark" && <Stamp className="w-5 h-5 sm:w-6 sm:h-6" />}
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-base sm:text-lg font-extrabold text-coconut-900 dark:text-darkbg-text tracking-tight">
-              {activeTab === "compress" && (lang === "en" ? "Smart Image Compression" : "智能图片压缩")}
-              {activeTab === "heic" && (lang === "en" ? "Apple HEIC / HEIF Converter" : "苹果 HEIC / HEIF 照片转换")}
-              {activeTab === "convert" && (lang === "en" ? "Universal Image Format Converter" : "图片万能格式互转")}
-              {activeTab === "resize" && (lang === "en" ? "Image Resizer & Presets" : "图片尺寸调整与规格预设")}
-              {activeTab === "exif" && (lang === "en" ? "EXIF Privacy Scrubber" : "拍摄信息 (EXIF) 隐私抹除")}
-              {activeTab === "watermark" && (lang === "en" ? "Batch Image Watermark" : "图片防盗印章与水印制作")}
-            </h3>
-            <p className="text-xs text-coconut-600 dark:text-darkbg-muted leading-relaxed max-w-xl">
-              {activeTab === "compress" && (lang === "en" ? "TinyPNG-grade visual lossless compression, smart resampling to reduce image size by up to 80%." : "TinyPNG 级智能重采样与体积优化，支持按画质或目标大小压缩，最高瘦身 80% 且保留原画质。")}
-              {activeTab === "heic" && (lang === "en" ? "Batch convert iPhone HEIC photos into JPG, PNG or WebP with original resolution and color fidelity." : "批量将苹果 iPhone 专有 HEIC / HEIF 照片秒转为通用 JPG、PNG 或 WebP，保留完整分辨率与色彩。")}
-              {activeTab === "convert" && (lang === "en" ? "Fast batch conversion between JPG, PNG, WebP, ICO, BMP, TIFF, and AVIF formats." : "支持 JPG、PNG、WebP、ICO 图标、BMP、TIFF 等多格式极速并发转码，支持透明底填色。")}
-              {activeTab === "resize" && (lang === "en" ? "Scale images by exact pixels, percentage, or one-click presets for ID photos, avatars, and social media." : "按等比百分比或精确像素缩放，内置标准证件照、微信头像、小红书与高清壁纸一键排版预设。")}
-              {activeTab === "exif" && (lang === "en" ? "Scrub GPS coordinates, camera model, shooting timestamp, and private metadata before sharing online." : "一键抹除照片中记录的拍摄 GPS 定位坐标、相机型号、拍摄日期与隐藏敏感隐私元数据。")}
-              {activeTab === "watermark" && (lang === "en" ? "Add single or full-screen repeating anti-theft text or logo stamps with customizable rotation and opacity." : "支持添加单图或全屏平铺防盗文字、自定义 Logo 贴图，灵活调节透明度、旋转角与间距。")}
-            </p>
-          </div>
-        </div>
+      {/* 1. 拖拽批量上传区域（统一操作流：文件输入在前） */}
+      <Dropzone
+        accept={acceptTypes}
+        multiple={true}
+        selectedFiles={[]}
+        onFilesSelected={handleFilesSelected}
+        onClear={clearAllFiles}
+        title={
+          lang === "en"
+            ? "Click or drag images here (Batch processing supported)"
+            : "点击选择或拖拽图片到此处（支持多图批量处理）"
+        }
+        hint={
+          activeTab === "heic"
+            ? lang === "en"
+              ? "Supports Apple iPhone / iPad formats: .HEIC, .HEIF"
+              : "支持苹果 iPhone / iPad 原图实拍格式: .HEIC, .HEIF"
+            : lang === "en"
+              ? "Supports image formats: JPG, PNG, WebP, AVIF, BMP, SVG, HEIC, etc."
+              : "支持主流图片格式: JPG, PNG, WebP, AVIF, BMP, SVG, HEIC 等"
+        }
+        badge={activeTab === "heic" ? "HEIC / HEIF" : "BATCH IMAGE"}
+      />
 
-        {/* 1. 智能压缩面板 */}
-        {activeTab === "compress" && (
-          <CompressSettings
-            compressQuality={compressQuality}
-            onCompressQualityChange={setCompressQuality}
-            compressMaxResolution={compressMaxResolution}
-            onCompressMaxResolutionChange={setCompressMaxResolution}
-            compressTargetSizeMB={compressTargetSizeMB}
-            onCompressTargetSizeMBChange={setCompressTargetSizeMB}
-          />
-        )}
-
-        {/* 2. 苹果 HEIC 转换面板 */}
-        {activeTab === "heic" && (
-          <HeicSettings
-            heicTargetFormat={heicTargetFormat}
-            onHeicTargetFormatChange={setHeicTargetFormat}
-            heicQuality={heicQuality}
-            onHeicQualityChange={setHeicQuality}
-          />
-        )}
-
-        {/* 3. 万能格式互转面板 */}
-        {activeTab === "convert" && (
-          <ConvertSettings
-            convertTarget={convertTarget}
-            onConvertTargetChange={setConvertTarget}
-            convertQuality={convertQuality}
-            onConvertQualityChange={setConvertQuality}
-            convertBgColor={convertBgColor}
-            onConvertBgColorChange={setConvertBgColor}
-          />
-        )}
-
-        {/* 4. 尺寸缩放与预设面板 */}
-        {activeTab === "resize" && (
-          <ResizeSettings
-            resizeMode={resizeMode}
-            onResizeModeChange={setResizeMode}
-            resizePercent={resizePercent}
-            onResizePercentChange={setResizePercent}
-            customWidth={customWidth}
-            onCustomWidthChange={setCustomWidth}
-            customHeight={customHeight}
-            onCustomHeightChange={setCustomHeight}
-            lockAspect={lockAspect}
-            onLockAspectChange={setLockAspect}
-            selectedPreset={selectedPreset}
-            onSelectedPresetChange={setSelectedPreset}
-            presets={PRESETS}
-            fitMode={resizeFitMode}
-            onFitModeChange={setResizeFitMode}
-            padBgColor={resizePadBgColor}
-            onPadBgColorChange={setResizePadBgColor}
-          />
-        )}
-
-        {/* 5. EXIF 隐私抹除面板 */}
-        {activeTab === "exif" && <ExifSettings />}
-
-        {/* 6. 批量水印面板 */}
-        {activeTab === "watermark" && (
-          <WatermarkSettings
-            watermarkType={watermarkType}
-            onWatermarkTypeChange={setWatermarkType}
-            watermarkText={watermarkText}
-            onWatermarkTextChange={setWatermarkText}
-            watermarkTextColor={watermarkTextColor}
-            onWatermarkTextColorChange={setWatermarkTextColor}
-            watermarkFontSize={watermarkFontSize}
-            onWatermarkFontSizeChange={setWatermarkFontSize}
-            watermarkOpacity={watermarkOpacity}
-            onWatermarkOpacityChange={setWatermarkOpacity}
-            watermarkPos={watermarkPos}
-            onWatermarkPosChange={setWatermarkPos}
-            watermarkLogoFile={watermarkLogoFile}
-            onWatermarkLogoFileChange={setWatermarkLogoFile}
-          />
-        )}
-      </div>
-
-      {/* 拖拽批量上传区域 */}
-      <div
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
-        className="group relative overflow-hidden border-2 border-dashed border-[#D2BCAB]/70 dark:border-[#4D392E]/60 hover:border-amber-500/70 dark:hover:border-amber-500/70 bg-gradient-to-b from-[#FBF8F4]/80 to-[#F5ECE1]/60 dark:from-[#211713]/70 dark:to-[#18110D]/70 hover:from-[#FFFDF9] hover:to-[#FDF4EB] dark:hover:from-[#291D17] dark:hover:to-[#1F1511] rounded-3xl p-8 sm:p-11 text-center cursor-pointer transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-amber-900/5 select-none"
-      >
-        <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_40%,rgba(245,158,11,0.08),transparent_65%)]" />
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept={acceptTypes}
-          onChange={handleFileChange}
-          className="hidden"
-        />
-        <div className="relative flex flex-col items-center space-y-3.5">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center group-hover:scale-105 group-hover:-translate-y-0.5 transition-all duration-300 shadow-md shadow-orange-500/25">
-            <UploadCloud className="w-7 h-7" />
-          </div>
-          <div>
-            <p className="text-base font-bold text-coconut-900 dark:text-darkbg-text tracking-tight group-hover:text-amber-800 dark:group-hover:text-amber-300 transition-colors">
-              {lang === "en"
-                ? "Click or drag images here (Batch processing supported)"
-                : "点击选择或拖拽图片到此处（支持多图批量处理）"}
-            </p>
-            <p className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1 max-w-md mx-auto">
-              {activeTab === "heic"
-                ? lang === "en"
-                  ? "Supports Apple iPhone / iPad formats: .HEIC, .HEIF"
-                  : "支持苹果 iPhone / iPad 原图实拍格式: .HEIC, .HEIF"
-                : lang === "en"
-                ? "Supports image formats: JPG, PNG, WebP, AVIF, BMP, SVG, HEIC, etc."
-                : "支持主流图片格式: JPG, PNG, WebP, AVIF, BMP, SVG, HEIC 等"}
-            </p>
-          </div>
-          <div className="flex items-center flex-wrap justify-center gap-2 pt-1 text-[11px] font-medium text-coconut-600 dark:text-darkbg-muted">
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
-              ⚡ 本地硬件加速
-            </span>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-semibold">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              100% 本地沙盒保密
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 待处理文件预览列表 */}
+      {/* 2. 待处理文件预览列表 */}
       {files.length > 0 && (
         <div className="coconut-panel p-5 sm:p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <FileImage className="w-4 h-4 text-toast-500" />
+              <FileImage className="w-4 h-4 text-accent" />
               <span className="font-bold text-sm text-coconut-900 dark:text-darkbg-text">
                 {lang === "en"
                   ? `Selected Images (${files.length} · Total ${formatBytes(files.reduce((acc, f) => acc + f.size, 0))})`
@@ -722,7 +578,7 @@ export default function ImageToolbox({
             </div>
             <button
               onClick={clearAllFiles}
-              className="text-xs text-rose-500 hover:text-rose-600 flex items-center space-x-1 font-medium px-2.5 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+              className="text-xs text-rose-500 hover:text-rose-600 flex items-center space-x-1 font-medium px-2.5 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>{lang === "en" ? "Clear All" : "清空全部"}</span>
@@ -735,12 +591,13 @@ export default function ImageToolbox({
               const thumb = fileThumbnails[key];
               return (
                 <div
-                  key={idx}
+                  key={`${key}_${idx}`}
                   className="relative group bg-coconut-50/80 dark:bg-darkbg-subtle rounded-xl p-2 border border-coconut-200/80 dark:border-darkbg-border flex flex-col items-center text-center space-y-1"
                 >
                   <button
                     onClick={() => removeFile(idx)}
-                    className="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-rose-500 text-white shadow-xs opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    aria-label={lang === "en" ? `Remove ${file.name}` : `移除 ${file.name}`}
+                    className="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-rose-500 text-white shadow-xs opacity-80 sm:opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity z-10 cursor-pointer"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -759,6 +616,91 @@ export default function ImageToolbox({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* 3. 参数控制面板 (选定文件后渐进展开) */}
+      {files.length > 0 && (
+        <div className="coconut-panel p-5 sm:p-6 space-y-4 animate-fade-in">
+          {/* 1. 智能压缩面板 */}
+          {activeTab === "compress" && (
+            <CompressSettings
+              compressQuality={compressQuality}
+              onCompressQualityChange={setCompressQuality}
+              compressMaxResolution={compressMaxResolution}
+              onCompressMaxResolutionChange={setCompressMaxResolution}
+              compressTargetSizeMB={compressTargetSizeMB}
+              onCompressTargetSizeMBChange={setCompressTargetSizeMB}
+            />
+          )}
+
+          {/* 2. 苹果 HEIC 转换面板 */}
+          {activeTab === "heic" && (
+            <HeicSettings
+              heicTargetFormat={heicTargetFormat}
+              onHeicTargetFormatChange={setHeicTargetFormat}
+              heicQuality={heicQuality}
+              onHeicQualityChange={setHeicQuality}
+            />
+          )}
+
+          {/* 3. 万能格式互转面板 */}
+          {activeTab === "convert" && (
+            <ConvertSettings
+              convertTarget={convertTarget}
+              onConvertTargetChange={setConvertTarget}
+              convertQuality={convertQuality}
+              onConvertQualityChange={setConvertQuality}
+              convertBgColor={convertBgColor}
+              onConvertBgColorChange={setConvertBgColor}
+            />
+          )}
+
+          {/* 4. 尺寸缩放与预设面板 */}
+          {activeTab === "resize" && (
+            <ResizeSettings
+              resizeMode={resizeMode}
+              onResizeModeChange={setResizeMode}
+              resizePercent={resizePercent}
+              onResizePercentChange={setResizePercent}
+              customWidth={customWidth}
+              onCustomWidthChange={setCustomWidth}
+              customHeight={customHeight}
+              onCustomHeightChange={setCustomHeight}
+              lockAspect={lockAspect}
+              onLockAspectChange={setLockAspect}
+              selectedPreset={selectedPreset}
+              onSelectedPresetChange={setSelectedPreset}
+              presets={PRESETS}
+              fitMode={resizeFitMode}
+              onFitModeChange={setResizeFitMode}
+              padBgColor={resizePadBgColor}
+              onPadBgColorChange={setResizePadBgColor}
+            />
+          )}
+
+          {/* 5. EXIF 隐私抹除面板 */}
+          {activeTab === "exif" && <ExifSettings />}
+
+          {/* 6. 批量水印面板 */}
+          {activeTab === "watermark" && (
+            <WatermarkSettings
+              watermarkType={watermarkType}
+              onWatermarkTypeChange={setWatermarkType}
+              watermarkText={watermarkText}
+              onWatermarkTextChange={setWatermarkText}
+              watermarkTextColor={watermarkTextColor}
+              onWatermarkTextColorChange={setWatermarkTextColor}
+              watermarkFontSize={watermarkFontSize}
+              onWatermarkFontSizeChange={setWatermarkFontSize}
+              watermarkOpacity={watermarkOpacity}
+              onWatermarkOpacityChange={setWatermarkOpacity}
+              watermarkPos={watermarkPos}
+              onWatermarkPosChange={setWatermarkPos}
+              watermarkLogoFile={watermarkLogoFile}
+              onWatermarkLogoFileChange={setWatermarkLogoFile}
+            />
+          )}
         </div>
       )}
 
@@ -923,7 +865,10 @@ export default function ImageToolbox({
                       payload={{
                         blob: res.blob,
                         filename: res.newFilename,
-                        sourceTitle: `图片工坊 (${res.newFilename})`,
+                        sourceTitle:
+                          lang === "en"
+                            ? `Image Studio (${res.newFilename})`
+                            : `图片工坊 (${res.newFilename})`,
                       }}
                       lang={lang}
                     />

@@ -24,6 +24,19 @@ function getZipArchive() {
 
 class ImageService {
   /**
+   * 获取考虑 EXIF Orientation (5-8 为 90°/270° 旋转) 后的真实逻辑宽高
+   */
+  static getOrientedDimensions(meta, defaultW = 800, defaultH = 600) {
+    const rawW = (meta && meta.width) || defaultW;
+    const rawH = (meta && meta.height) || defaultH;
+    const isSwapped = ((meta && meta.orientation) || 0) >= 5;
+    return {
+      width: isSwapped ? rawH : rawW,
+      height: isSwapped ? rawW : rawH,
+    };
+  }
+
+  /**
    * 将多个 PNG 图像打包为 Windows 标准多尺寸 ICO 格式
    */
   static buildIcoBuffer(pngBuffers, sizes) {
@@ -65,7 +78,10 @@ class ImageService {
   }) {
     const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
     const originalSize = buffer.length;
-    const isPng = fileName.toLowerCase().endsWith('.png');
+    const lowerName = String(fileName || '').toLowerCase();
+    const isPng = lowerName.endsWith('.png');
+    const isWebp = lowerName.endsWith('.webp');
+    const isAvif = lowerName.endsWith('.avif');
 
     let pipeline = sharp(buffer).rotate();
 
@@ -87,6 +103,20 @@ class ImageService {
           quality: q,
           compressionLevel: 9,
           palette: true,
+        })
+        .toBuffer();
+    } else if (isWebp) {
+      compressedBuffer = await pipeline
+        .webp({
+          quality: q,
+          effort: 4,
+        })
+        .toBuffer();
+    } else if (isAvif) {
+      compressedBuffer = await pipeline
+        .avif({
+          quality: q,
+          effort: 4,
         })
         .toBuffer();
     } else {
@@ -207,8 +237,7 @@ class ImageService {
     const ext = fileName.split('.').pop() || 'png';
 
     const metadata = await sharp(buffer).metadata();
-    const origW = metadata.width || 100;
-    const origH = metadata.height || 100;
+    const { width: origW, height: origH } = ImageService.getOrientedDimensions(metadata, 100, 100);
 
     let w = origW;
     let h = origH;
@@ -307,8 +336,7 @@ class ImageService {
   }) {
     const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
     const metadata = await sharp(buffer).metadata();
-    const width = metadata.width || 800;
-    const height = metadata.height || 600;
+    const { width, height } = ImageService.getOrientedDimensions(metadata, 800, 600);
 
     const op = Math.max(0.05, Math.min(1.0, Number(opacity) || 0.4));
     const baseName = fileName.replace(/\.[^/.]+$/, '');
@@ -463,8 +491,7 @@ class ImageService {
   static async preprocessForOcr({ fileBuffer, maxDimension = 2000 }) {
     const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
     const meta = await sharp(buffer).metadata();
-    const origWidth = meta.width || 800;
-    const origHeight = meta.height || 600;
+    const { width: origWidth, height: origHeight } = ImageService.getOrientedDimensions(meta, 800, 600);
 
     let pipeline = sharp(buffer).rotate();
 
@@ -516,8 +543,7 @@ class ImageService {
   }) {
     const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
     const meta = await sharp(buffer).metadata();
-    const origW = meta.width || 400;
-    const origH = meta.height || 300;
+    const { width: origW, height: origH } = ImageService.getOrientedDimensions(meta, 400, 300);
     const validScale = Math.max(1, Math.min(4, Number(scale) || 2));
 
     // 安全边界限制：防止超大原图 4x 放大后超过 8192px 引发内存峰值

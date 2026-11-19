@@ -439,6 +439,7 @@ class UtilityService {
     const jsQR = require('jsqr');
     const buffer = Buffer.isBuffer(imageBuffer) ? imageBuffer : Buffer.from(imageBuffer);
     const { data, info } = await sharp(buffer)
+      .rotate()
       .ensureAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
@@ -460,22 +461,38 @@ class UtilityService {
    * 人民币大写金额转换
    */
   static convertNumberToChineseRMB({ money }) {
+    if (typeof money === 'string' && !money.trim()) {
+      return { uppercase: '零元整', valid: true };
+    }
     const num = Number(money);
     if (isNaN(num)) return { uppercase: '零元整', valid: false };
-    const fraction = ['角', '分'];
+    if (num === 0) return { uppercase: '零元整', valid: true };
     const digit = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖'];
     const unit = [
       ['元', '万', '亿'],
       ['', '拾', '佰', '仟'],
     ];
     const head = num < 0 ? '欠' : '';
-    let n = Math.abs(num);
-    let s = '';
-    for (let i = 0; i < fraction.length; i++) {
-      s += (digit[Math.floor(n * 10 * Math.pow(10, i)) % 10] + fraction[i]).replace(/零./, '');
+    const absVal = Math.abs(num);
+    const [intPartStr, decPartStr = ''] = absVal.toFixed(2).split('.');
+    const jiao = parseInt(decPartStr[0] || '0', 10);
+    const fen = parseInt(decPartStr[1] || '0', 10);
+
+    let decResult = '';
+    if (jiao === 0 && fen === 0) {
+      decResult = '整';
+    } else {
+      if (jiao > 0) decResult += digit[jiao] + '角';
+      else if (parseInt(intPartStr, 10) > 0) decResult += '零';
+      if (fen > 0) decResult += digit[fen] + '分';
     }
-    s = s || '整';
-    n = Math.floor(n);
+
+    let n = parseInt(intPartStr, 10);
+    if (n === 0) {
+      return { uppercase: head + (decResult === '整' ? '零元整' : decResult), valid: true };
+    }
+
+    let s = '';
     for (let i = 0; i < unit[0].length && n > 0; i++) {
       let p = '';
       for (let j = 0; j < unit[1].length && n > 0; j++) {
@@ -484,7 +501,7 @@ class UtilityService {
       }
       s = p.replace(/(零.)*零$/, '').replace(/^$/, '零') + unit[0][i] + s;
     }
-    const result = head + s.replace(/(零.)*零元/, '元').replace(/(零.)+/g, '零').replace(/^整$/, '零元整');
+    const result = head + s.replace(/(零.)*零元/, '元').replace(/(零.)+/g, '零').replace(/^整$/, '零元整') + decResult;
     return { uppercase: result, valid: true };
   }
 
@@ -506,15 +523,43 @@ class UtilityService {
     if (id[17] !== expected) {
       return { valid: false, error: `校验码错误 (末位应为 ${expected})` };
     }
+    const year = parseInt(id.slice(6, 10), 10);
+    const month = parseInt(id.slice(10, 12), 10);
+    const day = parseInt(id.slice(12, 14), 10);
+    const birthDate = new Date(year, month - 1, day);
+    if (
+      birthDate.getFullYear() !== year ||
+      birthDate.getMonth() + 1 !== month ||
+      birthDate.getDate() !== day
+    ) {
+      return { valid: false, error: '出生日期非法' };
+    }
+    const now = new Date();
+    let age = now.getFullYear() - year;
+    if (now.getMonth() < month - 1 || (now.getMonth() === month - 1 && now.getDate() < day)) {
+      age--;
+    }
+    const provMap = {
+      '11': '北京', '12': '天津', '13': '河北', '14': '山西', '15': '内蒙古',
+      '21': '辽宁', '22': '吉林', '23': '黑龙江', '31': '上海', '32': '江苏',
+      '33': '浙江', '34': '安徽', '35': '福建', '36': '江西', '37': '山东',
+      '41': '河南', '42': '湖北', '43': '湖南', '44': '广东', '45': '广西',
+      '46': '海南', '50': '重庆', '51': '四川', '52': '贵州', '53': '云南',
+      '54': '西藏', '61': '陕西', '62': '甘肃', '63': '青海', '64': '宁夏',
+      '65': '新疆', '71': '台湾', '81': '香港', '82': '澳门',
+    };
     const birthYear = id.slice(6, 10);
     const birthMonth = id.slice(10, 12);
     const birthDay = id.slice(12, 14);
+    const provinceCode = id.slice(0, 2);
     const gender = parseInt(id[16], 10) % 2 === 1 ? '男' : '女';
     return {
       valid: true,
       birthday: `${birthYear}-${birthMonth}-${birthDay}`,
       gender,
-      provinceCode: id.slice(0, 2),
+      provinceCode,
+      province: provMap[provinceCode] || '中国大陆',
+      age: Math.max(0, age),
     };
   }
 }

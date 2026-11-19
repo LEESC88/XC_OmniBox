@@ -8,11 +8,9 @@ import {
   RotateCcw,
   Download,
   Loader2,
-  UploadCloud,
   FileAudio,
   CheckCircle2,
   AlertCircle,
-  ShieldCheck,
 } from "lucide-react";
 import {
   decodeAudioFile,
@@ -25,6 +23,7 @@ import {
 import { formatBytes } from "@/lib/imageProcessor";
 import { downloadBlob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import Dropzone from "@/components/Dropzone";
 import SendToButton from "@/components/SendToButton";
 import { AudioStudioProps } from "./types";
 
@@ -110,6 +109,7 @@ export default function AudioTrimStudio({
   const handleTrimFileSelected = async (file: File) => {
     stopPlayback();
     setTrimFile(file);
+    setTrimResult(null);
     setIsProcessing(true);
     setProgressMsg(lang === "en" ? "Parsing and generating waveform..." : "正在解析并生成音频波形...");
     setError(null);
@@ -345,54 +345,20 @@ export default function AudioTrimStudio({
       )}
 
       {!trimBuffer ? (
-        <div
-          onClick={() => document.getElementById("audio-trim-upload")?.click()}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-              handleTrimFileSelected(e.dataTransfer.files[0]);
-            }
-          }}
-          className="group relative overflow-hidden border-2 border-dashed border-[#D2BCAB]/70 dark:border-[#4D392E]/60 hover:border-amber-500/70 dark:hover:border-amber-500/70 bg-gradient-to-b from-[#FBF8F4]/80 to-[#F5ECE1]/60 dark:from-[#211713]/70 dark:to-[#18110D]/70 hover:from-[#FFFDF9] hover:to-[#FDF4EB] dark:hover:from-[#291D17] dark:hover:to-[#1F1511] rounded-3xl p-8 sm:p-12 text-center cursor-pointer transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-amber-900/5 select-none"
-        >
-          <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_40%,rgba(245,158,11,0.08),transparent_65%)]" />
-          <input
-            id="audio-trim-upload"
-            type="file"
-            accept="audio/*"
-            onChange={(e) => {
-              if (e.target.files && e.target.files[0]) {
-                handleTrimFileSelected(e.target.files[0]);
-              }
-            }}
-            className="hidden"
-          />
-          <div className="relative flex flex-col items-center space-y-3.5">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center group-hover:scale-105 group-hover:-translate-y-0.5 transition-all duration-300 shadow-md shadow-orange-500/25">
-              <UploadCloud className="w-7 h-7" />
-            </div>
-            <div>
-              <div className="text-base font-bold text-coconut-900 dark:text-darkbg-text tracking-tight group-hover:text-amber-800 dark:group-hover:text-amber-300 transition-colors">
-                {lang === "en" ? "Click or drag audio file here to trim" : "点击或拖拽上传音频文件进行波形剪辑"}
-              </div>
-              <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1 max-w-md mx-auto">
-                {lang === "en"
-                  ? "Supports MP3, WAV, FLAC, AAC, M4A, OGG and other audio formats"
-                  : "支持 MP3, WAV, FLAC, AAC, M4A, OGG 等全部音乐格式"}
-              </div>
-            </div>
-            <div className="flex items-center flex-wrap justify-center gap-2 pt-1 text-[11px] font-medium text-coconut-600 dark:text-darkbg-muted">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
-                ⚡ WebAudio 毫秒级波形
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-semibold">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                100% 本地沙盒保密
-              </span>
-            </div>
-          </div>
-        </div>
+        <Dropzone
+          accept="audio/*"
+          multiple={false}
+          selectedFiles={[]}
+          onFilesSelected={(f) => f[0] && handleTrimFileSelected(f[0])}
+          onClear={() => {}}
+          title={lang === "en" ? "Click or drag audio file here to trim" : "点击或拖拽上传音频文件进行波形剪辑"}
+          hint={
+            lang === "en"
+              ? "Supports MP3, WAV, FLAC, AAC, M4A, OGG with millisecond waveform precision"
+              : "支持 MP3, WAV, FLAC, AAC, M4A, OGG 等常见音频格式，支持 WebAudio 毫秒级波形裁剪"
+          }
+          badge="WAVEFORM TRIM"
+        />
       ) : (
         <div className="coconut-panel p-5 sm:p-6 space-y-6">
           {/* File info and change audio */}
@@ -414,6 +380,8 @@ export default function AudioTrimStudio({
                 stopPlayback();
                 setTrimBuffer(null);
                 setTrimFile(null);
+                setTrimResult(null);
+                setError(null);
               }}
               className="px-3.5 py-1.5 rounded-xl border border-coconut-200 dark:border-darkbg-border text-xs font-semibold text-coconut-700 dark:text-darkbg-muted hover:bg-coconut-100/60 dark:hover:bg-darkbg-elevated hover:dark:text-darkbg-text"
             >

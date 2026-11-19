@@ -5,14 +5,12 @@ import {
   Film,
   Download,
   Loader2,
-  UploadCloud,
   CheckCircle2,
   AlertCircle,
   AlertTriangle,
   Play,
   Pause,
   Clock,
-  ShieldCheck,
 } from "lucide-react";
 import {
   decodeAudioFile,
@@ -23,6 +21,7 @@ import {
 import { formatBytes } from "@/lib/imageProcessor";
 import { downloadBlob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import Dropzone from "@/components/Dropzone";
 import SendToButton from "@/components/SendToButton";
 import { AudioStudioProps } from "./types";
 
@@ -206,69 +205,23 @@ export default function AudioExtractStudio({
         </div>
       )}
 
-      <div className="coconut-panel p-5 sm:p-6 space-y-4">
-        <div>
-          <h3 className="text-base sm:text-lg font-bold text-coconut-900 dark:text-darkbg-text">
-            {lang === "en" ? "Extract Audio from Video" : "视频提取纯音频"}
-          </h3>
-          <p className="text-xs sm:text-sm text-coconut-600 dark:text-darkbg-muted mt-1 leading-relaxed">
-            {lang === "en"
-              ? "Supports MP4, MOV, WebM, MKV and other video formats. Rapidly extract high-fidelity MP3 / WAV audio tracks."
-              : "支持 MP4, MOV, WebM, MKV 等常见视频格式，快速提取高保真 MP3 / WAV 纯音频音轨。"}
-          </p>
-        </div>
-
-        {!videoFile ? (
-          <div
-            onClick={() => document.getElementById("video-extract-upload")?.click()}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                handleVideoFileSelected(e.dataTransfer.files[0]);
-              }
-            }}
-            className="group relative overflow-hidden border-2 border-dashed border-[#D2BCAB]/70 dark:border-[#4D392E]/60 hover:border-amber-500/70 dark:hover:border-amber-500/70 bg-gradient-to-b from-[#FBF8F4]/80 to-[#F5ECE1]/60 dark:from-[#211713]/70 dark:to-[#18110D]/70 hover:from-[#FFFDF9] hover:to-[#FDF4EB] dark:hover:from-[#291D17] dark:hover:to-[#1F1511] rounded-3xl p-8 sm:p-12 text-center cursor-pointer transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-amber-900/5 select-none"
-          >
-            <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_40%,rgba(245,158,11,0.08),transparent_65%)]" />
-            <input
-              id="video-extract-upload"
-              type="file"
-              accept="video/*"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  handleVideoFileSelected(e.target.files[0]);
-                }
-              }}
-              className="hidden"
-            />
-            <div className="relative flex flex-col items-center space-y-3.5">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center group-hover:scale-105 group-hover:-translate-y-0.5 transition-all duration-300 shadow-md shadow-orange-500/25">
-                <Film className="w-7 h-7" />
-              </div>
-              <div>
-                <div className="text-base font-bold text-coconut-900 dark:text-darkbg-text tracking-tight group-hover:text-amber-800 dark:group-hover:text-amber-300 transition-colors">
-                  {lang === "en" ? "Click or drag video file here" : "点击或拖拽视频文件至此处"}
-                </div>
-                <div className="text-xs text-coconut-600 dark:text-darkbg-muted mt-1 max-w-md mx-auto">
-                  {lang === "en"
-                    ? "Supports MP4, MOV, WebM, MKV and other common video formats"
-                    : "支持 MP4, MOV, WebM, MKV 等常见视频格式"}
-                </div>
-              </div>
-              <div className="flex items-center flex-wrap justify-center gap-2 pt-1 text-[11px] font-medium text-coconut-600 dark:text-darkbg-muted">
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coconut-100/70 dark:bg-darkbg-card border border-coconut-200/80 dark:border-darkbg-border">
-                  ⚡ 原生无损音轨解复用
-                </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-semibold">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  100% 本地沙盒保密
-                </span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
+      {!videoFile ? (
+        <Dropzone
+          accept="video/*"
+          multiple={false}
+          selectedFiles={[]}
+          onFilesSelected={(f) => f[0] && handleVideoFileSelected(f[0])}
+          onClear={() => {}}
+          title={lang === "en" ? "Click or drag video file here" : "点击或拖拽视频文件至此处"}
+          hint={
+            lang === "en"
+              ? "Supports MP4, MOV, WebM, MKV and lossless audio demuxing locally"
+              : "支持 MP4, MOV, WebM, MKV 等常见视频格式，原声无损提取纯音轨"
+          }
+          badge="VIDEO TO AUDIO"
+        />
+      ) : (
+        <div className="coconut-panel p-5 sm:p-6 space-y-4">
             <div className="p-3 bg-coconut-50/70 dark:bg-darkbg-subtle rounded-2xl border border-coconut-200/70 dark:border-darkbg-border flex items-center justify-between">
               <div className="truncate pr-2">
                 <span className="text-xs font-semibold text-coconut-900 dark:text-darkbg-text truncate block">
@@ -281,11 +234,14 @@ export default function AudioExtractStudio({
               </div>
               <button
                 onClick={() => {
+                  videoRef.current?.pause();
+                  setIsPlayingClip(false);
                   setVideoFile(null);
                   if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
                   setVideoPreviewUrl(null);
                   setVideoDuration(0);
                   setExtractResult(null);
+                  setError(null);
                 }}
                 className="text-xs text-coconut-600 hover:text-coconut-900 dark:text-darkbg-muted dark:hover:text-darkbg-text flex-shrink-0"
               >
@@ -462,8 +418,7 @@ export default function AudioExtractStudio({
               </button>
             </div>
           </div>
-        )}
-      </div>
+      )}
 
       {/* Extract result card */}
       {extractResult && (

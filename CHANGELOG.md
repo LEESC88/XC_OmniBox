@@ -4,6 +4,22 @@ All notable updates and releases for **XC_OmniBox** will be documented in this f
 
 For the Chinese version, see [中文更新日志](CHANGELOG_ZH.md).
 
+## 🌟 v1.7.5 Comprehensive UI/UX Overhaul, Safety Confirmations & Multi-Engine Reliability Fixes
+
+### 🎨 UI/UX & Visual Craft Overhaul
+- **Warm Coconut & Obsidian Dark Theme System**: Refined light/dark surface tokens (`#F6F3EE` / `#131110`) with synchronized theme toggling across header, settings modal, and browser `themeColor` metadata, plus a complete `toast` 50–950 Tailwind palette.
+- **Streamlined Navigation & Collapsible Switcher**: Kept primary workspace navigation focused on the left rail while converting the top tool strip into a collapsible header bar for higher vertical screen efficiency.
+- **Unified Dropzone & Progressive Workflow Order**: Migrated all 6 Audio Toolbox studios onto the unified `<Dropzone />` component (`EXCEL / CSV` & normalized accept labels) and standardized Image, Audio Convert, and Word-to-PDF studios on a consistent *Dropzone first → progressive settings → execute → results* flow.
+- **Semantic Alert Hierarchy & Helpful Micro-Copy**: Migrated error/warning banners across 10+ studios from warm accent tokens to semantic `rose-*` styling and added inline guidance hints across AI, Spreadsheet, and Daily toolboxes.
+
+### 🛡️ Safety & Engine Reliability Fixes
+- **Destructive Action Confirmations**: Added secondary confirmation modals before permanently removing duplicate files or organizing directories in Daily Toolbox.
+- **Image & Audio Engine Fixes**: Added EXIF Orientation-aware dimension calculation (`getOrientedDimensions`), native WebP/AVIF compression support in `imageService`, and safer multi-channel/empty-track guards in `audioService.concatAudio`.
+- **Spreadsheet & Utility Accuracy**: Fixed unified column index mapping and BOM-aware encoding overrides in `spreadsheetService`; improved RMB uppercase rounding (`toFixed(2)`), Chinese ID date/age/province validation, EXIF rotation in color extraction, Wi-Fi QR escaping, and zero-word text reading-time calculation.
+- **Dev Port Conflict Auto-Resolution**: Added automatic free-port detection (`scripts/start-dev.js`, `XC_DEV_PORT` in `electron/main.js`, updated `.bat` launchers) so local dev sessions no longer collide on port `3000`.
+
+---
+
 ## 🌟 v1.7.4 High-Fidelity Markdown-to-Word (.docx) Engine Overhaul: Code Block Shielding, Inline HTML Badge Rendering, Recursive Inline Formatting & Table Layout Fixes
 
 - 🛡️ **Fenced & Inline Code Block Zero-Loss Shielding**:

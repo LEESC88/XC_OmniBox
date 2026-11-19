@@ -101,6 +101,7 @@ export default function PdfOrganizeStudio({
   // 左移
   const moveLeft = (index: number) => {
     if (index === 0) return;
+    if (executionResult) onReset();
     const next = [...pages];
     const temp = next[index];
     next[index] = next[index - 1];
@@ -111,6 +112,7 @@ export default function PdfOrganizeStudio({
   // 右移
   const moveRight = (index: number) => {
     if (index === pages.length - 1) return;
+    if (executionResult) onReset();
     const next = [...pages];
     const temp = next[index];
     next[index] = next[index + 1];
@@ -120,6 +122,7 @@ export default function PdfOrganizeStudio({
 
   // 单页顺时针旋转 +90°
   const rotatePageCw = (index: number) => {
+    if (executionResult) onReset();
     const next = [...pages];
     next[index] = {
       ...next[index],
@@ -130,6 +133,7 @@ export default function PdfOrganizeStudio({
 
   // 单页逆时针旋转 -90°
   const rotatePageCcw = (index: number) => {
+    if (executionResult) onReset();
     const next = [...pages];
     next[index] = {
       ...next[index],
@@ -140,6 +144,7 @@ export default function PdfOrganizeStudio({
 
   // 剔除单页 (防呆支持撤销)
   const deletePage = (index: number) => {
+    if (executionResult) onReset();
     const deleted = pages[index];
     setRecentlyDeleted({ item: deleted, index });
     setPages(pages.filter((_, i) => i !== index));
@@ -148,6 +153,7 @@ export default function PdfOrganizeStudio({
   // 撤销剔除单页
   const handleUndoDelete = () => {
     if (!recentlyDeleted) return;
+    if (executionResult) onReset();
     const next = [...pages];
     next.splice(recentlyDeleted.index, 0, recentlyDeleted.item);
     setPages(next);
@@ -156,21 +162,25 @@ export default function PdfOrganizeStudio({
 
   // 全局顺时针旋转 +90°
   const rotateAllCw = () => {
+    if (executionResult) onReset();
     setPages(pages.map((p) => ({ ...p, rotation: (p.rotation + 90) % 360 })));
   };
 
   // 全局逆时针旋转 -90°
   const rotateAllCcw = () => {
+    if (executionResult) onReset();
     setPages(pages.map((p) => ({ ...p, rotation: (p.rotation - 90 + 360) % 360 })));
   };
 
   // 倒序排列
   const reverseAll = () => {
+    if (executionResult) onReset();
     setPages([...pages].reverse());
   };
 
   // 重置回原始状态
   const resetToOriginal = () => {
+    if (executionResult) onReset();
     setRenderingPages(true);
     renderPdfPages(file, 85, undefined, false)
       .then((res) => {
@@ -288,8 +298,8 @@ export default function PdfOrganizeStudio({
       )}
 
       {renderError && (
-        <div className="p-4 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-2 text-toast-700 dark:text-toast-300 text-xs">
-          <AlertCircle className="w-4 h-4 flex-shrink-0 text-toast-500" />
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
           <span>{renderError}</span>
         </div>
       )}
@@ -515,8 +525,8 @@ export default function PdfOrganizeStudio({
 
       {/* 提示与错误 */}
       {error && (
-        <div className="p-3 bg-toast-50 dark:bg-toast-950/40 border border-toast-200 dark:border-toast-900/60 rounded-2xl flex items-center gap-2 text-toast-700 dark:text-toast-300 text-xs">
-          <AlertCircle className="w-4 h-4 flex-shrink-0 text-toast-500" />
+        <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
           <span>{error}</span>
         </div>
       )}
